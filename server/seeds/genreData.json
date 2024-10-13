@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Pop",
+    "description": "Popular music genre that originated in the 1950s." 
+  },
+  
+  {
+    "name": "Electronic",
+    "description": "Music that primarily involves electronic instruments."
+  }
+]

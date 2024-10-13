@@ -24,14 +24,17 @@ const userSchema = new Schema({
     type: Schema.Types.ObjectId, 
     ref: 'Song' 
   }],
+
   playlists: [{
     type: Schema.Types.ObjectId,
     ref: 'Playlist'
   }],
+
   searchHistory: [{
     type: Schema.Types.ObjectId,
     ref: 'Song'
   }],
+
   playCounts: [{
     song: { 
       type: Schema.Types.ObjectId,
@@ -50,7 +53,7 @@ const userSchema = new Schema({
     }
   }],
   recommendedSongs: [{
-    song: {  // Changed to singular 'song' for clarity
+    song: {  
       type: Schema.Types.ObjectId, 
       ref: 'Song' 
     },

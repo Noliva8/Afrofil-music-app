@@ -14,14 +14,16 @@ const songSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Album'
   },
-  genre: {
-    type: String,
-    required: true,
-    enum: ['Pop', 'Rock', 'Hip-Hop', 'Jazz', 'Classical'] // Example genres
-  },
+  
+genre: {
+  type: Schema.Types.ObjectId,
+  ref: 'Genre',
+  
+},
+
   duration: {
     type: Number,
-    required: true, // Ensure duration is positive
+    required: true, 
     min: 0
   },
   playCount: {
@@ -37,22 +39,28 @@ const songSchema = new Schema({
       },
       message: 'Release date cannot be in the future.'
     }
+
   },
+
   downloadCount: {
     type: Number,
     default: 0
   },
+
   likedByUsers: [{
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],
+
   trendingScore: {
     type: Number,
     default: 0
   },
+
   tags: [{
     type: String
   }],
+
   recommendedFor: [{
     user: { 
       type: Schema.Types.ObjectId, 
@@ -73,7 +81,13 @@ const songSchema = new Schema({
   }
 });
 
+// Add indexes for frequently queried fields
+songSchema.index({ title: 1 }); // Index for song title searches
+songSchema.index({ artists: 1 }); // Index for artist-based searches
+songSchema.index({ genre: 1 }); // Index for genre-based filters
+songSchema.index({ releaseDate: -1 }); // Index for sorting by release date (newest first)
+songSchema.index({ trendingScore: -1 }); // Index for sorting by trending songs
+
 const Song = model('Song', songSchema);
 
 module.exports = Song;
-

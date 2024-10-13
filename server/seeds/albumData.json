@@ -1,0 +1,13 @@
+[
+  {
+    "title": "Summer Hits",
+    "releaseDate": "2023-07-01T00:00:00Z", 
+    "coverImage": "/images/summer_hits.jpg" 
+  },
+
+  {
+    "title": "Chill Sessions",
+    "releaseDate": "2023-06-15T00:00:00Z",
+    "coverImage": "/images/chill_sessions.jpg"
+  }
+]

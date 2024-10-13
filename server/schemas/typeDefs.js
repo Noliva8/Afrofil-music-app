@@ -1,123 +1,121 @@
 const typeDefs = `
+scalar Date
 
 type User {
   _id: ID!
   username: String!
   email: String!
-  likedSongs: [Song]
-  playlists: [Playlist]
+  likedSongs: [Song!]!
+  playlists: [Playlist!]!
   searchHistory: [Song]
-  playCounts: [PlaycountSchema]
-  downloads: [DownloadSchema]
-  recommendedSongs: [RecommendedSongsSchema]
-  createdAt: String!
+  playCounts: [PlayCount]
+  downloads: [Download]
+  recommendedSongs: [RecommendedSong]
+  createdAt: Date!
 }
 
-type PlaycountSchema {
+type PlayCount {
   song: Song
   count: Int
 }
 
-type DownloadSchema {  
+type Download {  
   song: Song
-  downloadedAt: String!
+  downloadedAt: Date!
 }
 
-type RecommendedSongsSchema {
+type RecommendedSong {
   song: Song 
   algorithm: String
 }
 
-
-
 type Song {
   _id: ID!
   title: String!
-  artist: Artist
-  album: Album
-  genre: String!
+  artists: [Artist!]!
+  album: Album!
+  genre: Genre!
   duration: Int!
   playCount: Int!
-  releaseDate: String! 
+  releaseDate: Date! 
   downloadCount: Int!
   likedByUsers: [User]
   trendingScore: Int!
   tags: [String!]
   recommendedFor: [Recommendation!]
   audioFilePath: String!
-  createdAt: String!
+  createdAt: Date!
 }
 
 type Recommendation {
-   user: User!
+  user: User!
   algorithm: String!
 }
 
-
 type Album {
+  _id: ID!
   title: String!
-  artist: String!
-  releaseDate: String!
+  artist: [Artist!]!
+  releaseDate: Date!
   songs: [Song]
-   genre: String!
-   coverImage: String!
-   createdAt: String!
+  genre: Genre!
+  coverImage: String!
+  createdAt: Date!
 }
 
 type Artist {
+  _id: ID!
   name: String!
   bio: String
   songs: [Song] 
   albums: [Album] 
-  createdAt: String!
+  createdAt: Date!
 }
 
 type Genre {
-  name: String!,
-  description: String!,
+  _id: ID!
+  name: String!
+  description: String!
   songs: [Song]
-  createdAt: String!,
+  createdAt: Date!
 }
 
-
 type Playlist {
+  _id: ID!
   title: String! 
   description: String!
-   songs: [Song]
-    createdBy: User
-    createdAt: String!
-
+  songs: [Song]
+  createdBy: User
+  createdAt: Date!
 }
 
 type Favorite {
-   user: User
-   songs: [Song]
-   albums: [Album]
-   playlists:[Playlist]
-    createdAt: String!
+  _id: ID!
+  user: User
+  songs: [Song]
+  albums: [Album]
+  playlists: [Playlist]
+  createdAt: Date!
 }
 
+type Comment {
+  _id: ID!
+  content: String! 
+  user: User
+  song: Song
+  createdAt: Date! 
+}
 
+type Query {
+  users: [User]
+  songs: [Song]
+  albums: [Album]
+  artists: [Artist]
+  genres: [Genre]
+  playlists: [Playlist]
+  comments: [Comment]
+}
 
-
-
-
-    type Query {
-    users: [User]
-    songs: [Song]
-    albums: [Album]
-    artists: [Artist]
-    gernes: [Genre]
-    playlists: [Playlist]
-
-  }
-
-
-
-  type Mutation {
-    createMatchup(tech1: String!, tech2: String!): Matchup
-    createVote(_id: String!, techNum: Int!): Matchup
-  }
 `;
 
 module.exports = typeDefs;

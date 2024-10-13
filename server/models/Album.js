@@ -6,10 +6,10 @@ const albumSchema = new Schema({
     required: true,
     trim: true
   },
-  artist: {
-    type: String,
-    required: true
-  },
+  artist: [{
+   type: Schema.Types.ObjectId,
+    ref: 'Artist'
+  }],
 
   releaseDate: {
     type: Date,
@@ -28,10 +28,9 @@ const albumSchema = new Schema({
   }],
   
   genre: {
-    type: String,
-    required: true
-  },
-  
+  type: Schema.Types.ObjectId,
+  ref: 'Genre'
+},
   coverImage: {
     type: String, // URL to the album cover image
     required: true

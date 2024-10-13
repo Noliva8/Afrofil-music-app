@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Song One",                       
+    "duration": 210,
+    "playCount": 67,
+    "releaseDate": "2023-10-01T00:00:00Z",
+    "tags": ["afro"],  
+    "audioFilePath": "/path/to/song1.mp3"
+  },
+  {
+    "title": "Song Two",                        
+    "duration": 210,
+    "playCount": 7,
+    "releaseDate": "2022-10-01T00:00:00Z",
+    "tags": ["R&B"], 
+    "audioFilePath": "/path/to/song2.mp3"
+  }
+]

@@ -13,6 +13,7 @@ const artistSchema = new Schema({
   songs: [{
     type: Schema.Types.ObjectId,
     ref: 'Song'
+   
   }],
   albums: [{
     type: Schema.Types.ObjectId,

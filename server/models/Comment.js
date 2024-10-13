@@ -15,14 +15,6 @@ const commentSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Song'
   },
-  playlist: {
-    type: Schema.Types.ObjectId,
-    ref: 'Playlist'
-  },
-  album: {
-    type: Schema.Types.ObjectId,
-    ref: 'Album'
-  },
   createdAt: {
     type: Date,
     default: Date.now
