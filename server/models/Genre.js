@@ -8,6 +8,7 @@ const genreSchema = new Schema({
   },
   description: {
     type: String
+    
   },
   songs: [{
     type: Schema.Types.ObjectId,

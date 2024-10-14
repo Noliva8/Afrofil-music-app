@@ -1,5 +1,5 @@
 const db = require('../config/connection');
-const { User, Song, Comment, Playlist, Genre, Artist, Album } = require('../models');
+const { User, Song, Comment, Playlist, Genre, Artist, Album, Favorite } = require('../models');
 const cleanDB = require('./cleanDB');
 
 // Part 1: Artist and their dependencies
@@ -23,6 +23,7 @@ db.once('open', async () => {
     await cleanDB('User', 'users');
     await cleanDB('Playlist', 'playlists');
     await cleanDB('Comment', 'comments');
+    await cleanDB('Favorite', 'favorites');
 
     // Part 1: Seed Artist, Album, Genre, and Songs
     // ----------------------------------------
@@ -37,19 +38,14 @@ db.once('open', async () => {
     const createdArtists = await Artist.create(artistSeeds);
 
     for (const artist of createdArtists) {
-      // Assign random genres to the artist
       const randomGenre = createdGenres[Math.floor(Math.random() * createdGenres.length)];
-
-      // Assign random albums to the artist
       const randomAlbum = createdAlbums[Math.floor(Math.random() * createdAlbums.length)];
 
-      // Add album reference to the artist
       await Artist.findByIdAndUpdate(
         artist._id,
         { $addToSet: { albums: randomAlbum._id, genres: randomGenre._id } }
       );
 
-      // Also add artist reference to the album
       await Album.findByIdAndUpdate(
         randomAlbum._id,
         { $addToSet: { artist: artist._id } }
@@ -59,17 +55,10 @@ db.once('open', async () => {
     // Step 4: Create Songs and associate with Artists, Albums, and Genres
     for (let i = 0; i < songSeeds.length; i++) {
       const songSeed = songSeeds[i];
-
-      // Randomly assign an artist from the createdArtists to the song
       const randomArtist = createdArtists[Math.floor(Math.random() * createdArtists.length)];
-
-      // Randomly assign a genre to the song
       const randomGenre = createdGenres[Math.floor(Math.random() * createdGenres.length)];
-
-      // Randomly assign an album to the song
       const randomAlbum = createdAlbums[Math.floor(Math.random() * createdAlbums.length)];
 
-      // Create the song and link it to the artist, genre, and album
       const createdSong = await Song.create({
         ...songSeed,
         artist: randomArtist._id,
@@ -77,43 +66,47 @@ db.once('open', async () => {
         album: randomAlbum._id
       });
 
-      // Step 5: Add the song reference to the artist, genre, and album's songs array
-      await Artist.findByIdAndUpdate(
-        randomArtist._id,
-        { $addToSet: { songs: createdSong._id } }
-      );
-
-      await Genre.findByIdAndUpdate(
-        randomGenre._id,
-        { $addToSet: { songs: createdSong._id } }
-      );
-
-      await Album.findByIdAndUpdate(
-        randomAlbum._id,
-        { $addToSet: { songs: createdSong._id } }
-      );
+      await Artist.findByIdAndUpdate(randomArtist._id, { $addToSet: { songs: createdSong._id } });
+      await Genre.findByIdAndUpdate(randomGenre._id, { $addToSet: { songs: createdSong._id } });
+      await Album.findByIdAndUpdate(randomAlbum._id, { $addToSet: { songs: createdSong._id } });
     }
 
     // Part 2: Seed User and their dependencies
-    // ----------------------------------------
-    // Create Users
     const createdUsers = await User.create(userSeeds);
 
-    // Create Playlists and link them to users and add songs to the playlist
+    for (const user of createdUsers) {
+      // Randomly select songs to recommend
+      const recommendedSongs = [];
+      const recommendationAlgorithms = ['basedOnLikes', 'basedOnPlayCounts', 'trending', 'newReleases'];
+
+      // Let's say you want to recommend 3 songs per user
+      for (let i = 0; i < 3; i++) {
+        const randomSong = await Song.findOne().skip(Math.floor(Math.random() * songSeeds.length));
+        if (randomSong) {
+          recommendedSongs.push({
+            song: randomSong._id,
+            algorithm: recommendationAlgorithms[Math.floor(Math.random() * recommendationAlgorithms.length)]
+          });
+        }
+      }
+
+      // Update the user with recommended songs
+      await User.findByIdAndUpdate(user._id, {
+        $addToSet: { recommendedSongs: { $each: recommendedSongs } }
+      });
+    }
+
+    // Create Playlists
     for (let i = 0; i < playlistSeeds.length; i++) {
       const playlistSeed = playlistSeeds[i];
-
-      // Randomly assign a user to the playlist
       const randomUser = createdUsers[Math.floor(Math.random() * createdUsers.length)];
-
-      // Randomly assign a set of songs to the playlist
       const randomSongs = [];
-      for (let j = 0; j < 5; j++) { // Add 5 random songs to the playlist
+
+      for (let j = 0; j < 5; j++) {
         const randomSong = await Song.findOne().skip(Math.floor(Math.random() * songSeeds.length));
         randomSongs.push(randomSong._id);
       }
 
-      // Create the playlist and link it to the user
       const createdPlaylist = await Playlist.create({
         ...playlistSeed,
         user: randomUser._id,
@@ -121,30 +114,32 @@ db.once('open', async () => {
         songs: randomSongs
       });
 
-      // Add the playlist reference to the user's playlists array
-      await User.findByIdAndUpdate(
-        randomUser._id,
-        { $addToSet: { playlists: createdPlaylist._id } }
-      );
+      await User.findByIdAndUpdate(randomUser._id, { $addToSet: { playlists: createdPlaylist._id } });
     }
 
-    // Seed Comments and associate with users and playlists
+    // Create Comments
     for (let i = 0; i < commentSeeds.length; i++) {
       const commentSeed = commentSeeds[i];
-
-      // Randomly assign a user to the comment
       const randomUser = createdUsers[Math.floor(Math.random() * createdUsers.length)];
-
-      // Randomly assign a playlist to the comment
       const randomPlaylist = await Playlist.findOne().skip(Math.floor(Math.random() * playlistSeeds.length));
 
-      // Create the comment and link it to the user and playlist
       await Comment.create({
         ...commentSeed,
         user: randomUser._id,
         playlist: randomPlaylist._id
       });
     }
+
+    // Create Favorites
+    const randomUser = createdUsers[Math.floor(Math.random() * createdUsers.length)];
+    const randomAlbum = createdAlbums[Math.floor(Math.random() * createdAlbums.length)];
+    const randomPlaylist = await Playlist.findOne().skip(Math.floor(Math.random() * playlistSeeds.length));
+
+    await Favorite.create({
+      user: randomUser._id,  
+      albums: [randomAlbum._id],
+      playlists: [randomPlaylist._id],
+    });
 
     console.log('Seeding completed successfully!');
   } catch (error) {

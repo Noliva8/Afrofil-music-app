@@ -28,7 +28,8 @@ genre: {
   },
   playCount: {
     type: Number,
-    default: 0
+    default: 0,
+    required: true
   },
   releaseDate: {
     type: Date,

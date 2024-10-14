@@ -5,8 +5,8 @@ type User {
   _id: ID!
   username: String!
   email: String!
-  likedSongs: [Song!]!
-  playlists: [Playlist!]!
+  likedSongs: [Song]
+  playlists: [Playlist]
   searchHistory: [Song]
   playCounts: [PlayCount]
   downloads: [Download]
@@ -33,32 +33,32 @@ type Song {
   _id: ID!
   title: String!
   artists: [Artist!]!
-  album: Album!
-  genre: Genre!
+  album: Album
+  genre: Genre
   duration: Int!
   playCount: Int!
   releaseDate: Date! 
-  downloadCount: Int!
+  downloadCount: Int
   likedByUsers: [User]
-  trendingScore: Int!
-  tags: [String!]
-  recommendedFor: [Recommendation!]
+  trendingScore: Int
+  tags: [String]
+  recommendedFor: [Recommendation]
   audioFilePath: String!
   createdAt: Date!
 }
 
 type Recommendation {
-  user: User!
-  algorithm: String!
+  user: User
+  algorithm: String
 }
 
 type Album {
   _id: ID!
   title: String!
   artist: [Artist!]!
-  releaseDate: Date!
+  releaseDate: Date
   songs: [Song]
-  genre: Genre!
+  genre: Genre
   coverImage: String!
   createdAt: Date!
 }
@@ -75,7 +75,7 @@ type Artist {
 type Genre {
   _id: ID!
   name: String!
-  description: String!
+  description: String
   songs: [Song]
   createdAt: Date!
 }
@@ -83,7 +83,7 @@ type Genre {
 type Playlist {
   _id: ID!
   title: String! 
-  description: String!
+  description: String
   songs: [Song]
   createdBy: User
   createdAt: Date!
@@ -91,7 +91,7 @@ type Playlist {
 
 type Favorite {
   _id: ID!
-  user: User
+  user: User!
   songs: [Song]
   albums: [Album]
   playlists: [Playlist]
@@ -101,7 +101,7 @@ type Favorite {
 type Comment {
   _id: ID!
   content: String! 
-  user: User
+  user: User!
   song: Song
   createdAt: Date! 
 }
