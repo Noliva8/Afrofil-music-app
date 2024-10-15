@@ -1,5 +1,5 @@
 const db = require('../config/connection');
-const { User, Song, Comment, Playlist, Genre, Artist, Album, Favorite } = require('../models');
+const { User, Song, Comment, Playlist, Genre, Artist, Album } = require('../models');
 const cleanDB = require('./cleanDB');
 
 // Part 1: Artist and their dependencies
@@ -23,7 +23,7 @@ db.once('open', async () => {
     await cleanDB('User', 'users');
     await cleanDB('Playlist', 'playlists');
     await cleanDB('Comment', 'comments');
-    await cleanDB('Favorite', 'favorites');
+   
 
     // Part 1: Seed Artist, Album, Genre, and Songs
     // ----------------------------------------
@@ -129,17 +129,6 @@ db.once('open', async () => {
         playlist: randomPlaylist._id
       });
     }
-
-    // Create Favorites
-    const randomUser = createdUsers[Math.floor(Math.random() * createdUsers.length)];
-    const randomAlbum = createdAlbums[Math.floor(Math.random() * createdAlbums.length)];
-    const randomPlaylist = await Playlist.findOne().skip(Math.floor(Math.random() * playlistSeeds.length));
-
-    await Favorite.create({
-      user: randomUser._id,  
-      albums: [randomAlbum._id],
-      playlists: [randomPlaylist._id],
-    });
 
     console.log('Seeding completed successfully!');
   } catch (error) {
