@@ -1,5 +1,6 @@
 const typeDefs = `
 scalar Date
+scalar Upload
 
 type User {
   _id: ID!
@@ -44,6 +45,7 @@ type Song {
   tags: [String]
   recommendedFor: [Recommendation]
   audioFilePath: String!
+  audioHash: String! 
   createdAt: Date!
 }
 
@@ -67,6 +69,7 @@ type Artist {
   _id: ID!
   name: String!
   bio: String
+  coverImage: String
   songs: [Song] 
   albums: [Album] 
   createdAt: Date!
@@ -128,28 +131,99 @@ songsByArtist(name: String ): [Song]
   commentsForSong(songId: ID!): [Comment] 
 }
 
-type Mutation {
-  createUser(username: String!, password: String!, email: String!): User
-  updateUser(userId: ID!, newData: UserUpdateInput!): User
-  deleteUser(userId: ID!): String
-
-  createSong(title: String!, artistId: ID!, albumId: ID, genreId: ID): Song
-  updateSong(songId: ID!, updatedData: SongUpdateInput!): Song
-  deleteSong(songId: ID!): String
-
-  createAlbum(title: String!, artistId: ID!, releaseDate: String!): Album
-  updateAlbum(albumId: ID!, updatedData: AlbumUpdateInput!): Album
-  deleteAlbum(albumId: ID!): String
-
-  createComment(songId: ID!, userId: ID!, content: String!): Comment
-  updateComment(commentId: ID!, updatedContent: String!): Comment
-  deleteComment(commentId: ID!): String
-
-  createMatchup(title: String!, description: String!, options: [String!]!): Matchup
-  createVote(matchupId: ID!, option: String!): Matchup
+type AuthPayload {
+  token: String
+  user: User
 }
 
 
+
+
+
+type Mutation {
+  
+  createUser(
+    username: String!,
+     email: String!, 
+     password: String!
+     ): AuthPayload
+
+  login(
+    email: String!, 
+    password: String!): AuthPayload
+  updateUser(userId: ID!,
+   username: String!,
+  password: String!): User
+  deleteUser(userId: ID!): String
+
+
+  createArtist(
+    name: String!,
+    bio: String,
+    coverImage: Upload! 
+  ): Artist
+
+  updateArtist(
+    artistId: ID!,
+    bio: String,
+    coverImage: Upload! 
+  ): Artist
+
+  deleteArtist(
+    artistId: ID!,
+  ): Artist
+
+  createSong(
+    title: String!,
+     artistId: ID!,
+      albumId: ID, 
+      genreId: ID, 
+      duration: INT!, 
+      releaseDate: String!, 
+      audioFilePath: Upload!
+       ): Song
+
+  updateSong(songId: ID!,
+  title: String!,
+  releaseDate: String!, 
+  audioFilePath: Upload!
+   ): Song
+
+  deleteSong(artistId: ID!,
+  songId: ID!): Song
+
+
+
+  createAlbum(
+    title: String!, 
+   releaseDate: String!
+  artistId: ID!,
+  songId: ID, 
+  ): Album
+
+  updateAlbum(
+    albumId: ID!
+   title: String!, 
+   releaseDate: String!
+   songId: ID, 
+  ): Album
+
+  deleteAlbum(albumId: ID!): Album
+
+
+  createComment(
+    songId: ID!,
+     userId: ID!, 
+     content: String!): Comment
+
+  updateComment(
+    commentId: ID!, 
+    content: String!): Comment
+
+  deleteComment(commentId: ID!): Comment
+
+ 
+}
 `;
 
 module.exports = typeDefs;

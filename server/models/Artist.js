@@ -8,7 +8,11 @@ const artistSchema = new Schema({
     trim: true
   },
   bio: {
-    type: String
+    type: String,
+    maxlength: 500 
+  },
+  coverImage: {  
+    type: String, 
   },
   songs: [{
     type: Schema.Types.ObjectId,

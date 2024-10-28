@@ -1,4 +1,5 @@
 const { Schema, model } = require('mongoose');
+const crypto = require('crypto'); // Require crypto for hashing
 
 const songSchema = new Schema({
   title: {
@@ -12,15 +13,14 @@ const songSchema = new Schema({
   },
   album: {
     type: Schema.Types.ObjectId,
-    ref: 'Album'
+    ref: 'Album',
+    default: 'Unknown'
   },
-  
-genre: {
-  type: Schema.Types.ObjectId,
-  ref: 'Genre',
-  
-},
-
+  genre: {
+    type: Schema.Types.ObjectId,
+    ref: 'Genre',
+    default: 'Unknown'
+  },
   duration: {
     type: Number,
     required: true, 
@@ -40,28 +40,22 @@ genre: {
       },
       message: 'Release date cannot be in the future.'
     }
-
   },
-
   downloadCount: {
     type: Number,
     default: 0
   },
-
   likedByUsers: [{
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],
-
   trendingScore: {
     type: Number,
     default: 0
   },
-
   tags: [{
     type: String
   }],
-
   recommendedFor: [{
     user: { 
       type: Schema.Types.ObjectId, 
@@ -76,18 +70,34 @@ genre: {
     type: String,
     required: true
   },
+  audioHash: { 
+    type: String,
+    unique: true,
+    required: true
+  },
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
+// Pre-save hook to check for duplicates
+songSchema.pre('save', async function (next) {
+  if (this.isNew || this.isModified('audioHash')) { // Only check for new or modified entries
+    const existingSong = await this.constructor.findOne({ audioHash: this.audioHash });
+    if (existingSong) {
+      return next(new Error('This song has already been uploaded.'));
+    }
+  }
+  next();
+});
+
 // Add indexes for frequently queried fields
-songSchema.index({ title: 1 }); // Index for song title searches
-songSchema.index({ artists: 1 }); // Index for artist-based searches
-songSchema.index({ genre: 1 }); // Index for genre-based filters
-songSchema.index({ releaseDate: -1 }); // Index for sorting by release date (newest first)
-songSchema.index({ trendingScore: -1 }); // Index for sorting by trending songs
+songSchema.index({ title: 1 });
+songSchema.index({ artist: 1 }); // Corrected the field name to 'artist'
+songSchema.index({ genre: 1 });
+songSchema.index({ releaseDate: -1 });
+songSchema.index({ trendingScore: -1 });
 
 const Song = model('Song', songSchema);
 

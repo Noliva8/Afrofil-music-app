@@ -4,6 +4,7 @@ const express = require('express');
 // --------------------
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
+const { graphqlUploadExpress } = require('graphql-upload');
 
 // import path
 // -----------
@@ -34,12 +35,29 @@ const server = new ApolloServer({
 });
 
 
+
+
+// Dynamically create the upload folder if it does not exist
+// ------------------------------------------------------
+
+const uploadDir = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Uploads directory created!');
+} else {
+  console.log('Uploads directory already exists.');
+}
+
+
 // function to start apollo server
 // -------------------------------
 
 const startApolloServer = async () => {
   await server.start();
-  
+
+  // Middleware to parse file uploads with graphql-upload
+  app.use(graphqlUploadExpress({ maxFileSize: 20 * 1024 * 1024, maxFiles: 10 })); // 20MB max size
+
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
   app.use('/graphql', expressMiddleware(server));
