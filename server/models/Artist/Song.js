@@ -1,5 +1,5 @@
-const { Schema, model } = require('mongoose');
-const crypto = require('crypto'); // Require crypto for hashing
+import { Schema, model } from 'mongoose';
+import crypto from 'crypto';
 
 const songSchema = new Schema({
   title: {
@@ -56,20 +56,12 @@ const songSchema = new Schema({
   tags: [{
     type: String
   }],
-  recommendedFor: [{
-    user: { 
-      type: Schema.Types.ObjectId, 
-      ref: 'User' 
-    },
-    algorithm: {
-      type: String, 
-      enum: ['basedOnLikes', 'basedOnPlayCounts', 'trending', 'newReleases']
-    }
-  }],
-  audioFilePath: {
+  
+  audioFileUrl: {
     type: String,
     required: true
   },
+
   audioHash: { 
     type: String,
     unique: true,
@@ -94,11 +86,12 @@ songSchema.pre('save', async function (next) {
 
 // Add indexes for frequently queried fields
 songSchema.index({ title: 1 });
-songSchema.index({ artist: 1 }); // Corrected the field name to 'artist'
+songSchema.index({ artist: 1 }); 
 songSchema.index({ genre: 1 });
 songSchema.index({ releaseDate: -1 });
 songSchema.index({ trendingScore: -1 });
 
 const Song = model('Song', songSchema);
 
-module.exports = Song;
+
+export default Song;

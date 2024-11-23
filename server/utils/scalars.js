@@ -1,5 +1,4 @@
-const { GraphQLScalarType, Kind } = require('graphql');
-const { GraphQLUpload } = require('graphql-upload'); // Import GraphQLUpload
+import { GraphQLScalarType, Kind } from 'graphql';
 
 // Define the custom Date scalar
 const DateScalar = new GraphQLScalarType({
@@ -20,7 +19,4 @@ const DateScalar = new GraphQLScalarType({
 });
 
 // Export both the Date and Upload scalars
-module.exports = {
-  Date: DateScalar,
-  Upload: GraphQLUpload, 
-};
+export { DateScalar };

@@ -1,4 +1,5 @@
-const { Schema, model } = require('mongoose');
+
+import { Schema, model } from 'mongoose';
 
 const playlistSchema = new Schema({
   title: {
@@ -27,4 +28,4 @@ const playlistSchema = new Schema({
 
 const Playlist = model('Playlist', playlistSchema);
 
-module.exports = Playlist;
+export default Playlist;

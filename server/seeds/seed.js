@@ -1,29 +1,28 @@
-const db = require('../config/connection');
-const { User, Song, Comment, Playlist, Genre, Artist, Album } = require('../models');
-const cleanDB = require('./cleanDB');
+import db from '../config/connection.js';
+import { User, Song, Comment, Playlist, Genre, Artist, Album } from '../models/index.js';
+import dropCollection from './cleanDB.js';
 
 // Part 1: Artist and their dependencies
-const artistSeeds = require('./artistData.json');
-const songSeeds = require('./songData.json');
-const genreSeeds = require('./genreData.json');
-const albumSeeds = require('./albumData.json');
+import artistSeeds from './artistData.json';
+import songSeeds from './songData.json';
+import genreSeeds from './genreData.json';
+import albumSeeds from './albumData.json';
 
 // Part 2: User and their dependencies
-const userSeeds = require('./userData.json');
-const playlistSeeds = require('./playlistData.json');
-const commentSeeds = require('./commentData.json');
+import userSeeds from './userData.json';
+import playlistSeeds from './playlistData.json';
+import commentSeeds from './commentData.json';
 
 db.once('open', async () => {
   try {
     // Clean the database collections
-    await cleanDB('Artist', 'artists');
-    await cleanDB('Song', 'songs');
-    await cleanDB('Genre', 'genres');
-    await cleanDB('Album', 'albums');
-    await cleanDB('User', 'users');
-    await cleanDB('Playlist', 'playlists');
-    await cleanDB('Comment', 'comments');
-   
+    await dropCollection('Artist');
+    await dropCollection('Song');
+    await dropCollection('Genre');
+    await dropCollection('Album');
+    await dropCollection('User');
+    await dropCollection('Playlist');
+    await dropCollection('Comment');
 
     // Part 1: Seed Artist, Album, Genre, and Songs
     // ----------------------------------------

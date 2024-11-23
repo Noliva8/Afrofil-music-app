@@ -1,45 +1,44 @@
-const handleImageUpload = async (coverImage, uploadDir, artistId) => {
-  // Ensure the uploads directory exists
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('Uploads directory created!');
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import sharp from 'sharp';
+import { v4 as uuidv4 } from 'uuid';
+
+const client = new S3Client({
+  region: process.env.REGION,
+  credentials: {
+    accessKeyId: process.env.KEY_ID,
+    secretAccessKey: process.env.SECRET_ACCESS_KEY,
+  },
+});
+
+const handleImageUpload = async (file) => {
+  const { createReadStream, filename, mimetype } = await file;
+
+  // Define allowed MIME types
+  const allowedMimeTypes = ['image/jpeg', 'image/png'];
+  if (!allowedMimeTypes.includes(mimetype)) {
+    throw new Error("Invalid file type. Please upload a JPEG or PNG image.");
   }
 
-  const { createReadStream, filename, mimetype } = await coverImage;
-  
-  // Validate the file type
-  const validImageTypes = ['image/jpeg', 'image/png'];
-  if (!validImageTypes.includes(mimetype)) {
-    throw new Error('Invalid file type. Only JPEG and PNG are allowed.');
-  }
+  // Resize the image using Sharp
+  const resizedImageBuffer = await sharp(createReadStream())
+    .resize({ width: 600, height: 600 })
+    .toBuffer();
 
-  // Create a unique filename using the artistId and timestamp
-  const uniqueFilename = `artistCoverImage_${artistId || 'new'}_${Date.now()}_${filename}`;
-  const coverImagePath = path.join(uploadDir, uniqueFilename);
+  const fileName = `${uuidv4()}-${filename}`;
+  const params = {
+    Bucket: process.env.BUCKET_NAME,
+    Key: fileName,
+    Body: resizedImageBuffer,
+    ContentType: mimetype,
+    ACL: 'public-read', // Optional: make file public
+  };
 
-  // Read and validate the file stream
-  const fileStream = createReadStream();
-  const image = sharp();
-  fileStream.pipe(image);
+  // Upload to S3
+  const command = new PutObjectCommand(params);
+  await client.send(command);
 
-  // Retrieve metadata to validate dimensions
-  const { width, height, size } = await image.metadata();
-
-  // Check file size (between 100 KB and 5 MB)
-  if (size < 100 * 1024 || size > 5 * 1024 * 1024) {
-    throw new Error('File size must be between 100 KB and 5 MB.');
-  }
-
-  // Validate image dimensions
-  const minDimension = 600;
-  if (width < minDimension || height < minDimension) {
-    throw new Error(`Image dimensions must be at least ${minDimension}x${minDimension} pixels.`);
-  }
-
-  // Save the processed image to the filesystem
-  await image.toFile(coverImagePath);
-  
-  return coverImagePath;
+  // Return the file URL
+  return `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${fileName}`;
 };
 
-module.exports = handleImageUpload;
+export default handleImageUpload;

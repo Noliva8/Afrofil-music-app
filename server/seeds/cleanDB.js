@@ -1,7 +1,7 @@
-const models = require('../models');
-const db = require('../config/connection');
+import models from '../models/index.js';
+import db from '../config/connection.js';
 
-module.exports = async (modelName) => {
+const dropCollection = async (modelName) => {
   try {
     // Get the model from the models object
     const model = models[modelName];
@@ -25,3 +25,5 @@ module.exports = async (modelName) => {
     throw err; // Re-throw to allow further handling if necessary
   }
 };
+
+export default dropCollection;

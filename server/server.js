@@ -1,90 +1,97 @@
-const express = require('express');
+// Import necessary packages and functions
+import connectDB from './config/connection.js'; 
+import { expressMiddleware } from '@apollo/server/express4';
+import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
+import express from 'express';
+import { ApolloServer } from '@apollo/server';
+import path from 'path';
+import dotenv from 'dotenv';
+import { artist_typeDefs, artist_resolvers } from './schemas/Artist_schema/index.js';
+import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
+import { user_authMiddleware } from './utils/user_auth.js';
+import { artist_authMiddleware } from './utils/artist_auth.js';
+import merge from 'lodash.merge';
 
-// import appollo server
-// --------------------
-const { ApolloServer } = require('@apollo/server');
-const { expressMiddleware } = require('@apollo/server/express4');
-const { graphqlUploadExpress } = require('graphql-upload');
+// Initialize dotenv for environment variables
+dotenv.config();
 
-// import path
-// -----------
-const path = require('path');
-
-
-// import typesDefs and resolvers from schemas
-// -------------------------------------------
-const { typeDefs, resolvers } = require('./schemas');
-
-// connection
-// -----------
-const db = require('./config/connection');
-
-
-// import routes
-// -------------
-const routes = require('./routes');
-
+// Set up port and express app
 const PORT = process.env.PORT || 3001;
 const app = express();
 
-// define apollo server
-// ----------------------
+// File upload middleware for handling file uploads with GraphQL
+app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
+
+
+
+// combining typeDefs and resolvers
+// ------------------------------
+
+const typeDefs =[ artist_typeDefs, user_typeDefs];
+const resolvers = merge( artist_resolvers, user_resolvers );
+
+
+// Set up Apollo Server with GraphQL schema
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  csrfPrevention: false,
 });
 
-
-
-
-// Dynamically create the upload folder if it does not exist
-// ------------------------------------------------------
-
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log('Uploads directory created!');
-} else {
-  console.log('Uploads directory already exists.');
-}
-
-
-// function to start apollo server
-// -------------------------------
-
+// Start the Apollo Server and connect to the DB
 const startApolloServer = async () => {
-  await server.start();
+  try {
+    // Start Apollo Server
+    console.log('Apollo Server starting...');
+    await server.start();
+    console.log('Apollo Server started successfully');
 
-  // Middleware to parse file uploads with graphql-upload
-  app.use(graphqlUploadExpress({ maxFileSize: 20 * 1024 * 1024, maxFiles: 10 })); // 20MB max size
+    // Use Express middleware
+    app.use(express.urlencoded({ extended: false }));
+    app.use(express.json());
 
-  app.use(express.urlencoded({ extended: true }));
-  app.use(express.json());
-  app.use('/graphql', expressMiddleware(server));
-  app.use(routes);
+      // authentication middleware
+    // -----------------------------------------
 
- 
-  if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '../client/dist')));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-    });
-  } 
+   const combinedAuthMiddleware = (req) => {
+  const userContext = user_authMiddleware(req);
+  const artistContext = artist_authMiddleware(req);
   
-  db.once('open', () => {
+  return {
+    ...userContext,
+    ...artistContext,
+  };
+};
+
+app.use('/graphql', expressMiddleware(server, {
+  context: combinedAuthMiddleware
+}));
+
+// -------------------------------------------------------------
+
+
+    // Production setup: Serve static files if in production mode
+    if (process.env.NODE_ENV === 'production') {
+      app.use(express.static(path.join(__dirname, '../client/dist')));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+      });
+    }
+
+    // Attempt to connect to the database
+    console.log('Attempting to connect to the database...');
+    await connectDB();  // Call connectDB function to connect to MongoDB
+
+    // Start the server only after DB is connected
     app.listen(PORT, () => {
       console.log(`API server running on port ${PORT}!`);
       console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
     });
-  });
+
+  } catch (error) {
+    console.error('Error starting Apollo Server:', error);
+  }
 };
 
-db.once('open', () => {
-  app.listen(PORT, () => console.log(`Now listening on localhost: ${PORT}`));
-});
-
-
-// starting apololo server
-// ----------------------
-
+// Call the function to start the Apollo Server
 startApolloServer();

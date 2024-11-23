@@ -1,4 +1,6 @@
-const { Schema, model } = require('mongoose');
+
+
+import { Schema, model } from 'mongoose';
 
 const albumSchema = new Schema({
   title: {
@@ -25,15 +27,16 @@ const albumSchema = new Schema({
 
   songs: [{
     type: Schema.Types.ObjectId,
-    ref: 'Song'
+    ref: 'Song',
+     required: true, 
   }],
   
   genre: {
   type: Schema.Types.ObjectId,
   ref: 'Genre'
 },
-  coverImage: {
-    type: String, // URL to the album cover image
+  albumCoverImage: {
+    type: String, 
     required: true
   },
   createdAt: {
@@ -44,4 +47,5 @@ const albumSchema = new Schema({
 
 const Album = model('Album', albumSchema);
 
-module.exports = Album;
+
+export default Album;
