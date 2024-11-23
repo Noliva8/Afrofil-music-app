@@ -10,12 +10,14 @@ firstname: String!
 lastname: String!
 artistAka: String!
 email: String!
+password: String!
 role: String!
 profileImage: String
 coverImage: String
 followers: [User]
 createdAt: Date!
 }
+
 
 type Song {
   _id: ID!
@@ -79,6 +81,7 @@ type Mutation {
     artistAka: String!,
     email: String!, 
     password: String!
+    role: String!
      ): AuthPayload_artist
 
   artist_login(
