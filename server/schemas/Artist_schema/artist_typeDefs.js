@@ -14,6 +14,7 @@ password: String!
 role: String!
 profileImage: String
 coverImage: String
+songs: [Song]
 followers: [User]
 createdAt: Date!
 }
@@ -78,15 +79,28 @@ type Mutation {
   createArtist(
     firstname: String!,
     lastname: String!,
-    artistAka: String!,
+    artistAka: String,
     email: String!, 
-    password: String!
-    role: String!
+    password: String!,
+    role: String!,
+    bio: String,
      ): AuthPayload_artist
 
+     addProfileImage(
+       artistId: ID!,
+       profileImage: Upload
+     ): Artist
+
+     addCoverImage(
+      artistId: ID!,
+      coverImage: Upload
+     ): Artist
+
+
   artist_login(
-    email: String!, 
-    artistAka: String!, 
+    email: String!,
+    firstname: String!,
+    lastname: String!,
     password: String!): AuthPayload_artist
 
   updateArtist(

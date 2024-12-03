@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { AuthenticationError, signToken } from '../../utils/artist_auth.js';
 
 
-dotenv.config()
+dotenv.config();
 
 import {
   S3Client,
@@ -52,10 +52,18 @@ const resolvers = {
 // Creating Artist
 // ----------------
 
-createArtist: async (parent, { firstname, lastname, artistAka, email, password, role }) => {
+createArtist: async (parent, { firstname, lastname, artistAka, email, password, role, bio }) => {
   try{
 
-    const newArtist = await Artist.create({ firstname, lastname, artistAka, email, password, role });
+    const newArtist = await Artist.create({ 
+       firstname,
+      lastname,
+      artistAka,
+      email,
+      password,
+      role,
+      bio
+    });
 
     const token = signToken( newArtist );
 
@@ -67,6 +75,109 @@ createArtist: async (parent, { firstname, lastname, artistAka, email, password, 
   }
 },
 // ------------------------------------------------------------------------------
+
+// addProfileImage
+
+
+addProfileImage: async (parent, { artistId, profileImage }) => {
+  try{
+
+    const artist = await Artist.findById(artistId);
+console.log(artist);
+
+    if (!artist) {
+       throw new AuthenticationError('You must create the artist first!');
+
+    };
+   
+    
+const name = artist.artistAka;
+    
+ const MAX_FILE_SIZE = 5 * 1024 * 1024; 
+
+ const getFileSize = async (createReadStream) => {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+
+    const stream = createReadStream();
+    stream.on('data', (chunk) => {
+      size += chunk.length;
+    });
+
+    stream.on('end', () => {
+      resolve(size);
+    });
+
+    stream.on('error', (err) => {
+      reject(err);
+    });
+  });
+};
+
+const { createReadStream, filename } = await profileImage;
+ if (!filename) {
+      throw new Error("No file uploaded.");
+    }
+
+// Extract the MIME type based on the file extension using the mime package
+    const fileExtension = filename.split('.').pop().toLowerCase();
+    const mimeType = mime.getType(fileExtension);
+
+    // Validate the file type using the MIME type
+    if (!mimeType || !['image/jpeg', 'image/png', 'image/gif'].includes(mimeType)) {
+      throw new Error("Invalid file type. Only JPEG, PNG, or GIF images are allowed.");
+    }
+
+    // Check the file size
+    const fileSize = await getFileSize(createReadStream);
+    if (fileSize > MAX_FILE_SIZE) {
+      throw new Error(`File size exceeds the maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)} MB.`);
+    }
+
+
+      // Prepare the S3 upload parameters
+    const params = {
+      Bucket: process.env.BUCKET_NAME, 
+      Key: `plofile-image/${name}/${filename}`,
+      Body: createReadStream(),
+      ContentType: mimeType,
+    };
+
+
+    const upload = new Upload({
+      client: s3Client,
+      params: params,
+      partSize: 5 * 1024 * 1024, 
+      leavePartsOnError: false,
+    });
+
+    // Perform the upload
+    const uploadResult = await upload.done();
+
+    // Check if upload was successful
+    if (!uploadResult || !uploadResult.$metadata || uploadResult.$metadata.httpStatusCode !== 200) {
+      throw new Error("Failed to upload profile picture");
+    }
+
+    // Generate the file's URL
+    const fileUrl = `https://${process.env.BUCKET_NAME}.s3.${process.env.REGION}.amazonaws.com/${name}/${filename}`;
+
+
+     // Create the artist in your database (assuming Sequelize or another ORM)
+    const updatedArtist = await Artist.findByIdAndUpdate(
+      artistId,
+      { profileImage: fileUrl },
+      { new: true }
+    );
+    // Return the created artist object
+    return updatedArtist;
+
+  }catch(error){
+ console.error("Failed to add profile image:", error);
+        throw new Error("Failed to add profile image");
+  }
+},
+
 
  // Artist Login
    artist_login : async (parent, { firstname, lastname, email, password }) => {
@@ -102,6 +213,10 @@ createArtist: async (parent, { firstname, lastname, artistAka, email, password, 
 },
 
   // ----------------------------------------------------------------------
+
+
+
+
 
 
     // Update user (username or password)

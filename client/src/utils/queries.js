@@ -1,22 +1,110 @@
 import { gql } from '@apollo/client';
 
-export const QUERY_TECH = gql`
-  query tech {
-    tech {
-      _id
-      name
-    }
+
+// Users
+// -----
+
+export const QUERY_USERS = gql`
+query Users {
+  users {
+    username
+    email
+    createdAt
+    _id
   }
+}
+`
+;
+
+
+// songs
+// -----
+
+
+export const QUERY_SONGS = gql`
+query Songs {
+  songs {
+    title
+    tags
+    releaseDate
+    playCount
+    genre {
+      name
+      description
+      _id
+    }
+    likedByUsers {
+      username
+      _id
+    }
+    duration
+    downloadCount
+    createdAt
+    audioHash
+    audioFileUrl
+    artists {
+      artistAka
+      _id
+      profileImage
+      songs {
+        title
+        releaseDate
+        duration
+        genre {
+          name
+          description
+        }
+        createdAt
+        audioFileUrl
+      }
+    }
+    album {
+      title
+      songs {
+        title
+      }
+      releaseDate
+      coverImage
+      createdAt
+      albumCoverImage
+    }
+    trendingScore
+    _id
+  }
+}
 `;
 
-export const QUERY_MATCHUPS = gql`
-  query matchups($_id: String) {
-    matchups(_id: $_id) {
+
+
+// playlist
+// --------
+export const QUERY_PLAYLIST = gql`
+query Playlists {
+  playlists {
+    title
+    description
+    createdBy {
+      username
+      createdAt
       _id
-      tech1
-      tech2
-      tech1_votes
-      tech2_votes
+    }
+    createdAt
+    _id
+    songs {
+      title
+      releaseDate
+      duration
+      createdAt
+      audioFileUrl
+      _id
+      artist {
+        artistAka
+        coverImage
+        _id
+      }
     }
   }
+}
 `;
+
+

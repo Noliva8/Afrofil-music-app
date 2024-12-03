@@ -1,0 +1,231 @@
+p{
+  color: white;
+  display: flex;
+  justify-content: center;
+  font-family: 'Montserrat Alternates', sans-serif;
+     font-size: 16px;
+     font-weight: 700;
+}
+
+
+
+.login-page{
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  background-color: #000000;;
+}
+
+.content{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.logo{
+    width: 200px;
+}
+
+/* Center the content */
+.content h2{
+  color: white;
+  font-family: 'Montserrat Alternates';
+  font-weight: 700;
+  text-wrap: nowrap; 
+
+}
+
+.content p{
+     color: white;
+    text-align: center;
+     font-family: 'Montserrat Alternates', sans-serif;
+     font-size: 16px;
+     font-weight: 700;
+}
+
+/* Style and position the buttons */
+.signbtn {
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+  position: absolute;
+  bottom: 30px;
+  width: 100%;
+  padding: 0 20px; 
+}
+
+.signbtn button {
+  padding: 20px 40px;
+  font-size: 14px;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-weight: 700; 
+  cursor: pointer;
+  background-color: transparent;
+  border: 2px solid white;
+  color: white;
+  border-radius: 30px;
+  transition: background-color 0.3s ease;
+  font-size: 1.2rem;
+}
+
+
+.signbtn button:hover {
+  background-color: #153e75;
+}
+
+#signUpOnly{
+    background-color: aliceblue;
+    color: black
+}
+
+
+
+.login-form{
+  width: 100%;
+  min-height: 100vh;
+  align-items: center;
+  position: relative;
+  background-color: #000000;;
+}
+
+
+.loginHeader{
+  display: flex;
+flex-direction: column;
+align-items: center;
+}
+
+.loginHeader h2{
+  color: white;
+  font-size: 20px;
+  font-family: 'Montserrat Alternates', sans-serif;
+}
+
+.loginForm, .signup-form {
+  width: 85%;
+  max-width: 400px; 
+  margin: 100px auto; 
+  display: flex;
+  flex-direction: column;
+  gap: 20px; 
+  padding: 20px;
+  border: 2px solid #f17721;
+  border-radius: 10px;
+  background-color: #1a1a1a;
+}
+
+.loginFormInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative
+}
+
+.loginFormInputs label {
+  color: white;
+  font-size: 16px;
+  font-family: 'Montserrat Alternates', sans-serif;
+}
+
+.loginFormInputs input {
+  padding: 10px 15px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background-color: #222; 
+  color: white;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 14px;
+   padding-right: 2rem; /* Make space for the icon */
+  box-sizing: border-box;
+}
+
+
+.loginFormInputs input:focus {
+  outline: none;
+  border-color: #f17721;
+  box-shadow: 0 0 5px rgba(242, 117, 33, 0.7); /
+}
+
+.loginForm button {
+  padding: 12px 20px;
+  background-color:white;
+  color: black;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.loginForm button:hover {
+  background-color: #d6631b;
+  transform: scale(1.02); 
+}
+
+.loginForm button:active {
+  transform: scale(0.98); 
+}
+
+.goBackLogin {
+  background: none !important;
+  border: none;
+  color: white !important;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.goBackLogin:hover {
+  text-decoration: none; /* Remove underline on hover for emphasis */
+  color: #d6631b; /* Optional: Darker shade for hover */
+}
+
+.goBackLogin:focus {
+  outline: none; /* Remove focus outline */
+}
+
+
+
+
+
+/* Style the password container to align icon */
+.password-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-container .toggle-password {
+  position: absolute;
+  right: 0.5rem; /* Adjust spacing from the right edge */
+  cursor: pointer;
+  color: #999; 
+}
+
+.password-container input {
+  flex: 1; /* Ensure input takes full width minus the icon */
+}
+
+/* Adjust for focus */
+.password-container input:focus + .toggle-password {
+  color: #333;
+}
+
+
+.customEye{
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  color: #999
+}
