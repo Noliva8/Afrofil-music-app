@@ -3,11 +3,10 @@ import { gql } from '@apollo/client';
 export const CREATE_USER = gql`
 mutation CreateUser($username: String!, $email: String!, $password: String!) {
   createUser(username: $username, email: $email, password: $password) {
-    token
+     userToken
     user {
       username
       email
-      createdAt
       _id
     }
   }
@@ -17,7 +16,7 @@ mutation CreateUser($username: String!, $email: String!, $password: String!) {
 export const LOGIN_USER = gql`
   mutation Login($email: String!, $password: String!) {
   login(email: $email, password: $password) {
-    token
+     userToken
     user {
       username
       email
@@ -56,3 +55,44 @@ mutation CreatePlaylist($title: String!, $createdBy: ID!, $description: String) 
   }
 }
 `;
+
+export const CREATE_ARTIST = gql`
+mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, $password: String!) {
+  createArtist(fullName: $fullName, artistAka: $artistAka, email: $email, password: $password) {
+    artist {
+      _id
+      artistAka
+      confirmed
+      role
+      fullName
+      email
+    }
+    artistToken
+  }
+}
+`;
+
+
+export const VERIFYING_EMAIL =gql`
+mutation verifyEmail($artistToken: String!) {
+  verifyEmail(artistToken: $artistToken) {
+    message
+    success
+  }
+}
+`
+
+export const ARTIST_LOGIN = gql`
+mutation Artist_login($email: String!, $password: String!) {
+  artist_login(email: $email, password: $password) {
+     artistToken
+    artist {
+       email
+      password
+      _id
+      fullName
+      artistAka
+  }
+}
+}
+`

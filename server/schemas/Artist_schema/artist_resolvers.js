@@ -1,11 +1,11 @@
 
-import  { Artist, Album, Song, Genre, User } from '../../models/Artist/index_artist.js';
+import  { Artist, Album, Song, User } from '../../models/Artist/index_artist.js';
 import { Upload } from "@aws-sdk/lib-storage";
 import GraphQLUpload from "graphql-upload/GraphQLUpload.mjs";
 import mime from "mime";
 import dotenv from 'dotenv';
-import { AuthenticationError, signToken } from '../../utils/artist_auth.js';
-
+import { AuthenticationError, signArtistToken } from '../../utils/artist_auth.js';
+import sendEmail from '../../utils/emailTransportation.js';
 
 dotenv.config();
 
@@ -40,40 +40,149 @@ const resolvers = {
 
 
 
-
-
-
-
   },
 
 
   Mutation: {
+createArtist: async (parent, { fullName, artistAka, email, password }) => {
+  try {
+    // Check if the artist already exists
+    const existingArtist = await Artist.findOne({ email });
+    if (existingArtist) {
+      throw new Error("Artist with this email already exists");
+    }
 
-// Creating Artist
-// ----------------
-
-createArtist: async (parent, { firstname, lastname, artistAka, email, password, role, bio }) => {
-  try{
-
-    const newArtist = await Artist.create({ 
-       firstname,
-      lastname,
+    // Create the new artist
+    const newArtist = await Artist.create({
+      fullName,
       artistAka,
       email,
       password,
-      role,
-      bio
+      confirmed: false,
+      role: 'artist'
     });
 
-    const token = signToken( newArtist );
+    // Generate the token for email verification
+    const artistToken = signArtistToken(newArtist);
 
-    return { token, newArtist }
+    // Create the verification link
+    const verificationLink = `http://localhost:3001/confirmation/${artistToken}`;
 
-  } catch(error){
- console.error("Failed to create artist:", error);
-        throw new Error("Failed to create artist");
+    // Send the response to the user immediately
+    // The email sending happens asynchronously in the background
+    setTimeout(async () => {
+      try {
+        // Send the verification email asynchronously
+        await sendEmail(
+          newArtist.email,
+          "Verify Your Email",
+          `
+            <p>Welcome to AfroFeel, ${newArtist.fullName}!</p>
+            <p>Please click the link below to verify your email:</p>
+            <a href="${verificationLink}">Verify Email</a>
+          `
+        );
+      } catch (emailError) {
+        console.error("Error sending verification email:", emailError);
+        // Optionally, log the error or handle retries
+      }
+    }, 0);
+
+    // Explicitly include the 'confirmed' field in the return object
+    return {
+      artistToken,
+      confirmed: newArtist.confirmed, 
+      email: newArtist.email, 
+      fullName: newArtist.fullName,
+      artistAka: newArtist.artistAka,
+      role: 'artist'
+    };
+  } catch (error) {
+    console.error("Failed to create artist:", error);
+    throw new Error("Failed to create artist");
   }
 },
+
+
+// resend verfication link
+// --------------------
+resendVerificationEmail: async (parent, { email }) => {
+  try {
+    // Find the artist by email
+    const artist = await Artist.findOne({ email });
+    if (!artist) {
+      throw new Error("Artist not found");
+    }
+
+    // Check if the email is already verified
+    if (artist.confirmed) {
+      return { success: false, message: "Email is already verified" };
+    }
+
+    // Generate a new token using signToken
+    const artistToken = signToken(artist);
+
+    // Construct the verification link
+    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${artistToken}`;
+
+ console.log(process.env.FRONTEND_URL) ;
+  console.log(verificationLink) ;
+
+    // Send the verification email
+    await sendEmail(artist.email, "Verify Your Email", `
+      <p>Hello, ${artist.fullName}!</p>
+      <p>Please click the link below to verify your email:</p>
+      <a href="${verificationLink}">Verify Email</a>
+    `);
+
+    return { success: true, message: "Verification email resent successfully" };
+  } catch (error) {
+    console.error("Failed to resend verification email:", error);
+    throw new Error("Failed to resend verification email");
+  }
+},
+
+
+
+
+verifyEmail: async (parent, { token }) => {
+  try {
+    // Verify the JWT token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Find the artist by ID
+    const artist = await Artist.findById(decoded._id);
+    if (!artist) {
+      throw new Error('Artist not found');
+    }
+
+    // Check if the artist is already confirmed
+    if (artist.confirmed) {
+      return { success: false, message: 'Email is already verified' };
+    }
+
+    // Update the `confirmed` field to true
+    artist.confirmed = true;
+    await artist.save();
+
+    return { success: true, message: 'Email verified successfully' };
+  } catch (error) {
+    console.error('Failed to verify email:', error);
+
+    // Handle different errors based on the error type or message
+    if (error.name === 'JsonWebTokenError' || error.message === 'invalid token') {
+      return { success: false, message: 'Invalid token. Please request a new verification email.' };
+    }
+    if (error.message === 'jwt expired') {
+      return { success: false, message: 'Verification token has expired. Please request a new one.' };
+    }
+
+    // Generic error message
+    return { success: false, message: 'An error occurred while verifying your email' };
+  }
+},
+
+
 // ------------------------------------------------------------------------------
 
 // addProfileImage
@@ -180,13 +289,11 @@ const { createReadStream, filename } = await profileImage;
 
 
  // Artist Login
-   artist_login : async (parent, { firstname, lastname, email, password }) => {
+   artist_login : async (parent, { email, password }) => {
   try {
-    // Step 1: Find the artist by email, firstname, and lastname
+    // Step 1: Find the artist by email
     const artist = await Artist.findOne({
-      email,
-      firstname,
-      lastname,
+      email
     });
 
     // Step 2: If no artist is found, throw an authentication error
@@ -213,11 +320,6 @@ const { createReadStream, filename } = await profileImage;
 },
 
   // ----------------------------------------------------------------------
-
-
-
-
-
 
     // Update user (username or password)
     updateUser: async (parent, { userId, username, password }) => {

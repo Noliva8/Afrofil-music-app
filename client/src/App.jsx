@@ -1,7 +1,9 @@
+
+
 // import './App.css';
 import './entry.css';
 import NavTabs from './components/NavTabs';
-
+import ProfileDropdown from './components/ProfileDropdown';
 import { Outlet } from 'react-router-dom';
 
 import {
@@ -43,7 +45,7 @@ function App() {
 
   return (
     <ApolloProvider client={client}>
-      {loggedIn && <NavTabs />} {/* Show NavTabs only if logged in */}
+      {loggedIn && <NavTabs /> && <ProfileDropdown />} 
       <div>
         <Outlet /> {/* Render the child routes */}
       </div>
@@ -52,3 +54,89 @@ function App() {
 }
 
 export default App;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ---------------------------------------------------------------------------
+// // import './App.css';
+// import './entry.css';
+// import NavTabs from './components/NavTabs';
+// import { Outlet } from 'react-router-dom';
+// // import ProfileDropdown from './components/ProfileDropdown';
+// import Auth from './utils/auth'; // Import Auth for authentication checks
+// import artist_auth from './utils/artist_auth';
+
+// function App() {
+//   const loggedIn = Auth.loggedIn(); // Check if a user is logged in
+//   const artistLoggedIn = artist_auth.isArtist(); 
+
+//   return (
+
+// <div className="entry">
+//   <div>
+//   <NavTabs />
+//      <Outlet />
+     
+//   </div>
+// </div>
+
+
+
+
+//     // <div className="entry">
+//     //   {artistLoggedIn ? (
+//     //     <div>
+//     //       <Outlet />
+//     //     </div>
+//     //   ) : loggedIn ? (
+//     //     <div>
+//     //       {/* <ProfileDropdown /> */}
+//     //       <Outlet />
+//     //       <NavTabs />
+//     //     </div>
+//     //   ) : (
+//     //     <Outlet />
+//     //   )}
+//     // </div>
+//   );
+// }
+
+// export default App;

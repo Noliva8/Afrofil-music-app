@@ -3,9 +3,10 @@ import logo from '../images/logo.png';
 import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
-import auth from '../utils/auth';
+import UserAuth from '../utils/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import ForArtistOnly from '../components/forArtistOnly';
 
 const LoginSignin = function () {
   // Page toggle state
@@ -39,8 +40,8 @@ const LoginSignin = function () {
       const { data } = await login({
         variables: { ...loginFormState },
       });
-      auth.login(data.login.token);
-      setLoginErrorMessage(''); // Clear error if successful
+      UserAuth.login(data.login.userToken);
+      setLoginErrorMessage(''); 
     } catch (e) {
       setLoginErrorMessage('Invalid email or password.');
       console.error(e);
@@ -69,7 +70,7 @@ const LoginSignin = function () {
       const { data } = await createUser({
         variables: { ...signupFormState },
       });
-      auth.login(data.createUser.token);
+      UserAuth.login(data.createUser.userToken);
       setSignupErrorMessage(''); // Clear error if successful
     } catch (e) {
       setSignupErrorMessage('Signup failed. Please ensure your details are correct.');
@@ -94,11 +95,12 @@ const LoginSignin = function () {
 
   return (
     <div>
+       <ForArtistOnly />
       {formDisplay === '' && (
         <div className="login-page">
           <div className="content">
             <img className="logo" src={logo} alt="logo" />
-            <h2>WELCOME TO AFROFEEL</h2>
+            <h1>WELCOME TO AFROFEEL</h1>
             <p>Join the community and feel the music</p>
           </div>
 

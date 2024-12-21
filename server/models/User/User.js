@@ -23,6 +23,12 @@ const userSchema = new Schema({
   match: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/ 
 },
 
+role: {
+type: String,
+  enum: ['user', 'admin'],
+  default: 'user'
+},
+
 following: [{ type: Schema.Types.ObjectId, ref: 'Artist' }],
   createdAt: {
     type: Date,

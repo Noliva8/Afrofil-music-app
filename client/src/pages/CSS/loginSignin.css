@@ -6,7 +6,14 @@ p{
      font-size: 16px;
      font-weight: 700;
 }
-
+h2{
+   color: white;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-weight: 700;
+  margin: 0; /* Remove default margin */
+  padding-bottom: 20px; /* Space between text and line */
+  text-align: center;
+}
 
 
 .login-page{
@@ -32,8 +39,9 @@ p{
 }
 
 /* Center the content */
-.content h2{
+.content h1{
   color: white;
+  font-size: 30px;
   font-family: 'Montserrat Alternates';
   font-weight: 700;
   text-wrap: nowrap; 
@@ -43,7 +51,7 @@ p{
 .content p{
      color: white;
     text-align: center;
-     font-family: 'Montserrat Alternates', sans-serif;
+     
      font-size: 16px;
      font-weight: 700;
 }
@@ -56,12 +64,13 @@ p{
   position: absolute;
   bottom: 30px;
   width: 100%;
+  
   padding: 0 20px; 
 }
 
 .signbtn button {
   padding: 20px 40px;
-  font-size: 14px;
+  font-size: 18px;
   font-family: 'Montserrat Alternates', sans-serif;
   font-weight: 700; 
   cursor: pointer;
@@ -80,7 +89,8 @@ p{
 
 #signUpOnly{
     background-color: aliceblue;
-    color: black
+    color: black;
+    font-size: 22px;
 }
 
 
@@ -228,4 +238,120 @@ align-items: center;
   margin-right: 10px;
   margin-bottom: 10px;
   color: #999
+}
+
+
+.sampleForm{
+  background-color: #d6631b !important;
+height: 100%;
+width: 100%;
+  
+}
+
+
+/* artist registration other styling
+----------------------------- /* */ */
+/* artist registration other styling */
+/* Container styling */
+.artistHome {
+  background-color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+ 
+  text-align: center;
+  box-sizing: border-box; /* Ensure padding is inside the container */
+}
+
+.content1 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+ 
+  margin-top: 20px; /* Space from other elements */
+  box-sizing: border-box;
+}
+/* Title styling */
+.artistHome h1 {
+  color: white;
+  font-size: 2rem; /* Scales well for larger screens */
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-weight: 700;
+  margin: 0; /* Remove default margin */
+  padding-bottom: 20px; /* Space between text and line */
+  text-align: center;
+  line-height: 1.2; /* Improve readability by adjusting line height */
+}
+
+/* Afrofeel color class */
+.afrofeelColor {
+  color: #D9AB23;
+}
+
+/* Line styling */
+.line {
+  width: 50%; 
+  max-width: 600px; 
+  margin-bottom: 20px;
+  height: 4px; 
+  background-color: #D9AB23;
+  border-radius: 2px;
+  animation: slideIn 1s ease-in-out forwards; /* Animate appearance */
+}
+
+/* Keyframe animation */
+@keyframes slideIn {
+  from {
+    width: 0;
+  }
+  to {
+    width: 50%; 
+  }
+}
+
+/* Media queries for responsiveness */
+
+/* For large screens (desktop) */
+@media (min-width: 1200px) {
+  .artistHome {
+    padding: 40px; /* Add more padding for spacious layout */
+  }
+  .artistHome h1 {
+    font-size: 3rem; /* Larger font size for large screens */
+  }
+  .line {
+    width: 40%; /* Slightly narrower line for large screens */
+  }
+}
+
+/* For medium screens (tablets) */
+@media (max-width: 768px) {
+  .artistHome {
+    padding: 30px; /* Adjust padding for medium screens */
+  }
+  .artistHome h1 {
+    font-size: 2rem; /* Scale down for medium screens */
+    padding-top: 20px;
+  }
+  .line {
+    width: 70%; /* Wider line for medium screens */
+  }
+}
+
+/* For small screens (mobile) */
+@media (max-width: 480px) {
+  .artistHome {
+    padding: 20px; /* Keep padding consistent for small screens */
+  }
+  .artistHome h1 {
+    font-size: 1.5rem; /* Smaller font size for mobile screens */
+    padding-top: 10px; /* Reduced padding for mobile */
+  }
+  .line {
+    width: 80%; /* Make the line wider for mobile */
+  }
 }

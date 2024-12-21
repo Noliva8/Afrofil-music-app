@@ -1,6 +1,6 @@
 
-import { User, Playlist, Comment,  LikedSongs, SearchHistory, PlayCount , Recommended, Download, Artist, Song, Genre, Album } from '../../models/User/user_index.js';
-import { signToken, AuthenticationError} from '../../utils/user_auth.js';
+import { User, Playlist, Comment,  LikedSongs, SearchHistory, PlayCount , Recommended, Download, Artist, Song, Album } from '../../models/User/user_index.js';
+import { signUserToken, AuthenticationError} from '../../utils/user_auth.js';
 
 
 const resolvers = {
@@ -25,7 +25,7 @@ songs: async () => {
     const songData = await Song.find({})
       .populate('artist') 
       .populate('album')
-      .populate('genre')
+     
       .populate('likedByUsers')
      return songData;
   } catch (error) {
@@ -43,7 +43,7 @@ albums: async () => {
     .populate('artists')
     .populate('songs')
     .sort({ createdAt: -1 })
-    .populate('genre');
+   
      return albumData;
   }catch(error){
     console.error("Error occurred during albums data fetching:", error);
@@ -66,23 +66,6 @@ console.error("Error occurred during artist data fetching:", error);
 },
 
 // ---------------------------------------------------------------------------
-
-
-genres: async () => {
-  try {
-    const genreData = await Genre.find({}).populate({
-      path: 'songs',
-      populate: 'album' 
-    });
-
-    return genreData;
-
-  } catch (error) {
-    console.error("Error occurred during genre data fetching:", error);
-    throw new Error("Could not fetch genre data");
-  }
-},
-
 // ------------------------------------------------------------------------
 
 playlists: async () => {
@@ -160,7 +143,7 @@ song: async (parent, { songId }) => {
 const song = await Song.findById({_id: songId})
 .populate('artist')
 .populate('album')
-.populate('genre')
+
 
  if (!song) {
       throw new Error(`song with ID ${songId} not found`);
@@ -195,7 +178,7 @@ album: async (parent, { albumId }) => {
     const album = await Album.findById({_id: albumId})
       .populate('songs') 
       .populate('artist') 
-      .populate('genre');
+      
 
     if (!album) {
       throw new Error(`Album with ID ${albumId} not found`);
@@ -244,7 +227,7 @@ songsByArtist: async (parent, { name }) => {
     // Fetch songs where the artist's name matches the provided name
     const songs = await Song.find({ artist: name })
       .populate('album')
-      .populate('genre');
+     
 
     if (songs.length === 0) {
       throw new Error(`No songs found for artist "${name}"`);
@@ -268,32 +251,6 @@ genre: async (parent, { genreId }) => {
     throw new Error(error.message);
   }
 },
-
-songsByGenre: async (parent, { name }) => {
-  try {
-    // Find the genre by name
-    const genre = await Genre.findOne({ genre: name }).populate({
-      path: 'songs',
-      populate: 'artist',
-    });
-
-    // Check if the genre was found
-    if (!genre) {
-      throw new Error(`Genre "${name}" not found`);
-    }
-
-    // Return the songs associated with the found genre
-    if (genre.songs.length === 0) {
-      throw new Error(`No songs found for genre "${name}"`);
-    }
-    
-    return genre.songs; // Return the array of songs
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
-
-
 
 playlist: async (parent, { playlistId }) => {
   try {
@@ -331,16 +288,22 @@ commentsForSong: async (parent, { songId }) => {
   Mutation: {
 // Create a new user
 
-    createUser: async (parent, { username, email, password }) => {
-      try {
-        const newUser = await User.create({ username, email, password });
-        const token = signToken(newUser);
-        return { token, newUser };
-      } catch (error) {
-        console.error("Error while trying to create the user:", error);
-        throw new Error("Failed to create the user.");
-      }
-    },
+   createUser: async (parent, { username, email, password }) => {
+  // Input validation
+  if (!username || !email || !password) {
+    throw new Error("All fields are required.");
+  }
+
+  try {
+    const newUser = await User.create({ username, email, password, role: 'user' });
+    const userToken = signUserToken(newUser);
+    return { userToken, newUser: newUser.select('-password') }; 
+
+  } catch (error) {
+    console.error("Error while trying to create the user:", error);
+    throw new Error("Failed to create the user.");
+  }
+},
 
     // Login user
     login: async (parent, { email, password }) => {
@@ -356,8 +319,8 @@ commentsForSong: async (parent, { songId }) => {
           throw new AuthenticationError('Incorrect password');
         }
 
-        const token = signToken(user);
-        return { token, user };
+        const userToken = signUserToken(user);
+        return { userToken, user };
       } catch (error) {
         console.error("Login failed:", error);
         throw new AuthenticationError('Login failed.');

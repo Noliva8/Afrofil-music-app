@@ -1,7 +1,10 @@
 import { GraphQLError } from 'graphql';
+import Artist from '../models/Artist/Artist.js';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const secret = 'ndicunguyemutoniazabe';
+const secret = process.env.JWT_SECRET_ARTIST;
 const expiration = '2h';
 
 export const AuthenticationError = new GraphQLError('Could not authenticate artist.', {
@@ -11,27 +14,44 @@ export const AuthenticationError = new GraphQLError('Could not authenticate arti
 });
 
 export const artist_authMiddleware = ({ req }) => {
-  let token = req.body.token || req.query.token || req.headers.authorization;
+  let artistToken = req.body.artistToken || req.query.artistToken || req.headers.authorization;
 
   if (req.headers.authorization) {
-    token = token.split(' ').pop().trim();
+    artistToken = artistToken.split(' ').pop().trim();
   }
 
-  if (!token) {
+  if (!artistToken) {
     return req;
   }
 
-  try {
-    const { data } = jwt.verify(token, secret, { maxAge: expiration });
+try {
+    const { data } = jwt.verify(artistToken, secret, { maxAge: expiration });
+    if (data.role !== 'artist') {
+      throw new Error('Invalid role for artist authentication');
+    }
     req.artist = data;
-  } catch {
-    console.log('Invalid token');
+  } catch (err) {
+    console.log('Invalid artist token:', err);
+    throw new GraphQLError('Authentication error: Invalid artist token', {
+      extensions: { code: 'UNAUTHENTICATED' },
+    });
   }
 
   return req;
 };
 
-export const signToken = ({ email, username, role, artistAka, _id,}) => {
-  const payload = { email, username, role, artistAka, _id };
+
+
+export const signArtistToken = ({ email, fullName, artistAka, _id, confirmed }) => {
+  
+  const payload = { 
+    email,        
+    fullName,    
+    role: 'artist', 
+    artistAka,    
+    confirmed,    
+    _id            
+  };
+
   return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
 };

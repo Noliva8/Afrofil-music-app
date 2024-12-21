@@ -1,17 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { FaHome, FaSearch, FaMusic, FaPlus, FaEllipsisH } from 'react-icons/fa'; // Import React Icons
 import Auth from '../utils/auth';
-import '../pages/CSS/NavTabs.css';
+import '../pages/CSS/NavTabs.css'; // Your CSS file
 
 export default function NavTabs() {
-  const navigate = useNavigate(); 
-  const logout = (event) => {
-    event.preventDefault();
-    Auth.logout();
-    navigate('/'); 
-  };
-
   const loggedIn = Auth.loggedIn();
-  const username = loggedIn ? Auth.getProfile().data.username : '';
 
   if (!loggedIn) {
     return (
@@ -20,45 +13,36 @@ export default function NavTabs() {
           <button className="btn btn-lg btn-light m-2">Login / Sign Up</button>
         </Link>
       </div>
-    ); // If not logged in, show login/signup button
+    );
   }
 
   return (
-    
-
     <>
-     <div className="welcome-section">
-        <span>Welcome, {username}</span>
-        <button className="btn btn-lg btn-light m-2" onClick={logout}>
-          Logout
-        </button>
-      </div>
-    
-
-    <nav className="nav-tabs">
-
-     
-
-
-      <div className="nav-links">
-        <Link to="/home">
-          <button type="button">Home</button>
-        </Link>
-        <Link to="/search">
-          <button type="button">Search</button>
-        </Link>
-        <Link to="/libraly">
-          <button type="button">Libraly</button>
-        </Link>
-        <Link to="/createPlaylist">
-          <button type="button">Playlist</button>
-        </Link>
-        <Link to="/more">
-          <button type="button">More</button>
-        </Link>
-      </div>
-    </nav>
-
-        </>
+      <nav className="nav-tabs">
+        <div className="nav-links">
+          {/* Each icon has a label */}
+          <Link to="/home" className="nav-item">
+            <FaHome size={24} />
+            <span>Home</span>
+          </Link>
+          <Link to="/search" className="nav-item">
+            <FaSearch size={24} />
+            <span>Search</span>
+          </Link>
+          <Link to="/libraly" className="nav-item">
+            <FaMusic size={24} />
+            <span>Library</span>
+          </Link>
+          <Link to="/createPlaylist" className="nav-item">
+            <FaPlus size={24} />
+            <span>Playlist</span>
+          </Link>
+          <Link to="/more" className="nav-item">
+            <FaEllipsisH size={24} />
+            <span>More</span>
+          </Link>
+        </div>
+      </nav>
+    </>
   );
 }

@@ -32,9 +32,8 @@ const albumSchema = new Schema({
   }],
   
   genre: {
-  type: Schema.Types.ObjectId,
-  ref: 'Genre'
-},
+   type: String
+ },
   albumCoverImage: {
     type: String, 
     required: true

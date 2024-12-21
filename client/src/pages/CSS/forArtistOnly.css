@@ -1,0 +1,16 @@
+.forArtistOnly{
+    padding: 16px 40px;
+  font-size: 18px;
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-weight: 700; 
+  cursor: pointer;
+  background-color: transparent;
+
+  color: white;
+  border-radius: 30px;
+  transition: background-color 0.3s ease;
+  font-size: 1.2rem;
+  position: absolute;
+  right: 0;
+  z-index: 99999
+}

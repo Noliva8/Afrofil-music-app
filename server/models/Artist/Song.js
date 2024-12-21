@@ -16,11 +16,9 @@ const songSchema = new Schema({
     ref: 'Album',
     default: 'Unknown'
   },
-  genre: {
-    type: Schema.Types.ObjectId,
-    ref: 'Genre',
-    default: 'Unknown'
-  },
+   genre: {
+   type: String
+ },
   duration: {
     type: Number,
     required: true, 

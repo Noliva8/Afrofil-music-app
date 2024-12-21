@@ -6,19 +6,26 @@ scalar Upload
 
 type Artist {
 _id: ID!
-firstname: String!
-lastname: String!
+fullName: String!
 artistAka: String!
 email: String!
-password: String!
-role: String!
+confirmed: Boolean!
+role: ArtistRole
+genre: [String],
+bio: String,
+country: String!,
+languages: [String],
+mood: [String],
 profileImage: String
 coverImage: String
 songs: [Song]
 followers: [User]
 createdAt: Date!
 }
-
+enum ArtistRole {
+  ARTIST
+  ADMIN
+}
 
 type Song {
   _id: ID!
@@ -44,19 +51,9 @@ type Album {
   artist: Artist!
   releaseDate: Date
   songs: [Song]
-  genre: Genre
   albumCoverImage: String!
   createdAt: Date!
 }
-
-type Genre {
-  _id: ID!
-  name: String!
-  description: String
-  songs: [Song]
-  createdAt: Date!
-}
-
 
 type Query {
   allArtists: [Artist]
@@ -65,26 +62,40 @@ type Query {
   
    albumOfArtist(artistId: ID!): Album
   
-  genreOfSongsOfArtist(songId: ID!, artistId: ID!): [Song]
-
 }
 
 type AuthPayload_artist {
-  token: String
+  artistToken: String!
   artist: Artist
+}
+
+
+type VerificationResponse {
+  success: Boolean!
+  message: String!
+}
+
+type ResendVerificationResponse {
+  success: Boolean!
+  message: String!
 }
 
 type Mutation {
   
-  createArtist(
-    firstname: String!,
-    lastname: String!,
-    artistAka: String,
-    email: String!, 
-    password: String!,
-    role: String!,
-    bio: String,
-     ): AuthPayload_artist
+ createArtist(
+ fullName: String!
+  artistAka: String!, 
+  email: String!,
+  password: String!,
+  role: String,
+  confirmed: Boolean
+
+): AuthPayload_artist
+
+ sendVerificationEmail(email: String!): Boolean
+ verifyEmail(token: String!): Boolean
+
+  resendVerificationEmail(email: String!): ResendVerificationResponse!
 
      addProfileImage(
        artistId: ID!,
@@ -99,14 +110,11 @@ type Mutation {
 
   artist_login(
     email: String!,
-    firstname: String!,
-    lastname: String!,
     password: String!): AuthPayload_artist
 
+
   updateArtist(
-    artistId: ID!,
-    firstname: String!,
-    lastname: String!,
+   fullName: String!
     artistAka: String!,
     email: String!,
     password: String!,
@@ -124,7 +132,7 @@ type Mutation {
     title: String!,
      artistId: ID!,
       albumId: ID, 
-      genreId: ID, 
+     genre: String,
       duration: Int!, 
       releaseDate: String!, 
       audioFileUrl: Upload!

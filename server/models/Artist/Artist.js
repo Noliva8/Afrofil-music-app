@@ -3,18 +3,11 @@ import { Schema, model } from 'mongoose';
 import bcrypt from 'bcrypt';
 
 const artistSchema = new Schema({
-  firstname: {
+  fullName: {
     type: String,
     required: true,
     trim: true
   },
-
-  lastname: {
-    type: String,
-    required: true,
-    trim: true
-  },
-
    artistAka: {
     type: String,
     required: true,
@@ -32,21 +25,32 @@ const artistSchema = new Schema({
   required: true,
   match: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/ 
 },
+  confirmed: {
+      type: Boolean,
+      default: false
+    },
 
 role: {
-  type: String,
-    required: true,
+type: String,
+  enum: ['artist', 'admin'],
+  default: 'artist'
 },
+
+ genre:{
+   type: [String],
+ },
 
   bio: {
     type: String,
     maxlength: 500 
   },
+  country: { type: String }, 
+  languages: { type: [String]},
+  mood: { type: [String] },
 
   profileImage: {  
     type: String, 
   },
-
   coverImage: {  
     type: String, 
   },

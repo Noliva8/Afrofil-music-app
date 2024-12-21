@@ -7,7 +7,14 @@ type User {
   _id: ID!
   username: String!
   email: String!
+  role: UserRole
+  following: [Artist]
   createdAt: Date!
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 type Playlist {
@@ -137,8 +144,8 @@ type Query {
  
 }
 
-type AuthPayload {
-  token: String
+type user_AuthPayload {
+  userToken: String
   user: User
 }
 
@@ -150,11 +157,11 @@ type Mutation {
     username: String!,
      email: String!, 
      password: String!
-     ): AuthPayload
+     ): user_AuthPayload
 
   login(
     email: String!, 
-    password: String!): AuthPayload
+    password: String!): user_AuthPayload
 
   updateUser(userId: ID!,
    username: String!,

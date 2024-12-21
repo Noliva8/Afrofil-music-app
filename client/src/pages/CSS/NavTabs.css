@@ -1,47 +1,71 @@
+
+button {
+  all: unset;
+}
+
+/* Navigation container */
 .nav-tabs {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  justify-content: flex-end;
-  padding: 1rem;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #1a1a1a;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  padding: 10px 0;
+  z-index: 10;
 }
 
-.welcome-section {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 1200px;
-  padding: 0.5rem;
-  font-size: 1.2rem;
-  color: #333;
-}
-
+/* Links container */
 .nav-links {
   display: flex;
   justify-content: space-around;
   width: 100%;
-  max-width: 1200px;
-  margin-top: 1rem;
+  max-width: 500px; 
 }
 
-.nav-links button {
-  padding: 0.5rem 1rem;
-  margin: 0 0.5rem;
-  font-size: 1rem;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.nav-links button:hover {
-  background-color: #0056b3;
-}
-
-.nav-links a {
+/* Each item: icon and text */
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
+  color: white;
+  font-size: 0.85rem; /* Font size for labels */
+  gap: 4px; /* Space between icon and text */
+  font-family: 'Montserrat Alternates', sans-serif;
+  font-weight: 600;
+}
+
+.nav-item:hover {
+  color: #007bff; /* Hover effect */
+}
+
+.nav-item:focus {
+  outline: none;
+}
+
+/* Icons styling */
+.nav-item svg {
+  font-size: 1.5rem; /* Icon size */
+}
+
+/* Text labels below icons */
+.nav-item span {
+  font-size: 0.8rem; /* Text size below icons */
+  margin-top: 2px;
+}
+
+/* For mobile views */
+@media (max-width: 768px) {
+  .nav-tabs {
+    padding: 8px 0;
+  }
+
+  .nav-item span {
+    font-size: 0.75rem; /* Adjust text size for smaller screens */
+  }
 }

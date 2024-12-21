@@ -11,6 +11,11 @@ import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
 import { user_authMiddleware } from './utils/user_auth.js';
 import { artist_authMiddleware } from './utils/artist_auth.js';
 import merge from 'lodash.merge';
+import cors from 'cors';
+import jwt from 'jsonwebtoken';
+import Artist from './models/Artist/Artist.js';
+
+
 
 // Initialize dotenv for environment variables
 dotenv.config();
@@ -21,7 +26,6 @@ const app = express();
 
 // File upload middleware for handling file uploads with GraphQL
 app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
-
 
 
 // combining typeDefs and resolvers
@@ -66,10 +70,40 @@ const startApolloServer = async () => {
 app.use('/graphql', expressMiddleware(server, {
   context: combinedAuthMiddleware
 }));
+app.use(cors('*'));
+
+
+// email  verfication
+// -----------------
+app.get('/confirmation/:artist_id_token', async (req, res) => {
+  try {
+    // Decode the token
+    const decoded = jwt.verify(req.params.artist_id_token, process.env.JWT_SECRET_ARTIST);
+
+    // Debugging: Log the decoded token
+    console.log(decoded);
+
+    // Check if the token contains the required structure
+    if (!decoded || !decoded.data || !decoded.data._id) {
+      throw new Error('Invalid token structure');
+    }
+
+    // Extract the artist ID
+    const { _id } = decoded.data;
+
+    // Update the artist's confirmation status
+    const artist = await Artist.findByIdAndUpdate(_id, { confirmed: true });
+
+  } catch (e) {
+    console.log('Error confirming email:', e);
+    res.status(400).json({ success: false, message: 'Error during verification' });
+  }
+
+  return res.redirect('http://localhost:3000/artist/login');
+});
+
 
 // -------------------------------------------------------------
-
-
     // Production setup: Serve static files if in production mode
     if (process.env.NODE_ENV === 'production') {
       app.use(express.static(path.join(__dirname, '../client/dist')));

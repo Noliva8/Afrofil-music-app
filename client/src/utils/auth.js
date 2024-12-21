@@ -1,46 +1,48 @@
 import { jwtDecode } from "jwt-decode";
 
-class Auth {
+class UserAuth {
   getProfile() {
     try {
-      const token = this.getToken();
-      if (!token) {
-        throw new Error("No token found");
+      const userToken = this.getToken();
+      if (!userToken) {
+        console.error("No user token found");
+        return null;
       }
-      return jwtDecode(token); // Use jwtDecode instead of decode
+      return jwtDecode(userToken);
     } catch (err) {
-      console.error("Invalid token: ", err.message);
+      console.error("Invalid user token:", err.message);
       return null;
     }
   }
 
   loggedIn() {
-    const token = this.getToken();
-    return token && !this.isTokenExpired(token) ? true : false;
+    const userToken = this.getToken();
+    return userToken && !this.isTokenExpired(userToken);
   }
 
   isTokenExpired(token) {
-    const decoded = jwtDecode(token); // Use jwtDecode instead of decode
-    if (decoded.exp < Date.now() / 1000) {
-      localStorage.removeItem('id_token');
-      return true;
+    try {
+      const decoded = jwtDecode(token);
+      return decoded.exp < Date.now() / 1000;
+    } catch (err) {
+      console.error("Error decoding token:", err.message);
+      return true; // Treat as expired
     }
-    return false;
   }
 
   getToken() {
-    return localStorage.getItem('id_token');
+    return localStorage.getItem("user_id_token"); // Use unique key
   }
 
   login(idToken) {
-    localStorage.setItem('id_token', idToken);
-    window.location.assign('/');
+    localStorage.setItem("user_id_token", idToken);
+    window.location.assign("/"); // Redirect to home
   }
 
   logout() {
-    localStorage.removeItem('id_token');
-    window.location.reload('/login');
+    localStorage.removeItem("user_id_token");
+    window.location.reload(); // Reload to reset state
   }
 }
 
-export default new Auth();
+export default new UserAuth();
