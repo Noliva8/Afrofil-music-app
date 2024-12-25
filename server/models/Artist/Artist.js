@@ -30,6 +30,17 @@ const artistSchema = new Schema({
       default: false
     },
 
+    selectedPlan: {
+      type: Boolean,
+      default: false
+    },
+
+    plan: {
+  type: String,
+  enum: ['FreePlan', 'PremiumPlan', 'ProPlan'],
+  default: 'FreePlan', 
+},
+
 role: {
 type: String,
   enum: ['artist', 'admin'],

@@ -11,7 +11,7 @@ import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
 import { user_authMiddleware } from './utils/user_auth.js';
 import { artist_authMiddleware } from './utils/artist_auth.js';
 import merge from 'lodash.merge';
-import cors from 'cors';
+// import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import Artist from './models/Artist/Artist.js';
 
@@ -70,7 +70,12 @@ const startApolloServer = async () => {
 app.use('/graphql', expressMiddleware(server, {
   context: combinedAuthMiddleware
 }));
-app.use(cors('*'));
+
+// app.use(cors({
+//   origin: 'http://localhost:3000', 
+//   credentials: true,            
+// }));
+
 
 
 // email  verfication

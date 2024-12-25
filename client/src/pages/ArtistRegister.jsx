@@ -1,85 +1,83 @@
-
-import '../pages/CSS/loginSignin.css';
-import logo from '../images/logo.png';
-import { useState } from 'react';
+import './CSS/signup.css'
+import logo from "../images/logo.png";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from '@apollo/client';
-import {  ARTIST_LOGIN, CREATE_ARTIST } from '../utils/mutations';
-import artist_auth from '../utils/artist_auth';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import { useMutation } from "@apollo/client";
+import { ARTIST_LOGIN, CREATE_ARTIST } from "../utils/mutations";
+import artist_auth from "../utils/artist_auth";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 
 // Material UI
-// ----------
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import Checkbox from '@mui/material/Checkbox';
-import CssBaseline from '@mui/material/CssBaseline';
-import Divider from '@mui/material/Divider';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import FormLabel from '@mui/material/FormLabel';
-import FormControl from '@mui/material/FormControl';
-import Link from '@mui/material/Link';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import Stack from '@mui/material/Stack';
-import MuiCard from '@mui/material/Card';
-import { styled } from '@mui/material/styles';
-import AppTheme from '../components/theme';
-import { SitemarkIcon } from '../components/themeCustomization/customIcon';
-
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import CssBaseline from "@mui/material/CssBaseline";
+import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
+import FormControl from "@mui/material/FormControl";
+// import Link from '@mui/material/Link';
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
+import Stack from "@mui/material/Stack";
+import MuiCard from "@mui/material/Card";
+import { styled } from "@mui/material/styles";
+import { Link } from "react-router-dom";
+import AppTheme from "../components/theme";
+import { SitemarkIcon } from "../components/themeCustomization/customIcon";
 
 const Card = styled(MuiCard)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  alignSelf: 'center',
-  width: '100%',
+  display: "flex",
+  flexDirection: "column",
+  alignSelf: "center",
+  width: "100%",
   padding: theme.spacing(4),
   gap: theme.spacing(2),
-  margin: 'auto',
+  margin: "auto",
+
   boxShadow:
-    'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
-  [theme.breakpoints.up('sm')]: {
-    width: '450px',
+    "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
+  [theme.breakpoints.up("sm")]: {
+    width: "450px",
   },
-  ...theme.applyStyles('dark', {
-    boxShadow:
-      'hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px',
-  }),
+  
+ 
 }));
 
 const SignUpContainer = styled(Stack)(({ theme }) => ({
-  height: 'calc((1 - var(--template-frame-height, 0)) * 100dvh)',
-  minHeight: '100%',
+  height: "calc((1 - var(--template-frame-height, 0)) * 100dvh)",
+  minHeight: "100%",
   padding: theme.spacing(2),
-  [theme.breakpoints.up('sm')]: {
+  [theme.breakpoints.up("sm")]: {
     padding: theme.spacing(4),
   },
-  '&::before': {
+  backgroundColor: '#242424',
+  
+  "&::before": {
     content: '""',
-    display: 'block',
-    position: 'absolute',
+    display: "block",
+    position: "absolute",
     zIndex: -1,
     inset: 0,
     backgroundImage:
-      'radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))',
-    backgroundRepeat: 'no-repeat',
-    ...theme.applyStyles('dark', {
+      "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
+    backgroundRepeat: "no-repeat",
+    ...theme.applyStyles("dark", {
       backgroundImage:
-        'radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))',
+        "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))",
     }),
   },
 }));
 
-
 export default function ArtistRegister() {
   const [signupFormState, setSignupFormState] = useState({
-    fullName: '',
-    artistAka: '',
-    email: '',
-    password: '',
+    fullName: "",
+    artistAka: "",
+    email: "",
+    password: "",
   });
-  const [signupErrorMessage, setSignupErrorMessage] = useState('');
+  const [signupErrorMessage, setSignupErrorMessage] = useState("");
   const [showPasswordSignup, setShowPasswordSignup] = useState(false);
   const [isTermsChecked, setIsTermsChecked] = useState(false);
   const [createArtist] = useMutation(CREATE_ARTIST);
@@ -112,33 +110,45 @@ export default function ArtistRegister() {
         variables: { ...signupFormState },
       });
 
-
-     console.log(data);
-
-      
-     artist_auth.login(data.createArtist.artistToken);
-
-
-      setSignupErrorMessage('');
-      setSignupFormState({ fullName: '', artistAka: '', email: '', password: '' });
+      artist_auth.login(data.createArtist.artistToken);
+      setSignupErrorMessage("");
+      setSignupFormState({
+        fullName: "",
+        artistAka: "",
+        email: "",
+        password: "",
+      });
+      navigate("/artist/login"); // Redirect to the login page after successful signup
     } catch (e) {
-      setSignupErrorMessage("Signup failed. Please ensure your details are correct.");
+      setSignupErrorMessage(
+        "Signup failed. Please ensure your details are correct."
+      );
       console.error(e);
     }
   };
 
   return (
     <AppTheme>
-      <SignUpContainer direction="column" justifyContent="space-between" bgcolor="#333">
+      <SignUpContainer className='signupage'
+        direction="column"
+        justifyContent="space-between"
+        bgcolor="#333"
+      >
         <Card variant="outlined">
           <SitemarkIcon />
-          <Typography component="h1" variant="h4" sx={{ fontSize: 'clamp(2rem, 10vw, 2.6rem)' }}>
+          <Typography
+            component="h1"
+            variant="h4"
+            sx={{ fontSize: "clamp(2rem, 10vw, 2.6rem)" }}
+            
+          >
             Sign up
           </Typography>
+
           <Box
             component="form"
             onSubmit={handleSignupSubmit}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
           >
             {/* Full Name */}
             <FormControl>
@@ -186,7 +196,7 @@ export default function ArtistRegister() {
                 name="password"
                 required
                 fullWidth
-                type={showPasswordSignup ? 'text' : 'password'}
+                type={showPasswordSignup ? "text" : "password"}
                 onChange={handleSignupChange}
                 value={signupFormState.password}
                 placeholder="••••••"
@@ -194,7 +204,7 @@ export default function ArtistRegister() {
                   endAdornment: (
                     <FontAwesomeIcon
                       icon={showPasswordSignup ? faEye : faEyeSlash}
-                      style={{ cursor: 'pointer', marginRight: '10px' }}
+                      style={{ cursor: "pointer", marginRight: "10px" }}
                       onClick={toggleSignupPasswordVisibility}
                     />
                   ),
@@ -217,12 +227,25 @@ export default function ArtistRegister() {
             <Button type="submit" fullWidth variant="contained">
               Sign up
             </Button>
-          </Box>
-          {signupErrorMessage && (
-            <Typography color="error" sx={{ textAlign: 'center', mt: 2 }}>
-              {signupErrorMessage}
+
+            {signupErrorMessage && (
+              <Typography color="error" sx={{ textAlign: "center", mt: 2 }}>
+                {signupErrorMessage}
+              </Typography>
+            )}
+
+            <Typography
+              component={Link}
+              to="/artist/login" 
+              variant="contained"
+              color="primary"
+              className='artistRegistAccount'
+              sx={{ textTransform: "none" }}
+            >
+              Already have an account?
             </Typography>
-          )}
+
+          </Box>
         </Card>
       </SignUpContainer>
     </AppTheme>

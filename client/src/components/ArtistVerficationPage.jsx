@@ -1,26 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import ArtistAuth from '../utils/artist_auth'; // Adjust the import based on your file structure
+import ArtistAuth from '../utils/artist_auth'; 
+import { useNavigate } from 'react-router-dom';
 
 const ArtistVerificationPage = () => {
   const [artistAka, setArtistAka] = useState('');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('Loading profile...');
+  const [loading, setLoading] = useState(true); // New loading state
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch artist profile from the token using ArtistAuth
     const profile = ArtistAuth.getProfile();
-
-    console.log('Fetched Profile:', profile); // Debugging: log the profile
+    console.log(profile);
 
     if (profile) {
-      setArtistAka(profile.data.artistAka);
-      setEmail(profile.data.email);
-      setStatus(''); // Remove the loading message once profile is set
+      const { artistAka, email, confirmed, selectedPlan } = profile.data;
+
+      // Set the artist's profile data
+      setArtistAka(artistAka);
+      setEmail(email);
+      setStatus(''); 
+      setLoading(false); // Set loading to false after fetching profile
+
+      // Redirect based on confirmation and selected plan
+      if (confirmed) {
+        if (selectedPlan) {
+          navigate('/artist/dashboard');
+        } else {
+          navigate('/artist/plan');
+        }
+      }
     } else {
       setStatus('There was an issue with your token. Please try again later.');
+      setLoading(false); // Stop loading if there is an issue
     }
-  }, []);
+  }, [navigate]);
+
+  if (loading) {
+    return <Typography variant="body1">Loading...</Typography>; // Show loading text while fetching
+  }
 
   return (
     <Box sx={{ textAlign: 'center', padding: '20px' }}>
@@ -32,8 +51,8 @@ const ArtistVerificationPage = () => {
           <Typography variant="h6" color="textSecondary">
             You are all set.
           </Typography>
-          <Typography variant="body1" color="textSecondary" >
-            Please click on the link we just emailed to  <strong>{email}</strong> to verify your account.
+          <Typography variant="body1" color="textSecondary">
+            Please click on the link we just emailed to <strong>{email}</strong> to verify your account.
           </Typography>
           <Typography variant="body2" color="textSecondary">
             Don't see our email? Check your spam/junk folder.

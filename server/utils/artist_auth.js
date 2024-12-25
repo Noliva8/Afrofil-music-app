@@ -42,14 +42,15 @@ try {
 
 
 
-export const signArtistToken = ({ email, fullName, artistAka, _id, confirmed }) => {
+export const signArtistToken = ({ email, fullName, artistAka, _id, confirmed, selectedPlan }) => {
   
   const payload = { 
     email,        
     fullName,    
     role: 'artist', 
     artistAka,    
-    confirmed,    
+    confirmed,
+    selectedPlan,
     _id            
   };
 

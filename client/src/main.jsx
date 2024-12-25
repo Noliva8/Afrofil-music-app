@@ -14,8 +14,9 @@ import ArtistVerificationPage from './components/ArtistVerficationPage.jsx';
 import LoginSignin from './pages/LoginSignin';
 import ErrorPage from './pages/ErrorPage';
 import UserAuth from './utils/auth.js';
-import artist_auth from './utils/artist_auth.js';
-import ArtistVerificationPageAfterClick from './pages/ArtistVerificationPageAfterClick .jsx';
+import ArtistAuth from './utils/artist_auth.js';
+import PlanSelection from './pages/plans.jsx';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ element }) => {
@@ -23,25 +24,34 @@ const ProtectedRoute = ({ element }) => {
   return isLoggedIn ? element : <Navigate to="/loginSignin" replace />;
 };
 
-const ArtistProtectedRoute = ({ element, redirectToVerification = false }) => {
-  const isArtistLoggedIn = artist_auth.isArtist();
-  const profile = artist_auth.getProfile(); // Fetch profile from auth
 
+
+const ArtistProtectedRoute = ({ element, redirectToVerification = false }) => {
+  const isArtistLoggedIn = ArtistAuth.isArtist();
+  const profile = ArtistAuth.getProfile();
+
+  // Debug logs
+  // console.log("Artist Logged In:", isArtistLoggedIn);
+  // console.log("Artist Profile:", profile);
+
+  // Redirect to login if the artist is not logged in
   if (!isArtistLoggedIn) {
-    return <Navigate to="/loginSignin" replace />;
+    console.warn("Redirecting to /artist/login.");
+    return <Navigate to="/artist/login" replace />;
   }
 
-  // Log profile data for debugging
-  console.log("Artist profile:", profile);
-
-  // Redirect to verification if profile is not confirmed
-  if (redirectToVerification && profile && !profile.confirmed) {
-    console.log("Redirecting to verification page...");
+  // Redirect to verification if required and the artist's profile is not confirmed
+  if (redirectToVerification && profile?.data && !profile.data.confirmed) {
+    console.warn("Redirecting to /artist/verification.");
     return <Navigate to="/artist/verification" replace />;
   }
 
+  // Render the protected route element if all checks pass
   return element;
 };
+
+
+
 
 
 const router = createBrowserRouter([
@@ -72,7 +82,7 @@ const router = createBrowserRouter([
       },
       {
         path: "loginSignin",
-        element: <LoginSignin />, // Public route for login/sign-in
+        element: <LoginSignin />, 
       },
       {
         path: "artist/register",
@@ -82,21 +92,36 @@ const router = createBrowserRouter([
         path: "artist/verification",
         element: <ArtistVerificationPage />,
       },
-      {
-        path: "artist/dashboard",
-        element: <ArtistProtectedRoute 
-          element={<ArtistDashboard />} 
-          redirectToVerification={true} 
-        />,
-      },
 
       {
-        path: "confirmation/:artist_id_token",
-        element: <ArtistVerificationPageAfterClick />, 
+        path: "artist/plan",
+        element: (
+        <ArtistProtectedRoute 
+        element={<PlanSelection />}
+        redirectToVerification={true}
+        />
+        ),
       },
 
+     
+{
+  path: "artist/dashboard",
+  element: (
+    <ArtistProtectedRoute
+      element={<ArtistDashboard />}
+      redirectToVerification={true}
+    />
+  ),
+},
+
+
+      // {
+      //   path: "confirmation/:artist_id_token",
+      //   element: <ArtistVerificationPageAfterClick />, 
+      // },
+
       {
-        path: 'artist/login',
+        path: "artist/login",
         element: <ArtistLogin />
       }
     ],

@@ -5,12 +5,12 @@ class ArtistAuth {
     try {
       const artistToken = this.getToken();
       if (!artistToken) {
-        console.error("No artist token found");
+        // console.error("No artist token found");
         return null;
       }
       return jwtDecode(artistToken);
     } catch (err) {
-      console.error("Invalid artist token:", err.message);
+      // console.error("Invalid artist token:", err.message);
       return null;
     }
   }
@@ -25,7 +25,7 @@ class ArtistAuth {
       const decoded = jwtDecode(token);
       return decoded.exp < Date.now() / 1000;
     } catch (err) {
-      console.error("Error decoding token:", err.message);
+      // console.error("Error decoding token:", err.message);
       return true; // Treat as expired
     }
   }

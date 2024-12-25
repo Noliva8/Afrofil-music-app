@@ -9,19 +9,22 @@ _id: ID!
 fullName: String!
 artistAka: String!
 email: String!
-confirmed: Boolean!
+confirmed: Boolean
+selectedPlan: Boolean
+plan: [String]
 role: ArtistRole
-genre: [String],
-bio: String,
-country: String!,
-languages: [String],
-mood: [String],
+genre: [String]
+bio: String
+country: String!
+languages: [String]
+mood: [String]
 profileImage: String
 coverImage: String
 songs: [Song]
 followers: [User]
 createdAt: Date!
 }
+
 enum ArtistRole {
   ARTIST
   ADMIN
@@ -89,13 +92,17 @@ type Mutation {
   password: String!,
   role: String,
   confirmed: Boolean
+  selectedPlan: Boolean
 
 ): AuthPayload_artist
+
 
  sendVerificationEmail(email: String!): Boolean
  verifyEmail(token: String!): Boolean
 
   resendVerificationEmail(email: String!): ResendVerificationResponse!
+
+  selectPlan(artistId: ID!, plan: String!): Boolean!
 
      addProfileImage(
        artistId: ID!,

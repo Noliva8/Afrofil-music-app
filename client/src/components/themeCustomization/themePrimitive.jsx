@@ -5,17 +5,18 @@ const defaultTheme = createTheme();
 const customShadows = [...defaultTheme.shadows];
 
 export const brand = {
-  50: 'hsl(210, 100%, 95%)',
-  100: 'hsl(210, 100%, 92%)',
-  200: 'hsl(210, 100%, 80%)',
-  300: 'hsl(210, 100%, 65%)',
-  400: 'hsl(210, 98%, 48%)',
-  500: 'hsl(210, 98%, 42%)',
-  600: 'hsl(210, 98%, 55%)',
-  700: 'hsl(210, 100%, 35%)',
-  800: 'hsl(210, 100%, 16%)',
-  900: 'hsl(210, 100%, 21%)',
+  50: 'hsl(39, 85%, 90%)',   // Lighter shade of #D9AB23
+  100: 'hsl(39, 85%, 75%)',  // Lighter shade of #D9AB23
+  200: 'hsl(33, 91%, 65%)',  // Lighter shade of #F29727
+  300: 'hsl(24, 93%, 60%)',  // Lighter shade of #F26E22
+  400: 'hsl(10, 50%, 45%)',  // Mid-tone of #A6432D
+  500: 'hsl(10, 50%, 39%)',  // Base color #A6432D
+  600: 'hsl(33, 91%, 55%)',  // Slightly lighter shade of #F29727
+  700: 'hsl(39, 85%, 50%)',  // Mid-tone of #D9AB23
+  800: 'hsl(24, 93%, 50%)',  // Mid-tone of #F26E22
+  900: 'hsl(0, 0%, 100%)',   // White (#FFFFFF)
 };
+
 
 export const gray = {
   50: 'hsl(220, 35%, 97%)',
@@ -211,6 +212,12 @@ export const getDesignTokens = (PaletteMode) => {
     shadows: customShadows,
   };
 };
+
+
+
+
+
+
 
 export const colorSchemes = {
   light: {

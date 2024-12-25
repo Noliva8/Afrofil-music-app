@@ -63,6 +63,7 @@ mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, 
       _id
       artistAka
       confirmed
+      selectedPlan
       role
       fullName
       email
@@ -83,16 +84,24 @@ mutation verifyEmail($artistToken: String!) {
 `
 
 export const ARTIST_LOGIN = gql`
-mutation Artist_login($email: String!, $password: String!) {
+mutation artist_login($email: String!, $password: String!) {
   artist_login(email: $email, password: $password) {
      artistToken
     artist {
        email
-      password
       _id
       fullName
       artistAka
+      confirmed
   }
 }
+}
+`
+
+
+export const SELECT_PLAN = gql`
+
+mutation selectPlan($artistId: ID!, $plan: String!) {
+  selectPlan(artistId: $artistId, plan: $plan)
 }
 `

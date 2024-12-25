@@ -59,6 +59,7 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
       email,
       password,
       confirmed: false,
+       selectedPlan: false,
       role: 'artist'
     });
 
@@ -92,11 +93,13 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
     return {
       artistToken,
       confirmed: newArtist.confirmed, 
+      selectedPlan: newArtist.selectedPlan, 
       email: newArtist.email, 
       fullName: newArtist.fullName,
       artistAka: newArtist.artistAka,
       role: 'artist'
     };
+    
   } catch (error) {
     console.error("Failed to create artist:", error);
     throw new Error("Failed to create artist");
@@ -308,16 +311,64 @@ const { createReadStream, filename } = await profileImage;
     }
 
     // Step 4: Generate a JWT token for the artist
-    const token = signToken(artist);
+    const artistToken = signArtistToken(artist);
 
     // Step 5: Return the token and artist object
-    return { token, artist };
+    return { artistToken, artist };
     
   } catch (error) {
     console.error("Login failed:", error);
     throw new AuthenticationError('Login failed.');
   }
 },
+
+// Select plan
+// -----------
+
+selectPlan: async (parent, { artistId, plan }) => {
+  try {
+    const afroFeelPlans = ['FreePlan', 'PremiumPlan', 'ProPlan'];
+
+    // Validate the plan type
+    if (!afroFeelPlans.includes(plan)) {
+      throw new Error('Invalid plan type selected.');
+    }
+
+    // Update the artist's plan in the database
+    const artist = await Artist.findByIdAndUpdate(
+      artistId,
+      {
+        selectedPlan: true,
+        plan: plan,
+      },
+      { new: true }
+    );
+
+    if (!artist) {
+      throw new Error('Artist not found.');
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Selecting plan failed:', error);
+    throw new GraphQLError('Selecting plan failed.', {
+      extensions: {
+        code: 'UNAUTHENTICATED',
+      },
+    });
+  }
+},
+
+
+
+// ---------------------------------------------------------
+
+
+
+
+
+
+
 
   // ----------------------------------------------------------------------
 
