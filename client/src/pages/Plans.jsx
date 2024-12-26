@@ -5,40 +5,42 @@ import Stack from '@mui/material/Stack';
 import AppTheme from '../components/theme';
 import { useMutation } from '@apollo/client';
 import ArtistAuth from '../utils/artist_auth'; 
+import { useNavigate } from "react-router-dom";
 
 
 const PlanSelection = () => {
   const [selectPlan] = useMutation(SELECT_PLAN);
+    const navigate = useNavigate();
 
   const handlePlanSelection = async (plan) => {
-    const profile = ArtistAuth.getProfile(); 
-    console.log(profile);
+   const profile = ArtistAuth.getProfile(); 
+  console.log(profile);
 
-    if (!profile || !profile.data._id) {
-      alert('Artist is not logged in or artist ID is missing.');
-      return;
+  if (!profile || !profile.data._id) {
+    alert('Artist is not logged in or artist ID is missing.');
+    return;
+  }
+
+  const artistId = profile.data._id; // Extract artistId from profile
+  console.log(`Artist ID: ${artistId}, Plan: ${plan}`); // Debugging log
+
+  try {
+    const { data } = await selectPlan({
+      variables: { artistId, plan },
+    });
+
+    // Check if the plan selection was successful
+    if (data.selectPlan) {
+      // Navigate to the dashboard using react-router-dom's navigate function
+      navigate('/artist/dashboard');
+    } else {
+      alert('Failed to select plan. Please try again.');
     }
-
-    const artistId = profile.data._id; // Extract artistId from profile
-    console.log(`Artist ID: ${artistId}, Plan: ${plan}`); // Debugging log
-
-    try {
-      const { data } = await selectPlan({
-        variables: { artistId, plan },
-      });
-
-    //   if (data.selectPlan) {
-    //     // alert('Plan selected successfully!');
-    //     window.location.href = '/artist/dashboard';
-    //   } else {
-    //     // alert('Failed to select plan. Please try again.');
-    //   }
-    } catch (error) {
-      console.error('Error selecting plan:', error.message); // Improved logging
-      alert('An error occurred while selecting the plan. Please try again.');
-    }
-  };
-
+  } catch (error) {
+    console.error('Error selecting plan:', error.message); // Improved logging
+    alert('An error occurred while selecting the plan. Please try again.');
+  }
+};
 
   return (
 

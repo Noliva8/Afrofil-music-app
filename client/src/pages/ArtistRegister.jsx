@@ -97,6 +97,7 @@ export default function ArtistRegister() {
     setShowPasswordSignup((prevState) => !prevState);
   };
 
+
   const handleSignupSubmit = async (event) => {
     event.preventDefault();
 
@@ -111,6 +112,11 @@ export default function ArtistRegister() {
       });
 
       artist_auth.login(data.createArtist.artistToken);
+      console.log('Email being passed to verification:', signupFormState.email);
+
+      // navigate("/artist/login"); 
+       navigate("/artist/verification", { state: { email: signupFormState.email } });
+
       setSignupErrorMessage("");
       setSignupFormState({
         fullName: "",
@@ -118,7 +124,10 @@ export default function ArtistRegister() {
         email: "",
         password: "",
       });
-      navigate("/artist/login"); // Redirect to the login page after successful signup
+
+      
+      
+      
     } catch (e) {
       setSignupErrorMessage(
         "Signup failed. Please ensure your details are correct."

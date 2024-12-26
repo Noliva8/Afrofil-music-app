@@ -11,10 +11,10 @@ import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
 import { user_authMiddleware } from './utils/user_auth.js';
 import { artist_authMiddleware } from './utils/artist_auth.js';
 import merge from 'lodash.merge';
-// import cors from 'cors';
+import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import Artist from './models/Artist/Artist.js';
-
+// import bodyParser from 'body-parser';
 
 
 // Initialize dotenv for environment variables
@@ -71,11 +71,10 @@ app.use('/graphql', expressMiddleware(server, {
   context: combinedAuthMiddleware
 }));
 
-// app.use(cors({
-//   origin: 'http://localhost:3000', 
-//   credentials: true,            
-// }));
 
+app.use(cors());
+
+app.use(express.json());
 
 
 // email  verfication
@@ -106,6 +105,37 @@ app.get('/confirmation/:artist_id_token', async (req, res) => {
 
   return res.redirect('http://localhost:3000/artist/login');
 });
+
+// Plan verification and confirmation verification
+// ---------------------------------------------
+app.post('/api/confirmationStatusAndPlanStatus', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    // Ensure you're inside an async function to use 'await'
+    const artist = await Artist.findOne({ email });
+
+    if (!artist) {
+      return res.status(404).json({ error: 'Artist not found' });
+    }
+
+    // Send the response
+    return res.json({
+      confirmed: artist.confirmed,
+      selectedPlan: artist.selectedPlan,
+      artistAka: artist.artistAka,
+    });
+  } catch (error) {
+    console.error('Error checking confirmation:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 
 
 // -------------------------------------------------------------
