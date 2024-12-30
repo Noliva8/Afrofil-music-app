@@ -37,8 +37,8 @@ const artistSchema = new Schema({
 
     plan: {
   type: String,
-  enum: ['FreePlan', 'PremiumPlan', 'ProPlan'],
-  default: 'FreePlan', 
+  enum: ['Free Plan', 'Premium Plan', 'Pro Plan'],
+  default: 'Free Plan', 
 },
 
 role: {

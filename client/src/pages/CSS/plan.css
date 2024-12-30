@@ -1,0 +1,255 @@
+/* Global Styling */
+:root {
+  --primary-background-color: #441a49;
+  --secondary-background-color: #1a5d5d;
+  --button-color:  #ffffff;
+  --primary-font-color: #ffffff;
+  --p-color: #d3d3d3;
+  --font-size: 16px;
+  
+}
+
+
+
+
+
+
+body {
+  font-family: 'Poppins', sans-serif; 
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(to bottom, #0f0f0f, #1a1a1a); 
+  color: #ffffff; 
+  
+}
+
+/* Plans Section */
+.plans {
+  background-color: var(--primary-background-color);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px;
+  color: white;
+}
+
+/* Header */
+.planHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--secondary-background-color);
+  width: 90%;
+  max-height: 80px;
+  padding: 10px 20px;
+  margin: 20px auto;
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4); 
+  color: white;
+}
+
+.planHeader button {
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  padding: 8px 15px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: transparent;
+  color: var(--primary-font-color);
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.planHeader button:hover {
+  background-color: #c97b21; /* Darker accent for hover */
+}
+
+
+
+.accountContainer {
+  display: flex;
+  align-items: center;
+  position: relative;
+  justify-content: flex-end;
+}
+
+/* Profile Container */
+.profileContainer {
+  border-radius: 10px;
+  width: 160px;
+  height: 120px;
+  position: absolute;
+  margin: 0;
+  top: 100%;
+  right: 0;
+  background-color: var(--secondary-background-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  
+}
+
+
+.accountButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.selectPlan{
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 2.5rem;
+}
+
+/* Main Section */
+.selectPlan h1 {
+  font-size: 3rem; 
+  font-weight: 800;
+  color: var(--primary-font-color); 
+  margin-top: 20px;
+  text-align: center;
+  text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); 
+  margin-bottom: 20px;
+  transition: font-size 0.3s ease; 
+}
+
+.selectPlan p {
+  font-size: 1.2rem;
+  max-width: 600px;
+  line-height: 1.8;
+  color: var(--p-color);
+  text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5); 
+  text-align: center;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400; 
+  font-size: 18px; 
+  line-height: 1.5;
+}
+
+/* Plan Card Container */
+.planCardContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px;
+}
+
+/* Plan Card */
+.planCard {
+  width: 90%;
+  max-width: 400px;
+  min-height: 450px;
+  background-color: var(--secondary-background-color);
+  color: #ffffff;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.planCard:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* Plan Card Header */
+.planCardHeader {
+  background-color: #121212;
+  width: 100%;
+  border-radius: 50px;
+  border: 2px solid #ffffff;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.planCardHeader h2 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+/* Plan Card Benefits */
+.planCardBenefit p {
+  font-size: 1rem;
+  text-align: center;
+  margin: 20px 0;
+  color: var(--p-color)
+}
+
+/* Plan Card Price */
+.planCardPrice h3 {
+ font-size: 1.8rem;
+ margin: 1.2rem;
+  font-weight: bold;
+  color: #ffffff;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Get Started Button */
+.planGetStarted button {
+  background-color: var(--button-color);
+  color: #121212;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.planGetStarted button:hover {
+  background-color: #f29727;
+  transform: translateY(-2px);
+}
+
+
+
+
+
+
+
+
+
+
+
+/* Responsiveness */
+@media (max-width: 600px) {
+  .planHeader {
+    
+    max-height: none;
+  }
+  .selectPlan p{
+    display: none;
+  }
+  .planHeader{
+box-shadow: 0 0px 0px rgba(0, 0, 0, 0.4); 
+
+  }
+
+
+  
+
+  .planCard {
+    padding: 20px;
+    min-height: 400px;
+  }
+
+  .selectPlan h1 {
+    font-size: 2rem;
+  }
+}

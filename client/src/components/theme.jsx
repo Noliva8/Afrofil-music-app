@@ -2,17 +2,25 @@ import React from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { inputsCustomizations } from '../components/themeCustomization/inputs';
 import { dataDisplayCustomizations } from '../components/themeCustomization/dataDisplay';
-
-
 import { navigationCustomizations } from '../components/themeCustomization/navigation';
 import { surfacesCustomizations } from '../components/themeCustomization/surface';
 import { colorSchemes, typography, shadows, shape } from '../components/themeCustomization/themePrimitive';
 
 export default function AppTheme(props) {
   const { children, disableCustomTheme, themeComponents } = props;
+
+  // Debugging
+  console.log('Customizations:', {
+    inputsCustomizations,
+    dataDisplayCustomizations,
+    navigationCustomizations,
+    surfacesCustomizations,
+    themeComponents,
+  });
+
   const theme = React.useMemo(() => {
     return disableCustomTheme
-      ? {}
+      ? createTheme() // Use Material-UI default theme
       : createTheme({
           cssVariables: {
             colorSchemeSelector: 'data-mui-color-scheme',
@@ -24,11 +32,10 @@ export default function AppTheme(props) {
           shape,
           components: {
             ...inputsCustomizations,
-            ...dataDisplayCustomizations,
-            
+            ...dataDisplayCustomizations || {}, // Fallback to empty object
             ...navigationCustomizations,
             ...surfacesCustomizations,
-            ...themeComponents,
+            ...themeComponents || {},
           },
         });
   }, [disableCustomTheme, themeComponents]);

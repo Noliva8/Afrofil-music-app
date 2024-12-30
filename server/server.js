@@ -127,6 +127,7 @@ app.post('/api/confirmationStatusAndPlanStatus', async (req, res) => {
     return res.json({
       confirmed: artist.confirmed,
       selectedPlan: artist.selectedPlan,
+      plan: artist.plan,
       artistAka: artist.artistAka,
     });
   } catch (error) {

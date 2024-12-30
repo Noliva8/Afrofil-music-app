@@ -16,6 +16,8 @@ import ErrorPage from './pages/ErrorPage';
 import UserAuth from './utils/auth.js';
 import ArtistAuth from './utils/artist_auth.js';
 import PlanSelection from './pages/plans.jsx';
+import ArtistDashboardPremium from './pages/ArtistDashboardPremium.jsx';
+import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
 
 
 // Protected Route Component
@@ -109,6 +111,27 @@ const router = createBrowserRouter([
   element: (
     <ArtistProtectedRoute
       element={<ArtistDashboard />}
+      redirectToVerification={true}
+    />
+  ),
+},
+
+
+{
+  path: "artist/dashboard/ProPlan",
+  element: (
+    <ArtistProtectedRoute
+      element={<ArtistDashboardProPlan />}
+      redirectToVerification={true}
+    />
+  ),
+},
+
+{
+  path: "artist/dashboard/premium",
+  element: (
+    <ArtistProtectedRoute
+      element={<ArtistDashboardPremium />}
       redirectToVerification={true}
     />
   ),

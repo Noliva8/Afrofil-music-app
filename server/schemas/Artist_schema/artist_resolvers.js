@@ -327,7 +327,7 @@ const { createReadStream, filename } = await profileImage;
 
 selectPlan: async (parent, { artistId, plan }) => {
   try {
-    const afroFeelPlans = ['FreePlan', 'PremiumPlan', 'ProPlan'];
+    const afroFeelPlans = ['Free Plan', 'Premium Plan', 'Pro Plan'];
 
     // Validate the plan type
     if (!afroFeelPlans.includes(plan)) {
@@ -348,7 +348,7 @@ selectPlan: async (parent, { artistId, plan }) => {
       throw new Error('Artist not found.');
     }
 
-    return true;
+    return artist;
   } catch (error) {
     console.error('Selecting plan failed:', error);
     throw new GraphQLError('Selecting plan failed.', {

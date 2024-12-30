@@ -5,9 +5,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import axios from "axios";
 import ArtistAuth from '../utils/artist_auth';
 
-
-
-
 const ArtistVerificationPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -62,6 +59,7 @@ const ArtistVerificationPage = () => {
             return;
           }
 
+          // Check if selectedPlan is true
           if (!data.selectedPlan) {
             console.error("Plan not selected. Redirecting to plan selection page.");
             setStatus("Please select a plan.");
@@ -69,14 +67,25 @@ const ArtistVerificationPage = () => {
             return;
           }
 
-          // Plan is selected and confirmed
-          console.log("Plan selected:", data.selectedPlan); // Debugging selected plan
+          // Once selectedPlan is true, check the actual plan
+          const userPlan = data.plan;  // Get the value of plan field
+          console.log("Plan selected:", userPlan);
 
           setStatus("You are verified!");
           console.log("Verification complete. Redirecting to dashboard.");
-          setTimeout(() => {
-            navigate("/artist/dashboard"); // Redirect to dashboard after verification
-          }, 2000); // Optional delay to show status before navigating
+
+          // Navigate based on the selected plan
+          if (userPlan === "ProPlan") {
+            navigate("/artist/dashboard/ProPlan");
+          } else if (userPlan === "PremiumPlan") {
+            navigate("/artist/dashboard/premium");
+          } else if (userPlan === "FreePlan") {
+            navigate("/artist/dashboard");
+          } else {
+            console.error("Unknown plan type. Please check your plan status.");
+            setStatus("An error occurred while fetching your plan status.");
+            setLoading(false);
+          }
         } else {
           console.error("Email not found in profile.");
           setStatus("No email provided for verification.");

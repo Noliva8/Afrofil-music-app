@@ -102,6 +102,8 @@ mutation artist_login($email: String!, $password: String!) {
 export const SELECT_PLAN = gql`
 
 mutation selectPlan($artistId: ID!, $plan: String!) {
-  selectPlan(artistId: $artistId, plan: $plan)
+  selectPlan(artistId: $artistId, plan: $plan) {
+    plan
+  }
 }
 `

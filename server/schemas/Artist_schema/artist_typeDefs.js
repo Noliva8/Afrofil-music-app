@@ -11,7 +11,7 @@ artistAka: String!
 email: String!
 confirmed: Boolean
 selectedPlan: Boolean
-plan: [String]
+plan: String
 role: ArtistRole
 genre: [String]
 bio: String
@@ -102,7 +102,7 @@ type Mutation {
 
   resendVerificationEmail(email: String!): ResendVerificationResponse!
 
-  selectPlan(artistId: ID!, plan: String!): Boolean!
+  selectPlan(artistId: ID!, plan: String!): Artist
 
      addProfileImage(
        artistId: ID!,

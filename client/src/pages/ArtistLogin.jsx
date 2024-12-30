@@ -1,6 +1,6 @@
 import './CSS/signup.css'
 import { ARTIST_LOGIN } from '../utils/mutations';
-import * as React from 'react';
+import React from 'react';
 import { useState } from 'react';
 import { useMutation } from '@apollo/client';
 import Box from '@mui/material/Box';

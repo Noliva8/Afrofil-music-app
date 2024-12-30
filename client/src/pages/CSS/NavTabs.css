@@ -1,3 +1,13 @@
+:root {
+  --primary-background-color: #441a49;
+  --secondary-background-color: #1a5d5d;
+  --font-size: 16px;
+}
+
+
+
+
+
 
 button {
   all: unset;
@@ -12,7 +22,7 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #1a1a1a;
+  background-color: var(--secondary-background-color);
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   padding: 10px 0;
   z-index: 10;
