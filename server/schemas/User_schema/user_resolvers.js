@@ -297,7 +297,7 @@ commentsForSong: async (parent, { songId }) => {
   try {
     const newUser = await User.create({ username, email, password, role: 'user' });
     const userToken = signUserToken(newUser);
-    return { userToken, newUser: newUser.select('-password') }; 
+    return { userToken, newUser }; 
 
   } catch (error) {
     console.error("Error while trying to create the user:", error);

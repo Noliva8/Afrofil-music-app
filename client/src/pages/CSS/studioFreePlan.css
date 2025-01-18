@@ -1,0 +1,46 @@
+/* Global Styling */
+:root {
+  --primary-background-color: #441a49;
+  --secondary-background-color: #1a5d5d;
+  --button-color:  #ffffff;
+  --primary-font-color: #ffffff;
+  --p-color: #d3d3d3;
+  --font-size: 16px;
+  
+}
+
+body {
+  font-family: 'Poppins', sans-serif; 
+   height: 100%;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(to bottom, #0f0f0f, #1a1a1a); 
+  color: #ffffff; 
+  
+}
+
+
+/* General css for the page */
+
+.studioFreePlan{
+    width: 100%;
+    height: 100vh;
+    background-color: var(--primary-background-color);
+}
+
+
+/* Side header */
+/* -------------- */
+
+.sideHeader{
+    width: 15rem;
+      height: calc(100vh - 100px); 
+  overflow: hidden;
+    background-color: var(--secondary-background-color);
+    border-right: 3px solid black;
+     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+     display: flex;
+     flex-direction: column;
+     justify-content: space-between;
+     align-items: center;
+}

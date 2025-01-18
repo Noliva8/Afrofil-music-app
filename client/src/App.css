@@ -1,0 +1,21 @@
+
+
+/* Global Styling */
+:root {
+  --primary-background-color: #441a49;
+  --secondary-background-color: #1a5d5d;
+  --button-color:  #ffffff;
+  --primary-font-color: #ffffff;
+  --p-color: #d3d3d3;
+  --font-size: 16px;
+  
+}
+
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}

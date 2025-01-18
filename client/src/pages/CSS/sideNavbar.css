@@ -1,0 +1,63 @@
+/* Base styles for the side navbar */
+.sideNav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 100vh;
+  background-color: #1a5d5d;
+  transition: width 0.3s ease-in-out;
+  overflow: hidden; 
+  margin-top: 3rem;
+}
+
+/* Expanded state */
+.sideNav.expanded {
+  width: 250px; 
+  margin-top: 4rem;
+}
+
+/* When collapsed, hide the text */
+.nav-text {
+  display: none;
+}
+
+/* When expanded, show the text */
+.sideNav.expanded .nav-text {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.sideNavContainer {
+  display: flex;
+  flex-direction: column;
+  padding-top: 2rem;
+  margin-top: 15px;
+}
+
+/* Styling for nav items */
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  color: #fff;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
+}
+
+.nav-item:hover {
+  background-color: #441a49; /* Change on hover */
+}
+
+/* Button to close the menu */
+.closeButton {
+  background-color: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  position: absolute;
+  top: 1rem;
+  
+  right: 1rem;
+  cursor: pointer;
+}

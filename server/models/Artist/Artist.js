@@ -56,15 +56,21 @@ type: String,
     maxlength: 500 
   },
   country: { type: String }, 
+
   languages: { type: [String]},
+
   mood: { type: [String] },
+  
+  category: {type: String},
 
   profileImage: {  
     type: String, 
   },
+
   coverImage: {  
     type: String, 
   },
+  
   songs: [{ type: Schema.Types.ObjectId, ref: 'Song' }],
 
   followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],

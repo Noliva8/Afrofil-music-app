@@ -7,6 +7,7 @@ import { useMutation } from '@apollo/client';
 import { SELECT_PLAN } from '../utils/mutations';
 import Button from '@mui/material/Button';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import AppNavBar from '../components/AppNavbar';
 
 // Plan Data
 const plans = [
@@ -64,7 +65,7 @@ const PlanSelection = () => {
   const [selectPlan] = useMutation(SELECT_PLAN);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false); // For handling loading state during plan selection
-  const [showLogout, setShowLogout] = useState(false);
+  // const [showLogout, setShowLogout] = useState(false);
 
   // Handle Plan Selection
   const handlePlanSelection = async (plan) => {
@@ -84,11 +85,11 @@ const PlanSelection = () => {
         variables: { artistId, plan },
       });
 
-      console.log(data);
+      // console.log(data);
 
       // Plan Selection Navigation
       if (data.selectPlan.plan === "Free Plan") {
-        navigate('/artist/dashboard');
+        navigate('/artist/studio');
       } else if (data.selectPlan.plan === "Premium Plan") {
         navigate('/artist/dashboard/premium');
       } else if (data.selectPlan.plan === "Pro Plan") {
@@ -104,40 +105,15 @@ const PlanSelection = () => {
     }
   };
 
-  // Toggle logout display
-  function handleLogoutDisplay() {
-    setShowLogout((prevState) => !prevState);
-  }
+  // // Toggle logout display
+  // function handleLogoutDisplay() {
+  //   setShowLogout((prevState) => !prevState);
+  // }
 
   return (
     <>
       <div className='plans'>
-        <header className="planHeader">
-          <SitemarkIcon />
-          <div className="accountContainer">
-            <button
-              type="button"
-              className="accountButton"
-              onClick={handleLogoutDisplay}
-            >
-              <AccountCircleIcon />
-            </button>
-
-            {/* Profile / Logout Button */}
-            {showLogout && (
-              <div className={`profileContainer ${showLogout ? 'show' : ''}`}>
-                <button
-                  onClick={() => {
-                    console.log('Logged out');
-                    ArtistAuth.logout(); // Handle logout logic
-                  }}
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
+       <AppNavBar />
 
         <main>
           <section>

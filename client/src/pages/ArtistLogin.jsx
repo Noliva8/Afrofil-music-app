@@ -72,7 +72,7 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
 }));
 
 export default function ArtistLogin() {
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate(); 
   const [formState, setFormState] = useState({ email: '', password: '' });
   const [loginErrorMessage, setLoginErrorMessage] = useState('');
   const [login] = useMutation(ARTIST_LOGIN); // Assuming you have the ARTIST_LOGIN mutation defined
@@ -85,7 +85,6 @@ export default function ArtistLogin() {
     });
   };
   
-
 const handleFormSubmit = async (event) => {
   event.preventDefault();
 
@@ -94,7 +93,7 @@ const handleFormSubmit = async (event) => {
     // console.log('Form State:', formState);
     
     const { data } = await login({
-      variables: { ...formState }, 
+      variables: { ...formState },
     });
 
     // Check if the login was successful
@@ -103,19 +102,16 @@ const handleFormSubmit = async (event) => {
 
       // Save the token using your artist_auth service
       ArtistAuth.login(artistToken);
-     
 
       // Fetch the profile to check the confirmed status
-       const profile = ArtistAuth.getProfile();
-       
-   
+      const profile = ArtistAuth.getProfile();
 
       if (profile && profile.data && profile.data.confirmed) {
         setLoginErrorMessage('');
         navigate('/artist/dashboard');
       } else {
         // console.log('Artist is NOT confirmed or profile data is missing');
-        navigate('/artist/verification'); 
+        navigate('/artist/verification');
       }
     } else {
       setLoginErrorMessage('Login failed. Please check your credentials.');
@@ -123,13 +119,25 @@ const handleFormSubmit = async (event) => {
 
   } catch (e) {
     console.error('ApolloError:', e.message);
+    
+    // Log specific GraphQL errors
     if (e.graphQLErrors) {
-      e.graphQLErrors.forEach((error) => console.error('GraphQL Error:', error.message));
+      e.graphQLErrors.forEach((error) => {
+        console.error('GraphQL Error:', error.message);
+      });
       setLoginErrorMessage('Invalid email or password. Please try again.');
     }
+    
+    // Log network errors
     if (e.networkError) {
       console.error('Network Error:', e.networkError.message);
       setLoginErrorMessage('Network error. Please check your connection and try again.');
+    }
+    
+    // Handle any general errors
+    if (!e.graphQLErrors && !e.networkError) {
+      console.error('Unexpected Error:', e);
+      setLoginErrorMessage('An unexpected error occurred. Please try again later.');
     }
   }
 
@@ -139,6 +147,9 @@ const handleFormSubmit = async (event) => {
     password: '',
   });
 };
+
+
+
 
   return (
     <AppTheme>

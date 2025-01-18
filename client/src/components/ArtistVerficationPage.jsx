@@ -41,19 +41,19 @@ const ArtistVerificationPage = () => {
     const verifyConfirmation = async () => {
       try {
         if (email) {
-          console.log("Checking confirmation for email:", email);
+          // console.log("Checking confirmation for email:", email);
           const data = await checkConfirmationStatus(email);
-          console.log("Data received from API:", data);
+          // console.log("Data received from API:", data);
 
           if (!data) {
-            console.error("No data received. Staying on verification page.");
+            // console.error("No data received. Staying on verification page.");
             setStatus("Failed to fetch your account details. Please try again.");
             setLoading(false);
             return;
           }
 
           if (!data.confirmed) {
-            console.error("Email not confirmed. Staying on verification page.");
+            // console.error("Email not confirmed. Staying on verification page.");
             setStatus("Your email is not confirmed. Please check your inbox.");
             setLoading(false);
             return;
@@ -61,7 +61,7 @@ const ArtistVerificationPage = () => {
 
           // Check if selectedPlan is true
           if (!data.selectedPlan) {
-            console.error("Plan not selected. Redirecting to plan selection page.");
+            // console.error("Plan not selected. Redirecting to plan selection page.");
             setStatus("Please select a plan.");
             navigate("/artist/plan"); // Navigate to plan selection page
             return;
@@ -69,20 +69,20 @@ const ArtistVerificationPage = () => {
 
           // Once selectedPlan is true, check the actual plan
           const userPlan = data.plan;  // Get the value of plan field
-          console.log("Plan selected:", userPlan);
+          // console.log("Plan selected:", userPlan);
 
           setStatus("You are verified!");
-          console.log("Verification complete. Redirecting to dashboard.");
+          // console.log("Verification complete. Redirecting to dashboard.");
 
           // Navigate based on the selected plan
-          if (userPlan === "ProPlan") {
+          if (userPlan === "Pro Plan") {
             navigate("/artist/dashboard/ProPlan");
-          } else if (userPlan === "PremiumPlan") {
+          } else if (userPlan === "Premium Plan") {
             navigate("/artist/dashboard/premium");
-          } else if (userPlan === "FreePlan") {
-            navigate("/artist/dashboard");
+          } else if (userPlan === "Free Plan") {
+            navigate("/artist/studio/home");
           } else {
-            console.error("Unknown plan type. Please check your plan status.");
+            // console.error("Unknown plan type. Please check your plan status.");
             setStatus("An error occurred while fetching your plan status.");
             setLoading(false);
           }

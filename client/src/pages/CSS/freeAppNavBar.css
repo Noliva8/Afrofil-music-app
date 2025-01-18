@@ -1,0 +1,123 @@
+
+
+/* Global Styling */
+:root {
+  --primary-background-color: #441a49;
+  --secondary-background-color: #1a5d5d;
+  --button-color:  #ffffff;
+  --primary-font-color: #ffffff;
+  --p-color: #d3d3d3;
+  --font-size: 16px;
+  
+}
+
+
+
+body {
+  font-family: 'Poppins', sans-serif; 
+  margin: 0;
+  padding: 0;
+ 
+  color: #ffffff; 
+  
+}
+
+
+
+
+
+.planHeader-freePlan {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--secondary-background-color);
+  width: 100%;
+  max-height: 80px;
+  padding: 10px 20px;
+
+ box-shadow: 0px 0px 1px rgba(0, 0, 0, 0.4); 
+  color: white;
+}
+
+.planHeader button {
+  font-weight: 700;
+  font-family: 'Poppins', sans-serif;
+  padding: 8px 15px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: transparent;
+  color: var(--primary-font-color);
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.planHeader button:hover {
+  background-color: #c97b21; /* Darker accent for hover */
+}
+
+
+.logoMenu{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.accountContainer {
+  display: flex;
+  align-items: center;
+  position: relative;
+  justify-content: flex-end;
+}
+
+/* Profile Container */
+.profileContainer {
+  border-radius: 10px;
+  width: 160px;
+  height: 120px;
+  position: absolute;
+  margin: 0;
+  top: 100%;
+  right: 0;
+  background-color: var(--secondary-background-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  
+}
+
+
+.accountButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Responsiveness */
+@media (max-width: 600px) {
+  .planHeader {
+    
+    max-height: none;
+  }
+  .selectPlan p{
+    display: none;
+  }
+  .planHeader{
+box-shadow: 0 0px 0px rgba(0, 0, 0, 0.4); 
+
+  }
+}

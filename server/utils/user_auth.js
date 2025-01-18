@@ -13,38 +13,60 @@ export const AuthenticationError = new GraphQLError('Could not authenticate user
   },
 });
 
-// Middleware for verifying user tokens
-export const user_authMiddleware = ({ req }) => {
-  let  userToken = req.body. userToken || req.query.token || req.headers.authorization;
 
-  // Extract token from "Bearer <token>" format if present in authorization header
+// User authentication middleware
+
+export const user_authMiddleware = ({ req }) => {
+  let userToken = req.body.userToken || req.query.token || req.headers.authorization;
+
+  // If it's in the "Bearer <token>" format in the authorization header, extract the token
   if (req.headers.authorization) {
-     userToken =  userToken.split(' ').pop().trim();
+    userToken = userToken.split(' ').pop().trim();
   }
 
+  // If no token is found, return the request without attaching user data
   if (!userToken) {
-    return req; 
+    return req;
   }
 
   try {
-    const { data } = jwt.verify( userToken, secret, { maxAge: expiration });
+    // Decode and verify the user token
+    const { data } = jwt.verify(userToken, process.env.JWT_SECRET_USER, { maxAge: process.env.JWT_EXPIRATION });
 
-    // Verify the role is "user" to ensure the token is valid for users
+    // Ensure the role is 'user'
     if (data.role !== 'user') {
-      throw new Error('Invalid role for user authentication');
+      throw new AuthenticationError('Invalid role for user authentication', {
+        extensions: {
+          code: 'INVALID_ROLE',  // Custom error code for invalid role
+          role: data.role,       // Attach role information to the error
+        },
+      });
     }
 
-    // Attach the user data to the request object
+    // Attach user data to the request object
     req.user = data;
+
   } catch (err) {
     console.log('Invalid user token:', err.message);
-    throw new GraphQLError('Authentication error: Invalid user token', {
-      extensions: { code: 'UNAUTHENTICATED' },
+
+    // Use the custom AuthenticationError for invalid token
+    throw new AuthenticationError('Authentication error: Invalid user token', {
+      extensions: {
+        code: 'INVALID_TOKEN',  // Custom error code for invalid token
+        message: err.message,   // Include the original error message
+        originalError: err,     // Attach the original error object (optional for debugging)
+      },
     });
   }
 
   return req;
 };
+
+
+
+
+
+
 
 // Function to generate a token for users
 export const signUserToken = ({ email, username, _id }) => {

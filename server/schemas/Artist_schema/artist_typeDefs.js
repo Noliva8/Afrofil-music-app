@@ -1,28 +1,26 @@
-
-
 const typeDefs = `
 scalar Date
-scalar Upload
 
 type Artist {
-_id: ID!
-fullName: String!
-artistAka: String!
-email: String!
-confirmed: Boolean
-selectedPlan: Boolean
-plan: String
-role: ArtistRole
-genre: [String]
-bio: String
-country: String!
-languages: [String]
-mood: [String]
-profileImage: String
-coverImage: String
-songs: [Song]
-followers: [User]
-createdAt: Date!
+  _id: ID!
+  fullName: String!
+  artistAka: String!
+  email: String!
+  confirmed: Boolean
+  selectedPlan: Boolean
+  plan: String
+  role: ArtistRole
+  genre: [String]
+  bio: String
+  country: String
+  languages: [String]
+  mood: [String]
+  category: String
+  profileImage: String
+  coverImage: String
+  songs: [Song]
+  followers: [User]
+  createdAt: Date!
 }
 
 enum ArtistRole {
@@ -38,13 +36,13 @@ type Song {
   genre: Genre
   duration: Int!
   playCount: Int!
-  releaseDate: Date! 
+  releaseDate: Date!
   downloadCount: Int
   likedByUsers: [User]
   trendingScore: Int
   tags: [String]
   audioFileUrl: String!
-  audioHash: String! 
+  audioHash: String!
   createdAt: Date!
 }
 
@@ -60,18 +58,16 @@ type Album {
 
 type Query {
   allArtists: [Artist]
-  artistById(artistId: ID!): Artist
+  artistProfile: Artist
   songsOfArtist(artistId: ID!): [Song]
-  
-   albumOfArtist(artistId: ID!): Album
-  
+  getPresignedUrl(key: String!, operation: String!): String
+  albumOfArtist(artistId: ID!): Album
 }
 
 type AuthPayload_artist {
   artistToken: String!
   artist: Artist
 }
-
 
 type VerificationResponse {
   success: Boolean!
@@ -83,97 +79,82 @@ type ResendVerificationResponse {
   message: String!
 }
 
+type PresignedUrlResponse {
+  url: String!
+  urlToDownload: String! 
+  urlToDelete: String! 
+  expiration: String
+}
+
 type Mutation {
-  
- createArtist(
- fullName: String!
-  artistAka: String!, 
-  email: String!,
-  password: String!,
-  role: String,
-  confirmed: Boolean
-  selectedPlan: Boolean
+  createArtist(
+    fullName: String!
+    artistAka: String!
+    email: String!
+    password: String!
+    role: String
+    confirmed: Boolean
+    selectedPlan: Boolean
+  ): AuthPayload_artist
 
-): AuthPayload_artist
-
-
- sendVerificationEmail(email: String!): Boolean
- verifyEmail(token: String!): Boolean
-
+  sendVerificationEmail(email: String!): Boolean
+  verifyEmail(token: String!): Boolean
   resendVerificationEmail(email: String!): ResendVerificationResponse!
 
   selectPlan(artistId: ID!, plan: String!): Artist
+  getPresignedUrl(bucket: String!, key: String!, region: String!): PresignedUrlResponse
+  getPresignedUrlDownload(bucket: String!, key: String!, region: String!): PresignedUrlResponse
+  getPresignedUrlDelete(bucket: String!, key: String!, region: String!): PresignedUrlResponse
+  
+  artist_login(email: String!, password: String!): AuthPayload_artist
+  deleteArtist(artistId: ID!): Artist
 
-     addProfileImage(
-       artistId: ID!,
-       profileImage: Upload
-     ): Artist
-
-     addCoverImage(
-      artistId: ID!,
-      coverImage: Upload
-     ): Artist
-
-
-  artist_login(
-    email: String!,
-    password: String!): AuthPayload_artist
-
-
-  updateArtist(
-   fullName: String!
-    artistAka: String!,
-    email: String!,
-    password: String!,
-    bio: String,
-    coverImage: Upload! 
+  updateArtistProfile(
+    artistId: ID!
+    bio: String
+    country: String
+    languages: [String]
+    genre: [String]
+    mood: [String]
+    profileImage: String
+    coverImage: String
   ): Artist
 
-
-  deleteArtist(
-    artistId: ID!,
-  ): Artist
-
+  addBio(bio: String): Artist
+  addCountry(country: String): Artist
+  addLanguages(languages: [String]): Artist
+  addGenre(genre: [String]): Artist
+  addCategory(category: String): Artist
+  removeGenre(genre: [String]): Artist
+  addProfileImage(profileImage: String): Artist
+  addMood(mood: [String]): Artist
 
   createSong(
-    title: String!,
-     artistId: ID!,
-      albumId: ID, 
-     genre: String,
-      duration: Int!, 
-      releaseDate: String!, 
-      audioFileUrl: Upload!
-       ): Song
+    title: String!
+    artistId: ID!
+    albumId: ID
+    genre: String
+    duration: Int!
+    releaseDate: String!
+  ): Song
 
-      
-
-  updateSong(songId: ID!,
-  title: String!,
-  releaseDate: String!, 
-  audioFileUrl: Upload!
-   ): Song
-
-  deleteSong(artistId: ID!,
-  songId: ID!): Song
-
-
+  deleteSong(artistId: ID!, songId: ID!): Song
 
   createAlbum(
-    title: String!, 
-    artistId: ID!,
-   releaseDate: String!
-    songId: ID!, 
+    title: String!
+    artistId: ID!
+    releaseDate: String!
+    songId: ID!
   ): Album
 
   updateAlbum(
-  albumId: ID!
-   title: String!, 
-   releaseDate: String!
-   songId: ID, 
+    albumId: ID!
+    title: String!
+    releaseDate: String!
+    songId: ID
   ): Album
 
   deleteAlbum(albumId: ID!): Album
-
 }
 `;
 

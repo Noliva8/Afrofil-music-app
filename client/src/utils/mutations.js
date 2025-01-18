@@ -107,3 +107,137 @@ mutation selectPlan($artistId: ID!, $plan: String!) {
   }
 }
 `
+
+
+export const UPDATE_ARTIST_PROFILE = gql`
+mutation updateArtistProfile($bio: String, $country: String, $languages: [String], $genre: [String], $mood: [String], $profileImage: Upload, $coverImage: Upload) {
+  updateArtistProfile(bio: $bio, country: $country, languages: $languages, genre: $genre, mood: $mood, profileImage: $profileImage, coverImage: $coverImage) {
+    _id
+    bio
+    artistAka
+    country
+    coverImage
+    fullName
+    genre
+    languages
+    mood
+    profileImage
+  }
+
+}`
+
+export const ADD_BIO = gql`
+mutation addBio($bio: String) {
+  addBio(bio: $bio) {
+    _id
+    bio
+  }
+}
+`
+
+
+
+export const ADD_COUNTRY = gql`
+mutation AddCountry($country: String) {
+  addCountry(country: $country) {
+    _id
+    country
+  }
+}
+`
+
+
+
+export const ADD_LANGUAGES = gql`
+mutation addLanguages($languages: [String]) {
+  addLanguages(languages: $languages) {
+    _id
+    languages
+  }
+}
+`
+
+
+export const ADD_GENRE = gql`
+mutation addGenre($genre: [String]) {
+  addGenre(genre: $genre) {
+    _id
+    genre
+  }
+}
+`
+
+export const ADD_MOOD = gql`
+mutation addMood($mood: [String]) {
+  addMood(mood: $mood) {
+    _id
+    mood
+  }
+}
+`
+
+export const REMOVE_GENRE = gql`
+mutation RemoveGenre($genre: [String]) {
+  removeGenre(genre: $genre) {
+    _id
+    genre
+  }
+}
+`
+
+
+
+
+export const ADD_CATEGORY = gql`
+
+mutation addCategory($category: String) {
+  addCategory(category: $category) {
+    _id
+    category
+  }
+}
+`
+
+export const ADD_PROFILE_IMAGE = gql`
+mutation addProfileImage($profileImage: String) {
+  addProfileImage(profileImage: $profileImage) {
+    _id
+    profileImage
+  }
+}
+`
+
+export const GET_PRESIGNED_URL = gql`
+mutation getPresignedUrl($bucket: String!, $key: String!, $region: String!) {
+  getPresignedUrl(bucket: $bucket, key: $key, region: $region) {
+    expiration
+    url
+  }
+}
+`
+
+export const GET_PRESIGNED_URL_DOWNLOAD = gql`
+mutation getPresignedUrlDownload($bucket: String!, $key: String!, $region: String!) {
+  getPresignedUrlDownload(bucket: $bucket, key: $key, region: $region) {
+    urlToDownload
+    expiration
+  }
+}
+`
+
+export const GET_PRESIGNED_URL_DELETE = gql`
+mutation getPresignedUrlDelete($bucket: String!, $key: String!, $region: String!) {
+  getPresignedUrlDelete(bucket: $bucket, key: $key, region: $region) {
+    urlToDelete
+    expiration
+  }
+}
+`
+
+
+
+
+
+
+
+

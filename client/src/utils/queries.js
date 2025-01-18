@@ -108,3 +108,28 @@ query Playlists {
 `;
 
 
+export const ARTIST_PROFILE = gql`
+query Query {
+  artistProfile {
+    _id
+    artistAka
+    bio
+    country
+    coverImage
+    createdAt
+    email
+    fullName
+    followers {
+      _id
+    }
+    genre
+    languages
+    mood
+    profileImage
+    songs {
+      _id
+      title
+    }
+  }
+}
+`

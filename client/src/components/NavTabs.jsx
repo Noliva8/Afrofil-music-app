@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { FaHome, FaSearch, FaMusic, FaPlus, FaEllipsisH } from 'react-icons/fa'; // Import React Icons
 import Auth from '../utils/auth';
-import '../pages/CSS/NavTabs.css'; // Your CSS file
+import '../pages/CSS/NavTabs.css'; 
 
 export default function NavTabs() {
   const loggedIn = Auth.loggedIn();

@@ -84,7 +84,7 @@ type Song {
 type Artist {
   artistAka: String!
   bio: String
-  coverImage: String!
+  coverImage: String
 }
 
 type Album {
@@ -92,7 +92,7 @@ type Album {
   artist: Artist
   releaseDate: Date!
   songs: [Song]
-  coverImage: String!
+  coverImage: String
 }
 
 type Genre {

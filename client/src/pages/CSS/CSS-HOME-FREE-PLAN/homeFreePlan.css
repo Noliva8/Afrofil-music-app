@@ -1,0 +1,134 @@
+Updated CSS
+/* Reset default browser styles */
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+/* Ensure wrapper takes full width and height */
+.wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; 
+  padding: 0; 
+  margin: 0; 
+  overflow-y: auto;
+  background-color: var(--primary-background-color);
+  font-family: 'Arial', sans-serif; /* Set a default font */
+}
+
+/* Center content inside inner-wrapper */
+.inner-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px; /* Add some padding for better spacing */
+}
+
+/* Header styling */
+header {
+  margin-bottom: 30px;
+}
+
+header h1 {
+  font-size: 2.5rem; /* Increased font size for better visibility */
+  color: var(--primary-font-color); /* Adjust color as needed */
+  font-weight: bold; /* Make the header bold */
+}
+
+
+
+/* Main content styling */
+
+main {
+  width: 100%; /* Full width */
+  max-width: 100%; /* Prevent horizontal overflow */
+  margin: 0 auto; /* Center the main container */
+  height: auto;
+  min-height: min-content; /* Ensure it adapts to content height */
+  overflow-y: auto; /* Scroll vertically if content overflows */
+  display: flex; /* Use Flexbox for layout */
+  justify-content: center; /* Center items horizontally */
+  gap: 5px; /* Small gap between items */
+  padding: 50px; /* Adjust padding for better spacing */
+  flex-wrap: nowrap; /* Prevent items from wrapping (horizontal scrolling on overflow) */
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  main {
+    flex-wrap: wrap; /* Allow items to wrap */
+    justify-content: space-around; /* Space items evenly */
+    padding: 20px; /* Reduce padding */
+  }
+
+  main > * {
+    flex: 1 1 100%; 
+  }
+}
+
+/* Responsive design for medium screens */
+@media (min-width: 769px) and (max-width: 1024px) {
+  main {
+    flex-wrap: wrap; /* Allow items to wrap */
+    justify-content: space-evenly; /* Adjust spacing for medium screens */
+    padding: 40px; /* Moderate padding */
+  }
+
+  main > * {
+    flex: 1 1 calc(50% - 10px); /* Two items per row with gap */
+  }
+}
+
+/* Responsive design for larger screens */
+@media (min-width: 1025px) {
+  main {
+    flex-wrap: wrap; /* Allow wrapping */
+    justify-content: space-between; /* Distribute items evenly */
+    padding: 50px; /* Original padding for larger screens */
+  }
+
+  main > * {
+    flex: 1 1 calc(33.333% - 10px); /* Three items per row */
+  }
+}
+
+
+
+
+/* end of account profile styling */
+
+
+/* Footer styling */
+footer {
+  text-align: center;
+  padding: 15px 0;
+  background-color: #e4e4e4; /* Adjust background color as needed */
+  width: 100%;
+  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); /* Add shadow for depth */
+}
+
+footer h4 {
+  margin: 0;
+  font-size: 1.2rem; /* Slightly larger footer text */
+  color: #555; /* Adjust color as needed */
+}
+
+/* Add responsive design */
+@media (max-width: 768px) {
+  header h1 {
+    font-size: 2rem; /* Decrease font size on smaller screens */
+  }
+
+  footer h4 {
+    font-size: 1rem; /* Adjust footer font size */
+  }
+}

@@ -1,0 +1,34 @@
+.artistStudioContainer {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.appNavBar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px; /* Adjust height as needed */
+  background-color: var(--primary-background-color); /* Example */
+  z-index: 1000;
+}
+
+.studioNavBar {
+  position: fixed;
+  top: 60px; /* Match the height of appNavBar */
+  left: 0;
+  width: 60px; /* Adjust for icon-only mode */
+  height: calc(100vh - 60px);
+  background-color: var(--secondary-background-color); 
+  z-index: 999;
+}
+
+.mainContent {
+  margin-top: 60px; /* Match the height of appNavBar */
+  margin-left: 60px; /* Match the width of studioNavBar */
+  
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f4f4f4; /* Adjust as needed */
+}

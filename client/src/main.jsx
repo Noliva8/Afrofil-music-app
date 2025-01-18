@@ -9,7 +9,7 @@ import Playlist from './pages/Playlist';
 import Libraly from './pages/Libraly';
 import More from './pages/More';
 import ArtistRegister from './pages/ArtistRegister'; 
-import ArtistDashboard from './pages/ArtistDashboard'; 
+import ArtistStudio from './pages/ArtistStudio'; 
 import ArtistVerificationPage from './components/ArtistVerficationPage.jsx';
 import LoginSignin from './pages/LoginSignin';
 import ErrorPage from './pages/ErrorPage';
@@ -18,7 +18,10 @@ import ArtistAuth from './utils/artist_auth.js';
 import PlanSelection from './pages/plans.jsx';
 import ArtistDashboardPremium from './pages/ArtistDashboardPremium.jsx';
 import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
+import ContentFreePlan from './pages/freeDashboard/ContentFreePlan.jsx';
+import DashboardFreePlan from './pages/freeDashboard/DashboardFreePlan.jsx';
 
+import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
 
 // Protected Route Component
 const ProtectedRoute = ({ element }) => {
@@ -103,18 +106,54 @@ const router = createBrowserRouter([
         redirectToVerification={true}
         />
         ),
-      },
+      }, 
 
-     
+
+
 {
-  path: "artist/dashboard",
+  path: "artist/studio",
   element: (
     <ArtistProtectedRoute
-      element={<ArtistDashboard />}
+      element={<ArtistStudio />}
       redirectToVerification={true}
     />
   ),
+  children: [
+    {
+      path: "content",
+      element: (
+        <ArtistProtectedRoute
+          element={<ContentFreePlan />}
+          redirectToVerification={true}
+        />
+      ),
+    },
+
+
+     {
+      path: "home",
+      element: (
+        <ArtistProtectedRoute
+          element={<HomeFreePlan />}
+          redirectToVerification={true}
+        />
+      ),
+    },
+
+
+    {
+      path: "dashboard",
+      element: (
+        <ArtistProtectedRoute
+          element={<DashboardFreePlan />}
+          redirectToVerification={true}
+        />
+      ),
+    },
+  ],
 },
+
+
 
 
 {
@@ -136,12 +175,6 @@ const router = createBrowserRouter([
     />
   ),
 },
-
-
-      // {
-      //   path: "confirmation/:artist_id_token",
-      //   element: <ArtistVerificationPageAfterClick />, 
-      // },
 
       {
         path: "artist/login",

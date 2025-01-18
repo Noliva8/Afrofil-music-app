@@ -1,0 +1,56 @@
+
+/* Account profile artist */
+/* --------------------- */
+
+.artistAcountProfileContainer{
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+}
+
+
+.artistAcountProfile{
+    width: 200px;
+    height: 200px;
+    background-color: white;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: center;
+    
+}
+.artistAcount{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0;
+    align-items: center;
+    word-spacing: normal;
+
+}
+
+.artistAcount h2 {
+margin-bottom: -22px;
+color: #e3e3e3;
+font-family: "roboto";
+}
+
+
+.editProfilePicture{
+  margin-top: -1.1rem;  
+ color: #333;
+ font-size: 1.2rem;
+ font-family: roboto;
+ 
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ margin: 0 auto;
+ 
+}
+
+.inputUpload {
+    width: 100%; 
+    max-width: 400px; 
+}
