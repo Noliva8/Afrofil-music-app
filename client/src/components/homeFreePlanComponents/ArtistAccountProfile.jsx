@@ -1,7 +1,7 @@
 import '../../components/homeFreePlanComponents/homeFreePlanComponentStyles/artistAccountProfile.css';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
-import ArtistAuth from '../../utils/artist_auth';
+
 import { ADD_PROFILE_IMAGE } from '../../utils/mutations';
 import { ARTIST_PROFILE } from '../../utils/artistQuery';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -11,9 +11,11 @@ import { GET_PRESIGNED_URL_DELETE } from '../../utils/mutations';
 import { GET_PRESIGNED_URL_DOWNLOAD } from '../../utils/mutations';
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-
-
+// import './homeFreePlanComponentStyles/artistAccountProfile.css'
+import customProfileImage from '../../images/custom-profile.jpg'
+import Paper from "@mui/material/Paper";
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box'
 
 
 
@@ -32,90 +34,53 @@ const ArtistAccountProfile = () => {
    const [isInputVisible, setInputVisible] = useState(false);
    const fileInputRef = useRef(null);
    const [displayEditButton , setDisplayEditButton] = useState(false);
+    const [profileImage, setProfileImage] = useState(null);
+     
+     const [isLoadingImage, setIsLoadingImage] = useState(true);
 
 
 
 
 
-   const profileData = ArtistAuth.getProfile();
-
-  const handleProfileImageUpload = async (e) => {
+  //  const profileData = ArtistAuth.getProfile();
+const handleProfileImageUpload = async (e) => {
   e.preventDefault();
 
+  // Get the current profile image URL from the database
+  const profileImageUrl = artistData.artistProfile.profileImage;
+  console.log("Profile Image URL:", profileImageUrl);
 
-// delete existing image before uploading
-// -------------------------------------
-
-const profileImageUrl = artistData.artistProfile.profileImage;
-console.log("Profile Image URL:", profileImageUrl);
-
-const lastSlashIndex = profileImageUrl.lastIndexOf('/');
-// Extract the key using substring
-const keyToDelete = profileImageUrl.substring(lastSlashIndex + 1);
-console.log("Extracted Key:", keyToDelete); // Corrected variable name
-
-try {
-  const { data: dataToDelete } = await getPresignedUrlDelete({
-    variables: {
-      bucket: "afrofeel-profile-picture",
-      key: keyToDelete,
-      region: "us-west-2",
-    },
-  });
-
-  const presignedUrlForDelete = dataToDelete.getPresignedUrlDelete.urlToDelete;
-  console.log("Presigned URL to delete:", presignedUrlForDelete);
-
-  // Step 2: Delete the file from S3
-  const deleteResponse = await fetch(presignedUrlForDelete, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json", // Adjust the content type as necessary
-    },
-  });
-
-  if (deleteResponse.ok) {
-    console.log("File deleted successfully");
-  } else {
-    console.error("File delete failed:", deleteResponse.statusText, await deleteResponse.text());
-    return;
+  // If there is an existing image, prepare to delete it later
+  let keyToDelete = "";
+  if (profileImageUrl) {
+    const lastSlashIndex = profileImageUrl.lastIndexOf('/');
+    keyToDelete = profileImageUrl.substring(lastSlashIndex + 1);
   }
-} catch (error) {
-  console.error("Error during delete process:", error);
-  return;
-}
-// end delete image
 
-
-
+  // Step 1: Upload new image only if it's provided
   const file = e.target.files[0];
   if (!file) {
-    console.error("No file selected.");
+    toast.error("No file selected.");
     return;
   }
 
-const allowedTypes = ["image/jpeg", "image/png"]; 
-const maxSize = 5 * 1024 * 1024; // 5 MB
-
-// Validate file type
-if (!allowedTypes.includes(file.type)) {
-    console.error("Invalid file type. Please upload an image file (JPEG, PNG, GIF).");
-    toast.error("Invalid file type. Please upload an image file (JPEG, PNG, GIF).");
+  // Validate file type and size
+  const allowedTypes = ["image/jpeg", "image/png"];
+  const maxSize = 5 * 1024 * 1024; // 5 MB
+  if (!allowedTypes.includes(file.type)) {
+    toast.error("Invalid file type. Please upload an image file (JPEG, PNG).");
     return;
-}
-
-// Validate file size
-if (file.size > maxSize) {
-    console.error("File size exceeds the maximum limit of 5 MB.");
-toast.error("File size exceeds the maximum limit of 5 MB.).");
+  }
+  if (file.size > maxSize) {
+    toast.error("File size exceeds the maximum limit of 5 MB.");
     return;
-}
+  }
 
-
-  let uploadedFileUrl = ""; // Ensure it's initialized as a string
+  let uploadedFileUrl = ""; 
 
   try {
-    // Step 1: Get the presigned URL
+    // Step 2: Get the presigned URL for uploading the new image to S3
+    setIsLoadingImage(true);
     const { data } = await getPresignedUrl({
       variables: {
         bucket: "afrofeel-profile-picture",
@@ -125,9 +90,9 @@ toast.error("File size exceeds the maximum limit of 5 MB.).");
     });
 
     const presignedUrl = data.getPresignedUrl.url;
-    console.log("Presigned URL:", presignedUrl);
+    console.log("Presigned URL for upload:", presignedUrl);
 
-    // Step 2: Upload the file to S3
+    // Step 3: Upload the file to S3
     const response = await fetch(presignedUrl, {
       method: "PUT",
       body: file,
@@ -137,123 +102,186 @@ toast.error("File size exceeds the maximum limit of 5 MB.).");
     });
 
     if (response.ok) {
-      console.log("File uploaded successfully");
+      console.log("File uploaded successfully to S3");
       uploadedFileUrl = `https://afrofeel-profile-picture.s3.us-west-2.amazonaws.com/${file.name}`;
     } else {
       console.error("File upload failed:", response.statusText, await response.text());
       toast.error("File upload failed.");
       return;
-    };
-   
+    }
   } catch (error) {
     console.error("Error during upload process:", error);
+    toast.error("Error uploading image.");
     return;
   }
 
-  console.log("Uploaded File URL:", uploadedFileUrl);  
-  
-  // Make sure uploadedFileUrl is a string and not an array
-  if (Array.isArray(uploadedFileUrl)) {
-    console.error("Error: uploadedFileUrl is an array, not a string.");
-    uploadedFileUrl = uploadedFileUrl[0]; // Convert to string if it's wrapped in an array
+  // Step 4: Update the database with the new image URL
+  try {
+    const { data: updatedArtistData, errors } = await addProfileImage({
+      variables: { profileImage: uploadedFileUrl },
+    });
+
+    if (errors) {
+      console.error("GraphQL errors:", errors);
+      toast.error("Error updating profile with new image.");
+      return;
+    } else {
+      console.log("Artist profile updated successfully:", updatedArtistData.updateArtistProfile);
+      // Optionally refetch the artist profile to update the UI
+      refetch();
+       toast.success("Profile image updated successfully!");
+        setIsLoadingImage(false);
+    }
+  } catch (error) {
+    console.error("Error updating artist profile:", error.message || error);
+    toast.error("Error updating profile with new image.");
+     setIsLoadingImage(false);
+    return;
   }
 
-try {
-  // Step 3: Update the artist's profile with the uploaded image URL
-  const { data: updatedArtistData, errors } = await addProfileImage({
-    variables: { profileImage: uploadedFileUrl },
-  });
+  // Step 5: Delete the old image from S3 if it exists
+  if (keyToDelete) {
+    try {
+      const { data: dataToDelete } = await getPresignedUrlDelete({
+        variables: {
+          bucket: "afrofeel-profile-picture",
+          key: keyToDelete,
+          region: "us-west-2",
+        },
+      });
 
-  if (errors) {
-    console.error("GraphQL errors:", errors);
-  } else {
-    console.log("Artist profile updated successfully:", updatedArtistData.updateArtistProfile);
-    // Optionally refetch the artist profile to update the UI
-    refetch();
+      const presignedUrlForDelete = dataToDelete.getPresignedUrlDelete.urlToDelete;
+
+      // Delete the old image from S3
+      const deleteResponse = await fetch(presignedUrlForDelete, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (deleteResponse.ok) {
+        console.log("Old file deleted successfully from S3");
+      } else {
+        console.error("File delete failed:", deleteResponse.statusText, await deleteResponse.text());
+        toast.error("Error deleting the old file from S3.");
+      }
+    } catch (error) {
+      console.error("Error during delete process:", error);
+      toast.error("Error during the deletion of the old file.");
+      return;
+    }
   }
-} catch (error) {
-  console.error("Error updating artist profile:", error.message || error);
-  if (error.graphQLErrors) {
-    console.error("GraphQL errors:", error.graphQLErrors);
-  }
-  if (error.networkError) {
-    console.error("Network errors:", error.networkError);
-  }
-}
 
-
-// grant the sccess to the artist to display the profile picture
-// -----------------------------------------------------------
-
-
-try{
-
-const {data: readData} = await getPresignedUrlDownload({
-    variables: {
+  // Step 6: Optionally, grant access to the new image for display (optional step)
+  try {
+    const { data: readData } = await getPresignedUrlDownload({
+      variables: {
         bucket: "afrofeel-profile-picture",
         key: file.name,
         region: "us-west-2",
       },
-})
+    });
 
-const presignedUrlReadData = readData.getPresignedUrlDownload.urlToDownload;
+    const presignedUrlReadData = readData.getPresignedUrlDownload.urlToDownload;
 
-// read the file from s3
-// --------------------
-
- const response = await fetch(presignedUrlReadData, {
+    // Read the file from S3
+    const response = await fetch(presignedUrlReadData, {
       method: "GET",
       headers: {
         "Content-Type": file.type,
       },
     });
 
- if (response.ok) {
-      console.log("profile picture displayed successfully");
-      
+    if (response.ok) {
+      console.log("Profile picture displayed successfully");
     } else {
-      console.error("profile picture display failed:", response.statusText, await response.text());
-      toast.error("profile picture display failed.");
+      console.error("Profile picture display failed:", response.statusText, await response.text());
+      toast.error("Profile picture display failed.");
       return;
-    };
-
-
-
-} catch(error){
- console.error("Error during display process:", error);
+    }
+  } catch (error) {
+    console.error("Error during display process:", error);
+    toast.error("Error during the display process.");
     return;
-
-}
-
-
-
+  }
 };
+
 // end handle File upload
 
 
 
 
-if (loading) return <p>Loading...</p>;
-if (error) return <p>Error fetching profile data: {error.message}</p>;
-if (!artistData || !artistData.artistProfile) return <p>No profile data available</p>;
-
-const profileImageUrl = artistData.artistProfile.profileImage;
-  console.log("Profile Image URL:", profileImageUrl);
-
-const lastSlashIndex = profileImageUrl.lastIndexOf('/');
-// Extract the key using substring
-const key = profileImageUrl.substring(lastSlashIndex + 1);
-console.log("Extracted Key:", key); 
 
 
 
 
+// grant access to the artist to view profile anytime this component loads
+// ----------------------------------------------------------------------
+
+  let key = null;
+  if (artistData && artistData.artistProfile && artistData.artistProfile.profileImage) {
+    const profileImageUrl = artistData.artistProfile.profileImage;
+    const lastSlashIndex = profileImageUrl.lastIndexOf('/');
+    key = profileImageUrl.substring(lastSlashIndex + 1);
+   
+  }
 
 
+  // UseEffect for fetching the presigned URL for the profile image
+  useEffect(() => {
+    const fetchPresignedUrl = async () => {
+      if (!key) return; // If no key, don't fetch
+
+      try {
+        // Fetch the presigned URL for downloading
+        const { data } = await getPresignedUrlDownload({
+          variables: {
+            bucket: 'afrofeel-profile-picture',
+            key: key,
+            region: 'us-west-2',
+          },
+        });
+
+        const presignedUrl = data.getPresignedUrlDownload.urlToDownload;
+        
+        // Fetch the image from S3 using the presigned URL
+        const imageResponse = await fetch(presignedUrl);
+        if (!imageResponse.ok) {
+          throw new Error('Failed to fetch image from presigned URL');
+        }
+        
+        // Convert the image response into a Blob (binary data)
+        const imageBlob = await imageResponse.blob();
+        
+        // Create an Object URL for the image (for displaying in an <img> tag or as background)
+        const imageObjectURL = URL.createObjectURL(imageBlob);
+        
+        // Set the image URL
+        setProfileImage(imageObjectURL);
+        setIsLoadingImage(false); // Mark loading as false once image is fetched
+      } catch (error) {
+        console.error('Error during profile image fetch:', error);
+        toast.error('Failed to fetch profile image.');
+        setIsLoadingImage(false);
+      }
+    };
+
+    fetchPresignedUrl(); // Call the function to fetch the URL and image
+  }, [key]);
+
+
+  // Early return for loading/error states before render
+  if (loading) return <p>Loading...</p>;
+
+  if (error) return <p>Error fetching profile data: {error.message}</p>;
+  if (!artistData || !artistData.artistProfile) return <p>No profile data available</p>;
+
+
+// end grant access to artist to viwe profile
 
    const handleUploadButtonClick = () => {
     setInputVisible(true);
-    
     fileInputRef.current.click(); 
     
   };
@@ -261,55 +289,101 @@ console.log("Extracted Key:", key);
 
 
 
+return (
+ <>
+    {isLoadingImage ? (
+      <p>Uploading and updating profile image...</p>
+    ) : artistData.artistProfile.profileImage ? (
+      <>
 
 
-  return (
-    <div className="artistAcountProfileContainer">
+<Box sx={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '6rem'}}>
+<Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
+        <div
+          className="artistAcountProfile"
+          onClick={handleUploadButtonClick}
+          style={{
+                 
+            backgroundImage: `url(${profileImage})`,
+            backgroundSize: 'cover',  
+            backgroundPosition: 'center',
+            borderRadius: '50px 0 0 0',
+            height: '350px',            
+      width: '350px',            
+            cursor: 'pointer',
+          }}
+        > 
+          </div>
+</Paper >
 
-      <div className="artistAcountProfile" >
+
+<Box>
+<Typography variant='h6'>jghjfjhfhjfjh</Typography>
+<Typography variant='body'>jghjfjhfhjfjh</Typography>
+</Box>
+</Box>
+      </>
+    ) : artistData.artistProfile === '' ? (
+      <>
+
+
+
+      <Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
+        <div
+          className="artistAcountProfile"
+          onClick={handleUploadButtonClick}
+          style={{
+            backgroundImage: `url(${customProfileImage})`,
+            backgroundSize: 'cover',   // Ensures the image covers the entire circular div
+            backgroundPosition: 'center',
+            height: '300px',             // Fill the container's height
+            width: '300px',              // Fill the container's width
+            cursor: 'pointer',
+          }}
+        >
+        
+        </div>
+        </Paper>
+
        
-        <button className='editProfilePicture' type="button" onClick={handleUploadButtonClick} >  < UploadFileIcon />profile picture</button>
+      </>
+    ) : (
+      <>
+
+     <Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
+        <div
+          className="artistAcountProfile"
+          onClick={handleUploadButtonClick}
+          style={{
+            backgroundImage: `url(${customProfileImage})`,
+            backgroundSize: 'cover',   // Ensures the image covers the entire circular div
+            backgroundPosition: 'center',
+            height: '300px',        
+            width: '300px',           
+            cursor: 'pointer',
+          }}
+        > 
+        </div>
+        </Paper>
+      </>
+    )}
+
+    <input
+      type="file"
+      id="profileImage"
+      name="profileImage"
+      className="inputUpload"
+      accept="image/png, image/jpeg"
+      onChange={handleProfileImageUpload}
+      ref={fileInputRef}
+      style={{ display: 'none' }} // Hide the file input
+    />
+  </>
+);
+
+}
 
 
-            {isInputVisible && (
-              <>
-              <label for="profileImage" id="profileImage-label">Upload</label>
-                <input
-                    type="file"
-                    id="profileImage"
-                    name="profileImage"
-                    className='inputUpload'
-                    accept="image/png, image/jpeg"
-                    onChange={handleProfileImageUpload}
-                    ref={fileInputRef}
-                    style={{ display: 'none' }} 
-                />
-                </>
-            )}
 
-      </div>
-
-
-
-
-
-
-
-
-       <button type='button' className='editProfile' style={{display: 'none'}}>Edit</button>
-
-
-
-       
-
-      <div className="artistAcount">
-        <h2>Your Account</h2>
-        <h3>{profileData?.data?.fullName || "Unknown User"}</h3>
-        <h3>aka {profileData?.data?.artistAka || "Unknown Alias"}</h3>
-      </div>
-
-    </div>
-  );
-};
 
 export default ArtistAccountProfile;

@@ -21,6 +21,7 @@ import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
 import ContentFreePlan from './pages/freeDashboard/ContentFreePlan.jsx';
 import DashboardFreePlan from './pages/freeDashboard/DashboardFreePlan.jsx';
 
+
 import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
 
 // Protected Route Component

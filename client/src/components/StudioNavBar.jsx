@@ -5,8 +5,13 @@ import SourceIcon from "@mui/icons-material/Source";
 import DashboardCustomizeIcon from "@mui/icons-material/DashboardCustomize";
 import HomeIcon from "@mui/icons-material/Home";
 import CancelPresentationIcon from '@mui/icons-material/CancelPresentation';
+import { useState } from "react";
+
 
 export default function StudioNavBar({ isVisible, onClose }) {
+
+
+
   return (
     <nav className={`sideNav ${isVisible ? "expanded" : "collapsed"}`}>
       {isVisible && (  // Conditionally render the close button only when expanded

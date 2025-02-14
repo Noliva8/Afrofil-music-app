@@ -1,27 +1,184 @@
-import React from 'react';
-import FreePlanAppNavBar from '../components/FreePlanAppNavBar';
-import StudioNavBar from "../components/StudioNavBar";
-import HomeFreePlan from './freeDashboard/HomeFreePlan';
+import { Outlet } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { ARTIST_PROFILE } from "../utils/artistQuery";
+import { GET_PRESIGNED_URL_DOWNLOAD } from "../utils/mutations";
+import { useQuery, useMutation } from "@apollo/client";
 
-import './CSS/studio.css';
+import CssBaseline from "@mui/material/CssBaseline";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import AppTheme from "../components/theme";
+import FreePlanAppNavBar from "../components/FreePlanAppNavBar";
+import StudioHeader from "../components/StudioHeader";
+import SideMenu from "../components/SideNavBar";
+import SideMenuReduced from "../components/SideNavBarReduced";
+import { Typography } from "@mui/material";
 
-export default function ArtistStudio(){
-  return(
-    <div className="artistStudioContainer">
-      {/* Fixed Top Navigation */}
-      <div className="appNavBar">
-        <FreePlanAppNavBar />
-      </div>
+import MobileSideMenu from "../components/MobileSideMenu";
 
-      {/* Fixed Side Navigation */}
-      <div className="studioNavBar">
-        <StudioNavBar />
-      </div>
+export default function ArtistStudio() {
+  const {
+    loading,
+    error,
+    data: artistData,
+    refetch,
+  } = useQuery(ARTIST_PROFILE);
 
-      {/* Main Content */}
-      <div className="mainContent">
-        <HomeFreePlan />
-      </div>
-    </div>
+  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const [profileImage, setProfileImage] = useState(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Open drawer
+  const [openDrawer, setOpenDrawer] = useState(true);
+  const handleShowDrawers = () => {
+    setOpenDrawer((prev) => !prev);
+  };
+
+  const [openMobileMenu, setOpenMobileMenu] = useState(false);
+
+  const handleShowMobileMenu = () => {
+    setOpenMobileMenu((prev) => !prev);
+  };
+
+  // for the account menu
+  // -------------------
+
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+
+  const handleshowAccountMenu = () => {
+    setShowAccountMenu((prev) => !prev);
+    console.log("biteeee");
+  };
+
+  // Show profile image anytime this profile loads.
+  let key = null;
+  if (
+    artistData &&
+    artistData.artistProfile &&
+    artistData.artistProfile.profileImage
+  ) {
+    const profileImageUrl = artistData.artistProfile.profileImage;
+    const lastSlashIndex = profileImageUrl.lastIndexOf("/");
+    key = profileImageUrl.substring(lastSlashIndex + 1);
+  }
+
+  // Fetch the presigned URL for the profile image
+  useEffect(() => {
+    const fetchPresignedUrl = async () => {
+      if (!key) return; // If no key, don't fetch
+
+      try {
+        // Fetch the presigned URL for downloading
+        const { data } = await getPresignedUrlDownload({
+          variables: {
+            bucket: "afrofeel-profile-picture",
+            key: key,
+            region: "us-west-2",
+          },
+        });
+
+        const presignedUrl = data.getPresignedUrlDownload.urlToDownload;
+
+        // Fetch the image from S3 using the presigned URL
+        const imageResponse = await fetch(presignedUrl);
+        if (!imageResponse.ok) {
+          throw new Error("Failed to fetch image from presigned URL");
+        }
+
+        // Convert the image response into a Blob (binary data)
+        const imageBlob = await imageResponse.blob();
+
+        // Create an Object URL for the image (for displaying in an <img> tag or as background)
+        const imageObjectURL = URL.createObjectURL(imageBlob);
+
+        // Set the image URL
+        setProfileImage(imageObjectURL);
+        setIsLoadingImage(false); // Mark loading as false once image is fetched
+      } catch (error) {
+        console.error("Error during profile image fetch:", error);
+        setIsLoadingImage(false);
+      }
+    };
+
+    fetchPresignedUrl(); // Call the function to fetch the URL and image
+  }, [key]);
+
+  // Early return for loading/error states before render
+  if (loading) return <p>Loading...</p>;
+
+  if (error) return <p>Error fetching profile data: {error.message}</p>;
+  if (!artistData || !artistData.artistProfile)
+    return <p>No profile data available</p>;
+
+  // end show profile
+
+  const artistProfile = artistData.artistProfile;
+
+  return (
+    <>
+      <CssBaseline enableColorScheme />
+      <Box sx={{ display: "flex" }}>
+        <SideMenu
+          openDrawer={openDrawer}
+          profileImage={profileImage}
+          artistProfile={artistProfile}
+        />
+        {!openDrawer && (
+          <SideMenuReduced
+            open={true}
+            setOpenDrawer={setOpenDrawer}
+            profileImage={profileImage}
+            artistProfile={artistProfile}
+          />
+        )}
+        <MobileSideMenu
+          openMobileMenu={openMobileMenu}
+          handleShowMobileMenu={handleShowMobileMenu}
+          profileImage={profileImage}
+          artistProfile={artistProfile}
+        />
+        <FreePlanAppNavBar
+          profileImage={profileImage}
+          artistProfile={artistProfile}
+          handleShowMobileMenu={handleShowMobileMenu}
+          handleshowAccountMenu={handleshowAccountMenu}
+          showAccountMenu={showAccountMenu}
+        />
+
+        {/* Main content */}
+
+        <Box
+          component="main"
+          sx={(theme) => ({
+            flexGrow: 1,
+
+            overflow: "auto",
+            bgcolor: "var(  --secondary-background-color)",
+            alignItems: "center",
+            justifyContent: "center",
+          })}
+        >
+          <Stack
+            spacing={2}
+            sx={{
+              alignItems: "center",
+              mx: 3,
+              pb: 5,
+              mt: { xs: 8, md: 0 },
+            }}
+          >
+            <StudioHeader
+              openDrawer={openDrawer}
+              handleShowDrawers={handleShowDrawers}
+              handleshowAccountMenu={handleshowAccountMenu}
+              profileImage={profileImage}
+            />
+
+            <Outlet />
+          </Stack>
+        </Box>
+      </Box>
+    </>
   );
 }

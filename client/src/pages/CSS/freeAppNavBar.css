@@ -96,10 +96,32 @@ body {
 }
 
 
+.nav-item {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 10px;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none; /* Ensures no underline */
+  transition: background-color 0.3s ease-in-out;
+  border-radius: 10px;
+   width: 100%;
+}
 
+.nav-item:hover {
+  background-color: var(--secondary-background-color);
+  color: white;
+   width: 100%; 
+}
 
-
-
+/* Optional: Prevent width change */
+.nav-item span {
+  display: flex;
+  align-items: center;
+  
+   
+}
 
 
 

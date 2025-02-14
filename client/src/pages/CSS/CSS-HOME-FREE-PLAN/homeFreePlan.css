@@ -30,7 +30,7 @@ body, html {
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 20px; /* Add some padding for better spacing */
+  padding: 20px; 
 }
 
 /* Header styling */
@@ -48,57 +48,10 @@ header h1 {
 
 /* Main content styling */
 
-main {
-  width: 100%; /* Full width */
-  max-width: 100%; /* Prevent horizontal overflow */
-  margin: 0 auto; /* Center the main container */
-  height: auto;
-  min-height: min-content; /* Ensure it adapts to content height */
-  overflow-y: auto; /* Scroll vertically if content overflows */
-  display: flex; /* Use Flexbox for layout */
-  justify-content: center; /* Center items horizontally */
-  gap: 5px; /* Small gap between items */
-  padding: 50px; /* Adjust padding for better spacing */
-  flex-wrap: nowrap; /* Prevent items from wrapping (horizontal scrolling on overflow) */
-}
-
-/* Responsive design for smaller screens */
-@media (max-width: 768px) {
-  main {
-    flex-wrap: wrap; /* Allow items to wrap */
-    justify-content: space-around; /* Space items evenly */
-    padding: 20px; /* Reduce padding */
-  }
-
-  main > * {
-    flex: 1 1 100%; 
-  }
-}
-
-/* Responsive design for medium screens */
-@media (min-width: 769px) and (max-width: 1024px) {
-  main {
-    flex-wrap: wrap; /* Allow items to wrap */
-    justify-content: space-evenly; /* Adjust spacing for medium screens */
-    padding: 40px; /* Moderate padding */
-  }
-
-  main > * {
-    flex: 1 1 calc(50% - 10px); /* Two items per row with gap */
-  }
-}
-
-/* Responsive design for larger screens */
-@media (min-width: 1025px) {
-  main {
-    flex-wrap: wrap; /* Allow wrapping */
-    justify-content: space-between; /* Distribute items evenly */
-    padding: 50px; /* Original padding for larger screens */
-  }
-
-  main > * {
-    flex: 1 1 calc(33.333% - 10px); /* Three items per row */
-  }
+.mainWrapper{
+display: grid;
+grid-template-columns: max-content;
+grid-template-rows: auto;
 }
 
 

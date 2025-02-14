@@ -6,7 +6,7 @@ import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
 import { alpha } from '@mui/system';
 import { gray, brand } from './themePrimitive'; // Assume these are custom theme primitives
-
+import { svgIconClasses } from '@mui/material/SvgIcon';
 
 
 /* eslint-disable import/prefer-default-export */

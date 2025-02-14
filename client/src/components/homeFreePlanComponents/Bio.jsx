@@ -2,21 +2,26 @@ import React, { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client";
 import { ARTIST_PROFILE } from "../../utils/artistQuery";
 import { ADD_BIO } from "../../utils/mutations";
-import {
-  Box,
-  Modal,
-  FormControl,
-  Button,
-  FormLabel,
-  TextareaAutosize,
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Grid,
-} from "@mui/material";
-import { ToastContainer, toast } from "react-toastify";  // Import react-toastify
-import "react-toastify/dist/ReactToastify.css";  // Import styles
+
+
+import Grid from '@mui/material/Grid2';
+import Box from "@mui/material/Box";
+import Modal from "@mui/material/Modal";
+import FormControl from "@mui/material/FormControl";
+import  Button from "@mui/material/Button";
+import FormLabel from "@mui/material/FormLabel";
+import TextareaAutosize from "@mui/material/TextareaAutosize";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import CardActions from "@mui/material/CardActions";
+import Typography from "@mui/material/Typography";
+import ArtistAccountProfile from "./ArtistAccountProfile";
+
+import { ToastContainer, toast } from "react-toastify"; 
+import "react-toastify/dist/ReactToastify.css";  
+
+
+
 
 const modalStyle = {
   position: "absolute",
@@ -37,7 +42,7 @@ const cardStyle = {
   backgroundColor: "#1a5d5d",
   color: "#fff",
   borderRadius: "12px", // Rounded corners
-  maxWidth: "600px",
+  width: '100%',
   margin: "20px auto",
   padding: "20px",
   boxSizing: "border-box",
@@ -54,7 +59,7 @@ const bioContainerStyle = {
   padding: "1rem",
   borderRadius: "8px",
   minWidth: "400px",
-  maxHeight: "300px",
+  maxHeight: "auto",
   overflowY: "auto",
   lineHeight: "1.6em",
   fontSize: "1rem", // Adjusted font size for better readability
@@ -122,6 +127,7 @@ const Bio = () => {
             Loading...
           </Typography>
         ) : (
+
           <Card sx={cardStyle}>
             <CardContent>
               <Typography
@@ -141,6 +147,17 @@ const Bio = () => {
               
               {data?.artistProfile?.bio ? (
                 <Box sx={bioContainerStyle}>
+
+                  <Box sx={{width: '300px', height: '400px'}}>
+<ArtistAccountProfile />
+                  </Box>
+
+
+
+
+
+
+
                   <Typography 
                     variant="body2" 
                     sx={{ 
