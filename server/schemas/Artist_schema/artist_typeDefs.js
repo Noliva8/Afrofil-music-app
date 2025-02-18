@@ -28,12 +28,18 @@ enum ArtistRole {
   ADMIN
 }
 
+
 type Song {
   _id: ID!
   title: String!
-  artists: [Artist!]!
+  artist: Artist!
+  featuringArtist: [String]
   album: Album
-  genre: Genre
+  trackNumber: Int
+  genre: String
+  producer: [String]
+  composer: [String]
+  label: String
   duration: Int!
   playCount: Int!
   releaseDate: Date!
@@ -41,10 +47,14 @@ type Song {
   likedByUsers: [User]
   trendingScore: Int
   tags: [String]
+  lyrics: String
+  artwork: String
   audioFileUrl: String!
   audioHash: String!
   createdAt: Date!
 }
+
+
 
 type Album {
   _id: ID!
@@ -62,6 +72,9 @@ type Query {
   songsOfArtist(artistId: ID!): [Song]
   getPresignedUrl(key: String!, operation: String!): String
   albumOfArtist(artistId: ID!): Album
+
+  allSongs: [Song]
+  
 }
 
 type AuthPayload_artist {
@@ -129,14 +142,27 @@ type Mutation {
   addProfileImage(profileImage: String): Artist
   addMood(mood: [String]): Artist
 
+
   createSong(
     title: String!
     artistId: ID!
+    featuringArtist: [String]
     albumId: ID
     genre: String
     duration: Int!
-    releaseDate: String!
+    trackNumber: Int
+    producer: [String]
+    composer: [String]
+    label: String
+    releaseDate: Date!
   ): Song
+
+
+
+
+
+
+
 
   deleteSong(artistId: ID!, songId: ID!): Song
 

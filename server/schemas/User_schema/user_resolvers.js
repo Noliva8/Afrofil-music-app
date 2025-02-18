@@ -159,7 +159,7 @@ throw new Error(error.message);
 searchSong: async (parent, { title, artist }) => {
   try {
     const song = await Song.find({ title, artist })
-      .populate('genre')
+     
       .populate('album');
 
    if (song.length === 0) {
@@ -238,19 +238,7 @@ songsByArtist: async (parent, { name }) => {
   }
 },
 
-genre: async (parent, { genreId }) => {
-  try {
-    const genre = await Genre.findById({_id:genreId})
-      .populate('songs'); 
 
-    if (!genre) {
-      throw new Error(`Genre with ID ${genreId} not found`);
-    }
-    return genre;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
 
 playlist: async (parent, { playlistId }) => {
   try {

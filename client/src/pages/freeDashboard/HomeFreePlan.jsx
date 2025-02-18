@@ -15,8 +15,8 @@ import ArtistAccountProfile from "../../components/homeFreePlanComponents/Artist
 
 export default function HomeFreePlan() {
   return (
-    <Box sx={{ width: "100%", maxWidth: { sm: "100%", md: "1700px" } }}>
-      <Typography component="h2" variant="h6" sx={{ mb: 2 }}>
+    <Box>
+      <Typography component="h2" variant="h6" sx={{ mb: 2, mt: 9 }}>
         Profile Information
       </Typography>
 
@@ -27,13 +27,36 @@ export default function HomeFreePlan() {
         sx={{ mb: (theme) => theme.spacing(2) }}
       >
        
-        <Grid size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }} >
           <Bio />
         </Grid>
 
 
       </Grid>
 
+       <Grid
+        container
+        spacing={2}
+        columns={12}
+        sx={{ mb: (theme) => theme.spacing(2) }}
+      >
+
+         <Grid size={{ xs: 12, lg: 6 }}>
+          <Country />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+        <Language />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Genre />
+        </Grid>
+
+
+
+
+      </Grid>
 
     </Box>
 

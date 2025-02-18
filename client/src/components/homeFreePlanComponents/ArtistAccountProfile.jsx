@@ -15,7 +15,9 @@ import "react-toastify/dist/ReactToastify.css";
 import customProfileImage from '../../images/custom-profile.jpg'
 import Paper from "@mui/material/Paper";
 import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box'
+import Box from '@mui/material/Box';
+import ArtistAuth from '../../utils/artist_auth';
+import Divider from '@mui/material/Divider';
 
 
 
@@ -37,6 +39,11 @@ const ArtistAccountProfile = () => {
     const [profileImage, setProfileImage] = useState(null);
      
      const [isLoadingImage, setIsLoadingImage] = useState(true);
+
+       const profile = ArtistAuth.getProfile();
+const email = profile?.data?.email;
+const artistAka = profile?.data?.artistAka;
+const fullName = profile?.data?.fullName;
 
 
 
@@ -297,7 +304,9 @@ return (
       <>
 
 
-<Box sx={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '6rem'}}>
+<Box
+
+>
 <Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
         <div
           className="artistAcountProfile"
@@ -317,39 +326,74 @@ return (
 </Paper >
 
 
-<Box>
-<Typography variant='h6'>jghjfjhfhjfjh</Typography>
-<Typography variant='body'>jghjfjhfhjfjh</Typography>
+ <Box sx={{display: 'flex', flexDirection: 'column', }}>
+<Typography sx={{marginBottom: '-8px'}} variant='h6'>{fullName}</Typography>
+<Typography sx={{fontStyle: 'italic', fontWeight: 'bold'}} variant="body">{email}</Typography>
 </Box>
+<Divider />
+
 </Box>
       </>
     ) : artistData.artistProfile === '' ? (
       <>
 
+<Box
+  sx={{
+    display: "flex",
+    justifyContent: "space-around",
+    alignItems: "center",
+    gap: { xs: "1rem", sm: "3rem", md: "6rem" }, 
+    width: "100%", // Full width
+    flexDirection: { xs: "column", sm: "row" }, 
+  }}
+>
+  {/* Profile Image Container */}
+  <Paper
+    elevation={1}
+    sx={{
+      minWidth: { xs: "250px", sm: "350px", md: "400px" }, // Responsive size
+      minHeight: { xs: "250px", sm: "350px", md: "400px" },
+      bgcolor: "var(--primary-background-color)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <div
+      className="artistAcountProfile"
+      onClick={handleUploadButtonClick}
+      style={{
+        backgroundImage: `url(${customProfileImage})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        height: "100%", // Make it responsive
+        width: "100%",
+        cursor: "pointer",
+      }}
+    ></div>
+  </Paper>
 
+  {/* User Info */}
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      gap: "1rem",
+      textAlign: { xs: "center", sm: "left" }, // Center text on mobile
+    }}
+  >
+    <Typography variant="h6">{fullName}</Typography>
+    <Typography variant="body2">{email}</Typography>
+  </Box>
+</Box>
 
-      <Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
-        <div
-          className="artistAcountProfile"
-          onClick={handleUploadButtonClick}
-          style={{
-            backgroundImage: `url(${customProfileImage})`,
-            backgroundSize: 'cover',   // Ensures the image covers the entire circular div
-            backgroundPosition: 'center',
-            height: '300px',             // Fill the container's height
-            width: '300px',              // Fill the container's width
-            cursor: 'pointer',
-          }}
-        >
-        
-        </div>
-        </Paper>
 
        
       </>
     ) : (
       <>
 
+<Box sx={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '6rem'}}>
      <Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
         <div
           className="artistAcountProfile"
@@ -365,6 +409,13 @@ return (
         > 
         </div>
         </Paper>
+
+        <Typography variant='h6'>{fullName}</Typography>
+<Typography variant="body2">{email}</Typography>
+
+
+</Box>
+
       </>
     )}
 

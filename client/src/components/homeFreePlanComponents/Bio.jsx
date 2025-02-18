@@ -114,6 +114,10 @@ const Bio = () => {
     }
   };
 
+
+
+
+
   return (
     <>
       <Grid
@@ -148,7 +152,7 @@ const Bio = () => {
               {data?.artistProfile?.bio ? (
                 <Box sx={bioContainerStyle}>
 
-                  <Box sx={{width: '300px', height: '400px'}}>
+                  <Box >
 <ArtistAccountProfile />
                   </Box>
 

@@ -13,7 +13,7 @@ import StudioHeader from "../components/StudioHeader";
 import SideMenu from "../components/SideNavBar";
 import SideMenuReduced from "../components/SideNavBarReduced";
 import { Typography } from "@mui/material";
-
+import Grid from '@mui/material/Grid2';
 import MobileSideMenu from "../components/MobileSideMenu";
 
 export default function ArtistStudio() {
@@ -160,7 +160,7 @@ export default function ArtistStudio() {
           })}
         >
           <Stack
-            spacing={2}
+            spacing={4}
             sx={{
               alignItems: "center",
               mx: 3,
@@ -175,7 +175,17 @@ export default function ArtistStudio() {
               profileImage={profileImage}
             />
 
-            <Outlet />
+             <Box >
+              <Outlet />
+          </Box>
+
+
+
+
+
+         
+
+
           </Stack>
         </Box>
       </Box>

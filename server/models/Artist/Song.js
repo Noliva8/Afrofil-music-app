@@ -11,24 +11,48 @@ const songSchema = new Schema({
     ref: 'Artist',
     required: true
   },
+  featuringArtist: {
+     type: [String]
+  },
+
   album: {
     type: Schema.Types.ObjectId,
     ref: 'Album',
     default: 'Unknown'
   },
+
+  trackNumber: {
+   type: Number
+   },
+
    genre: {
    type: String
  },
+
+ producer: {
+   type: [String],
+ },
+
+  composer: {
+   type: [String]
+ },
+
+  label: {
+   type: String
+ },
+
   duration: {
     type: Number,
     required: true, 
     min: 0
   },
+
   playCount: {
     type: Number,
     default: 0,
     required: true
   },
+
   releaseDate: {
     type: Date,
     required: true, 
@@ -39,6 +63,11 @@ const songSchema = new Schema({
       message: 'Release date cannot be in the future.'
     }
   },
+
+  lyrics: {
+   type: String
+ },
+
   downloadCount: {
     type: Number,
     default: 0
@@ -57,7 +86,12 @@ const songSchema = new Schema({
   
   audioFileUrl: {
     type: String,
-    required: true
+   
+  },
+
+  artwork: {
+    type: String,
+   
   },
 
   audioHash: { 
@@ -65,6 +99,7 @@ const songSchema = new Schema({
     unique: true,
     required: true
   },
+
   createdAt: {
     type: Date,
     default: Date.now

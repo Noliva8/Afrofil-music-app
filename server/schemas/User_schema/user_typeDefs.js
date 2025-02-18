@@ -76,7 +76,7 @@ type Song {
   title: String!
   artist: Artist
   album: Album
-  genre: Genre
+  
   duration: Int!
   releaseDate: Date!
 }
@@ -95,10 +95,7 @@ type Album {
   coverImage: String
 }
 
-type Genre {
-  _id: ID!
-  name: String!
-}
+
 
 type Query {
   # Users
@@ -128,10 +125,7 @@ type Query {
   artist(artistId: ID!, songId: ID!): Artist
   songsByArtist(name: String): [Song]
 
-  # Genres
-  genres: [Genre]
-  genre(genreId: ID!): Genre
-  songsByGenre(name: String): [Song]
+
 
   # Playlists
   playlists: [Playlist]

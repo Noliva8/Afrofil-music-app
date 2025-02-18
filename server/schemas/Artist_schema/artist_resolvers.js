@@ -55,10 +55,41 @@ Query: {
   }
 },
 
-  
+// Query / Song
+// --------------
+
+songsOfArtist: async (parent, args, context) => {
+
+    // Check if the artist is logged in by verifying the context
+    if (!context.artist) {
+        throw new Error('Unauthorized: You must be logged in to fetch your songs.');
+    }
+
+    // Use the artist's ID from the context
+    const artistId = context.artist._id;
+
+    try {
+        // Fetch songs associated with the artist's ID and populate the album details
+        const songs = await Song.find({ artistId })
+        .populate('album')
+        .populate('likedByUsers');
+
+        // Return the list of songs with populated album information
+        return songs;
+    } catch (error) {
+        console.error('Error fetching songs:', error);
+
+        // Throw a general error message for the GraphQL response
+        throw new Error("Failed to fetch songs.");
+    }
+}
+
+
+
+
+
+
 },
-
-
 
 
 
@@ -333,48 +364,6 @@ selectPlan: async (parent, { artistId, plan }) => {
 },
 
 
-
-// ---------------------------------------------------------
-
-// update other fields for artist
-// ------------------------------
-
-// updateArtistProfile: async (
-//       parent,
-//       { bio, country, languages, genre, mood, profileImage, coverImage },
-//       context
-//     ) => {
-//       const artistId = context.artist._id;
-//       try {
-//         // First, find the artist by their ID to check if they exist
-//         const artist = await Artist.findById(artistId);
-        
-//         if (!artist) {
-//           throw new Error('Artist not found'); // Artist does not exist
-//         }
-
-//         // Proceed to update the artist's profile if they exist
-//         const updatedArtist = await Artist.findByIdAndUpdate(
-//           artistId,
-//           {
-//             bio: bio || artist.bio, // Use existing bio if not provided
-//             country: country || artist.country,
-//             languages: languages || artist.languages,
-//             genre: genre || artist.genre,
-//             mood: mood || artist.mood,
-//             profileImage: profileImage || artist.profileImage,
-//             coverImage: coverImage || artist.coverImage,
-//           },
-//           { new: true } // Return the updated artist
-//         );
-
-//         return updatedArtist;
-//       } catch (error) {
-//         throw new Error('Failed to update artist profile: ' + error.message);
-//       }
-//     },
-
-
 updateArtistProfile: async (
   parent,
   { artistId, bio, country, languages, genre, mood, profileImage, coverImage },
@@ -609,25 +598,68 @@ const updatedArtist = await Artist.findOneAndUpdate(
   }
 },
 
+// CREATE SONG
+// -------------
 
 
+createSong: async (
+  parent,
+  { 
+    title, 
+    artistId, 
+    featuringArtist, 
+    albumId, 
+    genre, 
+    duration, 
+    trackNumber, 
+    producer, 
+    composer, 
+    label, 
+    releaseDate 
+  },
+  context
+) => {
+  try {
+    // Check if the artist is logged in by verifying the context
+    if (!context.artist) {
+      throw new Error('Unauthorized: You must be logged in to fetch your songs.');
+    }
 
+    // Use the artist's ID from the context
+    const loggedInArtistId = context.artist._id;
 
+    // Set the album to 'Unknown' by default
+    let albumValue = 'Unknown';
 
+    // Check if albumId is provided and exists
+    if (albumId) {
+      const albumExists = await Album.findById(albumId);
+      if (albumExists) {
+        albumValue = albumId;
+      }
+    }
 
+    const song = await Song.create({
+      title, 
+      artistId: loggedInArtistId,
+      featuringArtist, 
+      album: albumValue, 
+      genre, 
+      duration, 
+      trackNumber, 
+      producer, 
+      composer, 
+      label, 
+      releaseDate
+    });
 
+    return song;
 
-
-
-
-
-
-
-
-
-
-
-
+  } catch (error) {
+    console.error("Failed to create a song:", error);
+    throw new Error("Failed to create a song.");
+  }
+},
 
 
 

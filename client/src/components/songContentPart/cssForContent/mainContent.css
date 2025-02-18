@@ -1,0 +1,65 @@
+
+
+.contentForm{
+    width: 100%;
+    display: block;
+}
+
+.downloadContainer{
+    width: 100%;
+}
+
+.donloadButton{
+    background-color: var(--primary-background-color);
+    padding: 1rem;
+    border-radius: 16px;
+    color: white;
+    font-family: Montserrat;
+    font-weight: 600;
+    font-style: normal;
+    word-spacing: 3px;
+
+    }
+
+
+
+
+
+
+/* Media screens
+ */
+
+
+ 
+/* Styles for screens smaller than 600px */
+@media screen and (max-width: 599px) {
+  .donloadButton {
+    background-color: yellow;
+    width: 100%;
+  }
+  
+}
+
+/* Small screens (>=600px) */
+@media screen and (min-width: 600px) {
+  .downloadContainer {
+    width: 75%;
+    background-color: blue;
+  }
+}
+
+/* Medium screens (>=900px) */
+@media screen and (min-width: 900px) {
+  .downloadContainer {
+    width: 30%;
+    background-color: green;
+  }
+}
+
+/* Large screens (>=1200px) */
+@media screen and (min-width: 1200px) {
+  .downloadContainer {
+    width: 25%;
+    background-color: purple;
+  }
+}
