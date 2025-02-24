@@ -235,9 +235,58 @@ mutation getPresignedUrlDelete($bucket: String!, $key: String!, $region: String!
 `
 
 
+export const CREATE_SONG = gql`
 
+mutation createSong($title: String!,  $duration: Int!, $releaseDate: Date!, $featuringArtist: [String], $genre: String, $trackNumber: Int, $producer: [String], $composer: [String], $label: String, $albumId: ID) {
+  createSong(title: $title, duration: $duration, releaseDate: $releaseDate, featuringArtist: $featuringArtist, genre: $genre, trackNumber: $trackNumber, producer: $producer, composer: $composer, label: $label, albumId: $albumId) {
+    _id
+    album {
+      _id
+    }
+    artist {
+      _id
+    }
+    composer
+    createdAt
+    duration
+    featuringArtist
+    genre
+    label
+    producer
+    releaseDate
+    title
+    trackNumber
+  }
+}
 
+`
 
+export const CREATE_ALBUM = gql`
+mutation createAlbum($title: String!) {
+  createAlbum(title: $title) {
+    _id
+    title
+    createdAt
+  }
+}
+`
+
+export const UPDATE_ALBUM = gql`
+mutation updateAlbum($albumId: ID!, $songId: [ID]) {
+  updateAlbum(albumId: $albumId, songId: $songId) {
+    _id
+    artist {
+      _id
+      artistAka
+    }
+    songs {
+      _id
+      title
+    }
+    title
+  }
+}
+`
 
 
 

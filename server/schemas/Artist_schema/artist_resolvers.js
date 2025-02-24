@@ -82,12 +82,33 @@ songsOfArtist: async (parent, args, context) => {
         // Throw a general error message for the GraphQL response
         throw new Error("Failed to fetch songs.");
     }
+},
+
+
+albumOfArtist: async (parent, args, context) => {
+   if (!context.artist) {
+        throw new Error('Unauthorized: You must be logged in to fetch your songs.');
+    }
+
+     // Use the artist's ID from the context
+    const artistId = context.artist._id;
+
+     try {
+        // Fetch albums associated with the artist's ID and populate the songs details
+        const albums = await Album.find({ artist: artistId  })
+        .populate('songs')
+        
+
+        // Return the list of albums with populated songs information
+        return albums.length > 0 ? albums : [];
+    } catch (error) {
+        console.error('Error fetching albums:', error);
+
+        // Throw a general error message for the GraphQL response
+        throw new Error("Failed to fetch albums.");
+    }
+
 }
-
-
-
-
-
 
 },
 
@@ -606,7 +627,6 @@ createSong: async (
   parent,
   { 
     title, 
-    artistId, 
     featuringArtist, 
     albumId, 
     genre, 
@@ -620,30 +640,32 @@ createSong: async (
   context
 ) => {
   try {
-    // Check if the artist is logged in by verifying the context
+    // Check if the user is logged in
     if (!context.artist) {
-      throw new Error('Unauthorized: You must be logged in to fetch your songs.');
+      throw new Error('Unauthorized: You must be logged in to create a song.');
     }
 
-    // Use the artist's ID from the context
     const loggedInArtistId = context.artist._id;
 
-    // Set the album to 'Unknown' by default
-    let albumValue = 'Unknown';
+    // Validate required fields
+    if (!title || !duration || !releaseDate) {
+      throw new Error('Title, duration, and release date are required fields.');
+    }
 
-    // Check if albumId is provided and exists
+    // Check if the album exists
     if (albumId) {
       const albumExists = await Album.findById(albumId);
-      if (albumExists) {
-        albumValue = albumId;
+      if (!albumExists) {
+        throw new Error('Invalid album ID: The specified album does not exist.');
       }
     }
 
+    // Create the song
     const song = await Song.create({
       title, 
-      artistId: loggedInArtistId,
+      artist: loggedInArtistId, 
       featuringArtist, 
-      album: albumValue, 
+      album: albumId, 
       genre, 
       duration, 
       trackNumber, 
@@ -657,12 +679,68 @@ createSong: async (
 
   } catch (error) {
     console.error("Failed to create a song:", error);
-    throw new Error("Failed to create a song.");
+    throw new Error(`Failed to create a song: ${error.message}`);
   }
 },
 
 
 
+
+createAlbum: async (parent, { title }, context) => {
+  try {
+    if (!context.artist) {
+      throw new Error('Unauthorized: You are not logged in.');
+    }
+
+    const artistId = context.artist._id;
+
+    // Check if the artist already has an album
+    const existingAlbum = await Album.findOne({ artist: artistId });
+
+    if (!existingAlbum) {
+      // Create default album if none exist
+      const defaultAlbum = await Album.create({
+        title: "Unknown",
+        artist: artistId, 
+      });
+
+      return defaultAlbum;
+    }
+
+    return existingAlbum; 
+  } catch (error) {
+    console.error("Failed to create a default album:", error);
+    throw new Error("Failed to create an album.");
+  }
+},
+
+
+updateAlbum: async (parent, { songId, albumId }, context) => {
+  try {
+    // Check if the artist is authenticated
+    if (!context.artist) {
+      throw new Error('Unauthorized: You are not logged in.');
+    }
+    
+    const artistId = context.artist._id;
+
+    // Find the album by its ID and update it
+    const updatedAlbum = await Album.findOneAndUpdate(
+      { _id: albumId, artist: artistId }, 
+      { $addToSet: { songs: songId } }, 
+      { new: true, runValidators: true } 
+    );
+
+    if (!updatedAlbum) {
+      throw new Error('Album not found or you do not have permission to update this album.');
+    }
+
+    return updatedAlbum; // Return the updated album
+  } catch (error) {
+    console.error("Failed to update the album:", error);
+    throw new Error("Failed to update the album.");
+  }
+},
 
   // ----------------------------------------------------------------------
 

@@ -34,14 +34,14 @@ type Song {
   title: String!
   artist: Artist!
   featuringArtist: [String]
-  album: Album
+  album: Album!
   trackNumber: Int
   genre: String
   producer: [String]
   composer: [String]
   label: String
   duration: Int!
-  playCount: Int!
+  playCount: Int
   releaseDate: Date!
   downloadCount: Int
   likedByUsers: [User]
@@ -49,8 +49,8 @@ type Song {
   tags: [String]
   lyrics: String
   artwork: String
-  audioFileUrl: String!
-  audioHash: String!
+  audioFileUrl: String
+ 
   createdAt: Date!
 }
 
@@ -62,16 +62,18 @@ type Album {
   artist: Artist!
   releaseDate: Date
   songs: [Song]
-  albumCoverImage: String!
-  createdAt: Date!
+  albumCoverImage: String
+  createdAt: Date
 }
+
 
 type Query {
   allArtists: [Artist]
   artistProfile: Artist
   songsOfArtist(artistId: ID!): [Song]
+  albumOfArtist: [Album]
   getPresignedUrl(key: String!, operation: String!): String
-  albumOfArtist(artistId: ID!): Album
+  
 
   allSongs: [Song]
   
@@ -133,6 +135,7 @@ type Mutation {
     coverImage: String
   ): Artist
 
+
   addBio(bio: String): Artist
   addCountry(country: String): Artist
   addLanguages(languages: [String]): Artist
@@ -145,7 +148,6 @@ type Mutation {
 
   createSong(
     title: String!
-    artistId: ID!
     featuringArtist: [String]
     albumId: ID
     genre: String
@@ -158,6 +160,20 @@ type Mutation {
   ): Song
 
 
+  createAlbum(
+    title: String!
+    releaseDate: String
+    songs:[String]
+    albumCoverImage: String
+    createdAt: String
+  ): Album
+  
+  updateAlbum(
+    albumId: ID!
+    songId:[ID]
+  ): Album
+
+
 
 
 
@@ -166,19 +182,9 @@ type Mutation {
 
   deleteSong(artistId: ID!, songId: ID!): Song
 
-  createAlbum(
-    title: String!
-    artistId: ID!
-    releaseDate: String!
-    songId: ID!
-  ): Album
+ 
 
-  updateAlbum(
-    albumId: ID!
-    title: String!
-    releaseDate: String!
-    songId: ID
-  ): Album
+ 
 
   deleteAlbum(albumId: ID!): Album
 }

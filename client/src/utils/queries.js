@@ -40,7 +40,7 @@ query Songs {
     duration
     downloadCount
     createdAt
-    audioHash
+   
     audioFileUrl
     artists {
       artistAka
@@ -133,3 +133,13 @@ query Query {
   }
 }
 `
+
+export const GET_ALBUM = gql`
+query albumOfArtist{
+  albumOfArtist {
+    _id
+    title
+  }
+}
+`
+

@@ -15,7 +15,7 @@ import LoginSignin from './pages/LoginSignin';
 import ErrorPage from './pages/ErrorPage';
 import UserAuth from './utils/auth.js';
 import ArtistAuth from './utils/artist_auth.js';
-import PlanSelection from './pages/plans.jsx';
+import PlanSelection from './pages/Plans.jsx';
 import ArtistDashboardPremium from './pages/ArtistDashboardPremium.jsx';
 import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
 import ContentFreePlan from './pages/freeDashboard/ContentFreePlan.jsx';

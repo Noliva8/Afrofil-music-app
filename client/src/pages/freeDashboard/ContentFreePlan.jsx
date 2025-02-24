@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useQuery } from "@apollo/client";
+import { useMutation } from "@apollo/client";
+import { useForm } from "react-hook-form";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -8,56 +11,169 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import TextField from "@mui/material/TextField";
-import MenuItem from "@mui/material/MenuItem";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import CardMedia from "@mui/material/CardMedia";
+import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
 import musicNote from "../../images/Music-note.svg";
+import { CREATE_SONG, UPDATE_ALBUM } from "../../utils/mutations";
+import MainArtist from "../../components/songContentPart/inputsForSong/MainArtist";
+import Featuring from "../../components/songContentPart/inputsForSong/FeaturingArtist";
+import Composer from "../../components/songContentPart/inputsForSong/Composer";
+import AlbumSong from "../../components/songContentPart/inputsForSong/AlbumInSong";
+import Producer from "../../components/songContentPart/Producer";
+import Title from "../../components/songContentPart/inputsForSong/Title";
+import Genre from "../../components/songContentPart/inputsForSong/Genre";
+import TruckNumber from "../../components/songContentPart/inputsForSong/TruckNumber";
+import ReleaseDate from "../../components/songContentPart/inputsForSong/ReleaseDate";
+import Duration from "../../components/songContentPart/inputsForSong/Duration";
+import ArtistAuth from '../../utils/artist_auth';
+import { GET_ALBUM } from "../../utils/queries";
+import Swal from 'sweetalert2'
+
+
+
+
 
 export default function ContentFreePlan() {
-  const [activeTab, setActiveTab] = useState(0);
-  const [albums, setAlbums] = useState(["Album 1", "Album 2", "Album 3"]);
-  const [featuringArtists, setFeaturingArtists] = useState([""]);
-  const [producers, setProducers] = useState([""]);
-  const [genres] = useState(["Pop", "Rock", "Jazz", "Hip Hop", "Classical"]);
-   const [composers, setComposers] = useState([""]);
 
+
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Fetch albums to select from
+  const { loading: loadingAlbums, error: errorAlbums, data: albumsData,  refetch } = useQuery(GET_ALBUM);
+
+  // Mutate data 
+  const [createSong, { data, loading, error }] = useMutation(CREATE_SONG);
+  const [updateAlbum] = useMutation(UPDATE_ALBUM);
+
+  const profile = ArtistAuth.getProfile();
+  const artistAka = profile.data.artistAka;
+
+ 
+
+// Store albums in an array for mapping
+  const albums = albumsData?.albumOfArtist || [];
+  console.log('Albums of artist:', albums);
+
+ // useState to update value in select
+const [albumToSelect, setAlbumToSelect] = useState('');
+
+
+const handleAlbumChange = (event) => {
+  console.log("Selected Album ID:", event.target.value);
+  setAlbumToSelect(event.target.value);
+};
+
+
+
+
+
+
+  const defaultValues = {
+    title: '',
+    mainArtist: artistAka,
+    featuringArtist: [''],
+    composer: [''],
+    album: albumsData?.albumOfArtist?.[0]?.title || 'Unknown',
+    producer: [''],
+    genre: '',
+    trackNumber: 1,
+    duration: 0, 
+  };
+
+  // Form handling
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm({
+    defaultValues,
+  });
+
+
+ if (loadingAlbums) return <p>Loading albums...</p>;
+  if (errorAlbums) return <p>Error loading albums: {error.message}</p>;
+
+  // Handle tab change
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
-  const addFeaturingArtist = () => {
-    setFeaturingArtists([...featuringArtists, ""]);
-  };
-
-  const deleteFeaturingArtist = (index) => {
-    setFeaturingArtists(featuringArtists.filter((_, i) => i !== index));
-  };
-
-  const addProducer = () => {
-    setProducers([...producers, ""]);
-  };
-
-  const deleteProducer = (index) => {
-    setProducers(producers.filter((_, i) => i !== index));
-  };
-
-
   
+  // Form submission handler
+ const onSubmit = (data) => {
+  const artistId = profile?.data?._id;
+  const durationInSeconds = Math.round(data.duration * 60);
+  const trackNumber = parseInt(data.trackNumber, 10);
 
-  const addComposer = () => {
-    setComposers([...composers, ""]);
-  };
+    // Log the form data for debugging
+  console.log('Form Data:', {
+    artistId,
+    albumId: albumToSelect,
+    duration: durationInSeconds,
+    trackNumber,
+    ...data,
+  });
 
-  const deleteComposer = (index) => {
-    setComposers(composers.filter((_, i) => i !== index));
-  };
+ createSong({
+ variables: {
+        artistId,                       
+        albumId: albumToSelect,         
+        duration: durationInSeconds,     
+        ...data
+      },
 
 
-  const addAlbum = () => {
+})
+.then(response => {
+  console.log('Song created successfully:', response);
+
+Swal.fire({
+  title: "Good Job! Proceed to artwork upload",
+  icon: "success",
+  draggable: true
+});
+
+})
+
+
+
+
+
+.catch(error => {
+  console.error('Error creating song:', error);
+});
+
+
+// Update the album to include the newly created song
+      const songId = response.data.createSong._id;
+
+return updateAlbum({
+        variables: {
+          albumId: albumToSelect,
+          songId: [songId] 
+        },
+      });
+  
+};
+
+
+
+
+
+
+
+
+  const addAlbum = async () => {
     const newAlbum = prompt("Enter new album name:");
-    if (newAlbum) setAlbums([...albums, newAlbum]);
+    if (newAlbum) {
+      console.log(`Album created: ${newAlbum}`);
+      await refetch(); // Refresh album list after adding a new album
+    }
   };
+
+
+
+
+
+
 
   return (
     <Container sx={{ padding: 2, width: "100%" }}>
@@ -84,12 +200,10 @@ export default function ContentFreePlan() {
           Upload Song
         </Typography>
 
-
-
         <Paper
           sx={{
             height: "90vh",
-            width: { xs: "350px", md: "700px", lg: "900px" },
+            width: { xs: "600px", md: "700px", lg: "900px" },
             padding: 3,
             display: "flex",
             flexDirection: "column",
@@ -100,555 +214,146 @@ export default function ContentFreePlan() {
             borderRadius: "10px",
           }}
         >
-          {/* Navigation Tabs */}
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
             centered
             sx={{ width: "100%", mb: 5 }}
           >
-            <Tab
-              label="Details"
-              sx={{
-                color: "white",
-                fontSize: "1rem",
-                fontFamily: "roboto",
-                fontWeight: "600",
-              }}
-            />
-            <Tab
-              label="Artwork"
-              sx={{
-                color: "white",
-                fontSize: "1rem",
-                fontFamily: "roboto",
-                fontWeight: "600",
-              }}
-            />
-            <Tab
-              label="Lyrics"
-              sx={{
-                color: "white",
-                fontSize: "1rem",
-                fontFamily: "roboto",
-                fontWeight: "600",
-              }}
-            />
-            <Tab
-              label="File"
-              sx={{
-                color: "white",
-                fontSize: "1rem",
-                fontFamily: "roboto",
-                fontWeight: "600",
-              }}
-            />
+            <Tab label="Details" sx={{ color: "white", fontSize: "1rem" }} />
+            <Tab label="Artwork" sx={{ color: "white", fontSize: "1rem" }} />
+            <Tab label="Lyrics" sx={{ color: "white", fontSize: "1rem" }} />
+            <Tab label="File" sx={{ color: "white", fontSize: "1rem" }} />
           </Tabs>
-
-
-
 
           {/* Tab Content */}
           {activeTab === 0 && (
-            <Stack spacing={3} sx={{ width: "100%" }}>
-
-
-              {/* title of the song */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: {
-                    xs: "start",
-                    md: "center",
-                  },
-                  gap: "10px",
-                  flexDirection: {
-                    xs: "column",
-                    md: "row",
-                  },
-                }}
-              >
-                <label
-                  htmlFor="title"
-                  style={{
-                    color: "white",
-                    minWidth: "150px",
-                    textWrap: "nowrap",
-                    fontFamily: "roboto",
-                    fontWeight: "500",
-                    textShadow: "revert-layer",
-                    fontSize: "18px",
-                    textSpacing: "2px",
-                  }}
-                >
-                  Title of the song:
-                </label>
-                <TextField
-                  id="title"
-                   name="title"
-                  fullWidth
-                  variant="outlined"
-                  sx={{
-                    bgcolor: "var(--secondary-background-color)",
-                    "& .MuiInputBase-root": { color: "white" },
-                    "& .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "white",
-                    },
-                    "&:hover .MuiOutlinedInput-notchedOutline": {
-                      borderColor: "gray",
-                    },
-                  }}
-                />
-              </Box>
+            <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
+              <Stack spacing={3} sx={{ width: "100%" }}>
+                <Title register={register} errors={errors} />
+                <MainArtist register={register} errors={errors} />
+                <Featuring register={register} errors={errors} />
+                <Composer register={register} errors={errors} />
 
 
 
-           <Box
-  sx={{
-    display: "flex",
-    alignItems: {
-      xs: "start",
-      md: "center",
-    },
-    gap: "10px",
-    flexDirection: {
-      xs: "column",
-      md: "row",
-    },
-  }}
->
-  <label
-    htmlFor="mainArtist"
-    style={{
-      color: "white",
-      minWidth: "150px",
-      textWrap: "nowrap",
-      fontFamily: "roboto",
-      fontWeight: "500",
-      textShadow: "revert-layer",
-      fontSize: "18px",
-      textSpacing: "2px",
-    }}
-  >
-    Main Artist
-  </label>
 
-  <TextField
-    fullWidth
-    id="mainArtist"
-    name="mainArtist" // Fixed syntax here
+
+ {/* <AlbumSong
+  register={register}
+  errors={errors}
+  albumToSelect={albumToSelect}
+  handleAlbumChange ={handleAlbumChange }
+  albums={albums}
+/> */}
+
+
+
+
+{/* Album  */}
+
+ <Stack direction="row" spacing={5} alignItems="center">
+  <Box
     sx={{
-      bgcolor: "var(--secondary-background-color)",
-      color: "white",
-      "& .MuiInputLabel-root": { color: "white" },
-      "& .MuiInputBase-root": { color: "white" },
+      display: "flex",
+      alignItems: { xs: "start", md: "center" },
+      gap: "10px",
+      flexDirection: { xs: "row", md: "row" },
     }}
-  />
-</Box>
-
-
-{/* Featuring Artist - Add More and Delete */}
-{featuringArtists.map((_, index) => (
-  <Stack
-    key={index}
-    direction="row"
-    spacing={1}
-    alignItems="center"
   >
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: {
-          xs: "start",
-          md: "center",
-        },
-        gap: "10px",
-        flexDirection: {
-          xs: "column",
-          md: "row",
-        },
-      }}
-    >
-      <label
-        htmlFor={`featuring-${index}`} // Unique id
-        style={{
-          color: "white",
-          minWidth: "150px",
-          textWrap: "nowrap",
-          fontFamily: "roboto",
-          fontWeight: "500",
-          textShadow: "revert-layer",
-          fontSize: "18px",
-          textSpacing: "2px",
-        }}
-      >{`Featuring Artist ${index + 1}`}</label>
-
-      <TextField
-        fullWidth
-        id={`featuring-${index}`} // Unique id
-        name={`featuring-${index}`} // Unique name
-        sx={{
-          bgcolor: "var(--secondary-background-color)",
-          color: "white",
-          "& .MuiInputLabel-root": { color: "white" },
-          "& .MuiInputBase-root": { color: "white" },
-        }}
-      />
-    </Box>
-
-    <Button
-      variant="contained"
-      sx={{
-        bgcolor: "var(--secondary-background-color)",
-        fontSize: { xs: "12px", md: "14px" },
+    <label
+      htmlFor="album"
+      style={{
         color: "white",
-        "&:hover": { bgcolor: "gray" },
+        minWidth: "150px",
+        fontFamily: "roboto",
+        fontWeight: "500",
+        fontSize: "18px",
       }}
-      onClick={addFeaturingArtist}
     >
-      Add More
-    </Button>
-    {index > 0 && (
-      <Box sx={{ direction: "column" }}>
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={() => deleteFeaturingArtist(index)}
-          sx={{
-            "&:hover": { bgcolor: "red", color: "white" },
-          }}
-        >
-          Delete
-        </Button>
-      </Box>
-    )}
-  </Stack>
-))}
+      Album
+    </label>
 
-
-
-
- <Stack direction="row" spacing={1} alignItems="center">
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: {
-              xs: "start",
-              md: "center",
-            },
-            gap: "10px",
-            flexDirection: {
-              xs: "column",
-              md: "row",
-            },
-          }}
-        >
-          <label
-            htmlFor="composer"
-            style={{
-              color: "white",
-              minWidth: "150px",
-              textWrap: "nowrap",
-              fontFamily: "roboto",
-              fontWeight: "500",
-              textShadow: "revert-layer",
-              fontSize: "18px",
-              textSpacing: "2px",
-            }}
-          >
-            Composer
-          </label>
-          <TextField
-            fullWidth
-            id="composer"
-            name="composer"
-            sx={{
-              bgcolor: "var(--secondary-background-color)",
-              color: "white",
-              "& .MuiInputLabel-root": { color: "white" },
-              "& .MuiInputBase-root": { color: "white" },
-            }}
-          />
-        </Box>
-
-        <Button
-          variant="contained"
-          sx={{
-            bgcolor: "var(--secondary-background-color)",
-            color: "white",
-            "&:hover": { bgcolor: "gray" },
-          }}
-          onClick={addComposer} // Add new composer when clicked
-        >
-          Add Composer
-        </Button>
-      </Stack>
-
-      {/* Render Composers */}
-      {composers.map((_, index) => (
-        <Stack key={index} direction="row" spacing={1} alignItems="center">
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: {
-                xs: "start",
-                md: "center",
-              },
-              gap: "10px",
-              flexDirection: {
-                xs: "column",
-                md: "row",
-              },
-            }}
-          >
-            <label
-              htmlFor={`composer-${index}`}
-              style={{
-                color: "white",
-                minWidth: "150px",
-                textWrap: "nowrap",
-                fontFamily: "roboto",
-                fontWeight: "500",
-                textShadow: "revert-layer",
-                fontSize: "18px",
-                textSpacing: "2px",
-              }}
-            >
-              {`Composer ${index + 1}`}
-            </label>
-
-            <TextField
-              fullWidth
-              id={`composer-${index}`}
-              name={`composer-${index}`}
-              sx={{
-                bgcolor: "var(--secondary-background-color)",
-                color: "white",
-                "& .MuiInputLabel-root": { color: "white" },
-                "& .MuiInputBase-root": { color: "white" },
-              }}
-            />
-          </Box>
-
-          {index > 0 && (
-            <Box sx={{ direction: "column" }}>
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => deleteComposer(index)} // Delete selected composer
-                sx={{
-                  "&:hover": { bgcolor: "red", color: "white" },
-                }}
-              >
-                Delete
-              </Button>
-            </Box>
-          )}
-        </Stack>
+    <select
+      id="album"
+      name="album"
+      value={albumToSelect}
+      onChange={handleAlbumChange}
+      style={{
+        minWidth: "200px",
+        backgroundColor: "var(--secondary-background-color)",
+        color: "white",
+        border: "none",
+        padding: "8px",
+        borderRadius: "4px",
+      }}
+    >
+      <option value="" disabled>Select an album</option>
+      {albums.map((album) => (
+        <option key={album._id} value={album._id}>
+          {album.title}
+        </option>
       ))}
+    </select>
+  </Box>
+
+  <Button
+    variant="contained"
+    sx={{
+      
+      bgcolor: "var(--primary-font-color)",
+      color: "var(--primary-background-color)",
+      "&:hover": { bgcolor: "gray" },
+    }}
+    onClick={addAlbum}
+  >
+    Create Album
+  </Button>
+</Stack>
 
 
 
-              {/* Album Dropdown with Create Album Button */}
-              <Stack direction="row" spacing={1} alignItems="center">
 
-    <Box
-          sx={{
-            display: "flex",
-            alignItems: {
-              xs: "start",
-              md: "center",
-            },
-            gap: "10px",
-            flexDirection: {
-              xs: "column",
-              md: "row",
-            },
-          }}
-        >
-          <label
-            htmlFor="album"
-            style={{
-              color: "white",
-              minWidth: "150px",
-              textWrap: "nowrap",
-              fontFamily: "roboto",
-              fontWeight: "500",
-              textShadow: "revert-layer",
-              fontSize: "18px",
-              textSpacing: "2px",
-            }}
-          >
-           Album
-          </label>
 
-                <TextField
-                  select
 
-                  id="album"
-                  name="album"
-                  fullWidth
-                  sx={{ minWidth: '200px', 
-                    bgcolor: "var(--secondary-background-color)",
-                    color: "white",
-                    "& .MuiInputLabel-root": { color: "white" },
-                    "& .MuiInputBase-root": { color: "white" },
-                  }}
-                >
-                
 
-                  {albums.map((album, index) => (
-                    <MenuItem key={index} value={album}>
-                      {album}
-                    </MenuItem>
-                  ))}
-                </TextField>
+{/* end of album songs */}
 
-                   </Box>
-
-                <Button
-                  variant="contained"
-                  sx={{
-                    bgcolor: "var(--secondary-background-color)",
-                    color: "white",
-                    "&:hover": { bgcolor: "gray" },
-                  }}
-                  onClick={addAlbum}
-                >
-                  Create Album
-                </Button>
+                <Producer register={register} errors={errors} />
+                <Genre register={register} errors={errors} />
+                <TruckNumber register={register} errors={errors} />
+                <ReleaseDate register={register} errors={errors} />
+                <Duration
+                  register={register}
+                  errors={errors}
+                  setValue={setValue}
+                />
               </Stack>
 
-
-
-              {/* Producer - Add More and Delete */}
-              {producers.map((_, index) => (
-                <Stack
-                  key={index}
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
+              <Box sx={{ mt: 3, width: "100%" }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  fullWidth
+                  sx={{
+                    bgcolor: "#ee8623",
+                    color: "var(--primary-font-color)",
+                    fontFamily: 'Roboto',
+                    fontWeight: '600',
+                    fontSize: '18px',
+                    "&:hover": { bgcolor: "gray" },
+                  }}
                 >
-                  <TextField
-                    label={`Producer ${index + 1}`}
-                    fullWidth
-                    sx={{
-                      bgcolor: "var(--secondary-background-color)",
-                      color: "white",
-                      "& .MuiInputLabel-root": { color: "white" },
-                      "& .MuiInputBase-root": { color: "white" },
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    sx={{
-                      bgcolor: "black",
-                      color: "white",
-                      "&:hover": { bgcolor: "gray" },
-                    }}
-                    onClick={addProducer}
-                  >
-                    Add Producer
-                  </Button>
-                  {index > 0 && (
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      onClick={() => deleteProducer(index)}
-                      sx={{
-                        "&:hover": { bgcolor: "red", color: "white" },
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </Stack>
-              ))}
-
-
-
-
-
-
-
-
-
-              {/* Genre Dropdown */}
-              <TextField
-                select
-                label="Genre"
-                fullWidth
-                sx={{
-                  bgcolor: "var(--secondary-background-color)",
-                  color: "white",
-                  "& .MuiInputLabel-root": { color: "white" },
-                  "& .MuiInputBase-root": { color: "white" },
-                }}
-              >
-                {genres.map((genre, index) => (
-                  <MenuItem key={index} value={genre}>
-                    {genre}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                label="Track Number"
-                type="number"
-                fullWidth
-                sx={{
-                  bgcolor: "var(--secondary-background-color)",
-                  color: "white",
-                  "& .MuiInputLabel-root": { color: "white" },
-                  "& .MuiInputBase-root": { color: "white" },
-                }}
-              />
-              <TextField
-                label="Release Date"
-                type="date"
-                InputLabelProps={{ shrink: true }}
-                fullWidth
-                sx={{
-                  bgcolor: "var(--secondary-background-color)",
-                  color: "white",
-                  "& .MuiInputLabel-root": { color: "white" },
-                  "& .MuiInputBase-root": { color: "white" },
-                }}
-              />
-              <TextField
-                label="Duration (mm:ss)"
-                fullWidth
-                sx={{
-                  bgcolor: "var(--secondary-background-color)",
-                  color: "white",
-                  "& .MuiInputLabel-root": { color: "white" },
-                  "& .MuiInputBase-root": { color: "white" },
-                }}
-              />
-              <TextField
-                label="Label"
-                fullWidth
-                sx={{
-                  bgcolor: "var(--secondary-background-color)",
-                  color: "white",
-                  "& .MuiInputLabel-root": { color: "white" },
-                  "& .MuiInputBase-root": { color: "white" },
-                }}
-              />
-            </Stack>
+                  Submit
+                </Button>
+              </Box>
+            </form>
           )}
 
+          {/* Other Tabs: Artwork, Lyrics, File */}
           {activeTab === 1 && (
             <Stack spacing={2} alignItems="center">
-              <Card
-                sx={{
-                  width: 150,
-                  height: 150,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
+              <Card sx={{ width: 150, height: 150 }}>
                 <CardMedia
                   component="img"
                   sx={{ width: 120, height: 120, objectFit: "contain" }}
@@ -670,7 +375,6 @@ export default function ContentFreePlan() {
               </Button>
             </Stack>
           )}
-
           {activeTab === 2 && (
             <Stack sx={{ width: "100%" }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
@@ -691,7 +395,6 @@ export default function ContentFreePlan() {
               />
             </Stack>
           )}
-
           {activeTab === 3 && (
             <Stack alignItems="center">
               <Button
@@ -708,21 +411,6 @@ export default function ContentFreePlan() {
               </Button>
             </Stack>
           )}
-
-          {/* Submit Button */}
-          <Box sx={{ mt: 3, width: "100%" }}>
-            <Button
-              variant="contained"
-              fullWidth
-              sx={{
-                bgcolor: "black",
-                color: "white",
-                "&:hover": { bgcolor: "gray" },
-              }}
-            >
-              Submit Song
-            </Button>
-          </Box>
         </Paper>
       </Box>
     </Container>

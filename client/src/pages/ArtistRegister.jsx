@@ -126,14 +126,16 @@ export default function ArtistRegister() {
       });
 
       
-      
-      
     } catch (e) {
       setSignupErrorMessage(
         "Signup failed. Please ensure your details are correct."
       );
       console.error(e);
     }
+
+
+
+
   };
 
   return (

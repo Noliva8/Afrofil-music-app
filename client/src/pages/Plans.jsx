@@ -4,10 +4,13 @@ import ArtistAuth from '../utils/artist_auth';
 import { useNavigate } from 'react-router-dom';
 import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 import { useMutation } from '@apollo/client';
+import { useApolloClient } from '@apollo/client';
 import { SELECT_PLAN } from '../utils/mutations';
 import Button from '@mui/material/Button';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AppNavBar from '../components/AppNavbar';
+import { CREATE_ALBUM } from '../utils/mutations';
+import { GET_ALBUM } from '../utils/queries';
 
 // Plan Data
 const plans = [
@@ -63,9 +66,11 @@ const plans = [
 // Plan Selection Component
 const PlanSelection = () => {
   const [selectPlan] = useMutation(SELECT_PLAN);
+  const [createAlbum] = useMutation(CREATE_ALBUM);
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false); // For handling loading state during plan selection
+  const [loading, setLoading] = useState(false); 
   // const [showLogout, setShowLogout] = useState(false);
+   const client = useApolloClient();
 
   // Handle Plan Selection
   const handlePlanSelection = async (plan) => {
@@ -80,10 +85,35 @@ const PlanSelection = () => {
 
     const artistId = profile.data._id;
 
-    try {
-      const { data } = await selectPlan({
-        variables: { artistId, plan },
-      });
+
+try {
+  // Check if the artist already has an album by using client.query
+  const { data: albumData } = await client.query({
+    query: GET_ALBUM,
+    variables: { artistId },
+  });
+
+  if (!albumData || !albumData.albums || albumData.albums.length === 0) {
+    // If no album is found, create a default album
+    await createAlbum({
+      variables: {
+        artistId,
+        title: "Uknown",       
+      }
+    });
+    console.log('Default album created');
+  }
+} catch (error) {
+  console.error('Error checking or creating album:', error.message);
+  alert('An error occurred while checking or creating the album. Please try again.');
+}
+
+
+
+try {
+  const { data } = await selectPlan({
+    variables: { artistId, plan },
+  });
 
       // console.log(data);
 

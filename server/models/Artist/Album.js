@@ -8,15 +8,16 @@ const albumSchema = new Schema({
     required: true,
     trim: true
   },
-  artist: [{
+
+  artist: {
    type: Schema.Types.ObjectId,
     ref: 'Artist',
     required: true
-  }],
+  },
 
   releaseDate: {
     type: Date,
-    required: true, 
+   
     validate: {
       validator: function(v) {
         return v <= Date.now(); 
@@ -28,15 +29,12 @@ const albumSchema = new Schema({
   songs: [{
     type: Schema.Types.ObjectId,
     ref: 'Song',
-     required: true, 
+     
   }],
   
-  genre: {
-   type: String
- },
   albumCoverImage: {
     type: String, 
-    required: true
+    
   },
   createdAt: {
     type: Date,
