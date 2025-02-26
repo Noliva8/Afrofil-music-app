@@ -50,6 +50,7 @@ const fullName = profile?.data?.fullName;
 
 
   //  const profileData = ArtistAuth.getProfile();
+  
 const handleProfileImageUpload = async (e) => {
   e.preventDefault();
 
@@ -82,6 +83,7 @@ const handleProfileImageUpload = async (e) => {
     toast.error("File size exceeds the maximum limit of 5 MB.");
     return;
   }
+
 
   let uploadedFileUrl = ""; 
 

@@ -92,7 +92,7 @@ type Album {
   artist: Artist
   releaseDate: Date!
   songs: [Song]
-  coverImage: String
+ 
 }
 
 

@@ -1,0 +1,21 @@
+/* CSS to position SweetAlert2 popup on top of the modal */
+.custom-swal-popup {
+  z-index: 9999 !important;
+   /* Make sure it's above other elements */
+}
+
+/* Optional: Set custom container styles for Swal */
+.custom-swal-container {
+  z-index: 9999 !important;
+}
+
+
+.custom-alert{
+  z-index: 9999 !important;
+}
+
+
+
+
+
+

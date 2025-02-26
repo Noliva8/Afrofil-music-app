@@ -272,18 +272,39 @@ mutation createAlbum($title: String!) {
 `
 
 export const UPDATE_ALBUM = gql`
-mutation updateAlbum($albumId: ID!, $songId: [ID]) {
-  updateAlbum(albumId: $albumId, songId: $songId) {
+mutation UpdateAlbum($albumId: ID!, $songId: [ID], $albumCoverImage: String) {
+  updateAlbum(albumId: $albumId, songId: $songId, albumCoverImage: $albumCoverImage) {
+    title
+    songs {
+      _id
+      title
+    }
+    albumCoverImage
     _id
     artist {
+     
       _id
-      artistAka
+    }
+    createdAt
+  }
+}
+`
+
+export const CUSTOM_ALBUM = gql`
+mutation createCustomAlbum($title: String!, $releaseDate: String, $albumCoverImage: String) {
+  createCustomAlbum(title: $title, releaseDate: $releaseDate, albumCoverImage: $albumCoverImage) {
+    _id
+    albumCoverImage
+    releaseDate
+    title
+    artist {
+      _id
+      
     }
     songs {
       _id
       title
     }
-    title
   }
 }
 `

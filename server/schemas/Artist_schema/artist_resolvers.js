@@ -108,7 +108,9 @@ albumOfArtist: async (parent, args, context) => {
         throw new Error("Failed to fetch albums.");
     }
 
-}
+},
+
+
 
 },
 
@@ -715,32 +717,83 @@ createAlbum: async (parent, { title }, context) => {
 },
 
 
-updateAlbum: async (parent, { songId, albumId }, context) => {
+createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, context) => {
   try {
-    // Check if the artist is authenticated
+    // Ensure the artist is authenticated
     if (!context.artist) {
       throw new Error('Unauthorized: You are not logged in.');
     }
-    
+
     const artistId = context.artist._id;
 
-    // Find the album by its ID and update it
+    // Validate title
+    if (!title) {
+      throw new Error("Album title is required.");
+    }
+
+    // Check if the album with the same title already exists for the artist
+    const existingAlbum = await Album.findOne({ title, artist: artistId });
+    if (existingAlbum) {
+      throw new Error("An album with this title already exists.");
+    }
+
+    // Create new album
+    const customAlbum = await Album.create({
+      title,
+      artist: artistId,
+      releaseDate: releaseDate || new Date().toISOString(), // Set current date if no release date is provided
+      albumCoverImage: albumCoverImage || "", // Handle default if no cover image is provided
+      createdAt: new Date().toISOString(), // Automatically set created date
+    });
+
+    // Return the created album
+    return customAlbum;
+
+  } catch (error) {
+    console.error("Failed to create a custom album:", error);
+    throw new Error(error.message || "Failed to create custom album.");
+  }
+},
+
+
+ 
+
+updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
+  try {
+    if (!context.artist) {
+      throw new Error("Unauthorized: You are not logged in.");
+    }
+
+    const artistId = context.artist._id;
+
+    // Prepare update object dynamically
+    let updateFields = {};
+    if (songId) updateFields.$addToSet = { songs: songId }; 
+    if (albumCoverImage) updateFields.albumCoverImage = albumCoverImage; 
+
+    // Ensure there is something to update
+    if (Object.keys(updateFields).length === 0) {
+      throw new Error("No update fields provided.");
+    }
+
+    // Find and update the album
     const updatedAlbum = await Album.findOneAndUpdate(
       { _id: albumId, artist: artistId }, 
-      { $addToSet: { songs: songId } }, 
-      { new: true, runValidators: true } 
+      updateFields,
+      { new: true, runValidators: true }
     );
 
     if (!updatedAlbum) {
-      throw new Error('Album not found or you do not have permission to update this album.');
+      throw new Error("Album not found or unauthorized.");
     }
 
-    return updatedAlbum; // Return the updated album
+    return updatedAlbum;
   } catch (error) {
-    console.error("Failed to update the album:", error);
-    throw new Error("Failed to update the album.");
+    console.error("Failed to update album:", error);
+    throw new Error("Update failed.");
   }
 },
+
 
   // ----------------------------------------------------------------------
 

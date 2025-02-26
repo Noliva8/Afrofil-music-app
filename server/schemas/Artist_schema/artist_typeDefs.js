@@ -168,9 +168,26 @@ type Mutation {
     createdAt: String
   ): Album
   
+
+
+   createCustomAlbum(
+    title: String!
+    releaseDate: String
+    albumCoverImage: String
+    createdAt: String
+  ): Album
+
+  albumById(
+    albunId: ID!
+  ): Album
+  
+
+
+
   updateAlbum(
     albumId: ID!
     songId:[ID]
+    albumCoverImage: String
   ): Album
 
 

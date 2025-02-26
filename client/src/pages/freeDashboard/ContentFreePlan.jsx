@@ -30,7 +30,7 @@ import Duration from "../../components/songContentPart/inputsForSong/Duration";
 import ArtistAuth from '../../utils/artist_auth';
 import { GET_ALBUM } from "../../utils/queries";
 import Swal from 'sweetalert2'
-
+import CustomAlbum from "../../components/homeFreePlanComponents/albumContent/CustomAlbum";
 
 
 
@@ -39,6 +39,34 @@ export default function ContentFreePlan() {
 
 
   const [activeTab, setActiveTab] = useState(0);
+  // custom album
+  // -----------
+  const [albumOpen, setAlbumOpen] = useState(false);
+
+ const handleAlbumOpen = () => setAlbumOpen(true);
+
+const handleClose = () => {
+  Swal.fire({
+    title: "Are you sure?",
+    text: "Album data are not saved!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Yes, delete it!"
+  }).then((result) => {
+    if (result.isConfirmed) {
+      setAlbumOpen(false); // Close the album if confirmed
+      Swal.fire({
+        title: "Deleted!",
+        text: "Your file has been deleted.",
+        icon: "success"
+      });
+    }
+  });
+};
+
+
 
   // Fetch albums to select from
   const { loading: loadingAlbums, error: errorAlbums, data: albumsData,  refetch } = useQuery(GET_ALBUM);
@@ -98,60 +126,49 @@ const handleAlbumChange = (event) => {
 
   
   // Form submission handler
- const onSubmit = (data) => {
-  const artistId = profile?.data?._id;
-  const durationInSeconds = Math.round(data.duration * 60);
-  const trackNumber = parseInt(data.trackNumber, 10);
+const onSubmit = async (data) => {
+  try {
+    const artistId = profile?.data?._id;
+    const durationInSeconds = Math.round(data.duration * 60);
+    const trackNumber = parseInt(data.trackNumber, 10);
 
-    // Log the form data for debugging
-  console.log('Form Data:', {
-    artistId,
-    albumId: albumToSelect,
-    duration: durationInSeconds,
-    trackNumber,
-    ...data,
-  });
+    console.log('Form Data:', {
+      artistId,
+      albumId: albumToSelect,
+      duration: durationInSeconds,
+      trackNumber,
+      ...data,
+    });
 
- createSong({
- variables: {
-        artistId,                       
-        albumId: albumToSelect,         
-        duration: durationInSeconds,     
-        ...data
+    const response = await createSong({
+      variables: {
+        artistId,
+        albumId: albumToSelect,
+        duration: durationInSeconds,
+        trackNumber,
+        ...data,
       },
+    });
 
+    console.log('Song created successfully:', response);
 
-})
-.then(response => {
-  console.log('Song created successfully:', response);
+    Swal.fire({
+      title: "Good Job! Proceed to artwork upload",
+      icon: "success",
+      draggable: true,
+    });
 
-Swal.fire({
-  title: "Good Job! Proceed to artwork upload",
-  icon: "success",
-  draggable: true
-});
-
-})
-
-
-
-
-
-.catch(error => {
-  console.error('Error creating song:', error);
-});
-
-
-// Update the album to include the newly created song
-      const songId = response.data.createSong._id;
-
-return updateAlbum({
-        variables: {
-          albumId: albumToSelect,
-          songId: [songId] 
-        },
-      });
-  
+    // Update the album to include the newly created song
+    const songId = response.data.createSong._id;
+    await updateAlbum({
+      variables: {
+        albumId: albumToSelect,
+        songId: [songId],
+      },
+    });
+  } catch (error) {
+    console.error('Error creating song:', error);
+  }
 };
 
 
@@ -235,11 +252,7 @@ return updateAlbum({
                 <Featuring register={register} errors={errors} />
                 <Composer register={register} errors={errors} />
 
-
-
-
-
- {/* <AlbumSong
+                {/* <AlbumSong
   register={register}
   errors={errors}
   albumToSelect={albumToSelect}
@@ -247,77 +260,71 @@ return updateAlbum({
   albums={albums}
 /> */}
 
+                {/* Album  */}
 
+                <Stack direction="row" spacing={5} alignItems="center">
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: { xs: "start", md: "center" },
+                      gap: "10px",
+                      flexDirection: { xs: "row", md: "row" },
+                    }}
+                  >
+                    <label
+                      htmlFor="album"
+                      style={{
+                        color: "white",
+                        minWidth: "150px",
+                        fontFamily: "roboto",
+                        fontWeight: "500",
+                        fontSize: "18px",
+                      }}
+                    >
+                      Album
+                    </label>
 
+                    <select
+                      id="album"
+                      name="album"
+                      value={albumToSelect}
+                      onChange={handleAlbumChange}
+                      style={{
+                        minWidth: "200px",
+                        backgroundColor: "var(--secondary-background-color)",
+                        color: "white",
+                        border: "none",
+                        padding: "8px",
+                        borderRadius: "4px",
+                      }}
+                    >
+                      <option value="" disabled>
+                        Select an album
+                      </option>
+                      {albums.map((album) => (
+                        <option key={album._id} value={album._id}>
+                          {album.title}
+                        </option>
+                      ))}
+                    </select>
+                  </Box>
 
-{/* Album  */}
+                  <Button
+                   onClick={handleAlbumOpen}
+                    variant="contained"
+                    sx={{
+                      bgcolor: "var(--primary-font-color)",
+                      color: "var(--primary-background-color)",
+                      "&:hover": { bgcolor: "gray" },
+                    }}
+                   
+                  >
+                    Create Album
+                  </Button>
 
- <Stack direction="row" spacing={5} alignItems="center">
-  <Box
-    sx={{
-      display: "flex",
-      alignItems: { xs: "start", md: "center" },
-      gap: "10px",
-      flexDirection: { xs: "row", md: "row" },
-    }}
-  >
-    <label
-      htmlFor="album"
-      style={{
-        color: "white",
-        minWidth: "150px",
-        fontFamily: "roboto",
-        fontWeight: "500",
-        fontSize: "18px",
-      }}
-    >
-      Album
-    </label>
+                </Stack>
 
-    <select
-      id="album"
-      name="album"
-      value={albumToSelect}
-      onChange={handleAlbumChange}
-      style={{
-        minWidth: "200px",
-        backgroundColor: "var(--secondary-background-color)",
-        color: "white",
-        border: "none",
-        padding: "8px",
-        borderRadius: "4px",
-      }}
-    >
-      <option value="" disabled>Select an album</option>
-      {albums.map((album) => (
-        <option key={album._id} value={album._id}>
-          {album.title}
-        </option>
-      ))}
-    </select>
-  </Box>
-
-  <Button
-    variant="contained"
-    sx={{
-      
-      bgcolor: "var(--primary-font-color)",
-      color: "var(--primary-background-color)",
-      "&:hover": { bgcolor: "gray" },
-    }}
-    onClick={addAlbum}
-  >
-    Create Album
-  </Button>
-</Stack>
-
-
-
-
-
-
-
-{/* end of album songs */}
+                {/* end of album songs */}
 
                 <Producer register={register} errors={errors} />
                 <Genre register={register} errors={errors} />
@@ -338,9 +345,9 @@ return updateAlbum({
                   sx={{
                     bgcolor: "#ee8623",
                     color: "var(--primary-font-color)",
-                    fontFamily: 'Roboto',
-                    fontWeight: '600',
-                    fontSize: '18px',
+                    fontFamily: "Roboto",
+                    fontWeight: "600",
+                    fontSize: "18px",
                     "&:hover": { bgcolor: "gray" },
                   }}
                 >
@@ -349,6 +356,9 @@ return updateAlbum({
               </Box>
             </form>
           )}
+
+
+
 
           {/* Other Tabs: Artwork, Lyrics, File */}
           {activeTab === 1 && (
@@ -413,6 +423,18 @@ return updateAlbum({
           )}
         </Paper>
       </Box>
+
+      {/* model */}
+      <CustomAlbum
+        albumOpen={albumOpen}
+        setAlbumOpen={setAlbumOpen}
+        handleAlbumOpen={handleAlbumOpen}
+        handleClose={handleClose}
+        refetch={refetch}
+ 
+         profile={profile}
+
+      />
     </Container>
   );
 }
