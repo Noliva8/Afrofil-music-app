@@ -1,11 +1,18 @@
 
+import fs from 'fs'
 import  { Artist, Album, Song, User } from '../../models/Artist/index_artist.js';
 import dotenv from 'dotenv';
 import { AuthenticationError, signArtistToken } from '../../utils/artist_auth.js';
 import sendEmail from '../../utils/emailTransportation.js';
 import awsS3Utils from '../../utils/awsS3.js';
-
-
+import { S3Client, CreateMultipartUploadCommand, HeadObjectCommand, UploadPartCommand, DeleteObjectCommand, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
+ import GraphQLUpload from "graphql-upload/GraphQLUpload.mjs";
+import { processAudio} from '../../utils/AudioIntegrity.js';
+import { fileURLToPath } from 'url';
+import  { validateAudioFormat } from '../../utils/validateAudioFormat.js'
+import stream from "stream";
+import path from 'path';
+import crypto from "crypto";
 const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDelete } = awsS3Utils;
 
 
@@ -13,10 +20,24 @@ const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDelete
 
 
 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const s3 = new S3Client({
+  region: process.env.JWT_REGION_SONGS_TO_STREAM,
+  credentials: {
+    accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
+    secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM,
+  },
+});
+
+
+
 dotenv.config();
 
 const resolvers = {
-
+  Upload: GraphQLUpload,
 Query: {
 
 
@@ -83,6 +104,33 @@ songsOfArtist: async (parent, args, context) => {
         throw new Error("Failed to fetch songs.");
     }
 },
+
+
+
+songHash: async (parent, { audioHash }) => {
+  try {
+    // Query the Song model to find a song by the provided audio hash
+    const song = await Song.findOne({ audioHash });
+
+    // If the song is found, return it; otherwise, return null
+    if (song) {
+      return song;
+    } else {
+      return null;  // No song found with the given audio hash
+    }
+  } catch (error) {
+    console.error('Error checking audio hash:', error);
+    throw new Error('Failed to check audio hash');
+  }
+},
+
+
+
+
+
+
+
+
 
 
 albumOfArtist: async (parent, args, context) => {
@@ -262,6 +310,16 @@ verifyEmail: async (parent, { token }) => {
 // ------------------------------------------------------------------------------
 
 // addProfileImage
+// --------------
+
+
+
+
+
+
+
+
+
 
 
 getPresignedUrl: async (_, { bucket, key, region }) => {
@@ -627,64 +685,219 @@ const updatedArtist = await Artist.findOneAndUpdate(
 
 createSong: async (
   parent,
-  { 
-    title, 
-    featuringArtist, 
-    albumId, 
-    genre, 
-    duration, 
-    trackNumber, 
-    producer, 
-    composer, 
-    label, 
-    releaseDate 
+  {
+    title,
+    featuringArtist,
+    albumId,
+    trackNumber,
+    genre,
+    producer,
+    composer,
+    label,
+    duration,
+    releaseDate,
+    lyrics,
+    artwork, 
+    audioFileUrl, 
+    audioHash 
   },
   context
 ) => {
   try {
-    // Check if the user is logged in
+    // Ensure the user is logged in
     if (!context.artist) {
-      throw new Error('Unauthorized: You must be logged in to create a song.');
+      throw new Error("Unauthorized: You must be logged in to create a song.");
     }
 
     const loggedInArtistId = context.artist._id;
 
     // Validate required fields
-    if (!title || !duration || !releaseDate) {
-      throw new Error('Title, duration, and release date are required fields.');
+    if (!title || !audioFileUrl || !audioHash) {
+      throw new Error("Title and audio file URL are required.");
     }
 
-    // Check if the album exists
+    // Prevent duplicate uploads
+    const existingSong = await Song.findOne({ audioHash });
+    if (existingSong) {
+      throw new Error("Duplicate upload detected. This song already exists.");
+    }
+
+    // Verify album exists (if provided)
     if (albumId) {
       const albumExists = await Album.findById(albumId);
       if (!albumExists) {
-        throw new Error('Invalid album ID: The specified album does not exist.');
+        throw new Error("Invalid album ID: The specified album does not exist.");
       }
     }
 
-    // Create the song
+    // Save song metadata in the database
     const song = await Song.create({
-      title, 
-      artist: loggedInArtistId, 
-      featuringArtist, 
-      album: albumId, 
-      genre, 
-      duration, 
-      trackNumber, 
-      producer, 
-      composer, 
-      label, 
-      releaseDate
+      title,
+      artist: loggedInArtistId,
+      featuringArtist,
+      album: albumId,
+      genre,
+      duration,
+      trackNumber,
+      producer,
+      composer,
+      label,
+      releaseDate,
+      lyrics,
+      artwork, // Already uploaded URL
+      audioFileUrl, // Already uploaded URL
+      audioHash, // Helps prevent duplicates
     });
 
     return song;
-
   } catch (error) {
-    console.error("Failed to create a song:", error);
-    throw new Error(`Failed to create a song: ${error.message}`);
+    console.error("Failed to create song:", error);
+    throw new Error(`Failed to create song: ${error.message}`);
   }
 },
 
+songUpload: async (parent, { file }, context) => {
+  let tempFilePath;
+  try {
+    const uploadsDir = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const { createReadStream, filename } = await file;
+    if (!createReadStream) {
+      throw new Error("Invalid file input. Please provide a valid file.");
+    }
+
+    const fileStream = createReadStream();
+    tempFilePath = path.join(uploadsDir, `${Date.now()}_${filename}`);
+    const writeStream = fs.createWriteStream(tempFilePath);
+    
+    // Ensure the file is fully written before proceeding
+    await new Promise((resolve, reject) => {
+      fileStream.pipe(writeStream);
+      writeStream.on("finish", resolve);
+      writeStream.on("error", (err) => {
+        tempFilePath = undefined; // Prevent undefined path issues
+        reject(err);
+      });
+    });
+
+    // Validate format using the utility function
+    if (!tempFilePath) {
+      throw new Error("File path is undefined. File might not have been saved correctly.");
+    }
+
+    await validateAudioFormat(tempFilePath);
+
+    // Generate file hash for deduplication
+    const fileBuffer = await fs.promises.readFile(tempFilePath);
+    const fileHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
+    const songId = fileHash; 
+    const originalName = path.basename(filename, path.extname(filename));
+    const fileKey = `uploads/${songId}_${originalName}.mp3`;
+
+    // Check if the file already exists in S3
+    try {
+      await s3.send(new HeadObjectCommand({ Bucket: process.env.BUCKET_NAME_STREAMING, Key: fileKey }));
+
+      // If it exists, delete the old file
+      await s3.send(new DeleteObjectCommand({ Bucket: process.env.BUCKET_NAME_STREAMING, Key: fileKey }));
+      console.log("Existing file deleted:", fileKey);
+    } catch (error) {
+      if (error.name !== "NotFound") {
+        throw new Error("Error checking existing file: " + error.message);
+      }
+    }
+
+    // Process the audio file (convert, optimize)
+    const processedFilePath = path.join(uploadsDir, `${Date.now()}_processed.mp3`);
+    await processAudio(tempFilePath, processedFilePath);
+
+    // Start Multipart Upload
+    const createCommand = new CreateMultipartUploadCommand({
+      Bucket: process.env.BUCKET_NAME_STREAMING,
+      Key: fileKey,
+      ContentType: "audio/mpeg",
+    });
+
+    const createResponse = await s3.send(createCommand);
+    const uploadId = createResponse.UploadId;
+
+    // Upload in parts
+    const passThrough = new stream.PassThrough();
+    const processedFileStream = fs.createReadStream(processedFilePath);
+    const partSize = 5 * 1024 * 1024; // 5MB per part
+    let partNumber = 1;
+    let uploadedParts = [];
+    let currentBuffer = [];
+
+    processedFileStream.pipe(passThrough);
+
+    for await (const chunk of passThrough) {
+      currentBuffer.push(chunk);
+      const currentSize = currentBuffer.reduce((acc, buf) => acc + buf.length, 0);
+
+      if (currentSize >= partSize) {
+        const body = Buffer.concat(currentBuffer);
+        const uploadPartCommand = new UploadPartCommand({
+          Bucket: process.env.BUCKET_NAME_STREAMING,
+          Key: fileKey,
+          PartNumber: partNumber,
+          UploadId: uploadId,
+          Body: body,
+        });
+
+        const uploadPartResponse = await s3.send(uploadPartCommand);
+        uploadedParts.push({ PartNumber: partNumber, ETag: uploadPartResponse.ETag });
+
+        partNumber++;
+        currentBuffer = [];
+      }
+    }
+
+    // Upload remaining part
+    if (currentBuffer.length > 0) {
+      const body = Buffer.concat(currentBuffer);
+      const uploadPartCommand = new UploadPartCommand({
+        Bucket: process.env.BUCKET_NAME_STREAMING,
+        Key: fileKey,
+        PartNumber: partNumber,
+        UploadId: uploadId,
+        Body: body,
+      });
+
+      const uploadPartResponse = await s3.send(uploadPartCommand);
+      uploadedParts.push({ PartNumber: partNumber, ETag: uploadPartResponse.ETag });
+    }
+
+    // Complete Multipart Upload
+    const completeCommand = new CompleteMultipartUploadCommand({
+      Bucket: process.env.BUCKET_NAME_STREAMING,
+      Key: fileKey,
+      UploadId: uploadId,
+      MultipartUpload: { Parts: uploadedParts },
+    });
+
+    await s3.send(completeCommand);
+
+    return {
+      streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3-accelerate.amazonaws.com/${fileKey}`,
+    };
+  } catch (error) {
+    console.error("Failed to upload the song:", error);
+    throw new Error(`Failed to upload the song: ${error.message}`);
+  } finally {
+    if (tempFilePath) {
+      try {
+        await fs.promises.unlink(tempFilePath);
+        await fs.promises.unlink(processedFilePath);
+      } catch (cleanupError) {
+        console.error("Failed to delete temporary file:", cleanupError);
+      }
+    }
+  }
+},
 
 
 

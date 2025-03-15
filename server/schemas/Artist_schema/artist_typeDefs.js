@@ -1,4 +1,7 @@
+
+
 const typeDefs = `
+scalar Upload
 scalar Date
 
 type Artist {
@@ -50,7 +53,7 @@ type Song {
   lyrics: String
   artwork: String
   audioFileUrl: String
- 
+ audioHash: String
   createdAt: Date!
 }
 
@@ -70,12 +73,14 @@ type Album {
 type Query {
   allArtists: [Artist]
   artistProfile: Artist
-  songsOfArtist(artistId: ID!): [Song]
+  songsOfArtist: [Song]
+  songHash(audioHash: String):Song
   albumOfArtist: [Album]
   getPresignedUrl(key: String!, operation: String!): String
-  
-
-  allSongs: [Song]
+  songUrls(
+    songId: ID!
+    artistId: ID!
+  ): File
   
 }
 
@@ -93,6 +98,11 @@ type ResendVerificationResponse {
   success: Boolean!
   message: String!
 }
+
+ type File {
+   streamAudioFileUrl: String
+}
+
 
 type PresignedUrlResponse {
   url: String!
@@ -147,17 +157,24 @@ type Mutation {
 
 
   createSong(
-    title: String!
-    featuringArtist: [String]
-    albumId: ID
-    genre: String
-    duration: Int!
-    trackNumber: Int
-    producer: [String]
-    composer: [String]
-    label: String
-    releaseDate: Date!
+  title: String!
+  featuringArtist: [String]
+  albumId: ID!
+  trackNumber: Int
+  genre: String
+  producer: [String]
+  composer: [String]
+  label: String
+  duration: Int!
+  releaseDate: Date!
+  lyrics: String
+  artwork: String
+  audioFileUrl: String
+  streamAudioFileUrl: String
+ audioHash: String
   ): Song
+
+  songUpload(file: Upload): File
 
 
   createAlbum(

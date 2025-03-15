@@ -164,6 +164,7 @@ export default function ArtistStudio() {
             sx={{
               alignItems: "center",
               mx: 3,
+              
               pb: 5,
               mt: { xs: 8, md: 0 },
             }}
@@ -175,7 +176,7 @@ export default function ArtistStudio() {
               profileImage={profileImage}
             />
 
-             <Box >
+             <Box  >
               <Outlet />
           </Box>
 

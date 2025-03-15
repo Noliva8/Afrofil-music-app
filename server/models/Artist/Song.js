@@ -90,15 +90,21 @@ const songSchema = new Schema({
     type: String,
   },
 
+   streamAudioFileUrl: {
+    type: String,
+  },
+
+
+
   artwork: {
     type: String,
   },
 
-  // audioHash: {
-  //   type: String,
+  audioHash: {
+    type: String,
     
     
-  // },
+  },
 
   createdAt: {
     type: Date,
