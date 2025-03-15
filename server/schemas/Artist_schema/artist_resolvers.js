@@ -10,6 +10,7 @@ import { S3Client, CreateMultipartUploadCommand, HeadObjectCommand, UploadPartCo
 import { processAudio} from '../../utils/AudioIntegrity.js';
 import { fileURLToPath } from 'url';
 import  { validateAudioFormat } from '../../utils/validateAudioFormat.js'
+import cleanupTempFiles from '../../utils/cleanTempFiles.js'
 import stream from "stream";
 import path from 'path';
 import crypto from "crypto";
@@ -756,8 +757,9 @@ createSong: async (
   }
 },
 
-songUpload: async (parent, { file }, context) => {
+songUpload : async (parent, { file }, context) => {
   let tempFilePath;
+  let processedFilePath;
   try {
     const uploadsDir = path.join(__dirname, "uploads");
     if (!fs.existsSync(uploadsDir)) {
@@ -772,7 +774,7 @@ songUpload: async (parent, { file }, context) => {
     const fileStream = createReadStream();
     tempFilePath = path.join(uploadsDir, `${Date.now()}_${filename}`);
     const writeStream = fs.createWriteStream(tempFilePath);
-    
+
     // Ensure the file is fully written before proceeding
     await new Promise((resolve, reject) => {
       fileStream.pipe(writeStream);
@@ -811,7 +813,7 @@ songUpload: async (parent, { file }, context) => {
     }
 
     // Process the audio file (convert, optimize)
-    const processedFilePath = path.join(uploadsDir, `${Date.now()}_processed.mp3`);
+    processedFilePath = path.join(uploadsDir, `${Date.now()}_processed.mp3`);
     await processAudio(tempFilePath, processedFilePath);
 
     // Start Multipart Upload
@@ -881,6 +883,9 @@ songUpload: async (parent, { file }, context) => {
 
     await s3.send(completeCommand);
 
+    // After processing and uploading, clean up the temporary files
+    await cleanupTempFiles(tempFilePath, processedFilePath);
+
     return {
       streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3-accelerate.amazonaws.com/${fileKey}`,
     };
@@ -888,17 +893,12 @@ songUpload: async (parent, { file }, context) => {
     console.error("Failed to upload the song:", error);
     throw new Error(`Failed to upload the song: ${error.message}`);
   } finally {
-    if (tempFilePath) {
-      try {
-        await fs.promises.unlink(tempFilePath);
-        await fs.promises.unlink(processedFilePath);
-      } catch (cleanupError) {
-        console.error("Failed to delete temporary file:", cleanupError);
-      }
+    // Clean up any leftover temporary files in case of errors
+    if (tempFilePath || processedFilePath) {
+      await cleanupTempFiles(tempFilePath, processedFilePath);
     }
   }
 },
-
 
 
 createAlbum: async (parent, { title }, context) => {
