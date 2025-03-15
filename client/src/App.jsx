@@ -1,68 +1,52 @@
-
-
-// import './App.css';
 import './entry.css';
 import NavTabs from './components/NavTabs';
 import ProfileDropdown from './components/ProfileDropdown';
 import { Outlet } from 'react-router-dom';
-
-import {
-  ApolloClient,
-  InMemoryCache,
-  ApolloProvider,
-  createHttpLink,
-  
-} from '@apollo/client';
-
+import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
+import createUploadLink from 'apollo-upload-client/createUploadLink.mjs';
 import { setContext } from '@apollo/client/link/context';
 import Auth from './utils/auth';
 
-// Construct our main GraphQL API endpoint
-const httpLink = createHttpLink({
-  uri: '/graphql',
+
+const httpLink = createUploadLink({
+  uri: '/graphql', 
 });
 
-
-
-// Construct request middleware that will attach the JWT token to every request as an `authorization` header
+// Set up middleware to attach the JWT token to every request
 const authLink = setContext((_, { headers }) => {
-  // Retrieve the tokens from localStorage
   const userToken = localStorage.getItem('user_id_token');
   const artistToken = localStorage.getItem('artist_id_token');
 
-  // Log the tokens for debugging purposes
+  // Log tokens for debugging
   console.log('User Token:', userToken);  
-  console.log('Artist Tokennnn:', artistToken);  
-
-  // Check if both tokens are missing
-  if (!userToken && !artistToken) {
-    console.error('No tokens found in localStorage');
-  }
+  console.log('Artist Token:', artistToken);  
 
   // Only send the available token in the authorization headers
   return {
     headers: {
       ...headers,
-      authorization: artistToken ? `Bearer ${artistToken}` : "",
-    }
-  }
- 
+      authorization: artistToken ? `Bearer ${artistToken}` : userToken ? `Bearer ${userToken}` : "",
+    },
+  };
 });
 
-
+// Initialize Apollo Client
 const client = new ApolloClient({
-  // Set up our client to execute the `authLink` middleware prior to making the request to our GraphQL API
   link: authLink.concat(httpLink),
   cache: new InMemoryCache(),
 });
 
-
 function App() {
-  const loggedIn = Auth.loggedIn();
+  const loggedIn = Auth.loggedIn(); 
 
   return (
     <ApolloProvider client={client}>
-      {loggedIn && <NavTabs /> && <ProfileDropdown />} 
+      {loggedIn && (
+        <>
+          <NavTabs />
+          <ProfileDropdown />
+        </>
+      )}
       <div>
         <Outlet /> {/* Render the child routes */}
       </div>
@@ -71,23 +55,6 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

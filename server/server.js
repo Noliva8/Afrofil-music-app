@@ -36,7 +36,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
 // File upload middleware for handling file uploads with GraphQL
-app.use(graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 10 }));
+app.use(graphqlUploadExpress({ maxFileSize: 100000000, maxFiles: 10 }));
 
 // Combining typeDefs and resolvers
 const typeDefs = [artist_typeDefs, user_typeDefs];
@@ -47,6 +47,7 @@ const server = new ApolloServer({
     typeDefs,
     resolvers,
     context: authMiddleware,
+     csrfPrevention: false
 });
 
 // Start the Apollo Server and connect to the DB
@@ -59,7 +60,8 @@ const startApolloServer = async () => {
 
         // Use Apollo Server middleware
         app.use('/graphql', expressMiddleware(server, {
-            context: authMiddleware
+            context: authMiddleware,
+            
         }));
 
         // Email verification route

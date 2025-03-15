@@ -143,3 +143,30 @@ query albumOfArtist{
 }
 `
 
+export const SONG_OF_ARTIST =gql`
+query SongsOfArtist {
+  songsOfArtist {
+    _id
+    audioHash
+    title
+    album {
+      title
+      _id
+    }
+  }
+}
+`
+
+
+export const SONG_HASH = gql`
+query songHash($audioHash: String) {
+  songHash(audioHash: $audioHash) {
+    _id
+    title
+    audioHash
+    album {
+      _id
+      title
+    }
+  }
+}`

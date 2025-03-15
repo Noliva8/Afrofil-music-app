@@ -234,31 +234,23 @@ mutation getPresignedUrlDelete($bucket: String!, $key: String!, $region: String!
 }
 `
 
-
 export const CREATE_SONG = gql`
-
-mutation createSong($title: String!,  $duration: Int!, $releaseDate: Date!, $featuringArtist: [String], $genre: String, $trackNumber: Int, $producer: [String], $composer: [String], $label: String, $albumId: ID) {
-  createSong(title: $title, duration: $duration, releaseDate: $releaseDate, featuringArtist: $featuringArtist, genre: $genre, trackNumber: $trackNumber, producer: $producer, composer: $composer, label: $label, albumId: $albumId) {
+mutation createSong($title: String!, $albumId: ID!, $duration: Int!, $releaseDate: Date!, $artwork: String, $audioFileUrl: String, $audioHash: String, $featuringArtist: [String], $trackNumber: Int, $genre: String, $producer: [String], $composer: [String], $label: String, $lyrics: String) {
+  createSong(title: $title, albumId: $albumId, duration: $duration, releaseDate: $releaseDate, artwork: $artwork, audioFileUrl: $audioFileUrl, audioHash: $audioHash, featuringArtist: $featuringArtist, trackNumber: $trackNumber, genre: $genre, producer: $producer, composer: $composer, label: $label, lyrics: $lyrics) {
     _id
     album {
       _id
     }
-    artist {
-      _id
-    }
-    composer
-    createdAt
-    duration
-    featuringArtist
-    genre
-    label
-    producer
-    releaseDate
-    title
-    trackNumber
   }
 }
+`
 
+export const SONG_UPLOAD = gql`
+mutation songUpload($file: Upload) {
+  songUpload(file: $file) {
+    streamAudioFileUrl
+  }
+}
 `
 
 export const CREATE_ALBUM = gql`
