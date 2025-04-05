@@ -1,26 +1,26 @@
 import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
 
 import TextField from "@mui/material/TextField";
 
-export default function Label() {
+export default function Label(register, errors) {
   return (
     <>
-    <Box
+  <Paper
       sx={{
+        width: "98%",
         display: "flex",
-        alignItems: {
-          xs: "start",
-          md: "center",
-        },
+        backgroundColor: "var(--secondary-background-color)",
+        margin: "0 auto",
+        marginTop: "10px",
+        padding: "1rem",
+        alignItems: { xs: "start", md: "center" },
         gap: "10px",
-        flexDirection: {
-          xs: "column",
-          md: "row",
-        },
+        flexDirection: { xs: "column", md: "row" },
       }}
     >
       <label
-        htmlFor="mainArtist"
+        htmlFor="label"
         style={{
           color: "white",
           minWidth: "150px",
@@ -32,21 +32,23 @@ export default function Label() {
           textSpacing: "2px",
         }}
       >
-        Main Artist
+        Label
       </label>
 
       <TextField
         fullWidth
-        id="mainArtist"
-        name="mainArtist" // Fixed syntax here
-        sx={{
-          bgcolor: "var(--secondary-background-color)",
-          color: "white",
-          "& .MuiInputLabel-root": { color: "white" },
-          "& .MuiInputBase-root": { color: "white" },
-        }}
+        id="label"
+        name="label" 
+        {...register}
+       sx={{
+              width: '100%',
+              bgcolor: "var(--secondary-background-color)",
+              "& .MuiInputBase-root": { color: "white" },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
+            }}
       />
-    </Box>
+    </Paper>
     </>
   );
 }

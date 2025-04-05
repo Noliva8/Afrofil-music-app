@@ -1,23 +1,21 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Modal from "@mui/material/Modal";
 import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
-import "./customAlbum.css";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import { styled } from "@mui/material/styles";
 import { useMutation } from "@apollo/client";
-import AlbumCoverUpload from "./AlbumCoverUpload";
-import { CUSTOM_ALBUM, GET_PRESIGNED_URL } from "../../../utils/mutations";
-import { GET_PRESIGNED_URL_DOWNLOAD } from "../../../utils/mutations";
+import { CUSTOM_ALBUM } from "../../../utils/mutations";
 import { useForm } from "react-hook-form";
-
-
+import AlbumCoverUpload from "./AlbumCoverUpload";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns"; 
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; 
+import './customAlbum.css';
 
 const style = {
   position: "absolute",
@@ -25,44 +23,30 @@ const style = {
   left: "50%",
   transform: "translate(-50%, -50%)",
   width: { xs: "500px", md: "50%", lg: "900px" },
-  height: "50vh",
-  bgcolor: "#1a5d5d",
-  border: "2px solid #000",
+  height: "auto",
+  maxHeight: "80vh",
+  bgcolor: "#2b2d42", // Dark background color
+  border: "2px solid #8d99ae", // Light border for a cleaner look
   boxShadow: 24,
+  borderRadius: "8px",
   p: 4,
 };
-
-const VisuallyHiddenInput = styled("input")({
-  clip: "rect(0 0 0 0)",
-  clipPath: "inset(50%)",
-  height: 1,
-  overflow: "hidden",
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  whiteSpace: "nowrap",
-  width: 1,
-});
 
 export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetch }) {
   const [inputModal, setInputModel] = useState(false);
   const [createCustomAlbum] = useMutation(CUSTOM_ALBUM);
-const [ albumId, setAlbumId] = useState('');
-
-
-
-  const handleAlbumInputModel = () => setInputModel(true);
-
+  const [albumId, setAlbumId] = useState('');
   const artistId = profile?.data?._id;
 
   const {
     register,
     handleSubmit,
-    formState: { errors }
+    formState: { errors },
+    setValue,
   } = useForm({
     defaultValues: {
       title: "",
-      releaseDate: "",
+      releaseDate: null, // Default value for date field
     },
   });
 
@@ -75,11 +59,6 @@ const [ albumId, setAlbumId] = useState('');
       confirmButtonColor: "#441a49",
       cancelButtonColor: "#d33",
       confirmButtonText: "Yes, close it!",
-      customClass: {
-        popup: "custom-swal-popup",
-        container: "custom-swal-container",
-        confirmButton: "custom-confirm-button",
-      },
     });
 
     if (result.isConfirmed) {
@@ -88,192 +67,157 @@ const [ albumId, setAlbumId] = useState('');
         title: "Closed!",
         text: "Your album has been closed.",
         icon: "success",
-        customClass: {
-          popup: "custom-swal-popup",
-        },
       });
     }
   };
 
-const onSubmit = async (data) => {
-  try {
-    console.log("Submitting album data:", data);
+  const onSubmit = async (data) => {
+    try {
+      console.log("Submitting album data:", data);
 
-    const response = await createCustomAlbum({
-      variables: {
-        title: data.title,
-        releaseDate: data.releaseDate,
-        artistId: artistId,
-        albumCoverImage: "",
-      },
-    });
-
-    await refetch();
-
-    console.log("Response:", response);
-    const newAlbumId = response.data.createCustomAlbum._id;
-    console.log("new created id:", albumId);
-
-    if (response.data) {
-      setAlbumId(newAlbumId);
-      setAlbumOpen(false);
-      setInputModel(true);
-    }
-  } catch (err) {
-    console.error("Error creating album:", err);
-
-    // Check for specific error messages from the backend
-    if (err.message.includes("An album with this title already exists")) {
-      Swal.fire({
-        icon: "error",
-        title: "Title already exists",
-        text: "An album with this title already exists. Click on dropdown menu to find your album.",
-        customClass: {
-          popup: "custom-alert",
+      const response = await createCustomAlbum({
+        variables: {
+          title: data.title,
+          releaseDate: data.releaseDate,
+          artistId: artistId,
+          albumCoverImage: "",
         },
       });
-    } else {
-      Swal.fire({
-        icon: "error",
-        title: "Oops...",
-        text: "Error creating album. Check console for details.",
-        customClass: {
-          popup: "custom-alert",
-        },
-      });
+
+      // Refetch albums to ensure the dropdown reflects the new album
+      await refetch();
+
+      console.log("Response:", response);
+      const newAlbumId = response.data.createCustomAlbum._id;
+      console.log("New created album ID:", newAlbumId);
+
+      if (response.data) {
+        setAlbumId(newAlbumId);
+        setAlbumOpen(false);  // Close the modal
+        setInputModel(true);  // Trigger the album cover input modal
+      }
+    } catch (err) {
+      console.error("Error creating album:", err);
+
+      // Handle specific error messages from the server
+      if (err.message.includes("An album with this title already exists")) {
+        Swal.fire({
+          icon: "error",
+          title: "Title already exists",
+          text: "An album with this title already exists. Click on the dropdown menu to find your album.",
+          customClass: {
+            popup: "custom-alert",
+          },
+          confirmButtonText: "OK", // Confirm button text
+        }).then(() => {
+          setAlbumOpen(false);  // Close the modal after the user clicks "OK"
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Oops...",
+          text: "Error creating album.",
+          customClass: {
+            popup: "custom-alert",
+          },
+          confirmButtonText: "OK",
+        }).then(() => {
+          setAlbumOpen(false);  // Close the modal after the user clicks "OK"
+        });
+      }
     }
-  }
-};
+  };
 
 
   return (
     <div>
       <Modal
         open={albumOpen}
+        onClose={handleClose}
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
-        style={{ zIndex: 10 }}
       >
         <Box sx={style}>
-          <Button variant="contained" size={"small"} onClick={handleClose}>
+          <Button variant="contained" size={"small"} onClick={handleClose} sx={{ position: "absolute", top: "10px", right: "10px" }}>
             <CloseIcon />
           </Button>
 
-          <Paper
-            sx={{
-              width: "100%",
-              height: "90%",
-              margin: "1rem",
-              bgcolor: "#441a49",
-              padding: "16px",
-            }}
-          >
-            <Stack>
-              <Box
-                sx={{ display: "flex", flexDirection: "column", gap: "2rem" }}
+          <Paper sx={{ width: "100%", height: "90%", margin: "1rem", bgcolor: "#441a49", padding: "20px", borderRadius: "8px" }}>
+            <Stack spacing={2}>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontFamily: "Roboto, sans-serif",
+                  fontSize: { xs: "1.8rem", md: "2rem", lg: "2.3rem" },
+                  fontWeight: 700,
+                  color: "white",
+                  textAlign: "center",
+                }}
               >
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontFamily: "Roboto",
-                    marginLeft: { xs: "0", md: "0" },
-                    fontSize: { xs: "1.8rem", md: "2rem", lg: "2.3rem" },
-                    fontWeight: 700,
-                    mt: 4,
-                    color: "white",
-                    mb: "2",
-                  }}
-                >
-                  Create Album
-                </Typography>
+                Create Album
+              </Typography>
 
-                {/* Title */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: { xs: "start", md: "center" },
-                  }}
-                >
-                  <label
-                    htmlFor="title"
-                    style={{
-                      color: "white",
-                      minWidth: "150px",
-                      fontFamily: "roboto",
-                      fontWeight: "500",
-                      fontSize: "18px",
-                    }}
-                  >
-                    Title
-                  </label>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <Typography sx={{ color: "white", fontWeight: "500", fontSize: "18px" }}>Title</Typography>
                   <TextField
                     fullWidth
                     id="title"
                     name="title"
+                    variant="outlined"
                     {...register("title")}
                     sx={{
-                      bgcolor: "var(--secondary-background-color)",
+                      bgcolor: "#2f3e46",
                       color: "white",
-                      "& .MuiInputLabel-root": { color: "white" },
-                      "& .MuiInputBase-root": { color: "white" },
+                      borderRadius: "4px",
+                      "& .MuiInputLabel-root": { color: "#ddd" },
+                      "& .MuiInputBase-root": { color: "#fff" },
                     }}
                   />
                 </Box>
 
-                {/* Release Date */}
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: { xs: "start", md: "center" },
-                  }}
-                >
-                  <label
-                    htmlFor="releaseDate"
-                    style={{
-                      color: "white",
-                      minWidth: "150px",
-                      fontFamily: "roboto",
-                      fontWeight: "500",
-                      fontSize: "18px",
-                    }}
-                  >
-                    Release Date
-                  </label>
-                  <TextField
-                    id="releaseDate"
-                    name="releaseDate"
-                    type="date"
-                    fullWidth
-                    sx={{
-                      bgcolor: "var(--secondary-background-color)",
-                      color: "white",
-                      "& .MuiInputLabel-root": { color: "white" },
-                      "& .MuiInputBase-root": { color: "white" },
-                    }}
-                    {...register("releaseDate", {
-                      required: "Release date is required",
-                      validate: {
-                        notInFuture: (value) => {
-                          const today = new Date().toISOString().split("T")[0];
-                          return (
-                            value <= today ||
-                            "Release date cannot be in the future"
-                          );
-                        },
-                      },
-                    })}
-                    error={!!errors.releaseDate}
-                    helperText={errors.releaseDate?.message}
-                  />
+                <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <Typography sx={{ color: "white", fontWeight: "500", fontSize: "18px" }}>Release Date</Typography>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+  <DatePicker
+    id="releaseDate"
+    name="releaseDate"
+    value={null} // set to your initial value
+    onChange={(date) => setValue("releaseDate", date)} // Update form value
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        fullWidth
+        error={!!errors.releaseDate}
+        helperText={errors.releaseDate?.message}
+        sx={{
+          bgcolor: "var(--secondary-background-color)",
+          "& .MuiInputLabel-root": { color: "white !important" }, // Force label color to white
+          "& .MuiInputBase-root": { color: "white !important" }, // Force input field text color to white
+          "& .MuiInputBase-input": { 
+            color: "white !important", // Force input text color to white
+            "&::placeholder": { 
+              color: "white !important", // Force placeholder text color to white
+            },
+          },
+        }}
+      />
+    )}
+  />
+</LocalizationProvider>
+
+
                 </Box>
 
-                {/* Submit Button */}
                 <Button
                   variant="contained"
                   sx={{
-                    bgcolor: "#1a5d5d",
+                    bgcolor: "#6c4f70", // Updated color for a polished look
                     color: "white",
-                    "&:hover": { bgcolor: "gray" },
+                    "&:hover": { bgcolor: "#441a49" },
+                    padding: "12px 24px",
+                    fontSize: "1.2rem",
+                    borderRadius: "8px",
                     mt: 2,
                   }}
                   onClick={handleSubmit(onSubmit)}
@@ -286,14 +230,7 @@ const onSubmit = async (data) => {
         </Box>
       </Modal>
 
-      {/* trigger input model */}
-
-      <AlbumCoverUpload
-        inputModal={inputModal}
-        setInputModel={setInputModel}
-        handleAlbumInputModel={handleAlbumInputModel}
-        albumId={albumId}
-      />
+      <AlbumCoverUpload inputModal={inputModal} setInputModel={setInputModel} albumId={albumId} />
     </div>
   );
 }

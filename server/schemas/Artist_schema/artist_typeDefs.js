@@ -35,9 +35,9 @@ enum ArtistRole {
 type Song {
   _id: ID!
   title: String!
-  artist: Artist!
-  featuringArtist: [String]
-  album: Album!
+  artist: Artist!       
+  featuringArtist: [String]  
+  album: Album!         
   trackNumber: Int
   genre: String
   producer: [String]
@@ -45,17 +45,20 @@ type Song {
   label: String
   duration: Int!
   playCount: Int
-  releaseDate: Date!
+  releaseDate: Date!   
   downloadCount: Int
-  likedByUsers: [User]
+  likedByUsers: [User]  
   trendingScore: Int
   tags: [String]
   lyrics: String
   artwork: String
+  streamAudioFileUrl: String
   audioFileUrl: String
- audioHash: String
-  createdAt: Date!
+  audioHash: String
+ 
 }
+
+
 
 
 
@@ -81,6 +84,8 @@ type Query {
     songId: ID!
     artistId: ID!
   ): File
+
+  songById(songId: ID!): Song
   
 }
 
@@ -101,6 +106,7 @@ type ResendVerificationResponse {
 
  type File {
    streamAudioFileUrl: String
+   audioFileUrl: String
 }
 
 
@@ -174,7 +180,36 @@ type Mutation {
  audioHash: String
   ): Song
 
-  songUpload(file: Upload): File
+
+    updateSong(
+      songId: ID!
+  title: String!
+  featuringArtist: [String]
+  album: ID!
+  trackNumber: Int
+  genre: String
+  producer: [String]
+  composer: [String]
+  label: String
+  
+  releaseDate: Date!
+  lyrics: String
+  artwork: String
+   audioFileUrl: String
+  streamAudioFileUrl: String
+  ): Song
+
+
+
+
+
+
+
+
+
+  songUpload(
+    file: Upload
+  ): Song!
 
 
   createAlbum(

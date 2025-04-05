@@ -1,22 +1,27 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-
+import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
 
 export default function Title({register, errors}) {
   return (
     <>
-    <Box
+    <Paper elevation={3} 
       sx={{
+        width: '98%',
         display: "flex",
+        backgroundColor: 'var(--secondary-background-color)',
+        margin: '0 auto',
+        marginTop: '10px',
+        padding:'1rem',
          
         alignItems: {
-          xs: "center",
+          xs: "start",
           md: "center",
         },
         gap: "10px",
         flexDirection: {
-          xs: "row",
+          xs: "column",
           md: "row",
         },
       }}
@@ -37,7 +42,7 @@ export default function Title({register, errors}) {
         Title of the song:
       </label>
 
-   <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+   <Box sx={{ flex: 1, display: "flex", width: '100%', flexDirection: "column" }}>
 
           <TextField
             {...register("title", { required: "Title is required" })}
@@ -45,6 +50,7 @@ export default function Title({register, errors}) {
             fullWidth
             variant="outlined"
             sx={{
+              width: '100%',
               bgcolor: "var(--secondary-background-color)",
               "& .MuiInputBase-root": { color: "white" },
               "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
@@ -52,7 +58,7 @@ export default function Title({register, errors}) {
             }}
           />
 
-          {/* Error Message (Always Below Input) */}
+        
           {errors.title && (
             <Typography
               variant="body2"
@@ -68,7 +74,7 @@ export default function Title({register, errors}) {
           )}
         </Box>
       
-    </Box>
+    </Paper>
     </>
   );
 }

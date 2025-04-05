@@ -9,6 +9,8 @@ export default function SongUpload({
 }) {
   const songRef = useRef(null);
 
+
+
   return (
     <Paper
       sx={{
@@ -31,7 +33,7 @@ export default function SongUpload({
           fontSize: "2rem",
           padding: "1rem",
         }}
-        disabled={isSongLoading} // Disable button while loading
+       
       >
         {isSongLoading ? "Uploading..." : "Upload your song"}
         <input

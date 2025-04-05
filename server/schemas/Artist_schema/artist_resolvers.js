@@ -1,27 +1,40 @@
 
 import fs from 'fs'
+import { pipeline } from 'stream';
+import util from 'util';
 import  { Artist, Album, Song, User } from '../../models/Artist/index_artist.js';
 import dotenv from 'dotenv';
 import { AuthenticationError, signArtistToken } from '../../utils/artist_auth.js';
 import sendEmail from '../../utils/emailTransportation.js';
 import awsS3Utils from '../../utils/awsS3.js';
-import { S3Client, CreateMultipartUploadCommand, HeadObjectCommand, UploadPartCommand, DeleteObjectCommand, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand ,CreateMultipartUploadCommand, HeadObjectCommand, UploadPartCommand, DeleteObjectCommand, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
  import GraphQLUpload from "graphql-upload/GraphQLUpload.mjs";
 import { processAudio} from '../../utils/AudioIntegrity.js';
 import { fileURLToPath } from 'url';
 import  { validateAudioFormat } from '../../utils/validateAudioFormat.js'
-import cleanupTempFiles from '../../utils/cleanTempFiles.js'
+import cleanupTempFiles from '../../utils/cleanTempFiles.js';
+import { extractDuration } from '../../utils/songDuration.js'
 import stream from "stream";
 import path from 'path';
 import crypto from "crypto";
+import { createHash } from 'crypto';
 const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDelete } = awsS3Utils;
 
+import Fingerprinting from '../../utils/DuplicateAndCopyrights/fingerPrinting.js'
+
+import findPotentialCovers from '../../utils/DuplicateAndCopyrights/coverRemix.js'
+
+import generateFingerprint from '../../utils/DuplicateAndCopyrights/fingerPrinting.js';
+import preProcessAudio from '../../utils/DuplicateAndCopyrights/preProcessAudio.js';
+// import FingerprintModule from '../../utils/factory/generateFingerPrint2.js';
+
+import FingerprintGenerator from '../../utils/factory/generateFingerPrint2.js';
+import postProcessFingerprints from '../../utils/factory/postProcessing.js';
+import FingerprintMatcher from '../../utils/factory/fingerprintMatcher.js'
 
 
 
-
-
-
+const pipe = util.promisify(pipeline);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -33,6 +46,17 @@ const s3 = new S3Client({
   },
 });
 
+
+function analyzeFingerprints(fingerprint) {
+  const deltas = fingerprint.map(fp => fp.deltaTime);
+  const avgDelta = deltas.reduce((a,b) => a+b, 0) / deltas.length;
+  
+  console.log(`Fingerprint Analysis:
+  - Total: ${fingerprint.length}
+  - Avg Δt: ${avgDelta.toFixed(4)}s
+  - Time range: ${fingerprint[0]?.time.toFixed(4)}-${fingerprint.at(-1)?.time.toFixed(4)}s
+  `);
+}
 
 
 dotenv.config();
@@ -122,6 +146,35 @@ songHash: async (parent, { audioHash }) => {
   } catch (error) {
     console.error('Error checking audio hash:', error);
     throw new Error('Failed to check audio hash');
+  }
+},
+
+
+songById : async (parent, { songId }, context) => {
+  // Ensure that the user (artist) is logged in
+  if (!context.artist) {
+    throw new Error('Unauthorized: You must be logged in to fetch your song.');
+  }
+
+  const artistId = context.artist._id;
+
+  try {
+    // Query the song by both artistId and songId
+    const song = await Song.findOne({
+      artistId: artistId,
+      songId: songId,
+    });
+
+    if (!song) {
+      throw new Error('Song not found.');
+    }
+
+    // Return the song if found
+    return song;
+  } catch (error) {
+    console.error('Error fetching song:', error);
+    // Provide a generic error message for the client
+    throw new Error('Failed to fetch song.');
   }
 },
 
@@ -745,9 +798,9 @@ createSong: async (
       label,
       releaseDate,
       lyrics,
-      artwork, // Already uploaded URL
-      audioFileUrl, // Already uploaded URL
-      audioHash, // Helps prevent duplicates
+      artwork, 
+      audioFileUrl, 
+      audioHash, 
     });
 
     return song;
@@ -757,148 +810,301 @@ createSong: async (
   }
 },
 
-songUpload : async (parent, { file }, context) => {
-  let tempFilePath;
-  let processedFilePath;
+
+updateSong: async (parent, { 
+  songId, 
+  title, 
+  featuringArtist, 
+  album, 
+  trackNumber, 
+  genre, 
+  producer, 
+  composer, 
+  label, 
+ 
+  releaseDate, 
+  lyrics, 
+  artwork, 
+  audioFileUrl, 
+  streamAudioFileUrl 
+}) => {
   try {
+    if (!context.artist) {
+      throw new Error("Unauthorized: You must be logged in to update a song.");
+    }
+    const updatedSong = await Song.findByIdAndUpdate(songId, {
+      title,
+      featuringArtist,
+      album, 
+      trackNumber,
+      genre,
+      producer,
+      composer,
+      label,
+  
+      releaseDate,
+      lyrics,
+      artwork,
+      audioFileUrl,
+      streamAudioFileUrl
+    }, { new: true });
+
+    return updatedSong;
+  } catch (error) {
+    console.error("Error updating song:", error);
+    throw new Error("Failed to update song.");
+  }
+},
+
+
+songUpload : async (parent, { file }, context) => {
+  if (!context.artist) {
+    throw new Error("Unauthorized: You must be logged in to create a song.");
+  }
+
+  const loggedInArtistId = context.artist._id;
+  let tempFilePath, processedFilePath;
+
+  try {
+    // 1. File upload handling
     const uploadsDir = path.join(__dirname, "uploads");
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
     const { createReadStream, filename } = await file;
-    if (!createReadStream) {
-      throw new Error("Invalid file input. Please provide a valid file.");
+    if (!createReadStream || !filename) {
+      throw new Error("Invalid file input.");
     }
 
-    const fileStream = createReadStream();
-    tempFilePath = path.join(uploadsDir, `${Date.now()}_${filename}`);
-    const writeStream = fs.createWriteStream(tempFilePath);
-
-    // Ensure the file is fully written before proceeding
+    // Sanitize filename and create temp path
+    const sanitizedFilename = filename.replace(/[^\w.-]/g, '_');
+    tempFilePath = path.join(uploadsDir, `${Date.now()}_${sanitizedFilename}`);
+    
+    // Save the uploaded file
     await new Promise((resolve, reject) => {
-      fileStream.pipe(writeStream);
-      writeStream.on("finish", resolve);
-      writeStream.on("error", (err) => {
-        tempFilePath = undefined; // Prevent undefined path issues
-        reject(err);
+      const writeStream = fs.createWriteStream(tempFilePath);
+      const readStream = createReadStream();
+      
+      readStream.on('error', error => {
+        writeStream.destroy();
+        reject(new Error(`File upload failed: ${error.message}`));
       });
+      
+      writeStream.on('error', reject);
+      writeStream.on('finish', resolve);
+      
+      readStream.pipe(writeStream);
     });
 
-    // Validate format using the utility function
-    if (!tempFilePath) {
-      throw new Error("File path is undefined. File might not have been saved correctly.");
+    // Verify file
+    if (!fs.existsSync(tempFilePath)) {
+      throw new Error("Failed to save uploaded file");
     }
 
-    await validateAudioFormat(tempFilePath);
+    // 2. Generate fingerprints
+    const inputStream = fs.createReadStream(tempFilePath);
+    const fingerprint = await FingerprintGenerator(inputStream);
+    // console.log('Generated Fingerprints:', fingerprint);
 
-    // Generate file hash for deduplication
-    const fileBuffer = await fs.promises.readFile(tempFilePath);
-    const fileHash = crypto.createHash("sha256").update(fileBuffer).digest("hex");
-    const songId = fileHash; 
-    const originalName = path.basename(filename, path.extname(filename));
-    const fileKey = `uploads/${songId}_${originalName}.mp3`;
+    // 3. Compare the fingerprints against the database
+    const matchingResults = await FingerprintMatcher.findMatches(fingerprint, loggedInArtistId, { minMatches: 5 });
 
-    // Check if the file already exists in S3
-    try {
-      await s3.send(new HeadObjectCommand({ Bucket: process.env.BUCKET_NAME_STREAMING, Key: fileKey }));
+    console.log('Matching results:', matchingResults);
 
-      // If it exists, delete the old file
-      await s3.send(new DeleteObjectCommand({ Bucket: process.env.BUCKET_NAME_STREAMING, Key: fileKey }));
-      console.log("Existing file deleted:", fileKey);
-    } catch (error) {
-      if (error.name !== "NotFound") {
-        throw new Error("Error checking existing file: " + error.message);
-      }
+    // 4. Check the result from the matcher
+    if (matchingResults.finalDecision && matchingResults.finalDecision.status === 'artist_duplicate') {
+      return {
+        status: 'DUPLICATE',
+        message: matchingResults.finalDecision.message,
+        action: matchingResults.finalDecision.action,
+        duplicateSongId: matchingResults.finalDecision.duplicateSongId
+      };
     }
 
-    // Process the audio file (convert, optimize)
-    processedFilePath = path.join(uploadsDir, `${Date.now()}_processed.mp3`);
+
+if (
+  matchingResults.finalDecision &&
+  matchingResults.finalDecision.status === 'copyright_issue'
+) {
+
+
+  const matchingSong = matchingResults.finalDecision.matchingSongs?.[0];
+
+  if (!matchingSong) {
+    throw new Error("Matching song not found during copyright check.");
+  }
+
+// console.log('Matching songs:', matchingResults.finalDecision.matchingSongs);
+
+  // Fetch original artist's info
+  const matchingSongId = matchingResults.finalDecision.matchingSongs?.[0]?.songId;
+if (!matchingSongId) throw new Error("Matching song ID not found");
+
+const originalSong = await Song.findById(matchingSongId).populate('artist', 'name email');
+console.log("Fetched originalSong with artist:", originalSong);
+
+if (!originalSong?.artist?.email) {
+  throw new Error("Original artist info is missing or incomplete");
+}
+
+const originalArtistId =  originalSong?.artist?._id;
+
+const originalArtistData = await Artist.findById(originalArtistId);
+
+const originalArtistAka = originalArtistData.artistAka;
+console.log(originalArtistAka)
+
+console.log(`verify this: ${originalSong}`)
+
+// Notify the original artist (in background)
+const notifyOriginalArtist = sendEmail(
+  originalSong.artist.email,
+  "Copyright Alert: Someone Tried Uploading Your Song",
+  `
+    Hello ${originalArtistAka || 'artist'},
+
+    Heads up! Someone just attempted to upload a song that closely matches the one you previously uploaded: "${originalSong.title}".
+
+    This upload was blocked by our system to protect your rights.
+
+    If you want to take further action or review the event, please log in to your dashboard.
+
+    Thanks for using our platform to protect your work.
+  `
+);
+
+const currentArtistEmail = context.artist.email;
+
+// Notify the current artist (in background)
+const notifyCurrentArtist = currentArtistEmail && sendEmail(
+  currentArtistEmail,
+  "Upload Blocked: Copyright Issue Detected",
+  `
+    Hello,
+
+    Unfortunately, your recent attempt to upload a song titled "${originalSong.title}" has been blocked because it closely matches an existing song on the platform.
+
+    This upload has been flagged as a copyright issue, and the original artist has been notified.
+
+    If you believe this is a mistake or would like to resolve the issue, please contact support or review your submission in your dashboard.
+
+    Thanks for using our platform!
+  `
+);
+
+// Run the email notifications in parallel
+await Promise.all([notifyOriginalArtist, notifyCurrentArtist]);
+
+
+// Notify both parties with the result
+return {
+  status: 'COPYRIGHT_ISSUE',
+  message: matchingResults.finalDecision.message,
+  action: matchingResults.finalDecision.action,
+  options: matchingResults.finalDecision.options,
+  matchingSongs: matchingResults.finalDecision.matchingSongs
+};
+
+}
+
+
+    // 5. Extract audio duration
+    const duration = await extractDuration(tempFilePath);
+
+    // 6. Process and upload to S3
+    processedFilePath = path.join(uploadsDir, `${fingerprint[0]?.hash}_${path.basename(filename)}`);
+
     await processAudio(tempFilePath, processedFilePath);
 
-    // Start Multipart Upload
-    const createCommand = new CreateMultipartUploadCommand({
+    const fileKey = `uploads/${fingerprint[0]?.hash}/${path.basename(processedFilePath)}`;
+    
+    const uploadResult = await s3.send(new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME_STREAMING,
       Key: fileKey,
+      Body: fs.createReadStream(processedFilePath),
       ContentType: "audio/mpeg",
-    });
-
-    const createResponse = await s3.send(createCommand);
-    const uploadId = createResponse.UploadId;
-
-    // Upload in parts
-    const passThrough = new stream.PassThrough();
-    const processedFileStream = fs.createReadStream(processedFilePath);
-    const partSize = 5 * 1024 * 1024; // 5MB per part
-    let partNumber = 1;
-    let uploadedParts = [];
-    let currentBuffer = [];
-
-    processedFileStream.pipe(passThrough);
-
-    for await (const chunk of passThrough) {
-      currentBuffer.push(chunk);
-      const currentSize = currentBuffer.reduce((acc, buf) => acc + buf.length, 0);
-
-      if (currentSize >= partSize) {
-        const body = Buffer.concat(currentBuffer);
-        const uploadPartCommand = new UploadPartCommand({
-          Bucket: process.env.BUCKET_NAME_STREAMING,
-          Key: fileKey,
-          PartNumber: partNumber,
-          UploadId: uploadId,
-          Body: body,
-        });
-
-        const uploadPartResponse = await s3.send(uploadPartCommand);
-        uploadedParts.push({ PartNumber: partNumber, ETag: uploadPartResponse.ETag });
-
-        partNumber++;
-        currentBuffer = [];
+      Metadata: {
+        'fingerprint-count': String(fingerprint.length),
+        'duration': String(duration)
       }
-    }
+    }));
 
-    // Upload remaining part
-    if (currentBuffer.length > 0) {
-      const body = Buffer.concat(currentBuffer);
-      const uploadPartCommand = new UploadPartCommand({
-        Bucket: process.env.BUCKET_NAME_STREAMING,
-        Key: fileKey,
-        PartNumber: partNumber,
-        UploadId: uploadId,
-        Body: body,
-      });
 
-      const uploadPartResponse = await s3.send(uploadPartCommand);
-      uploadedParts.push({ PartNumber: partNumber, ETag: uploadPartResponse.ETag });
-    }
+// upload original song for back up
+// ------------------------------
 
-    // Complete Multipart Upload
-    const completeCommand = new CompleteMultipartUploadCommand({
-      Bucket: process.env.BUCKET_NAME_STREAMING,
-      Key: fileKey,
-      UploadId: uploadId,
-      MultipartUpload: { Parts: uploadedParts },
+// 7. Upload the original song for backup
+const originalSongKey = `original_songs/${fingerprint[0]?.hash}_${path.basename(filename)}`;
+
+const originalSongUploadResult = await s3.send(new PutObjectCommand({
+  Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,
+  Key: originalSongKey,
+  Body: fs.createReadStream(tempFilePath),
+  ContentType: "audio/mpeg"
+}));
+
+
+// Get the URL of the original song uploaded to the backup bucket
+const originalSongUrl = `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`;
+
+
+
+
+    // console.log(`File uploaded to S3 with ETag: ${uploadResult.ETag}`);
+
+    // 7. Create database record
+    const album = await Album.findOne({ artist: loggedInArtistId });
+
+    const newSong = await Song.create({
+      title: path.basename(filename, path.extname(filename)),
+      artist: loggedInArtistId,
+      album: album?._id,
+      audioFileUrl: originalSongUrl,
+      streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
+      audioHash: fingerprint,
+      duration,
+      releaseDate: new Date()
     });
-
-    await s3.send(completeCommand);
-
-    // After processing and uploading, clean up the temporary files
-    await cleanupTempFiles(tempFilePath, processedFilePath);
 
     return {
-      streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3-accelerate.amazonaws.com/${fileKey}`,
+      status: 'SUCCESS',
+      song: await Song.findById(newSong._id)
+        .populate('artist', 'name')
+        .populate('album', 'title'),
+      fingerprints: {
+        count: fingerprint.length,
+        firstSample: fingerprint[0],
+        lastSample: fingerprint[fingerprint.length - 1]
+      }
     };
+
   } catch (error) {
-    console.error("Failed to upload the song:", error);
-    throw new Error(`Failed to upload the song: ${error.message}`);
+    console.error("Upload process failed:", error);
+    throw new Error(`Song upload failed: ${error.message}`);
   } finally {
-    // Clean up any leftover temporary files in case of errors
-    if (tempFilePath || processedFilePath) {
-      await cleanupTempFiles(tempFilePath, processedFilePath);
-    }
+    // Cleanup temporary files
+    const cleanup = async (filePath) => {
+      try {
+        if (filePath && fs.existsSync(filePath)) {
+          await fs.promises.unlink(filePath);
+          console.log(`Cleaned up temporary file: ${filePath}`);
+        }
+      } catch (cleanupError) {
+        console.error(`Error cleaning up ${filePath}:`, cleanupError);
+      }
+    };
+
+    await cleanup(tempFilePath);
+    await cleanup(processedFilePath);
   }
 },
+
+
+
+
+
+
 
 
 createAlbum: async (parent, { title }, context) => {

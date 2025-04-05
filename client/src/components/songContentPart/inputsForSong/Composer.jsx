@@ -4,7 +4,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-
+import Paper from "@mui/material/Paper";
 
 
 
@@ -32,21 +32,29 @@ const addComposer = () => {
     <>
   {/* Featuring Artist - Add More and Delete */}
       {composers.map((_, index) => (
-        <Stack key={index} direction="row" spacing={5} alignItems="center">
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: {
-                xs: "center",
-                md: "center",
-              },
-              gap: "10px",
-              flexDirection: {
-                xs: "row",
-                md: "row",
-              },
-            }}
-          >
+          <Paper key={index} elevation={3} 
+      sx={{
+        width: '98%',
+        display: "flex",
+        backgroundColor: 'var(--secondary-background-color)',
+        margin: '0 auto',
+        marginTop: '10px',
+        padding:'1rem',
+         
+        alignItems: {
+          xs: "start",
+          md: "center",
+        },
+        gap: "10px",
+        flexDirection: {
+          xs: "column",
+          md: "row",
+        },
+      }}
+    >
+
+
+
             <label
               htmlFor={`composer-${index}`} 
               style={{
@@ -66,14 +74,15 @@ const addComposer = () => {
               id={`composer-${index}`}
               name={`composer[${index}]`} 
               {...register(`composer[${index}]`)}
-              sx={{
-                bgcolor: "var(--secondary-background-color)",
-                color: "white",
-                "& .MuiInputLabel-root": { color: "white" },
-                "& .MuiInputBase-root": { color: "white" },
-              }}
+             sx={{
+              width: '100%',
+              bgcolor: "var(--secondary-background-color)",
+              "& .MuiInputBase-root": { color: "white" },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
+            }}
             />
-          </Box>
+          
 
           {/* Add More Button */}
 
@@ -107,7 +116,7 @@ const addComposer = () => {
            
           )}
           </Box>
-        </Stack>
+        </Paper>
       ))}
 
 
