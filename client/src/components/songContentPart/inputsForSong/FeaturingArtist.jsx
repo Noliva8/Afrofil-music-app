@@ -3,7 +3,7 @@ import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Stack from "@mui/material/Stack";
 import Button from "@mui/material/Button";
-
+import Paper from "@mui/material/Paper";
 export default function Featuring({ register, errors }) {
   const [featuringArtists, setFeaturingArtists] = useState([""]);
 
@@ -15,29 +15,31 @@ export default function Featuring({ register, errors }) {
     setFeaturingArtists(featuringArtists.filter((_, i) => i !== index));
   };
 
-
-
-
-
   return (
     <>
       {/* Featuring Artist - Add More and Delete */}
       {featuringArtists.map((_, index) => (
-        <Stack key={index} direction="row" spacing={5} alignItems="center">
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: {
-                xs: "center",
-                md: "center",
-              },
-              gap: "10px",
-              flexDirection: {
-                xs: "row",
-                md: "row",
-              },
-            }}
-          >
+         <Paper key={index} elevation={3} 
+      sx={{
+        width: '98%',
+        display: "flex",
+        backgroundColor: 'var(--secondary-background-color)',
+        margin: '0 auto',
+        marginTop: '10px',
+        padding:'1rem',
+         
+        alignItems: {
+          xs: "start",
+          md: "center",
+        },
+        gap: "10px",
+        flexDirection: {
+          xs: "column",
+          md: "row",
+        },
+      }}
+    >
+      
             <label
               htmlFor={`featuringArtist-${index}`} // Unique id
               style={{
@@ -50,41 +52,44 @@ export default function Featuring({ register, errors }) {
                 fontSize: "18px",
                 textSpacing: "2px",
               }}
-            >{index === 0 ? "Featuring" : `Featuring ${index}`}</label>
+            >
+              {index === 0 ? "Featured Artist" : `Featuring Artist ${index}`}
+            </label>
 
             <TextField
               fullWidth
               id={`featuringArtist-${index}`}
-              name={`featuring[${index}]`} // Dynamically set the name for each input
+              name={`featuring[${index}]`} 
               {...register(`featuringArtist[${index}]`)}
               sx={{
-                bgcolor: "var(--secondary-background-color)",
-                color: "white",
-                "& .MuiInputLabel-root": { color: "white" },
-                "& .MuiInputBase-root": { color: "white" },
+                
+                width: '100%',
+              bgcolor: "var(--secondary-background-color)",
+              "& .MuiInputBase-root": { color: "white" },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
               }}
             />
-          </Box>
+          
 
           {/* Add More Button */}
 
-             <Box sx={{display:'flex', flexDirection: 'column', gap: '10px'}}>
-          <Button
-            variant="contained"
-            sx={{
-              bgcolor: "var(--secondary-background-color)",
-              fontSize: { xs: "12px", md: "14px" },
-              color: "white",
-              "&:hover": { bgcolor: "gray" },
-            }}
-            onClick={addFeaturingArtist}
-          >
-            Add More
-          </Button>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <Button
+              variant="contained"
+              sx={{
+                bgcolor: "var(--secondary-background-color)",
+                fontSize: { xs: "12px", md: "14px" },
+                color: "white",
+                "&:hover": { bgcolor: "gray" },
+              }}
+              onClick={addFeaturingArtist}
+            >
+              Add More
+            </Button>
 
-          {/* Delete Button */}
-          {index > 0 && (
-            
+            {/* Delete Button */}
+            {index > 0 && (
               <Button
                 variant="outlined"
                 color="error"
@@ -95,10 +100,9 @@ export default function Featuring({ register, errors }) {
               >
                 Delete
               </Button>
-            
-          )}
+            )}
           </Box>
-        </Stack>
+        </Paper>
       ))}
     </>
   );

@@ -1,5 +1,6 @@
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
+import Paper from "@mui/material/Paper";
 
 export default function TruckNumber({ register, errors, setValue }) {
   const handleChange = (e) => {
@@ -8,12 +9,24 @@ export default function TruckNumber({ register, errors, setValue }) {
   };
 
   return (
-    <Box
+     <Paper elevation={3} 
       sx={{
+        width: '98%',
         display: "flex",
-        alignItems: { xs: "center", md: "center" },
+        backgroundColor: 'var(--secondary-background-color)',
+        margin: '0 auto',
+        marginTop: '10px',
+        padding:'1rem',
+         
+        alignItems: {
+          xs: "start",
+          md: "center",
+        },
         gap: "10px",
-        flexDirection: { xs: "row", md: "row" },
+        flexDirection: {
+          xs: "column",
+          md: "row",
+        },
       }}
     >
       <label
@@ -36,17 +49,18 @@ export default function TruckNumber({ register, errors, setValue }) {
         type="number"
         fullWidth
         onChange={handleChange} // Handle number conversion
-        inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }} // Ensure numeric input
-        sx={{
-          bgcolor: "var(--secondary-background-color)",
-          color: "white",
-          "& .MuiInputLabel-root": { color: "white" },
-          "& .MuiInputBase-root": { color: "white" },
-        }}
+        inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }} 
+       sx={{
+              width: '100%',
+              bgcolor: "var(--secondary-background-color)",
+              "& .MuiInputBase-root": { color: "white" },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
+            }}
         {...register("trackNumber", { valueAsNumber: true })} // Enforce number type
         error={!!errors.trackNumber}
         helperText={errors.trackNumber?.message}
       />
-    </Box>
+    </Paper>
   );
 }

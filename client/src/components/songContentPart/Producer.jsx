@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
+import Paper from "@mui/material/Paper";
 
 
 export default function Producer({register, errors}) {
@@ -20,22 +21,29 @@ export default function Producer({register, errors}) {
     <>
       {/* Producer - Add More and Delete */}
       {producers.map((_, index) => (
-        <Stack key={index} direction="row" spacing={5} alignItems="center">
-
-              <Box
+         <Paper key={index} elevation={3} 
       sx={{
+        width: '98%',
         display: "flex",
+        backgroundColor: 'var(--secondary-background-color)',
+        margin: '0 auto',
+        marginTop: '10px',
+        padding:'1rem',
+         
         alignItems: {
-          xs: "center",
+          xs: "start",
           md: "center",
         },
         gap: "10px",
         flexDirection: {
-          xs: "row",
+          xs: "column",
           md: "row",
         },
       }}
     >
+
+
+      
          <label
         htmlFor={`producer-${index}`} 
         style={{
@@ -55,29 +63,30 @@ export default function Producer({register, errors}) {
             name={`producer-${index}`} 
             id={`producer[${index}]`} 
             {...register(`producer[${index}]`)}
-            sx={{
+             sx={{
+              width: '100%',
               bgcolor: "var(--secondary-background-color)",
-              color: "white",
-              "& .MuiInputLabel-root": { color: "white" },
               "& .MuiInputBase-root": { color: "white" },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
             }}
           />
 
 
-    </Box>
+    
     
     <Box sx={{display:'flex', flexDirection: 'column', gap: '10px'}}>
           <Button
             variant="contained"
             sx={{
-              bgcolor: "var(--secondary-background-color)",
-              color: "white",
-               textAlign: 'center', textWrap: 'nowrap',
-              "&:hover": { bgcolor: "gray" },
-            }}
+                bgcolor: "var(--secondary-background-color)",
+                fontSize: { xs: "12px", md: "14px" },
+                color: "white",
+                "&:hover": { bgcolor: "gray" },
+              }}
             onClick={addProducer}
           >
-            Add Producer
+            Add more
           </Button>
           {index > 0 && (
             <Button
@@ -95,7 +104,7 @@ export default function Producer({register, errors}) {
             
           )}
           </Box>
-        </Stack>
+        </Paper>
       ))}
     </>
   );

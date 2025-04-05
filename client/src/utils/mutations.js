@@ -245,10 +245,27 @@ mutation createSong($title: String!, $albumId: ID!, $duration: Int!, $releaseDat
 }
 `
 
+export const UPDATE_SONG = gql`
+mutation UpdateSong($songId: ID!, $title: String!, $album: ID!, $releaseDate: Date!, $featuringArtist: [String], $trackNumber: Int, $genre: String, $producer: [String], $composer: [String], $label: String, $lyrics: String, $artwork: String, $audioFileUrl: String, $streamAudioFileUrl: String) {
+  updateSong(songId: $songId, title: $title, album: $album, releaseDate: $releaseDate, featuringArtist: $featuringArtist, trackNumber: $trackNumber, genre: $genre, producer: $producer, composer: $composer, label: $label, lyrics: $lyrics, artwork: $artwork, audioFileUrl: $audioFileUrl, streamAudioFileUrl: $streamAudioFileUrl) {
+    _id
+    artist {
+      _id
+    }
+  }
+}
+`
+
+
 export const SONG_UPLOAD = gql`
 mutation songUpload($file: Upload) {
   songUpload(file: $file) {
-    streamAudioFileUrl
+    _id
+    album {
+      title
+    }
+    releaseDate
+    title
   }
 }
 `
@@ -300,6 +317,5 @@ mutation createCustomAlbum($title: String!, $releaseDate: String, $albumCoverIma
   }
 }
 `
-
 
 

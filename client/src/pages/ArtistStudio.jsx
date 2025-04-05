@@ -176,7 +176,7 @@ export default function ArtistStudio() {
               profileImage={profileImage}
             />
 
-             <Box  >
+             <Box sx={{ overflowY: 'scroll'}}  >
               <Outlet />
           </Box>
 

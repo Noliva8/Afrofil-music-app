@@ -100,10 +100,28 @@ const songSchema = new Schema({
     type: String,
   },
 
-  audioHash: {
+  audioHash:  [
+    {
+      hash: Number,
+      time: Number
+    }
+  ],
+  
+  structureHash: {
+     type: String,
+  },
+
+  similarityFingerprint: {
     type: String,
-    
-    
+  },
+
+  tempo: {
+    type: Number
+  },
+
+
+  chromaPeaks:{
+     type:[String]
   },
 
   createdAt: {
@@ -120,6 +138,7 @@ songSchema.index({ artist: 1 });
 songSchema.index({ genre: 1 });
 songSchema.index({ releaseDate: -1 });
 songSchema.index({ trendingScore: -1 });
+songSchema.index({ 'audioHash.hash': 1 });
 
 const Song = model('Song', songSchema);
 
