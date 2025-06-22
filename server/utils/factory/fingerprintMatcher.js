@@ -1,4 +1,7 @@
 import Song from '../../models/Artist/Song.js';
+import Fingerprint from '../../models/Artist/Fingeprints.js';
+
+
 
 class FingerprintMatcher {
   static async findMatches(queryFingerprints, currentArtistId, options = {}) {
@@ -21,18 +24,38 @@ class FingerprintMatcher {
     const uniqueHashes = [...new Set(queryHashes)];
 
     console.time('query_db');
-    const candidateSongs = await Song.find({
+
+    const matchingFingerprints = await Fingerprint.find({
       'audioHash.hash': { $in: uniqueHashes }
-    }).limit(50); // Can be tuned based on system performance
+    })
+     .populate({
+  path: 'song',
+  select: '_id artist title',
+  populate: {
+    path: 'artist',
+    select: '_id artistAka email'  
+  }
+})
+
+
+      
+      .limit(50)
+      .lean();
+
     console.timeEnd('query_db');
+
+    // Filter out any fingerprints with missing song references
+    const validFingerprints = matchingFingerprints.filter(fp => 
+      fp.song && fp.song._id && fp.song.artist
+    );
 
     stage1Feedback.steps.push({
       step: 'candidate_search',
-      status: candidateSongs.length > 0 ? 'matches_found' : 'no_matches',
-      count: candidateSongs.length
+      status: validFingerprints.length > 0 ? 'matches_found' : 'no_matches',
+      count: validFingerprints.length
     });
 
-    if (candidateSongs.length === 0) {
+    if (validFingerprints.length === 0) {
       stage1Feedback.steps.push({
         step: 'final_result',
         status: 'no_matches',
@@ -42,40 +65,48 @@ class FingerprintMatcher {
       return stage1Feedback;
     }
 
-    stage1Feedback.steps.push({
-      step: 'detailed_analysis',
-      status: 'started',
-      message: `Analyzing ${candidateSongs.length} potential matches`
-    });
-
     // STEP 2: Pre-filter candidates by shared hashes
     const queryHashSet = new Set(queryHashes);
-    const candidatesWithScores = candidateSongs.map(song => {
-      const dbHashSet = new Set(song.audioHash.map(fp => fp.hash));
-      const sharedHashCount = [...queryHashSet].filter(hash => dbHashSet.has(hash)).length;
-      return { song, sharedHashCount };
-    });
+    const candidatesWithScores = validFingerprints.map(fp => {
+      const dbHashSet = new Set(fp.audioHash.map(h => h.hash));
+      let sharedCount = 0;
+      
+      queryHashSet.forEach(hash => {
+        if (dbHashSet.has(hash)) sharedCount++;
+      });
 
-    // Sort and take top N for deeper comparison
-    const topCandidates = candidatesWithScores
-      .sort((a, b) => b.sharedHashCount - a.sharedHashCount)
-      .slice(0, 10);
+      return {
+        song: fp.song,
+        fingerprint: fp,
+        sharedHashCount: sharedCount
+      };
+    });
 
     // STEP 3: Full match scoring
     console.time('score_calc');
-    const matches = topCandidates.map(({ song }) => ({
-      songId: song._id,
-      score: this._calculateMatchScore(
-        queryFingerprints,
-        song.audioHash,
-        { timeTolerance, hashTolerance }
-      ),
-      songData: {
-        artist: song.artist,
-        title: song.title
-      }
-    }));
+    const matches = await Promise.all(
+      candidatesWithScores
+        .sort((a, b) => b.sharedHashCount - a.sharedHashCount)
+        .slice(0, 10)
+        .map(async ({ song, fingerprint }) => ({
+          songId: song._id,
+          score: this._calculateMatchScore(
+            queryFingerprints,
+            fingerprint.audioHash,
+            { timeTolerance, hashTolerance }
+          ),
+          songData: {
+  artistId: song.artist._id.toString(), 
+  artistName: song.artist.artistAka,
+  title: song.title
+}
+        }))
+    );
     console.timeEnd('score_calc');
+
+
+
+
 
     // STEP 4: Filter by minimum match score
     const filteredMatches = matches
@@ -93,123 +124,119 @@ class FingerprintMatcher {
       return stage1Feedback;
     }
 
-    // STEP 5: Determine match types
-    const copyrightMatches = filteredMatches.filter(
-      match => match.songData.artist.toString() !== currentArtistId.toString()
-    );
 
-    const artistMatches = filteredMatches.filter(
-      match => match.songData.artist.toString() === currentArtistId.toString()
-    );
 
-    const result = {
-      steps: stage1Feedback.steps,
-      matches: filteredMatches.map(match => ({
-        songId: match.songId,
-        title: match.songData.title,
-        artist: match.songData.artist,
-        matchScore: match.score,
-        matchType:
-          match.songData.artist.toString() === currentArtistId.toString()
-            ? 'artist_duplicate'
-            : 'copyright_match'
-      })),
-      finalDecision: {} // Initialize
-    };
+// STEP 5: Determine match types using artistId
+const copyrightMatches = filteredMatches.filter(
+  match => match.songData.artistId !== currentArtistId.toString()
+);
+const artistMatches = filteredMatches.filter(
+  match => match.songData.artistId === currentArtistId.toString()
+);
 
-    // STEP 6: Set final decision
-    if (artistMatches.length > 0) {
-      result.finalDecision = {
-        status: 'artist_duplicate',
-        message: `A similar song was found in your catalog. You can go to your dashboard and edit the existing song if you want to replace it.`,
-        action: 'reject_upload',
-        duplicateSongId: artistMatches[0].songId
-      };
-      
-    } else if (copyrightMatches.length > 0) {
-      result.finalDecision = {
-        status: 'copyright_issue',
-        message: 'This song matches existing content by another artist',
-        action: 'notify_user',
-        options: [
-          {
-            label: 'Report as copyright infringement',
-            action: 'report_copyright',
-            endpoint: '/api/copyright/report'
-          },
-          {
-            label: 'Contact support',
-            action: 'contact_support',
-            endpoint: '/api/support'
-          },
-          {
-            label: 'Proceed anyway (for covers/licensed content)',
-            action: 'proceed_with_warning',
-            warning: 'Your upload may be reviewed manually'
-          }
-        ],
-        matchingSongs: copyrightMatches.map(m => ({
-          songId: m.songId,
-          title: m.songData.title,
-          artist: m.songData.artist,
-          score: m.score
-        }))
-      };
-    } else {
-      result.finalDecision = {
-        status: 'no_matches',
-        message: 'No matches found',
-        action: 'proceed_with_upload'
-      };
-    }
+console.log('see if artistMatches is valid:', artistMatches);
 
-    result.steps.push({
-      step: 'final_result',
-      status: result.finalDecision.status,
-      message: result.finalDecision.message,
-      action: result.finalDecision.action
-    });
+// STEP 6: Build the result object
+const result = {
+  steps: stage1Feedback.steps,
+  matches: filteredMatches.map(match => ({
+    songId: match.songId,
+    title: match.songData.title,
+    artistName: match.songData.artistName,   // display name
+    matchScore: match.score,
+    matchType:
+      match.songData.artistId === currentArtistId.toString()
+        ? 'artist_duplicate'
+        : 'copyright_match'
+  })),
+  finalDecision: {}
+};
 
-    return result;
+// STEP 7: Set final decision
+if (artistMatches.length > 0) {
+  result.finalDecision = {
+    status: 'artist_duplicate',
+    message: 'A similar song was found in your catalog. You can edit the existing song if you want to replace it.',
+    action: 'reject_upload',
+    duplicateSongId: artistMatches[0].songId
+  };
+} else if (copyrightMatches.length > 0) {
+  result.finalDecision = {
+    status: 'copyright_issue',
+    message: 'This song matches existing content by another artist',
+    action: 'notify_user',
+    options: [
+      { label: 'Report as copyright infringement', action: 'report_copyright', endpoint: '/api/copyright/report' },
+      { label: 'Contact support', action: 'contact_support', endpoint: '/api/support' },
+      { label: 'Proceed anyway (for covers/licensed content)', action: 'proceed_with_warning', warning: 'Your upload may be reviewed manually' }
+    ],
+    matchingSongs: copyrightMatches.map(m => ({
+      songId: m.songId,
+      title: m.songData.title,
+      artistName: m.songData.artistName,
+      score: m.score
+    }))
+  };
+} else {
+  result.finalDecision = {
+    status: 'no_matches',
+    message: 'No matches found',
+    action: 'proceed_with_upload'
+  };
+}
+
+// Final step
+result.steps.push({
+  step: 'final_result',
+  status: result.finalDecision.status,
+  message: result.finalDecision.message,
+  action: result.finalDecision.action
+});
+
+return result;
   }
 
+  // Optimized scoring function
   static _calculateMatchScore(queryFingerprints, dbFingerprints, { timeTolerance, hashTolerance }) {
-    const offsetHistogram = {};
+    const offsetHistogram = new Map();
 
-    // Index dbFingerprints by hash bucket
-    const dbMap = new Map();
-    for (const dbFp of dbFingerprints) {
+    // Pre-index db fingerprints by hash range
+    const dbHashMap = new Map();
+    dbFingerprints.forEach(dbFp => {
+      const hash = parseInt(dbFp.hash);
       for (let delta = -hashTolerance; delta <= hashTolerance; delta++) {
-        const bucket = parseInt(dbFp.hash) + delta;
-        if (!dbMap.has(bucket)) dbMap.set(bucket, []);
-        dbMap.get(bucket).push(dbFp);
+        const bucket = hash + delta;
+        if (!dbHashMap.has(bucket)) dbHashMap.set(bucket, []);
+        dbHashMap.get(bucket).push(dbFp);
       }
-    }
+    });
 
     let matches = 0;
 
-    for (const qFp of queryFingerprints) {
+    // Compare each query fingerprint
+    queryFingerprints.forEach(qFp => {
       const qHash = parseInt(qFp.hash);
-      const candidates = dbMap.get(qHash) || [];
+      const candidates = dbHashMap.get(qHash) || [];
+      
       for (const dbFp of candidates) {
         const offset = Math.round(qFp.time - dbFp.time);
         if (Math.abs(offset) <= timeTolerance) {
-          offsetHistogram[offset] = (offsetHistogram[offset] || 0) + 1;
+          offsetHistogram.set(offset, (offsetHistogram.get(offset) || 0) + 1);
           matches++;
           break;
         }
       }
-    }
+    });
 
-    // Find the offset with the most votes
+    // Find best offset
     let bestOffset = 0;
     let maxCount = 0;
-    for (const [offset, count] of Object.entries(offsetHistogram)) {
+    offsetHistogram.forEach((count, offset) => {
       if (count > maxCount) {
         maxCount = count;
         bestOffset = offset;
       }
-    }
+    });
 
     return maxCount;
   }

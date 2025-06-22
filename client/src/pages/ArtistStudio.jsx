@@ -7,7 +7,7 @@ import { useQuery, useMutation } from "@apollo/client";
 import CssBaseline from "@mui/material/CssBaseline";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
-import AppTheme from "../components/theme";
+
 import FreePlanAppNavBar from "../components/FreePlanAppNavBar";
 import StudioHeader from "../components/StudioHeader";
 import SideMenu from "../components/SideNavBar";
@@ -15,6 +15,32 @@ import SideMenuReduced from "../components/SideNavBarReduced";
 import { Typography } from "@mui/material";
 import Grid from '@mui/material/Grid2';
 import MobileSideMenu from "../components/MobileSideMenu";
+import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
+
+
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#441a49'
+    },
+    secondary: {
+      main: '#ffde00'
+    }
+
+  },
+  typography: {
+    fontFamily: 'Roboto, Arial, sans-serif',
+    h1: {
+      fontSize: '2.5rem'
+    }
+  },
+  spacing: 8
+});
+
+
+
+
 
 export default function ArtistStudio() {
   const {
@@ -27,6 +53,7 @@ export default function ArtistStudio() {
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
   const [profileImage, setProfileImage] = useState(null);
   const [isLoadingImage, setIsLoadingImage] = useState(true);
+  
   const [isVisible, setIsVisible] = useState(false);
 
   // Open drawer
@@ -117,8 +144,14 @@ export default function ArtistStudio() {
 
   return (
     <>
+
+<ThemeProvider theme={theme}>
+
+
+  
       <CssBaseline enableColorScheme />
-      <Box sx={{ display: "flex" }}>
+      <Box sx={{ display: "flex",
+      }}>
         <SideMenu
           openDrawer={openDrawer}
           profileImage={profileImage}
@@ -132,6 +165,7 @@ export default function ArtistStudio() {
             artistProfile={artistProfile}
           />
         )}
+        
         <MobileSideMenu
           openMobileMenu={openMobileMenu}
           handleShowMobileMenu={handleShowMobileMenu}
@@ -151,7 +185,8 @@ export default function ArtistStudio() {
         <Box
           component="main"
           sx={(theme) => ({
-            flexGrow: 1,
+            flexGrow: 0,
+            width: '100%',
 
             overflow: "auto",
             bgcolor: "var(  --secondary-background-color)",
@@ -176,20 +211,16 @@ export default function ArtistStudio() {
               profileImage={profileImage}
             />
 
-             <Box sx={{ overflowY: 'scroll'}}  >
+             <Box sx={{ overflowY: 'scroll',
+           
+             }}  >
               <Outlet />
           </Box>
-
-
-
-
-
-         
-
 
           </Stack>
         </Box>
       </Box>
+</ThemeProvider>
     </>
   );
 }

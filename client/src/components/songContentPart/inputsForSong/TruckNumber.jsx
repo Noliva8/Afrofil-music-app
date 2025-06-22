@@ -1,66 +1,123 @@
+import { useTheme } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import LooksOneIcon from "@mui/icons-material/LooksOne";
 
-export default function TruckNumber({ register, errors, setValue }) {
+export default function TrackNumber({ register, errors, setValue, control }) {
+  const theme = useTheme();
+
   const handleChange = (e) => {
-    const numericValue = e.target.value === "" ? "" : Number(e.target.value);
-    setValue("trackNumber", numericValue); 
+    const value = e.target.value;
+    // Allow empty string or positive integers
+    if (value === "" || /^[1-9]\d*$/.test(value)) {
+      setValue("trackNumber", value === "" ? "" : Number(value));
+    }
   };
 
   return (
-     <Paper elevation={3} 
+
+    <Box
+    mb={2}
       sx={{
-        width: '98%',
-        display: "flex",
-        backgroundColor: 'var(--secondary-background-color)',
-        margin: '0 auto',
-        marginTop: '10px',
-        padding:'1rem',
-         
-        alignItems: {
-          xs: "start",
-          md: "center",
-        },
-        gap: "10px",
-        flexDirection: {
-          xs: "column",
-          md: "row",
-        },
-      }}
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      alignItems: "start",
+      
+    }}
     >
-      <label
-        htmlFor="trackNumber"
-        style={{
-          color: "white",
-          minWidth: "150px",
-          textWrap: "nowrap",
-          fontFamily: "roboto",
-          fontWeight: "500",
-          fontSize: "18px",
-        }}
-      >
-        Track Number
-      </label>
+    
+        <Typography
+         variant="body1"
+      sx={{
+        color: "#ffffff",
+        fontWeight: 500,
+        mb: 0.5,
+      }}
+        >
+          Track Number
+        </Typography>
+   
 
       <TextField
         id="trackNumber"
+         placeholder="truck number"
+         fullWidth
         name="trackNumber"
-        type="number"
-        fullWidth
-        onChange={handleChange} // Handle number conversion
-        inputProps={{ inputMode: "numeric", pattern: "[0-9]*" }} 
-       sx={{
-              width: '100%',
-              bgcolor: "var(--secondary-background-color)",
-              "& .MuiInputBase-root": { color: "white" },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
-            }}
-        {...register("trackNumber", { valueAsNumber: true })} // Enforce number type
+        type="number" // Changed to text to handle input more gracefully
+        margin="normal"
+      variant="outlined"
+        onChange={handleChange}
+
+        inputProps={{
+          inputMode: "numeric",
+          pattern: "[1-9][0-9]*", // Only positive integers
+          min: 1,
+        }}
+        InputProps={{
+          startAdornment: (
+            <Typography
+              variant="body1"
+              sx={{
+                color: theme.palette.text.secondary,
+                mr: 1,
+               
+              }}
+            >
+              #
+            </Typography>
+          ),
+          sx: {
+            borderRadius: "8px",
+            backgroundColor: theme.palette.background.default,
+          },
+        }}
+
+         sx={{
+        "& .MuiOutlinedInput-root": {
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          color: "#ffffff",
+          "& fieldset": {
+            borderColor: "rgba(255, 255, 255, 0.2)",
+          },
+          "&:hover fieldset": {
+            borderColor: "#ffde00",
+          },
+          "&.Mui-focused fieldset": {
+            borderColor: "#ffde00",
+          },
+        },
+        "& .MuiInputLabel-root": {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+        "& .MuiInputLabel-root.Mui-focused": {
+          color: "#ffde00",
+        },
+      }}
+
+        {...register("trackNumber", {
+          validate: (value) =>
+            value === "" ||
+            (Number.isInteger(Number(value)) && Number(value) > 0) ||
+            "Please enter a valid track number",
+        })}
         error={!!errors.trackNumber}
         helperText={errors.trackNumber?.message}
       />
-    </Paper>
+
+      <Typography
+        variant="caption"
+        sx={{
+          color: 'var(--primary-font-color)',
+          fontStyle: 'italic',
+          ml: { md: 2 },
+          alignSelf: { xs: "flex-start", md: "center" },
+        }}
+      >
+        Optional - defaults to 1
+      </Typography>
+    </Box>
   );
 }

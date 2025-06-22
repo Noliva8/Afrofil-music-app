@@ -143,29 +143,29 @@ query albumOfArtist{
 }
 `
 
-export const SONG_OF_ARTIST =gql`
-query SongsOfArtist {
-  songsOfArtist {
-    _id
-    audioHash
-    title
-    album {
-      title
-      _id
-    }
-  }
-}
-`
+// export const SONG_OF_ARTIST =gql`
+// query SongsOfArtist {
+//   songsOfArtist {
+//     _id
+//     audioHash
+//     title
+//     album {
+//       title
+//       _id
+//     }
+//   }
+// }
+// `
 
 
-export const SONG_HASH = gql`
-query songHash($audioHash: String) {
-  songHash(audioHash: $audioHash) {
+// export const SONG_HASH = gql`
+// query songHash($audioHash: String) {
+//   songHash(audioHash: $audioHash) {
     
-    title
-    audioHash
-  }
-}`
+//     title
+//     audioHash
+//   }
+// }`
 
 export const SONG_BY_ID = gql`
 query songById($songId: ID!) {

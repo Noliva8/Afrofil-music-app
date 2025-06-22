@@ -32,7 +32,7 @@ const style = {
   p: 4,
 };
 
-export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetch }) {
+export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchAlbums }) {
   const [inputModal, setInputModel] = useState(false);
   const [createCustomAlbum] = useMutation(CUSTOM_ALBUM);
   const [albumId, setAlbumId] = useState('');
@@ -82,10 +82,11 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetch 
           artistId: artistId,
           albumCoverImage: "",
         },
+        
       });
 
       // Refetch albums to ensure the dropdown reflects the new album
-      await refetch();
+      await refetchAlbums();
 
       console.log("Response:", response);
       const newAlbumId = response.data.createCustomAlbum._id;

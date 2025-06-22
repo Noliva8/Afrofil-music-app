@@ -1,126 +1,192 @@
-
 import { useState } from "react";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
+import { 
+  Box, 
+  TextField, 
+  Button, 
+  Paper, 
+  Typography,
+  IconButton,
+  InputAdornment,
+  useTheme,
+  Divider
+} from "@mui/material";
+import { AddCircleOutline, Delete } from "@mui/icons-material";
 
+export default function Composer({ register, errors }) {
+  const theme = useTheme();
+  const [composers, setComposers] = useState([{ name: "", contribution: "" }]);
 
-
-
-
-
-export default function Composer({register, errors}) {
-
- const [composers, setComposers] = useState([""]);
-
-
-const addComposer = () => {
-    setComposers([...composers, ""]);
+  const addComposer = () => {
+    setComposers([...composers, { name: "", contribution: "" }]);
   };
 
   const deleteComposer = (index) => {
-    setComposers(composers.filter((_, i) => i !== index));
+    if (composers.length > 1) {
+      setComposers(composers.filter((_, i) => i !== index));
+    }
   };
 
-
-
-
+  const handleComposerChange = (index, field, value) => {
+    const updatedComposers = [...composers];
+    updatedComposers[index][field] = value;
+    setComposers(updatedComposers);
+  };
 
   return (
-    <>
-  {/* Featuring Artist - Add More and Delete */}
-      {composers.map((_, index) => (
-          <Paper key={index} elevation={3} 
+
+   <Box sx={{ width: '100%' }}>
+    {composers.map((composer, index) => (
+      <Box
+        mb={2}
+        key={index}
+
+        sx={{
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      alignItems: "start",
+      
+    }}
+      >
+
+
+      
+
+          <Typography
+            variant="body1"
       sx={{
-        width: '98%',
-        display: "flex",
-        backgroundColor: 'var(--secondary-background-color)',
-        margin: '0 auto',
-        marginTop: '10px',
-        padding:'1rem',
-         
-        alignItems: {
-          xs: "start",
-          md: "center",
-        },
-        gap: "10px",
-        flexDirection: {
-          xs: "column",
-          md: "row",
-        },
+        color: "#ffffff",
+        fontWeight: 500,
+       mb: 0.5,
       }}
-    >
-
-
-
-            <label
-              htmlFor={`composer-${index}`} 
-              style={{
-                color: "white",
-                minWidth: "150px",
-                textWrap: "nowrap",
-                fontFamily: "roboto",
-                fontWeight: "500",
-                textShadow: "revert-layer",
-                fontSize: "18px",
-                textSpacing: "2px",
-              }}
-            > {index === 0 ? "Composer" : `Composer ${index}`}</label>
-
-            <TextField
-              fullWidth
-              id={`composer-${index}`}
-              name={`composer[${index}]`} 
-              {...register(`composer[${index}]`)}
-             sx={{
-              width: '100%',
-              bgcolor: "var(--secondary-background-color)",
-              "& .MuiInputBase-root": { color: "white" },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
-            }}
-            />
-          
-
-          {/* Add More Button */}
-
-           <Box sx={{display:'flex', flexDirection: 'column', gap: '10px'}}>
-          <Button
-            variant="contained"
-            sx={{
-              bgcolor: "var(--secondary-background-color)",
-              fontSize: { xs: "12px", md: "14px" },
-              color: "white",
-              "&:hover": { bgcolor: "gray" },
-            }}
-            onClick={addComposer}
           >
-            Add composer
-          </Button>
-
-          {/* Delete Button */}
-          {index > 0 && (
-           
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => deleteComposer(index)}
-                sx={{
-                  "&:hover": { bgcolor: "red", color: "white" },
-                }}
-              >
-                Delete
-              </Button>
-           
-          )}
-          </Box>
-        </Paper>
-      ))}
+            {index === 0 ? 'Primary Composer' : `Additional Composer`}
+          </Typography>
 
 
 
-    </>
+        <Box spacing={2}
+         sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: 'center',
+      gap: 2,
+      width: "100%",
+      mb: 2,
+      flexDirection: { xs: "column", sm: "row" }, // Responsive layout
+    }}
+        
+        >
+
+          <TextField
+            fullWidth
+            margin="normal"
+            placeholder="Who composed the song ?"
+            variant="outlined"
+            {...register(`composer[${index}].name`, {
+              required: 'Composer name is required',
+            })}
+            value={composer.name}
+            onChange={(e) =>
+              handleComposerChange(index, 'name', e.target.value)
+            }
+            error={Boolean(errors?.composer?.[index]?.name)}
+            helperText={errors?.composer?.[index]?.name?.message}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                color: '#ffffff',
+                '& fieldset': {
+                  borderColor: 'rgba(255, 255, 255, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: '#ffde00',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#ffde00',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+              '& .MuiInputLabel-root.Mui-focused': {
+                color: '#ffde00',
+              },
+            }}
+          />
+
+         <TextField
+  fullWidth
+  placeholder="Contribution (Optional)"
+  variant="outlined"
+  {...register(`composer[${index}].contribution`)}
+  value={composer.contribution}
+  onChange={(e) =>
+    handleComposerChange(index, 'contribution', e.target.value)
+  }
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        {index === 0 ? (
+          <IconButton
+            onClick={addComposer}
+            edge="end"
+
+            sx={{
+              color: 'white',
+              '&:hover': {
+                backgroundColor: theme.palette.primary.light,
+                transform: 'scale(1.1)',
+              },
+            }}
+
+          >
+            <AddCircleOutline fontSize="small"/>
+          </IconButton>
+        ) : (
+          <IconButton
+            onClick={() => deleteComposer(index)}
+            edge="end"
+            color="error"
+            sx={{
+              '&:hover': {
+                backgroundColor: theme.palette.error.light,
+              },
+            }}
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+        )}
+      </InputAdornment>
+    ),
+  }}
+  sx={{
+    
+    '& .MuiOutlinedInput-root': {
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      color: '#ffffff',
+      '& fieldset': {
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+      },
+      '&:hover fieldset': {
+        borderColor: '#ffde00',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: '#ffde00',
+      },
+    },
+    '& .MuiInputLabel-root': {
+      color: 'rgba(255, 255, 255, 0.7)',
+    },
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: '#ffde00',
+    },
+  }}
+/>
+
+        </Box>
+      </Box>
+    ))}
+  </Box>
   );
 }
