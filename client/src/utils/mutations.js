@@ -234,38 +234,43 @@ mutation getPresignedUrlDelete($bucket: String!, $key: String!, $region: String!
 }
 `
 
-export const CREATE_SONG = gql`
-mutation createSong($title: String!, $albumId: ID!, $duration: Int!, $releaseDate: Date!, $artwork: String, $audioFileUrl: String, $audioHash: String, $featuringArtist: [String], $trackNumber: Int, $genre: String, $producer: [String], $composer: [String], $label: String, $lyrics: String) {
-  createSong(title: $title, albumId: $albumId, duration: $duration, releaseDate: $releaseDate, artwork: $artwork, audioFileUrl: $audioFileUrl, audioHash: $audioHash, featuringArtist: $featuringArtist, trackNumber: $trackNumber, genre: $genre, producer: $producer, composer: $composer, label: $label, lyrics: $lyrics) {
+
+
+export const UPDATE_SONG = gql`
+mutation UpdateSong($songId: ID!, $title: String!, $album: ID!, $releaseDate: Date!, $composer: [ComposerInput], $producer: [ProducerInput], $trackNumber: Int, $genre: String, $featuringArtist: [String], $lyrics: String, $artwork: String, $label: String) {
+  updateSong(songId: $songId, title: $title, album: $album, releaseDate: $releaseDate, composer: $composer, producer: $producer, trackNumber: $trackNumber, genre: $genre, featuringArtist: $featuringArtist, lyrics: $lyrics, artwork: $artwork, label: $label) {
     _id
-    album {
-      _id
-    }
+    
   }
 }
 `
 
-export const UPDATE_SONG = gql`
-mutation UpdateSong($songId: ID!, $title: String!, $album: ID!, $releaseDate: Date!, $featuringArtist: [String], $trackNumber: Int, $genre: String, $producer: [String], $composer: [String], $label: String, $lyrics: String, $artwork: String, $audioFileUrl: String, $streamAudioFileUrl: String) {
-  updateSong(songId: $songId, title: $title, album: $album, releaseDate: $releaseDate, featuringArtist: $featuringArtist, trackNumber: $trackNumber, genre: $genre, producer: $producer, composer: $composer, label: $label, lyrics: $lyrics, artwork: $artwork, audioFileUrl: $audioFileUrl, streamAudioFileUrl: $streamAudioFileUrl) {
+
+export const ADD_LYRICS = gql`
+mutation addLyrics($songId: ID!, $lyrics: String) {
+  addLyrics(songId: $songId, lyrics: $lyrics) {
     _id
-    artist {
-      _id
-    }
   }
 }
 `
+
+
+export const ADD_ARTWORK = gql`
+mutation addArtwork($songId: ID!, $artwork: String) {
+  addArtwork(songId: $songId, artwork: $artwork) {
+    _id
+  }
+}
+`
+
 
 
 export const SONG_UPLOAD = gql`
-mutation songUpload($file: Upload) {
-  songUpload(file: $file) {
+mutation songUpload($file: Upload, $tempo: Float, $beats: [Float], $timeSignature: Int) {
+  songUpload(file: $file, tempo: $tempo, beats: $beats, timeSignature: $timeSignature) {
     _id
-    album {
-      title
-    }
-    releaseDate
     title
+   
   }
 }
 `

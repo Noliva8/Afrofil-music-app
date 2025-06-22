@@ -1,8 +1,9 @@
 
 import fs from 'fs'
 import { pipeline } from 'stream';
+import { ApolloError } from 'apollo-server-express';
 import util from 'util';
-import  { Artist, Album, Song, User } from '../../models/Artist/index_artist.js';
+import  { Artist, Album, Song, User, Fingerprint } from '../../models/Artist/index_artist.js';
 import dotenv from 'dotenv';
 import { AuthenticationError, signArtistToken } from '../../utils/artist_auth.js';
 import sendEmail from '../../utils/emailTransportation.js';
@@ -21,16 +22,26 @@ import { createHash } from 'crypto';
 const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDelete } = awsS3Utils;
 
 import Fingerprinting from '../../utils/DuplicateAndCopyrights/fingerPrinting.js'
-
-import findPotentialCovers from '../../utils/DuplicateAndCopyrights/coverRemix.js'
+import isCoverOrRemix from '../../utils/DuplicateAndCopyrights/coverRemix.js'
+import {withFilter } from 'graphql-subscriptions';
+import { pubsub } from '../../utils/ pubsub.js'
 
 import generateFingerprint from '../../utils/DuplicateAndCopyrights/fingerPrinting.js';
 import preProcessAudio from '../../utils/DuplicateAndCopyrights/preProcessAudio.js';
 // import FingerprintModule from '../../utils/factory/generateFingerPrint2.js';
-
 import FingerprintGenerator from '../../utils/factory/generateFingerPrint2.js';
-import postProcessFingerprints from '../../utils/factory/postProcessing.js';
 import FingerprintMatcher from '../../utils/factory/fingerprintMatcher.js'
+import extractFeatures from '../../utils/DuplicateAndCopyrights/detectChroma.js';
+import generateHarmonicFingerprint from '../../utils/Covers/Indicators/harmonicFingerprint.js';
+import generateStructureHash from '../../utils/Covers/Indicators/similalityHashGenerator.js';
+import generateSimilarityFingerprint from '../../utils/Covers/Indicators/similalityFingerprints.js';
+import detectKey from '../../utils/Covers/Indicators/keyGenerator.js';
+import tempoDetect from '../../utils/Covers/Indicators/tempoDetection.js';
+import { title } from 'process';
+// import kMeans from 'kmeans-js';
+
+// import SimHash from 'simhash';
+
 
 
 
@@ -58,7 +69,7 @@ function analyzeFingerprints(fingerprint) {
   `);
 }
 
-
+const SONG_UPLOAD_UPDATE = 'SONG_UPLOAD_UPDATE';
 dotenv.config();
 
 const resolvers = {
@@ -132,22 +143,22 @@ songsOfArtist: async (parent, args, context) => {
 
 
 
-songHash: async (parent, { audioHash }) => {
-  try {
-    // Query the Song model to find a song by the provided audio hash
-    const song = await Song.findOne({ audioHash });
+// songHash: async (parent, { audioHash }) => {
+//   try {
+//     // Query the Song model to find a song by the provided audio hash
+//     const song = await Song.findOne({ audioHash });
 
-    // If the song is found, return it; otherwise, return null
-    if (song) {
-      return song;
-    } else {
-      return null;  // No song found with the given audio hash
-    }
-  } catch (error) {
-    console.error('Error checking audio hash:', error);
-    throw new Error('Failed to check audio hash');
-  }
-},
+//     // If the song is found, return it; otherwise, return null
+//     if (song) {
+//       return song;
+//     } else {
+//       return null;  // No song found with the given audio hash
+//     }
+//   } catch (error) {
+//     console.error('Error checking audio hash:', error);
+//     throw new Error('Failed to check audio hash');
+//   }
+// },
 
 
 songById : async (parent, { songId }, context) => {
@@ -737,79 +748,6 @@ const updatedArtist = await Artist.findOneAndUpdate(
 // -------------
 
 
-createSong: async (
-  parent,
-  {
-    title,
-    featuringArtist,
-    albumId,
-    trackNumber,
-    genre,
-    producer,
-    composer,
-    label,
-    duration,
-    releaseDate,
-    lyrics,
-    artwork, 
-    audioFileUrl, 
-    audioHash 
-  },
-  context
-) => {
-  try {
-    // Ensure the user is logged in
-    if (!context.artist) {
-      throw new Error("Unauthorized: You must be logged in to create a song.");
-    }
-
-    const loggedInArtistId = context.artist._id;
-
-    // Validate required fields
-    if (!title || !audioFileUrl || !audioHash) {
-      throw new Error("Title and audio file URL are required.");
-    }
-
-    // Prevent duplicate uploads
-    const existingSong = await Song.findOne({ audioHash });
-    if (existingSong) {
-      throw new Error("Duplicate upload detected. This song already exists.");
-    }
-
-    // Verify album exists (if provided)
-    if (albumId) {
-      const albumExists = await Album.findById(albumId);
-      if (!albumExists) {
-        throw new Error("Invalid album ID: The specified album does not exist.");
-      }
-    }
-
-    // Save song metadata in the database
-    const song = await Song.create({
-      title,
-      artist: loggedInArtistId,
-      featuringArtist,
-      album: albumId,
-      genre,
-      duration,
-      trackNumber,
-      producer,
-      composer,
-      label,
-      releaseDate,
-      lyrics,
-      artwork, 
-      audioFileUrl, 
-      audioHash, 
-    });
-
-    return song;
-  } catch (error) {
-    console.error("Failed to create song:", error);
-    throw new Error(`Failed to create song: ${error.message}`);
-  }
-},
-
 
 updateSong: async (parent, { 
   songId, 
@@ -821,13 +759,10 @@ updateSong: async (parent, {
   producer, 
   composer, 
   label, 
- 
   releaseDate, 
   lyrics, 
-  artwork, 
-  audioFileUrl, 
-  streamAudioFileUrl 
-}) => {
+  artwork
+},  context) => {
   try {
     if (!context.artist) {
       throw new Error("Unauthorized: You must be logged in to update a song.");
@@ -844,9 +779,7 @@ updateSong: async (parent, {
   
       releaseDate,
       lyrics,
-      artwork,
-      audioFileUrl,
-      streamAudioFileUrl
+      artwork
     }, { new: true });
 
     return updatedSong;
@@ -857,17 +790,66 @@ updateSong: async (parent, {
 },
 
 
-songUpload : async (parent, { file }, context) => {
+songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
+  // Initialize with proper directory setup
+  const __dirname = path.dirname(new URL(import.meta.url).pathname);
+  const uploadsDir = path.join(__dirname, "uploads");
+  
+  console.log('🚀 Starting songUpload resolver');
+  console.time('⏱️ Total upload time');
+  
   if (!context.artist) {
     throw new Error("Unauthorized: You must be logged in to create a song.");
   }
 
   const loggedInArtistId = context.artist._id;
   let tempFilePath, processedFilePath;
+  let songData;
+
+  // Enhanced cleanup function
+  const cleanupFiles = async () => {
+    console.log('🧹 Starting cleanup procedure');
+    
+    const cleanupTasks = [];
+    if (tempFilePath) {
+      cleanupTasks.push(
+        fs.promises.unlink(tempFilePath)
+          .then(() => console.log(`✅ Deleted temp file: ${tempFilePath}`))
+          .catch(err => console.error(`❌ Error deleting temp file: ${err.message}`))
+      );
+    }
+    if (processedFilePath) {
+      cleanupTasks.push(
+        fs.promises.unlink(processedFilePath)
+          .then(() => console.log(`✅ Deleted processed file: ${processedFilePath}`))
+          .catch(err => console.error(`❌ Error deleting processed file: ${err.message}`))
+      );
+    }
+    
+    await Promise.all(cleanupTasks);
+  };
+
+  const updateProgress = async (step, status, message, percent, isComplete = false) => {
+    await pubsub.publish('SONG_UPLOAD_UPDATE', {
+      songUploadProgress: {
+        artistId: loggedInArtistId,
+        step,
+        status,
+        message,
+        percent,
+        isComplete
+      }
+    });
+    console.log(`📢 Progress: ${step} (${percent}%) - ${status}`);
+  };
+
+  
 
   try {
-    // 1. File upload handling
-    const uploadsDir = path.join(__dirname, "uploads");
+    // ===== INITIALIZATION =====
+    await updateProgress('INITIATED', 'IN_PROGRESS', 'Starting upload process...', 5);
+
+    // ===== FILE UPLOAD HANDLING =====
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
@@ -877,232 +859,227 @@ songUpload : async (parent, { file }, context) => {
       throw new Error("Invalid file input.");
     }
 
-    // Sanitize filename and create temp path
     const sanitizedFilename = filename.replace(/[^\w.-]/g, '_');
     tempFilePath = path.join(uploadsDir, `${Date.now()}_${sanitizedFilename}`);
-    
-    // Save the uploaded file
+
+    // Save uploaded file
     await new Promise((resolve, reject) => {
       const writeStream = fs.createWriteStream(tempFilePath);
       const readStream = createReadStream();
       
-      readStream.on('error', error => {
-        writeStream.destroy();
-        reject(new Error(`File upload failed: ${error.message}`));
-      });
-      
+      readStream.on('error', reject);
       writeStream.on('error', reject);
       writeStream.on('finish', resolve);
-      
       readStream.pipe(writeStream);
     });
 
     // Verify file
-    if (!fs.existsSync(tempFilePath)) {
-      throw new Error("Failed to save uploaded file");
-    }
+    const stats = fs.statSync(tempFilePath);
+    if (stats.size === 0) throw new Error("Uploaded file is empty");
 
-    // 2. Generate fingerprints
-    const inputStream = fs.createReadStream(tempFilePath);
-    const fingerprint = await FingerprintGenerator(inputStream);
-    // console.log('Generated Fingerprints:', fingerprint);
+    // ===== DUPLICATE CHECK =====
+    await updateProgress('CHECKING_DUPLICATES', 'IN_PROGRESS', 'Checking for duplicate songs...', 25);
 
-    // 3. Compare the fingerprints against the database
+    const fingerprint = await FingerprintGenerator(fs.createReadStream(tempFilePath));
     const matchingResults = await FingerprintMatcher.findMatches(fingerprint, loggedInArtistId, { minMatches: 5 });
 
-    console.log('Matching results:', matchingResults);
+    if (matchingResults.finalDecision) {
+      const { status } = matchingResults.finalDecision;
+      const publishStatus = status === 'artist_duplicate' ? 'DUPLICATE' : 
+                          status === 'copyright_issue' ? 'COPYRIGHT_ISSUE' : 
+                          status.toUpperCase();
 
-    // 4. Check the result from the matcher
-    if (matchingResults.finalDecision && matchingResults.finalDecision.status === 'artist_duplicate') {
+      await updateProgress('CHECKING_DUPLICATES', publishStatus, matchingResults.finalDecision.message, 30);
+      await updateProgress('COMPLETED', publishStatus, matchingResults.finalDecision.message, 100, true);
+      
+      await cleanupFiles();
       return {
-        status: 'DUPLICATE',
-        message: matchingResults.finalDecision.message,
-        action: matchingResults.finalDecision.action,
-        duplicateSongId: matchingResults.finalDecision.duplicateSongId
+        status: publishStatus,
+        ...matchingResults.finalDecision,
+        _id: "BLOCKED",
+        title: matchingResults.finalDecision.title || 'Untitled',
       };
     }
 
+    // ===== AUDIO PROCESSING =====
+    await updateProgress('PROCESSING', 'IN_PROGRESS', 'Analyzing audio features...', 40);
 
-if (
-  matchingResults.finalDecision &&
-  matchingResults.finalDecision.status === 'copyright_issue'
-) {
+    const [resultFromTempoDetect, duration, features] = await Promise.all([
+      tempoDetect(tempFilePath),
+      extractDuration(tempFilePath),
+      extractFeatures(tempFilePath)
+    ]);
 
-
-  const matchingSong = matchingResults.finalDecision.matchingSongs?.[0];
-
-  if (!matchingSong) {
-    throw new Error("Matching song not found during copyright check.");
-  }
-
-// console.log('Matching songs:', matchingResults.finalDecision.matchingSongs);
-
-  // Fetch original artist's info
-  const matchingSongId = matchingResults.finalDecision.matchingSongs?.[0]?.songId;
-if (!matchingSongId) throw new Error("Matching song ID not found");
-
-const originalSong = await Song.findById(matchingSongId).populate('artist', 'name email');
-console.log("Fetched originalSong with artist:", originalSong);
-
-if (!originalSong?.artist?.email) {
-  throw new Error("Original artist info is missing or incomplete");
-}
-
-const originalArtistId =  originalSong?.artist?._id;
-
-const originalArtistData = await Artist.findById(originalArtistId);
-
-const originalArtistAka = originalArtistData.artistAka;
-console.log(originalArtistAka)
-
-console.log(`verify this: ${originalSong}`)
-
-// Notify the original artist (in background)
-const notifyOriginalArtist = sendEmail(
-  originalSong.artist.email,
-  "Copyright Alert: Someone Tried Uploading Your Song",
-  `
-    Hello ${originalArtistAka || 'artist'},
-
-    Heads up! Someone just attempted to upload a song that closely matches the one you previously uploaded: "${originalSong.title}".
-
-    This upload was blocked by our system to protect your rights.
-
-    If you want to take further action or review the event, please log in to your dashboard.
-
-    Thanks for using our platform to protect your work.
-  `
-);
-
-const currentArtistEmail = context.artist.email;
-
-// Notify the current artist (in background)
-const notifyCurrentArtist = currentArtistEmail && sendEmail(
-  currentArtistEmail,
-  "Upload Blocked: Copyright Issue Detected",
-  `
-    Hello,
-
-    Unfortunately, your recent attempt to upload a song titled "${originalSong.title}" has been blocked because it closely matches an existing song on the platform.
-
-    This upload has been flagged as a copyright issue, and the original artist has been notified.
-
-    If you believe this is a mistake or would like to resolve the issue, please contact support or review your submission in your dashboard.
-
-    Thanks for using our platform!
-  `
-);
-
-// Run the email notifications in parallel
-await Promise.all([notifyOriginalArtist, notifyCurrentArtist]);
-
-
-// Notify both parties with the result
-return {
-  status: 'COPYRIGHT_ISSUE',
-  message: matchingResults.finalDecision.message,
-  action: matchingResults.finalDecision.action,
-  options: matchingResults.finalDecision.options,
-  matchingSongs: matchingResults.finalDecision.matchingSongs
-};
-
-}
-
-
-    // 5. Extract audio duration
-    const duration = await extractDuration(tempFilePath);
-
-    // 6. Process and upload to S3
-    processedFilePath = path.join(uploadsDir, `${fingerprint[0]?.hash}_${path.basename(filename)}`);
-
-    await processAudio(tempFilePath, processedFilePath);
-
-    const fileKey = `uploads/${fingerprint[0]?.hash}/${path.basename(processedFilePath)}`;
-    
-    const uploadResult = await s3.send(new PutObjectCommand({
-      Bucket: process.env.BUCKET_NAME_STREAMING,
-      Key: fileKey,
-      Body: fs.createReadStream(processedFilePath),
-      ContentType: "audio/mpeg",
-      Metadata: {
-        'fingerprint-count': String(fingerprint.length),
-        'duration': String(duration)
-      }
-    }));
-
-
-// upload original song for back up
-// ------------------------------
-
-// 7. Upload the original song for backup
-const originalSongKey = `original_songs/${fingerprint[0]?.hash}_${path.basename(filename)}`;
-
-const originalSongUploadResult = await s3.send(new PutObjectCommand({
-  Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,
-  Key: originalSongKey,
-  Body: fs.createReadStream(tempFilePath),
-  ContentType: "audio/mpeg"
-}));
-
-
-// Get the URL of the original song uploaded to the backup bucket
-const originalSongUrl = `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`;
-
-
-
-
-    // console.log(`File uploaded to S3 with ETag: ${uploadResult.ETag}`);
-
-    // 7. Create database record
-    const album = await Album.findOne({ artist: loggedInArtistId });
-
-    const newSong = await Song.create({
-      title: path.basename(filename, path.extname(filename)),
-      artist: loggedInArtistId,
-      album: album?._id,
-      audioFileUrl: originalSongUrl,
-      streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
-      audioHash: fingerprint,
-      duration,
-      releaseDate: new Date()
+    // Process chroma features with proper normalization
+    const allChroma = features.map(feature => {
+      if (!feature.chroma) return Array(12).fill(0);
+      const chroma = feature.chroma.map(Number);
+      const norm = Math.sqrt(chroma.reduce((sum, x) => sum + x * x, 0));
+      return norm > 0 ? chroma.map(x => x / norm) : chroma;
     });
 
+    // Process MFCC features with proper normalization
+    const allMfcc = features.map(feature => {
+      if (!feature.mfcc) return Array(13).fill(0);
+      const mfcc = feature.mfcc.map(Number);
+      const norm = Math.sqrt(mfcc.reduce((sum, x) => sum + x * x, 0));
+      return norm > 0 ? mfcc.map(x => x / norm) : mfcc;
+    });
+
+    // Generate structure hash
+    const hash = generateStructureHash({ allMfcc, allChroma, tempo, beats });
+    
+    // Detect musical key
+    const { key, mode } = await detectKey(allChroma);
+    
+    // Generate harmonic fingerprint
+    const harmonicFingerprint = await generateHarmonicFingerprint(allChroma, beats);
+    const normalizedHarmonic = harmonicFingerprint.map(v => v / Math.max(...harmonicFingerprint));
+
+    // Get chroma peaks (top 2 peaks per frame)
+    const chromaPeaks = allChroma.map(chroma => {
+      return chroma
+        .map((val, idx) => ({ val, idx }))
+        .sort((a, b) => b.val - a.val)
+        .slice(0, 2)
+        .map(entry => entry.idx);
+    });
+
+    // ===== FILE PROCESSING =====
+    await updateProgress('FINALIZING', 'IN_PROGRESS', 'Preparing final files...', 70);
+
+    processedFilePath = path.join(uploadsDir, `${fingerprint[0].hash}_${path.basename(filename)}`);
+    await processAudio(tempFilePath, processedFilePath);
+
+    // ===== S3 UPLOAD =====
+    const fileKey = `for-streaming/${fingerprint[0].hash}_${path.basename(filename)}`;
+    const originalSongKey = `original_songs/${fingerprint[0].hash}_${path.basename(filename)}`;
+
+    await Promise.all([
+      s3.send(new PutObjectCommand({
+        Bucket: process.env.BUCKET_NAME_STREAMING,
+        Key: fileKey,
+        Body: fs.createReadStream(processedFilePath),
+        ContentType: "audio/mpeg"
+      })),
+      s3.send(new PutObjectCommand({
+        Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,
+        Key: originalSongKey,
+        Body: fs.createReadStream(tempFilePath),
+        ContentType: "audio/mpeg"
+      }))
+    ]);
+
+    // ===== DATABASE RECORDS =====
+    await updateProgress('FINALIZING', 'IN_PROGRESS', 'Creating database record...', 90);
+
+const album = await Album.findOne({ artist: loggedInArtistId });
+    songData = await Song.create({
+      title: path.basename(filename, path.extname(filename)),
+      album: album,
+      artist: loggedInArtistId,
+      audioFileUrl: `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`,
+      streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
+      timeSignature,
+      key,
+      mode,
+      duration,
+      tempo: resultFromTempoDetect,
+      beats,
+      releaseDate: Date.now()
+    });
+
+    await Fingerprint.create({
+      song: songData._id,
+      audioHash: fingerprint,
+      structureHash: hash,
+      chromaPeaks,
+      harmonicFingerprint: normalizedHarmonic,
+      beats
+    });
+
+    // Final steps with proper sequencing
+    await updateProgress('FINALIZING', 'IN_PROGRESS', 'Finalizing upload...', 95);
+    await new Promise(resolve => setTimeout(resolve, 200)); // Ensure progress update is processed
+    await cleanupFiles();
+    await updateProgress('COMPLETED', 'SUCCESS', 'Upload completed successfully!', 100, true);
+
+    console.timeEnd('⏱️ Total upload time');
     return {
       status: 'SUCCESS',
-      song: await Song.findById(newSong._id)
-        .populate('artist', 'name')
-        .populate('album', 'title'),
-      fingerprints: {
-        count: fingerprint.length,
-        firstSample: fingerprint[0],
-        lastSample: fingerprint[fingerprint.length - 1]
-      }
+      _id: songData._id,
+      title: songData.title
     };
 
   } catch (error) {
-    console.error("Upload process failed:", error);
-    throw new Error(`Song upload failed: ${error.message}`);
-  } finally {
-    // Cleanup temporary files
-    const cleanup = async (filePath) => {
-      try {
-        if (filePath && fs.existsSync(filePath)) {
-          await fs.promises.unlink(filePath);
-          console.log(`Cleaned up temporary file: ${filePath}`);
-        }
-      } catch (cleanupError) {
-        console.error(`Error cleaning up ${filePath}:`, cleanupError);
-      }
-    };
+    console.error('❌ Upload failed:', error);
+    
+    // Cleanup in case of error
+    try {
+      if (songData?._id) await Song.deleteOne({ _id: songData._id });
+      await cleanupFiles();
+    } catch (cleanupError) {
+      console.error('❌ Cleanup failed:', cleanupError);
+    }
 
-    await cleanup(tempFilePath);
-    await cleanup(processedFilePath);
+    await updateProgress('FAILED', 'FAILED', error.message, 100, true);
+    
+    return {
+      status: 'FAILED',
+      _id: songData?._id || `FAILED-${Date.now()}`,
+      title: songData?.title || 'Untitled',
+      message: error.message
+    };
   }
 },
 
 
 
+// ====================
+addLyrics:  async (parent, {songId, lyrics}, context) => {
 
+try{
+
+   if (!context.artist) {
+      throw new Error('Unauthorized: You are not logged in.');
+    }
+ const updatedSong = await Song.findByIdAndUpdate(songId, {
+      lyrics,
+      
+    }, { new: true });
+
+    return updatedSong;
+
+}catch(error){
+console.error("Error updating song:", error);
+    throw new Error("Failed to add lyrics.");
+}
+
+},
+
+addArtwork:  async (parent, {songId, artwork}, context) => {
+
+try{
+
+   if (!context.artist) {
+      throw new Error('Unauthorized: You are not logged in.');
+    }
+ const updatedSong = await Song.findByIdAndUpdate(songId, {
+      artwork,
+    }, { new: true });
+
+    return updatedSong;
+
+}catch(error){
+console.error("Error updating song:", error);
+    throw new Error("Failed to add artwork.");
+}
+
+},
+
+
+
+// ========================
 
 
 
@@ -1254,15 +1231,25 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
 
 
 
+  },
+
+
+
+ Subscription: {
+    songUploadProgress: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterableIterator([SONG_UPLOAD_UPDATE]),
+        (payload, variables, context) => {
+          // The magic happens here - we're using the artist from the WS context
+          if (!context.artist) {
+            console.error('No artist in context');
+            return false;
+          }
+          return true; // All authenticated artists get their own updates
+        }
+      )
+    }
   }
-
-
-
-
-
-
-
-
 
 
 

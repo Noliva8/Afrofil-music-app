@@ -2,79 +2,107 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
 import TextField from "@mui/material/TextField";
+import { useTheme } from "@mui/material/styles";
 
-export default function Title({register, errors}) {
+export default function Title({ register, errors}) {
+  const theme = useTheme();
+
   return (
-    <>
-    <Paper elevation={3} 
+    <Paper 
+      elevation={3}
       sx={{
-        width: '98%',
+        width: '100%',
         display: "flex",
         backgroundColor: 'var(--secondary-background-color)',
         margin: '0 auto',
-        marginTop: '10px',
-        padding:'1rem',
-         
+        marginTop: theme.spacing(2),
+        padding: theme.spacing(3),
+        borderRadius: '12px',
         alignItems: {
-          xs: "start",
+          xs: "flex-start",
           md: "center",
         },
-        gap: "10px",
+        gap: theme.spacing(2),
         flexDirection: {
           xs: "column",
           md: "row",
         },
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: theme.shadows[6]
+        }
       }}
     >
-      <label
+      <Typography
+        component="label"
         htmlFor="title"
-        style={{
-          color: "white",
-          minWidth: "150px",
-          textWrap: "nowrap",
-          fontFamily: "roboto",
-          fontWeight: "500",
-          textShadow: "revert-layer",
-          fontSize: "18px",
-          textSpacing: "2px",
+        variant="subtitle1"
+        sx={{
+          minWidth: '150px',
+          fontWeight: 500,
+          color: 'var(--primary-font-color)',
+          fontFamily: 'Roboto, sans-serif',
+          letterSpacing: '0.5px',
+          alignSelf: { xs: 'flex-start', md: 'center' }
         }}
       >
         Title of the song:
-      </label>
+      </Typography>
 
-   <Box sx={{ flex: 1, display: "flex", width: '100%', flexDirection: "column" }}>
+      <Box sx={{ 
+        flex: 1, 
+        width: '100%', 
+        display: "flex", 
+        flexDirection: "column",
+        gap: theme.spacing(1)
+      }}>
+        <TextField
+          {...register("title", { 
+            required: "Title is required",
+            maxLength: {
+              value: 100,
+              message: "Title must be less than 100 characters"
+            }
+          })}
+          id="title"
+          fullWidth
+          variant="outlined"
+          error={Boolean(errors.title)}
+          sx={{
+            '& .MuiInputBase-root': { 
+              color: 'white',
+              borderRadius: '8px'
+            },
+            '& .MuiOutlinedInput-notchedOutline': { 
+              borderColor: 'theme.palette.divider' 
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': { 
+              borderColor: theme.palette.primary.main 
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: theme.palette.primary.main,
+              borderWidth: '2px'
+            },
+            backgroundColor: 'var(--secondary-background-color)',
+          }}
+          
+        />
 
-          <TextField
-            {...register("title", { required: "Title is required" })}
-            id="title"
-            fullWidth
-            variant="outlined"
+        {errors.title && (
+          <Typography
+            variant="caption"
+            color="error"
             sx={{
-              width: '100%',
-              bgcolor: "var(--secondary-background-color)",
-              "& .MuiInputBase-root": { color: "white" },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
+              display: 'flex',
+              alignItems: 'center',
+              gap: theme.spacing(0.5),
+              ml: theme.spacing(1.5)
             }}
-          />
-
-        
-          {errors.title && (
-            <Typography
-              variant="body2"
-              color="error"
-              sx={{
-                
-                fontStyle: "italic",
-                mt: "5px", // Adds spacing below the input
-              }}
-            >
-              {errors.title.message}
-            </Typography>
-          )}
-        </Box>
-      
+          >
+            {errors.title.message}
+          </Typography>
+        )}
+      </Box>
     </Paper>
-    </>
   );
 }

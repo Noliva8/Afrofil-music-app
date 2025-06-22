@@ -4,11 +4,21 @@ import { expressMiddleware } from '@apollo/server/express4';
 import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
 import express from 'express';
 import { ApolloServer } from '@apollo/server';
+
+import { createServer } from 'http';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import { makeExecutableSchema } from '@graphql-tools/schema';
+import { WebSocketServer } from 'ws';
+import { useServer } from 'graphql-ws/use/ws';
+
+
+
+
 import path from 'path';
 import dotenv from 'dotenv';
 import { artist_typeDefs, artist_resolvers } from './schemas/Artist_schema/index.js';
 import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
-import { authMiddleware } from './utils/artist_auth.js';
+import { authMiddleware, getArtistFromToken} from './utils/artist_auth.js';
 import merge from 'lodash.merge';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -20,6 +30,10 @@ dotenv.config();
 // Set up port and express app
 const PORT = process.env.PORT || 3001;
 const app = express();
+
+const httpServer = createServer(app);
+
+
 
 // CORS configuration
 const corsOptions = {
@@ -42,13 +56,79 @@ app.use(graphqlUploadExpress({ maxFileSize: 100000000, maxFiles: 10 }));
 const typeDefs = [artist_typeDefs, user_typeDefs];
 const resolvers = merge(artist_resolvers, user_resolvers);
 
+
+// creating  an instance of GraphQLSchema
+
+const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+
+
+// Creating the WebSocket server
+const wsServer = new WebSocketServer({
+  server: httpServer,
+ path: '/graphql',
+});
+
+
+
+const serverCleanup = useServer(
+  {
+    schema,
+    context: async (ctx) => {
+      try {
+        // Get raw Authorization header
+        const authHeader = ctx.connectionParams?.authorization || '';
+        
+        // Verify token (simplified version)
+        const token = authHeader.replace('Bearer ', '');
+        if (!token) throw new Error('Missing token');
+
+        // Verify and get artist
+        const artist = await getArtistFromToken(token);
+        if (!artist) throw new Error('Artist not found');
+
+        return { artist };
+      } catch (error) {
+        console.error('WS Authentication Error:', error.message);
+        // Close connection with specific code
+        throw new Error('CONNECTION_INIT_ERROR: Authentication failed');
+      }
+    },
+    onConnect: (ctx) => {
+      console.log('New subscription connection');
+    },
+    onDisconnect: (ctx, code, reason) => {
+      console.log(`Disconnected: ${code} ${reason}`);
+    }
+  },
+  wsServer
+);
+
+
 // Set up Apollo Server with GraphQL schema
 const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    context: authMiddleware,
-     csrfPrevention: false
+  schema,
+  plugins: [
+    ApolloServerPluginDrainHttpServer({ httpServer }),
+    {
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+            await wsServer.close();
+          }
+        };
+      }
+    }
+  ],
+  context: authMiddleware,
+  csrfPrevention: process.env.NODE_ENV === 'production'
 });
+
+
+
+
+
 
 // Start the Apollo Server and connect to the DB
 const startApolloServer = async () => {
@@ -117,7 +197,7 @@ const startApolloServer = async () => {
         await connectDB();  // Call connectDB function to connect to MongoDB
 
         // Start the server only after DB is connected
-        app.listen(PORT, () => {
+        httpServer.listen(PORT, () => {
             console.log(`API server running on port ${PORT}!`);
             console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
         });

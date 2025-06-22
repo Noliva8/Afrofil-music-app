@@ -31,12 +31,16 @@ const songSchema = new Schema({
     type: String
   },
 
-  producer: {
-    type: [String],
-  },
+  producer: [
+    {
+      name: { type: String },
+      role: { type: String, default: "" },
+    },
+  ],
 
   composer: {
-    type: [String]
+    name: { type: String },
+      contribution: { type: String, default: "" },
   },
 
   label: {
@@ -86,6 +90,18 @@ const songSchema = new Schema({
     type: String
   }],
 
+ monetization: { type: Boolean, default: false },
+
+  copyrightSettings: {
+   
+    allowRemix: { type: Boolean, default: true },   
+    allowCover: { type: Boolean, default: true },  
+    allowSampling: { type: Boolean, default: true },
+    requireCredit: { type: Boolean, default: true },
+    requireApproval: { type: Boolean, default: false },
+    monetization: { type: Boolean, default: false }  
+  },
+
   audioFileUrl: {
     type: String,
   },
@@ -94,34 +110,32 @@ const songSchema = new Schema({
     type: String,
   },
 
-
-
   artwork: {
     type: String,
   },
 
-  audioHash:  [
-    {
-      hash: Number,
-      time: Number
-    }
-  ],
-  
-  structureHash: {
-     type: String,
-  },
-
-  similarityFingerprint: {
-    type: String,
-  },
 
   tempo: {
     type: Number
   },
 
+  key: {
+    type: String
+  },
 
-  chromaPeaks:{
-     type:[String]
+    keyConfidence: {
+    type: Number
+  },
+
+  mode: {
+    type: Number
+  },
+
+timeSignature: {
+  type: Number
+},
+  beats: {
+    type: [Number]
   },
 
   createdAt: {
@@ -138,8 +152,10 @@ songSchema.index({ artist: 1 });
 songSchema.index({ genre: 1 });
 songSchema.index({ releaseDate: -1 });
 songSchema.index({ trendingScore: -1 });
-songSchema.index({ 'audioHash.hash': 1 });
+
+
 
 const Song = model('Song', songSchema);
+
 
 export default Song;

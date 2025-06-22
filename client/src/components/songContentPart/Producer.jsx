@@ -1,111 +1,166 @@
 import { useState } from "react";
-import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Paper from "@mui/material/Paper";
+import { 
+  Box, 
+  TextField, 
+  Paper, 
+  Typography,
+  IconButton,
+  InputAdornment,
+  useTheme
+} from "@mui/material";
+import { AddCircleOutline, DeleteOutline } from "@mui/icons-material";
 
-
-export default function Producer({register, errors}) {
-  const [producers, setProducers] = useState([""]);
+export default function Producer({ register, errors }) {
+  const theme = useTheme();
+  const [producers, setProducers] = useState([{ name: "", role: "" }]);
 
   const addProducer = () => {
-    setProducers([...producers, ""]);
+    setProducers([...producers, { name: "", role: "" }]);
   };
 
   const deleteProducer = (index) => {
-    setProducers(producers.filter((_, i) => i !== index));
+    if (producers.length > 1) {
+      setProducers(producers.filter((_, i) => i !== index));
+    }
   };
 
-  return (
-    <>
-      {/* Producer - Add More and Delete */}
-      {producers.map((_, index) => (
-         <Paper key={index} elevation={3} 
+  const handleProducerChange = (index, field, value) => {
+    const updatedProducers = [...producers];
+    updatedProducers[index][field] = value;
+    setProducers(updatedProducers);
+  };
+
+ return (
+
+  <Box
+     mb={2}
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      alignItems: "start",
+      
+    }}
+  >
+
+
+    <Typography
+      variant="body1"
       sx={{
-        width: '98%',
-        display: "flex",
-        backgroundColor: 'var(--secondary-background-color)',
-        margin: '0 auto',
-        marginTop: '10px',
-        padding:'1rem',
-         
-        alignItems: {
-          xs: "start",
-          md: "center",
-        },
-        gap: "10px",
-        flexDirection: {
-          xs: "column",
-          md: "row",
-        },
+        color: "#ffffff",
+        fontWeight: 500,
+        mb: 0.5,
       }}
     >
+      Producers
+    </Typography>
 
+  {producers.map((producer, index) => (
 
-      
-         <label
-        htmlFor={`producer-${index}`} 
-        style={{
-          color: "white",
-          minWidth: "150px",
-          textWrap: "nowrap",
-          fontFamily: "roboto",
-          fontWeight: "500",
-          textShadow: "revert-layer",
-          fontSize: "18px",
-          textSpacing: "2px",
-        }}
-      > {index === 0 ? "Producer" : `Producer ${index}`} </label>
+  <Box
+    key={index}
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      gap: 2,
+      width: "100%",
+      mb: 2,
+      flexDirection: { xs: "column", sm: "row" }, // Responsive layout
+    }}
+  >
+    <TextField
+      fullWidth
+      placeholder="Who produced this song ?"
+  
+      margin="normal"
+      variant="outlined"
+      {...register(`producer[${index}].name`, {
+        required: "Name is required",
+      })}
+      value={producer.name}
+      onChange={(e) => handleProducerChange(index, "name", e.target.value)}
+      error={Boolean(errors?.producer?.[index]?.name)}
+      helperText={errors?.producer?.[index]?.name?.message}
+      sx={{
+        "& .MuiOutlinedInput-root": {
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          color: "#ffffff",
+          "& fieldset": {
+            borderColor: "rgba(255, 255, 255, 0.2)",
+          },
+          "&:hover fieldset": {
+            borderColor: "#ffde00",
+          },
+          "&.Mui-focused fieldset": {
+            borderColor: "#ffde00",
+          },
+        },
+        "& .MuiInputLabel-root": {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+        "& .MuiInputLabel-root.Mui-focused": {
+          color: "#ffde00",
+        },
+      }}
+    />
 
-        <TextField 
-            fullWidth
-            name={`producer-${index}`} 
-            id={`producer[${index}]`} 
-            {...register(`producer[${index}]`)}
-             sx={{
-              width: '100%',
-              bgcolor: "var(--secondary-background-color)",
-              "& .MuiInputBase-root": { color: "white" },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "gray" },
-            }}
-          />
-
-
-    
-    
-    <Box sx={{display:'flex', flexDirection: 'column', gap: '10px'}}>
-          <Button
-            variant="contained"
-            sx={{
-                bgcolor: "var(--secondary-background-color)",
-                fontSize: { xs: "12px", md: "14px" },
-                color: "white",
-                "&:hover": { bgcolor: "gray" },
-              }}
-            onClick={addProducer}
-          >
-            Add more
-          </Button>
-          {index > 0 && (
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={() => deleteProducer(index)}
-              sx={{
-               
-
-                "&:hover": { bgcolor: "red", color: "white" },
-              }}
-            >
-              Delete
-            </Button>
-            
+<TextField
+  fullWidth
+  placeholder="What is their role?"
+  margin="normal"
+  variant="outlined"
+  {...register(`producer[${index}].role`)}
+  value={producer.role}
+  onChange={(e) => handleProducerChange(index, "role", e.target.value)}
+  InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <IconButton
+          onClick={index === 0 ? addProducer : () => deleteProducer(index)}
+          edge="end"
+          aria-label={index === 0 ? "add producer" : "delete producer"}
+          sx={{
+            color: index === 0 ? "white" : "error.main",
+            "&:hover": {
+              backgroundColor:
+                index === 0
+                  ? theme.palette.primary.light
+                  : theme.palette.error.light,
+              transform: "scale(1.1)",
+            },
+          }}
+        >
+          {index === 0 ? (
+            <AddCircleOutline fontSize="small" />
+          ) : (
+            <DeleteOutline fontSize="small" />
           )}
-          </Box>
-        </Paper>
-      ))}
-    </>
-  );
+        </IconButton>
+      </InputAdornment>
+    ),
+  }}
+  sx={{
+    "& .MuiOutlinedInput-root": {
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      color: "#ffffff",
+      "& fieldset": {
+        borderColor: "rgba(255, 255, 255, 0.2)",
+      },
+      "&:hover fieldset": {
+        borderColor: "#ffde00",
+      },
+      "&.Mui-focused fieldset": {
+        borderColor: "#ffde00",
+      },
+    },
+  }}
+/>
+
+
+  </Box>
+))}
+
+  </Box>
+);
+
 }

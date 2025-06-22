@@ -1,113 +1,286 @@
-import Stack from "@mui/material/Stack";
-import Button from "@mui/material/Button";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
 import { useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import useTheme from "@mui/material/styles/useTheme";
+import Stack from "@mui/material/Stack";
+import Chip from "@mui/material/Chip";
+import Avatar from "@mui/material/Avatar";
+import Select from "@mui/material/Select";
+
+// Icons
+import Add from "@mui/icons-material/Add";
+import LibraryMusic from "@mui/icons-material/LibraryMusic";
+
+
+
 import CustomAlbum from "../../homeFreePlanComponents/albumContent/CustomAlbum";
 
-export default function AlbumSong({ albumToSelect, albums, handleAlbumChange, register, errors, refetch }) {
 
-  // Fixed the state variable to set the correct state
+export default function AlbumSong({ 
+  albumToSelect, 
+  Controller,
+  control,
+  albums, 
+  handleAlbumChange, 
+  refetchAlbums,
+  register, 
+  errors, 
+  refetch 
+}) {
+  const theme = useTheme();
   const [albumOpen, setAlbumOpen] = useState(false);
 
-  // Update to handle the opening of the album creation modal
-  const handleOpen = () => setAlbumOpen(true); // Changed from setOpen to setAlbumOpen
-
-  if (!albums.length) return <p>Loading albums...</p>;
+  const handleOpen = () => setAlbumOpen(true);
 
   return (
-    <>
-      <Paper
-        sx={{
-          width: "98%",
-          display: "flex",
-          backgroundColor: "var(--secondary-background-color)",
-          margin: "0 auto",
-          marginTop: "10px",
-          padding: "1rem",
-          alignItems: { xs: "start", md: "center" },
-          gap: "10px",
-          flexDirection: { xs: "column", md: "row" },
-        }}
-      >
-        <label
-          htmlFor="album"
-          style={{
-            color: "white",
-            minWidth: "150px",
-            textWrap: "nowrap",
-            fontFamily: "roboto",
-            fontWeight: "500",
-            textShadow: "revert-layer",
-            fontSize: "18px",
-            textSpacing: "2px",
-          }}
-        >
-          Album
-        </label>
+    <Box sx={{ width: '100%' }}>
+    
 
-        {/* Use register from parent component */}
-        <select
-          {...register("album", { required: "Please select an album" })} // Using register from the parent
-          name="album"
-          id="album"
-          value={albumToSelect?._id || ""}
-          onChange={handleAlbumChange}
-          style={{
-            minWidth: "220px",
-            width: "100%",
-            padding: "10px",
-            backgroundColor: "var(--secondary-background-color)",
-            color: "white",
-            border: "1px solid white",
-            borderRadius: "6px",
-            fontSize: "16px",
-            outline: "none",
-            cursor: "pointer",
-          }}
+        <Box
+     mb={2}
+    sx={{
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      alignItems: "start",
+      
+    }}
+    >
+
+      <Typography 
+       variant="body1"
+      sx={{
+        color: "#ffffff",
+        fontWeight: 500,
+        mb: 0.5,
+      }}
+    >
+      
+        Album 
+      </Typography>
+
+<Controller
+  name="album"
+  control={control}
+  defaultValue=""
+  rules={{ required: "Album is required" }}
+  render={({ field, fieldState }) => (
+    <>
+      <Select
+        {...field}
+        fullWidth
+        displayEmpty
+        value={field.value}
+        onChange={(e) => {
+          field.onChange(e);
+          handleAlbumChange(e);
+        }}
+        error={!!fieldState.error}
+
+MenuProps={{
+    PaperProps: {
+      sx: {
+        backgroundColor: "var(--secondary-background-color)", 
+        color: "#ffffff",        
+      },
+    },
+  }}
+
+        input={
+          <OutlinedInput
+            startAdornment={
+              <InputAdornment position="start">
+                <LibraryMusic
+                  color="action"
+                  sx={{ mr: 1, color: theme.palette.text.secondary }}
+                />
+              </InputAdornment>
+            }
+                 sx={{
+              minWidth: 220,
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              color: "#ffffff",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: "4px",
+              fontSize: "16px",
+              "& .MuiOutlinedInput-notchedOutline": {
+                border: "none"
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#ffde00"
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "#ffde00"
+              }
+            }}
+          />
+        }
+      >
+        <MenuItem value="" disabled>
+          <Typography sx={{color: "#ffffff"}}>Choose from your albums</Typography>
+        </MenuItem>
+
+        {albums.map((album) => (
+          <MenuItem
+            key={album._id}
+            value={album._id}
+            sx={{
+            
+              color: "white",
+              py: 1.5,
+              "&:hover": {
+                backgroundColor: "#2e64c5",
+              },
+            }}
+          >
+            <Typography variant="subtitle1">{album.title}</Typography>
+          </MenuItem>
+        ))}
+      </Select>
+
+      {fieldState.error && (
+        <Typography
+          variant="subtitle2"
+          color="error"
+          sx={{ mt: 1 }}
         >
-          <option value="" disabled hidden>
-            Select an album
-          </option>
-          {albums.map((album) => (
-            <option
-              key={album._id}
-              value={album._id}
-              style={{
-                backgroundColor: "var(--secondary-background-color)",
-                color: "white",
-                fontSize: "14px",
-                padding: "8px",
+          {fieldState.error.message}
+        </Typography>
+      )}
+    </>
+  )}
+/>
+
+
+      
+
+          {/* <TextField
+            select
+            fullWidth
+           {...register('album', {required: 'Album is required'})}
+           error={!!errors.album}
+  helperText={errors.album?.message || ''}
+
+            variant="outlined"
+
+    margin="normal"
+
+            value={albumToSelect?._id || ""}
+            onChange={handleAlbumChange}
+            InputProps={{
+              startAdornment: (
+                <LibraryMusic 
+                  color="action" 
+                  sx={{ 
+                    mr: 1,
+                    color: theme.palette.text.secondary
+                  }} 
+                />
+              ),
+            }}
+
+              sx={{
+        "& .MuiOutlinedInput-root": {
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          color: "#ffffff",
+          "& fieldset": {
+            borderColor: "rgba(255, 255, 255, 0.2)",
+          },
+          "&:hover fieldset": {
+            borderColor: "#ffde00",
+          },
+          "&.Mui-focused fieldset": {
+            borderColor: "#ffde00",
+          },
+        },
+        "& .MuiInputLabel-root": {
+          color: "rgba(255, 255, 255, 0.7)",
+        },
+        "& .MuiInputLabel-root.Mui-focused": {
+          color: "#ffde00",
+        },
+      }}
+          >
+            <MenuItem value="" disabled>
+              <Typography color="textSecondary">
+                Choose from your albums
+              </Typography>
+            </MenuItem>
+
+            {albums.map((album) => (
+              <MenuItem 
+                key={album._id} 
+                value={album._id}
+                sx={{
+                  backgroundColor: '#1f3839',
+                  color: 'white',
+                  py: 1.5,
+                  '&:hover': {
+                    backgroundColor: '#2e64c5'
+                  }
+                }}
+              >
+                <Box>
+                  <Typography variant="subtitle1">{album.title}</Typography>
+                
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField> */}
+
+
+
+
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            gap: '20px',
+            alignItems: 'center',
+            pt: 1
+          }}>
+            <Typography variant="body2" xs={{ color:'var(--primary-font-color)'}}>
+              {albums.length} {albums.length === 1 ? 'album' : 'albums'} available
+            </Typography>
+
+            <Button
+              onClick={handleOpen}
+              startIcon={<Add />}
+              variant="contained"
+             
+              sx={{ 
+                borderRadius: '12px',
+                color: 'var(--primary-background-color)',
+                backgroundColor: "var(--button-color)",
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 500,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: theme.shadows[2],
+                   backgroundColor: 'var(--secondary-background-color)',
+                   color: 'white'
+                   
+                }
               }}
             >
-              {album.title}
-            </option>
-          ))}
-        </select>
+              Create New Album
+            </Button>
+          </Box>
+        </Box>
+   
 
-        {/* Display validation errors */}
-        {errors.album && (
-          <span style={{ color: "red", fontSize: "14px" }}>
-            {errors.album.message}
-          </span>
-        )}
-
-        {/* Create Album Button */}
-        <Button
-          variant="contained"
-          sx={{
-            bgcolor: "var(--secondary-background-color)",
-            color: "white",
-            "&:hover": { bgcolor: "gray" },
-          }}
-          onClick={handleOpen} // Fixed to trigger the correct handler
-        >
-          Create Album
-        </Button>
-      </Paper>
-
-      {/* CustomAlbum modal that opens when albumOpen is true */}
-      <CustomAlbum albumOpen={albumOpen} setAlbumOpen={setAlbumOpen} handleOpen={handleOpen} refetch={refetch} />
-    </>
+      <CustomAlbum 
+        albumOpen={albumOpen} 
+        setAlbumOpen={setAlbumOpen} 
+        refetchAlbums={refetchAlbums} 
+      />
+    </Box>
   );
 }

@@ -40,8 +40,8 @@ type Song {
   album: Album!         
   trackNumber: Int
   genre: String
-  producer: [String]
-  composer: [String]
+  producer: [Producer]
+  composer: [Composer]
   label: String
   duration: Int!
   playCount: Int
@@ -54,9 +54,72 @@ type Song {
   artwork: String
   streamAudioFileUrl: String
   audioFileUrl: String
-  audioHash: String
- 
+ beats: [Float]
+ tempo: Float
+ key: String
+ mode: Int
+ timeSignature: Int
+keyConfidence: Int
 }
+
+
+
+type Producer {
+  name: String
+  role: String
+}
+
+type Composer {
+  name: String
+  role: String
+}
+
+input ProducerInput {
+  name: String!
+  role: String
+}
+
+
+input ComposerInput{
+  name: String!
+  contribution: String
+}
+
+enum UploadStatus {
+  PENDING
+  IN_PROGRESS
+  DUPLICATE
+  COMPLETED
+  SUCCESS
+  COPYRIGHT_ISSUE
+  
+  FAILED
+}
+
+enum UploadStep {
+  INITIATED
+  COMPLETED
+  VALIDATING
+  FAILED
+  CHECKING_DUPLICATES
+  UPLOADING
+  PROCESSING
+  FINALIZING
+}
+
+type UploadProgress {
+  step: UploadStep!
+  status: UploadStatus!
+  message: String
+  percent: Int
+  isComplete: Boolean
+}
+
+
+type Subscription {
+  songUploadProgress: UploadProgress
+}
+
 
 
 
@@ -162,23 +225,6 @@ type Mutation {
   addMood(mood: [String]): Artist
 
 
-  createSong(
-  title: String!
-  featuringArtist: [String]
-  albumId: ID!
-  trackNumber: Int
-  genre: String
-  producer: [String]
-  composer: [String]
-  label: String
-  duration: Int!
-  releaseDate: Date!
-  lyrics: String
-  artwork: String
-  audioFileUrl: String
-  streamAudioFileUrl: String
- audioHash: String
-  ): Song
 
 
     updateSong(
@@ -188,19 +234,26 @@ type Mutation {
   album: ID!
   trackNumber: Int
   genre: String
-  producer: [String]
-  composer: [String]
+   producer: [ProducerInput]
+  composer: [ComposerInput]
   label: String
-  
   releaseDate: Date!
   lyrics: String
   artwork: String
-   audioFileUrl: String
-  streamAudioFileUrl: String
   ): Song
 
 
+addLyrics(
+  songId: ID!
+  lyrics: String
+  
+): Song
 
+addArtwork(
+  songId: ID!
+  artwork: String
+  
+): Song
 
 
 
@@ -209,6 +262,9 @@ type Mutation {
 
   songUpload(
     file: Upload
+    tempo: Float
+    beats: [Float]
+    timeSignature: Int
   ): Song!
 
 

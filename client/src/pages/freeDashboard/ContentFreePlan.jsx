@@ -1,101 +1,265 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom';
 import { useApolloClient } from "@apollo/client";
 import { useQuery, useMutation } from "@apollo/client";
 import { useRef } from "react";
+import { useSubscription } from '@apollo/client';
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
-import Container from "@mui/material/Container";
-import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import TextareaAutosize from "@mui/material/TextareaAutosize";
-import CardMedia from "@mui/material/CardMedia";
-import { WaveFile } from "wavefile";
-import Fade from '@mui/material/Fade';
-import { useForm } from "react-hook-form"
-import CircularProgress from '@mui/material/CircularProgress';
-import  CircularWithValueLabel from '../../components/songContentPart/UploadProgress';
-import { SONG_OF_ARTIST, SONG_HASH } from "../../utils/queries";
-import musicNote from "../../images/Music-note.svg";
-import { CREATE_SONG, SONG_UPLOAD, UPDATE_SONG, GET_PRESIGNED_URL} from "../../utils/mutations";
+import { useForm, Controller} from "react-hook-form"
+import { SONG_UPLOAD, UPDATE_SONG, GET_PRESIGNED_URL} from "../../utils/mutations";
 import { GET_ALBUM, SONG_BY_ID } from "../../utils/queries";
+import { SONG_UPLOAD_UPDATE } from "../../utils/subscription";
+import SongUploadProgressComponent from "../../components/songContentPart/inputsForSong/songUploadUpdates";
+import SongCover from "../../components/songContentPart/SongCover";
+import { GET_PRESIGNED_URL_DOWNLOAD } from "../../utils/mutations";
+import { GET_PRESIGNED_URL_DELETE } from "../../utils/mutations";
+
+import TestUploadProgressTracker from "../../components/songContentPart/TestUploadProgress";
 import ArtistAuth from "../../utils/artist_auth";
-import CustomAlbum from "../../components/homeFreePlanComponents/albumContent/CustomAlbum";
 import Swal from "sweetalert2";
 import SongUpload from "../../components/songContentPart/SongUpload";
 import Metadata from "../../components/songContentPart/Metadata";
+import Lyrics from '../../components/songContentPart/Lirycs';
 import "../CSS/CSS-HOME-FREE-PLAN/content.css";
-
+import MusicTempo from "music-tempo";
+import detectTimeSignature from "../../utils/timeSignature";
 // ----------------------------------------------
+import { toast } from "react-toastify";
+const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
+
+
+// Utulity
+
+function extractTitleFromFilename(filename) {
+  // Remove path information (handles both Unix and Windows paths)
+  const basename = filename.split(/[\\/]/).pop();
+  // Remove file extension
+  const title = basename.replace(/\.[^/.]+$/, "");
+  // Clean up the title (optional)
+  return title
+    .replace(/[^a-zA-Z0-9 ]/g, ' ') 
+    .replace(/\s+/g, ' ')            
+    .trim();
+}
 
 
 
 
 
-const steps = ["Song upload", "Metadata", "Lyrics", "Artwork"];
 
 export default function ContentFreePlan() {
 
-
-  // will be deleted
-  const [originalSongUrl, setOriginalSongUrl] = useState("");
-  const [convertedSongUrl, setConvertedSongUrl] = useState("");
-  // ------------------
-
-const [audioHash, setAudioHash] = useState(null);
 // query the albums to display them
 // ------------------------------
 
-const { loading: albumLoading, error: albumError, data: albumData,  refetch} =useQuery(GET_ALBUM);
+const { loading: albumLoading, error: albumError, data: albumData,  refetch: refetchAlbums} =useQuery(GET_ALBUM);
 
-const { loading: songByIdLoading, error: songByIdError, data: songByIdData, refetch: songByIdRefetch} = useQuery(SONG_BY_ID);
-
-
+    const { data: subscriptionData, loading: subscriptionLoading, error: subscriptionError } = useSubscription(SONG_UPLOAD_UPDATE);
 
 
+    const [uploadState, setUploadState] = useState({
+    progress: 0,
+    isValid: null,
+    duplicate: null,
+    copyright: null,
+    step: null,
+    status: null,
+    message: null
+  });
 
+ const [reloadFlag, setReloadFlag] = useState(false);
+const [uploadFailed, setUploadFailed] = useState(false);
+const [isSubmitting, setIsSubmitting] = useState(false);
+  const [skipped, setSkipped] = React.useState(new Set());
 const [albumToSelect, setAlbumToSelect] = useState('');
-const [albums, setAlbums] = useState('')
-const [songId, setSongId]= useState(null);
+const [albums, setAlbums] = useState([]);
   const [activeStep, setActiveStep] = useState(0);
   const [isSongLoading, setIsSongLoading] = useState(false);
   const [ uploadProgress, setUploadProgress] = useState(0);
+const [songId, setSongId] = useState('');
 
-  const [skipped, setSkipped] = React.useState(new Set());
-const { register, handleSubmit, formState: { errors } } = useForm();
+  // Artwork state
+  const [songCoverImage, setSongCoverImage] = useState('');
+  const [keyToDelete, setKeyToDelete] = useState('');
+  const [isCoverUploading, setIsCoverUploading] = useState(false);
+  const [displayUrl, setDisplayUrl] = useState('');
+
+
+const { register, control, handleSubmit, setValue, watch, formState: { errors } } = useForm({defaultValues: {
+  title: '',
+}});
 
 
 const [updateSong] = useMutation(UPDATE_SONG);
+
+
+  // S3 mutations
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
-  const [createSong] = useMutation(CREATE_SONG);
+  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const [getPresignedUrlDelete] = useMutation(GET_PRESIGNED_URL_DELETE);
+ 
+
+
+
+
   const [songUpload] =useMutation(SONG_UPLOAD);
+
   const client = useApolloClient();
 
+// upload image to s3 and save the url to the state
+// ===============================================
 
+  // Upload artwork to S3
 
-  const handleNextStep = () => {
-    if (activeStep < steps.length - 1) {
-      setActiveStep(activeStep + 1);
+  const handleSongImageUpload = async (file) => {
+    try {
+      setIsCoverUploading(true);
+      
+      // 1. Create temporary preview
+      const previewUrl = URL.createObjectURL(file);
+      setDisplayUrl(previewUrl);
+
+      // 2. Get presigned URL and upload
+      const { data } = await getPresignedUrl({
+        variables: {
+          bucket: "afrofeel-cover-images-for-songs",
+          key: file.name,
+          region: "us-east-2",
+        },
+      });
+
+      await fetch(data.getPresignedUrl.url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+
+      // 3. Get downloadable URL
+      const { data: downloadData } = await getPresignedUrlDownload({
+        variables: {
+          bucket: "afrofeel-cover-images-for-songs",
+          key: file.name,
+          region: "us-east-2",
+          expiresIn: 604800 // 7 days
+        },
+      });
+
+      // 4. Update states
+      setSongCoverImage(downloadData.getPresignedUrlDownload.urlToDownload);
+      setKeyToDelete(file.name);
+      setDisplayUrl(downloadData.getPresignedUrlDownload.urlToDownload);
+      
+      // 5. Clean up temporary preview
+      URL.revokeObjectURL(previewUrl);
+      
+    } catch (error) {
+      toast.error("Upload failed");
+      throw error;
+    } finally {
+      setIsCoverUploading(false);
     }
   };
 
-  const handleBackStep = () => {
-    if (activeStep > 0) {
-      setActiveStep(activeStep - 1);
+
+const deleteSongCoverImage = async () => {
+    if (!keyToDelete) return;
+    
+    try {
+      setIsCoverUploading(true);
+      const { data } = await getPresignedUrlDelete({
+        variables: { bucket: "afrofeel-cover-images-for-songs", key: keyToDelete, region: "us-east-2" }
+      });
+      
+      await fetch(data.getPresignedUrlDelete.urlToDelete, { method: "DELETE" });
+      
+      setSongCoverImage('');
+      setDisplayUrl('');
+      setKeyToDelete('');
+      toast.success("Image deleted");
+    } catch (error) {
+      toast.error("Delete failed");
+    } finally {
+      setIsCoverUploading(false);
     }
   };
+
+
+
+
+
+
+
+// Display artwork from S3
+const handleSongCoverDisplay = async (fileName) => {
+  try {
+    // 1. Get presigned URL for viewing
+    const { data } = await getPresignedUrlDownload({
+      variables: {
+        bucket: "afrofeel-cover-images-for-songs",
+        key: fileName,
+        region: "us-east-2",
+        expiresIn: 604800 // 7 days expiration
+      },
+    });
+
+    // 2. Return the URL directly (no need to fetch if it's just for display)
+    return data.getPresignedUrlDownload.urlToDownload;
+    
+  } catch (error) {
+    console.error("Display error:", error);
+    toast.error("Failed to load image");
+    throw error;
+  }
+};
+
+
+
+
+  // Delete artwork from S3
+  // ======================
+
+
+
+
+
+
+// ======================================
+
+const handleNextStep = (event) => {
+  if (event && event.preventDefault) {
+    event.preventDefault();
+  }
+
+  if (activeStep < steps.length - 1) {
+    setActiveStep(activeStep + 1);
+  }
+};
+
+const handleBackStep = (event) => {
+  if (event && event.preventDefault) {
+    event.preventDefault();
+  }
+
+  if (activeStep > 0) {
+    setActiveStep(activeStep - 1);
+  }
+};
+
 
   const profile = ArtistAuth.getProfile();
   const currentArtistId = profile?.data?.artistAka;
 
-
+const navigate = useNavigate();
 
 
 
 const handleSongUpload = async (event) => {
+ 
   setIsSongLoading(true);
-  setUploadProgress(10); // Step 1: User selects file
+  setUploadProgress(10); 
   event.preventDefault();
 
   const songFile = event.target.files[0];
@@ -104,6 +268,11 @@ const handleSongUpload = async (event) => {
     setIsSongLoading(false);
     return;
   }
+
+  // Extract and set title from filename
+  const titleFromFilename = extractTitleFromFilename(songFile.name);
+  setValue('title', titleFromFilename, { shouldValidate: true });
+
 
   setUploadProgress(20); 
   const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
@@ -127,18 +296,79 @@ const handleSongUpload = async (event) => {
     return;
   }
 
-  // we are using useMutation to send the file to the server
-  // -----------------------------------------------------
+   setActiveStep(1)
 
-try{
 
-const { data} = await songUpload({
-  variables: { file: songFile },
-})
 
-}catch(error){
-console.error(error);
-}
+// ===================
+
+// CALCULATE TEMPO, BEATS, TIME SIGNATURE BEFORE UPLOADING
+// -----------------------------------------------------
+
+const context = new AudioContext();
+const reader = new FileReader();
+
+reader.onload = async function (e) {
+  try {
+    const decodedBuffer = await context.decodeAudioData(e.target.result);
+    const sampleRate = decodedBuffer.sampleRate;
+    let audioData = [];
+
+    // Mix down to mono
+    if (decodedBuffer.numberOfChannels === 2) {
+      const channel1 = decodedBuffer.getChannelData(0);
+      const channel2 = decodedBuffer.getChannelData(1);
+      audioData = channel1.map((val, i) => (val + channel2[i]) / 2);
+    } else {
+      audioData = decodedBuffer.getChannelData(0);
+    }
+
+    // 🎯 Use the full audio buffer here (no trimming)
+    const mt = new MusicTempo(audioData);
+    console.log('🎵 Full Audio BPM:', mt.tempo);
+    console.log('🕒 Beats:', mt.beats);
+
+    // Detect time signature
+    const timeSignature = detectTimeSignature(mt.beats, mt.tempo);
+    console.log('🧭 Detected Time Signature:', timeSignature);
+
+    // Upload to server
+    const { data } = await songUpload({
+      variables: {
+        file: songFile,
+        tempo: Number(mt.tempo),
+        beats: mt.beats.map(Number),
+        timeSignature: parseInt(timeSignature),
+      },
+    });
+
+
+
+    console.log('✅ Upload successful:', data);
+    const songId = data.songUpload._id;
+    console.log('the song id from server:', songId);
+
+    setSongId(songId)
+  } catch (error) {
+     Swal.fire({
+      icon: "error",
+      title: "audio corrupted",
+      text: "Please play your song first and confirm if it works .",
+    }
+    );
+    console.error('❌ Error during full audio analysis:', error);
+    setActiveStep(0)
+     setIsSongLoading(false);
+  }
+
+
+
+
+};
+
+reader.readAsArrayBuffer(songFile);
+
+  
  
 };
 
@@ -147,61 +377,137 @@ console.error(error);
 
 
 
+// Centralized data processing from server
 
-// // Helper function to generate hash
-// const generateHash = (channels) => {
-//   let hash = 0;
-//   const step = Math.max(1, Math.floor(channels[0].length / 1000));
-//   for (let i = 0; i < channels[0].length; i += step) {
-//     for (let j = 0; j < channels.length; j++) {
-//       hash += Math.abs(channels[j][i]);
-//     }
-//   }
-//   return Math.abs(hash).toString(16);
-// };
+useEffect(() => {
+  if (subscriptionData?.songUploadProgress) {
+    const { step, status, message, percent, isComplete } = subscriptionData.songUploadProgress;
+    
+    const isFailureState = status === 'DUPLICATE' || status === 'COPYRIGHT_ISSUE';
+    const isSuccessState = (status === 'COMPLETED' || status === 'SUCCESS') && isComplete;
+
+    console.log('🚀 Upload Progress Update:', subscriptionData?.songUploadProgress);
+    console.log('Upload step:', step, 'Status:', status);
+
+    setUploadState(prev => ({
+      ...prev,
+      progress: percent || 0,
+      step,
+      status: isSuccessState ? 'COMPLETED' : status,
+      message,
+      ...(isFailureState && {
+        isValid: false,
+        ...(status === 'DUPLICATE' && { duplicate: { message } }),
+        ...(status === 'COPYRIGHT_ISSUE' && { copyright: { message } })
+      }),
+      ...(isSuccessState && { isValid: true }),
+      isComplete: isComplete || false
+    }));
+
+    setUploadFailed(isFailureState);
+
+    if (isFailureState) {
+      handleUploadFailure(status, message);
+      return;
+    }
+
+    // ✅ Proceed to metadata when validation passes
+    const safeToProceed = !isFailureState && status !== 'UPLOADING' && !uploadState.isValid;
+    
+    if (safeToProceed) {
+      console.log('✅ Proceeding to metadata step');
+      setIsSongLoading(false);
+      // setActiveStep(1); // Go to metadata step
+    }
+  }
+}, [subscriptionData]);
 
 
-  // // upload original song method
-  // // ---------------------------
-  // const uploadToS3OriginalSongs = async (songFile) => {
-  //   try {
-  //     setIsSongLoading(true);
-  //     const { data } = await getPresignedUrl({
-  //       variables: {
-  //         bucket: "afrofeel-original-songs",
-  //         key: songFile.name,
-  //         region: "us-west-2",
-  //       },
-  //     });
 
-  //     const presignedUrl = data.getPresignedUrl.url;
 
-  //     const response = await fetch(presignedUrl, {
-  //       method: "PUT",
-  //       body: songFile,
-  //       headers: { "Content-Type": songFile.type },
-  //     });
 
-  //     if (!response.ok) {
-  //       throw new Error("Upload failed");
-  //     }
-  //     const originalUrl = `https://afrofeel-original-songs.s3.us-west-2.amazonaws.com/${songFile.name}`;
-  //     console.log("Upload successful:", originalUrl);
-
-  //     setOriginalSongUrl(originalUrl);
-  //   } catch (error) {
-  //     console.error("Error uploading file:", error);
-  //     Swal.fire({
-  //       icon: "error",
-  //       title: "Upload Error",
-  //       text: "Failed to upload file.",
-  //     });
-  //   } finally {
-  //     setIsSongLoading(false);
-  //   }
-  // };
+// Updated failure handler
+const handleUploadFailure = (status, message) => {
+  // Reset upload state immediately
+  const resetUploadState = () => {
+    setIsSongLoading(false);
 
   
+
+    setUploadProgress(0);
+    setUploadState({
+      progress: 0,
+      isValid: null,
+      duplicate: null,
+      copyright: null,
+      step: null,
+      status: null,
+      message: null
+    });
+  };
+
+  const isCopyrightIssue = status === 'COPYRIGHT_ISSUE';
+
+  Swal.fire({
+    icon: 'error',
+    title: isCopyrightIssue ? 'Copyright Concern' : 'Duplicate Song',
+    html: `<div style="margin-bottom: 1rem; text-align: left;">
+            <p>${message}</p>
+            <small style="color: #666;">
+              ${isCopyrightIssue ? 'If you believe this is a mistake' : ''}
+            </small>
+          </div>`,
+    showCancelButton: true,
+    confirmButtonText: 'Upload New Song',
+    cancelButtonText: isCopyrightIssue ? 'Report Issue' : 'Go to Dashboard',
+    focusConfirm: false,
+    allowOutsideClick: false,
+    customClass: {
+      actions: 'swal-actions',
+      cancelButton: isCopyrightIssue ? 'swal-report-button' : ''
+    }
+  }).then((result) => {
+    resetUploadState();
+    
+    if (result.isConfirmed) {
+      // Upload new song flow
+      setActiveStep(0);
+      setTimeout(() => document.getElementById('song-upload-input')?.click(), 100);
+    } else if (result.dismiss === Swal.DismissReason.cancel) {
+      if (isCopyrightIssue) {
+        // Handle copyright report flow
+        handleCopyrightReport();
+      } else {
+        navigate('/artist/studio/dashboard');
+      }
+    }
+  });
+};
+
+// Copyright report handler
+const handleCopyrightReport = () => {
+  Swal.fire({
+    title: 'Report Copyright Issue',
+    input: 'textarea',
+    inputLabel: 'Please explain why you believe this is a mistake',
+    inputPlaceholder: 'Describe your concerns...',
+    showCancelButton: true,
+    confirmButtonText: 'Submit Report',
+    preConfirm: (reportText) => {
+      // Add your report submission logic here
+      console.log('Copyright report submitted:', reportText);
+    }
+  }).then(() => {
+    // After reporting, keep user on upload screen
+    setActiveStep(0);
+  });
+};
+
+
+
+
+
+
 
 
 useEffect(() => {
@@ -222,18 +528,148 @@ const handleAlbumChange = (event) => {
   }
 };
 
-// ---------------------------------------
-// Form submition
-// -------------
-
-
-// fetch data to populate them in defaultValues. 
-// --------------------------------------------
 
 
 
 
- 
+
+const onSubmit = async (formData) => {
+  setIsSubmitting(true);
+
+  console.log("✅ onSubmit triggered with formData:", formData);
+  console.log("🧩 uploadState:", uploadState);
+
+
+
+  // 🚨 Guard clause for missing songId
+  if (!songId) {
+    console.error("🚨 Cannot submit: songId is missing.");
+    Swal.fire({
+      icon: 'warning',
+      title: 'Please wait',
+      text: 'Upload is still in progress. Try again shortly.',
+    });
+    setIsSubmitting(false);
+    return;
+  }
+
+  try {
+
+ const variables = {
+  songId: songId,
+  title: formData.title,
+  album: albumToSelect?._id,
+  releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
+
+
+
+
+  featuringArtist: Array.isArray(formData.featuringArtist)
+  ? formData.featuringArtist.map(s => s.trim())
+  : typeof formData.featuringArtist === 'string'
+    ? formData.featuringArtist.split(',').map(s => s.trim())
+    : [],
+
+  trackNumber: Number.isInteger(parseInt(formData.trackNumber)) ? parseInt(formData.trackNumber) : 1,
+  genre: formData.genre,
+
+
+producer: Array.isArray(formData.producer)
+  ? formData.producer
+  : typeof formData.producer === 'string'
+    ? formData.producer.split(',').map((entry) => {
+        const [name, role = ''] = entry.split(':').map(s => s.trim());
+        return { name, role };
+      })
+    : [],
+
+composer: Array.isArray(formData.composer)
+  ? formData.composer
+  : typeof formData.composer === 'string'
+    ? formData.composer.split(',').map((entry) => {
+        const [name, role = ''] = entry.split(':').map(s => s.trim());
+        return { name, role };
+      })
+    : [],
+
+
+  label: formData.label || '',
+  lyrics: formData.lyrics || '',
+  artwork: songCoverImage,
+};
+
+
+  console.log("🎯 Prepared variables:");
+console.log("🔹 songId:", songId);
+console.log("🔹 title:", formData.title);
+console.log("🔹 album:", albumToSelect?._id);
+console.log("🔹 releaseDate:", formData.releaseDate);
+console.log("🔹 featuringArtist:", formData.featuringArtist);
+console.log("🔹 trackNumber:", formData.trackNumber);
+console.log("🔹 genre:", formData.genre);
+console.log("🔹 producer:", formData.producer);
+console.log("🔹 composer:", formData.composer);
+console.log("🔹 label:", formData.label);
+console.log("🔹 lyrics:", formData.lyrics);
+console.log("🔹 artwork:", songCoverImage);
+
+
+
+
+  let data;
+try {
+  const response = await updateSong({ variables });
+  data = response.data;
+
+  console.log("📡 Mutation response data:", data);
+
+} catch (mutationError) {
+  console.error("💥 GraphQL mutation failed:", mutationError);
+  throw mutationError; 
+}
+
+
+    // await Swal.fire({
+    //   icon: 'success',
+    //   title: 'Song Updated!',
+    //   html: `
+    //     <div style="text-align:center">
+    //       <p>${formData.title} has been published</p>
+    //       <small>Now available in your library</small>
+    //     </div>
+    //   `
+    // });
+
+    // navigate('/artist/studio/dashboard');
+    setActiveStep(2)
+
+  } catch (error) {
+    console.error("🔥 Error during song update:", error);
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Update Failed',
+      html: `
+        <div style="text-align:left">
+          <p>${error.message}</p>
+          ${error.networkError ? '<small>Please check your connection</small>' : ''}
+        </div>
+      `
+    });
+  } finally {
+    setIsSubmitting(false);
+    console.log("🟡 Submission process ended");
+  }
+};
+
+
+
+
+
+
+
+
+
 
 
   return (
@@ -261,11 +697,18 @@ const handleAlbumChange = (event) => {
          
         }}
       >
+
+        <SongUploadProgressComponent
+     uploadState={uploadState}
+      subscriptionLoading={subscriptionLoading}
+      subscriptionError={subscriptionError}
+       />
         {/* Step Title */}
         <Box sx={{ alignSelf: "flex-start", padding: "0.5rem" }}>
           <Typography
             variant="h3"
             sx={{
+              mt: {xs: '2rem'},
               fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
               color: "white",
             }}
@@ -291,139 +734,79 @@ const handleAlbumChange = (event) => {
       }}
     >
       <SongUpload
-        audioHash={audioHash}
-        setAudioHash={setAudioHash}
+      
         isSongLoading={isSongLoading}
         setIsSongLoading={setIsSongLoading}
-        originalSongUrl={originalSongUrl}
-        setOriginalSongUrl={setOriginalSongUrl}
-        convertedSongUrl={convertedSongUrl}
-        setConvertedSongUrl={setConvertedSongUrl}
         handleSongUpload={handleSongUpload}
+        activeStep={activeStep}
+        setActiveStep={setActiveStep}
+        setValue={setValue}
+        uploadState={uploadState}
+      subscriptionLoading={subscriptionLoading}
+      subscriptionError={subscriptionError}
+
         
       />
     </Paper>
   </Box>
 )}
 
-{activeStep === 1 && (
-  <Box sx={{ overflowY: 'scroll', height: '100%'}}>
- <Metadata register={register} errors={errors} albumToSelect={albumToSelect} albums={albums} refetch={refetch} handleAlbumChange={ handleAlbumChange }/>
-  </Box>
-)}
-
-{activeStep === 2 && (
-  <Box>
-    {/* we display details lyrics which is option */}
-  </Box>
-)}
-
-{activeStep === 3 && (
-  <Box sx={{width: '100%', height: '100vh'}}>
-  
-  </Box>
-)}
-
-
-
-
-
 <Box>
-  <Box
-    sx={{
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "1rem",
-    }}
-  >
-    {/* Back Button - Only appears on Step 2 (Lyrics) and Submit Step */}
-    {activeStep === 2 || activeStep === steps.length - 1 ? (
-      <Button
-        onClick={handleBackStep}
-        variant="contained"
-        sx={{
-          bgcolor: "var(--primary-background-color)",
-          color: "var(--button-color)",
-          "&:hover": {
-            bgcolor: "var(--button-color)",
-            color: "var(--primary-background-color)",
-          },
-        }}
-      >
-        Back
-      </Button>
-    ) : null}
-
-    {/* Skip Button - Only for Step 2 (Lyrics) */}
-    {activeStep === 2 && (
-      <Button
-        variant="outlined"
-        onClick={handleNextStep}
-        sx={{
-          borderColor: "var(--button-color)",
-          color: "var(--button-color)",
-          "&:hover": {
-            bgcolor: "var(--button-color)",
-            color: "var(--primary-background-color)",
-          },
-        }}
-      >
-        Skip
-      </Button>
-    )}
-
-    {/* Next or Submit Button */}
-    {activeStep === steps.length - 1 ? (
-      <Button
-        variant="contained"
-        onClick={handleSubmit} // Call final submit handler
-        sx={{
-          bgcolor: "var(--primary-background-color)",
-          color: "var(--button-color)",
-          "&:hover": {
-            bgcolor: "var(--button-color)",
-            color: "var(--primary-background-color)",
-          },
-        }}
-      >
-        Submit
-      </Button>
-    ) : (
-      activeStep !== 0 && (
-        <Button
-          variant="contained"
-          onClick={handleNextStep}
-          sx={{
-            bgcolor: "var(--primary-background-color)",
-            color: "var(--button-color)",
-            "&:hover": {
-              bgcolor: "var(--button-color)",
-              color: "var(--primary-background-color)",
-            },
-          }}
-        >
-          Next
-        </Button>
-      )
-    )}
-  </Box>
-
-  {/* Circular Progress */}
-  {isSongLoading && uploadProgress > 0 && uploadProgress < 100 && (
-    <Box>
-      <CircularWithValueLabel progress={uploadProgress} />
+  {/* Step 1: Metadata */}
+  {activeStep === 1 && (
+    <Box sx={{ overflowY: 'scroll', height: '100%', width: { xs: "350px", sm: "400px", md: "600px", lg: "800px", xl: "1200px" }}}>
+      <Metadata 
+      handleSubmit={handleSubmit}
+      onSubmit={onSubmit}
+        register={register} 
+        Controller={Controller}
+        control={control}
+        errors={errors} 
+        albumToSelect={albumToSelect} 
+        albums={albums} 
+        refetchAlbums={refetchAlbums} 
+        handleAlbumChange={handleAlbumChange}
+      />
     </Box>
   )}
 
-  {/* Fade-out effect after upload is complete */}
-  <Fade in={uploadProgress > 0 && uploadProgress < 100} timeout={1000}>
+  {/* Step 2: Lyrics */}
+  {activeStep === 2 && (
     <Box>
-      <CircularWithValueLabel progress={uploadProgress} />
+      <Lyrics  activeStep={activeStep} setActiveStep={setActiveStep} songId={songId}/>
     </Box>
-  </Fade>
+  )}
+
+  {/* Step 3: Cover Art */}
+  {activeStep === 3 && (
+    <Box sx={{width: '100%', height: '100vh'}}>
+      <SongCover 
+      activeStep={activeStep}
+       setActiveStep={setActiveStep}
+        songId={songId}
+        watch={watch}
+        currentImageUrl={songCoverImage}
+        onUpload={handleSongImageUpload}
+        onDelete={deleteSongCoverImage}
+        isLoading={isCoverUploading}
+        onChangeImage={(url) => setSongCoverImage(url)}
+      />
+    </Box>
+  )}
+
+
+
+
+
 </Box>
 
 
+
+{/* <TestUploadProgressTracker 
+   uploadState={uploadState}
+      subscriptionLoading={subscriptionLoading}
+      subscriptionData= {subscriptionData}
+      subscriptionError={subscriptionError} /> */}
 
       </Box>
     </>

@@ -1,82 +1,97 @@
+import Song from '../../models/Artist/Song.js';
+import Artist from '../../models/Artist/Artist.js';
 
-import Song from '../../models/Artist/Song.js'; 
+export default async function isCoverOrRemix(newSong, databaseSongs) {
+  // 1. Pre-filter candidates (fast)
+  const candidates = databaseSongs.filter(song => {
+    return (
+      Math.abs(song.tempo - newSong.tempo) < 10 && // ±10 BPM tolerance
+      song.key === newSong.key &&                  // Same musical key
+      song.mode === newSong.mode                   // Major/minor match
+    );
+  });
 
-const FINGERPRINT_CONFIG = {
-  sampleRate: 44100,
-  bufferSize: 4096,
-  mfccCoefficients: 5,
-  chromaPeaks: 3,
-  minCoverScore: 0.65,
-  maxTempoVariance: 0.15
-};
+  // 2. Feature comparison pipeline
+  const comparisons = await Promise.all(
+    candidates.map(original => compareFeatures(newSong, original))
+  );
+
+  // 3. Weighted scoring
+  const results = comparisons.map((comp, i) => ({
+    songId: candidates[i]._id,
+    title: candidates[i].title,
+    artist: candidates[i].artist,
+    score: calculateCompositeScore(comp),
+    details: comp
+  }));
+
+  // 4. Threshold-based classification
+  return results.filter(r => {
+    if (r.score > 0.85) return { ...r, type: 'cover' };
+    if (r.score > 0.65) return { ...r, type: 'remix' };
+    return null;
+  }).sort((a, b) => b.score - a.score);
+}
 
 
-// New: Cover detection function
-export default async function findPotentialCovers(fingerprint) {
-  const tempoRange = [
-    fingerprint.features.tempo * (1 - FINGERPRINT_CONFIG.maxTempoVariance),
-    fingerprint.features.tempo * (1 + FINGERPRINT_CONFIG.maxTempoVariance)
-  ];
-
-  const [_, tempoCategory] = fingerprint.similarity.split(':');
-  
-  const candidates = await Song.find({
-    similarityFingerprint: new RegExp(`^sim:${tempoCategory}`),
-    tempo: { $gte: tempoRange[0], $lte: tempoRange[1] },
-    audioHash: { $ne: fingerprint.exact }
-  })
-  .select('_id title artist tempo similarityFingerprint structureHash')
-  .populate('artist', 'name allowCovers')
-  .lean();
-
-  const potentialMatches = candidates.map(candidate => {
-    const score = calculateCoverSimilarity(fingerprint, candidate);
-    return {
-      ...candidate,
-      score,
-      tempoDiff: Math.abs(fingerprint.features.tempo - candidate.tempo)
-    };
-  }).filter(match => match.score >= FINGERPRINT_CONFIG.minCoverScore);
-
+// Feature comparison engine
+async function compareFeatures(newSong, original) {
   return {
-    bestMatch: potentialMatches.sort((a, b) => b.score - a.score)[0] || null,
-    totalMatches: potentialMatches.length
+    structure: compareStructureHashes(newSong.structureHash, original.structureHash),
+    fingerprint: compareFingerprints(newSong.similarityFingerprint, original.similarityFingerprint),
+    harmonic: compareHarmonic(newSong.harmonicFingerprint, original.harmonicFingerprint),
+    chroma: compareChromaPeaks(newSong.chromaPeaks, original.chromaPeaks),
+    rhythmic: compareRhythm(newSong.beats, original.beats)
   };
 }
 
-function calculateCoverSimilarity(userPrint, dbTrack) {
-  // 1. Chroma peak matching (30% weight)
-  const [_, __, ...userPeaks] = userPrint.similarity.split(':');
-  const [___, ____, ...dbPeaks] = dbTrack.similarityFingerprint.split(':');
-  const peakScore = userPeaks.filter(p => dbPeaks.includes(p)).length / 3;
-  
-  // 2. Structure similarity (50% weight)
-  const structureScore = compareStructureHashes(
-    userPrint.structure,
-    dbTrack.structureHash
+// Weighted scoring
+function calculateCompositeScore(comparison) {
+  const weights = {
+    structure: 0.3,   // Overall song architecture
+    fingerprint: 0.25, // Melodic contours
+    harmonic: 0.2,    // Chord progressions
+    chroma: 0.15,     // Harmonic content
+    rhythmic: 0.1     // Timing patterns
+  };
+
+  return Object.entries(weights).reduce(
+    (score, [feature, weight]) => score + comparison[feature] * weight,
+    0
   );
-  
-  // 3. Tempo similarity (20% weight)
-  const tempoScore = 1 - (Math.abs(userPrint.features.tempo - dbTrack.tempo) / 
-    (userPrint.features.tempo * FINGERPRINT_CONFIG.maxTempoVariance));
-  
-  return (peakScore * 0.3) + (structureScore * 0.5) + (tempoScore * 0.2);
 }
 
-function compareStructureHashes(hash1, hash2) {
-  if (!hash1 || !hash2) return 0;
-  
-  // Simple comparison - implement your own logic here
-  const parts1 = hash1.split(':');
-  const parts2 = hash2.split(':');
-  
-  // Compare stability scores
-  const stabilityDiff = 1 - Math.abs(parseFloat(parts1[1]) - parseFloat(parts2[1]));
-  
-  // Compare primary patterns
-  const primary1 = parts1[2].split(',');
-  const primary2 = parts2[2].split(',');
-  const primaryMatches = primary1.filter((v, i) => v === primary2[i]).length / primary1.length;
-  
-  return (stabilityDiff * 0.4) + (primaryMatches * 0.6);
+// HELPERS
+
+function compareStructureHashes(hashA, hashB) {
+  // Use locality-sensitive hashing or edit distance
+  const distance = levenshteinDistance(hashA, hashB);
+  return 1 - (distance / Math.max(hashA.length, hashB.length));
+}
+
+function compareFingerprints(fpA, fpB) {
+  // Assuming these are 2D arrays [time][features]
+  const similarityMatrix = matrixSimilarity(fpA, fpB);
+  return dynamicTimeWarping(similarityMatrix);
+}
+
+function compareHarmonic(harmA, harmB) {
+  // Compare chord transition probabilities
+  const klDivergence = calculateKLDivergence(harmA.chordTransitions, harmB.chordTransitions);
+  return Math.exp(-klDivergence); // Convert to similarity score
+}
+
+function compareChromaPeaks(peaksA, peaksB) {
+  // Bin-to-bin cosine similarity
+  const dotProduct = peaksA.reduce((sum, a, i) => sum + a * peaksB[i], 0);
+  const normA = Math.sqrt(peaksA.reduce((sum, a) => sum + a * a, 0));
+  const normB = Math.sqrt(peaksB.reduce((sum, b) => sum + b * b, 0));
+  return dotProduct / (normA * normB);
+}
+
+function compareRhythm(beatsA, beatsB) {
+  // Compare beat intervals
+  const intervalsA = calculateIntervals(beatsA);
+  const intervalsB = calculateIntervals(beatsB);
+  return pearsonCorrelation(intervalsA, intervalsB);
 }

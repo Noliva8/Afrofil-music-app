@@ -27,8 +27,8 @@ const ArtistAccountProfile = () => {
 
   const { loading, error, data: artistData, refetch } = useQuery(ARTIST_PROFILE);
 
-
   const [addProfileImage] = useMutation(ADD_PROFILE_IMAGE);
+
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
   const [ getPresignedUrlDelete ] = useMutation(GET_PRESIGNED_URL_DELETE);
@@ -90,6 +90,7 @@ const handleProfileImageUpload = async (e) => {
   try {
     // Step 2: Get the presigned URL for uploading the new image to S3
     setIsLoadingImage(true);
+    
     const { data } = await getPresignedUrl({
       variables: {
         bucket: "afrofeel-profile-picture",
