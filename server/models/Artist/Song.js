@@ -31,6 +31,40 @@ const songSchema = new Schema({
     type: String
   },
 
+
+mood: {
+  type: [String],
+  enum: [
+    "Party",
+    "Chill",
+    "Gospel",
+    "Heartbreak",
+    "Traditional",
+    "Romantic",
+    "Motivational",
+    "Cultural"
+  ],
+  default: [],
+},
+
+subMoods: {
+  type: [String],
+  enum: [
+    "Worship",
+    "Praise",
+    "Traditional Gospel",
+    "Club Anthem",
+    "Wedding",
+    "Breakup",
+    "Street",
+    "Motivation",
+    "Prayer",
+    "Rebellion"
+  ],
+  default: []
+},
+
+
   producer: [
     {
       name: { type: String },
@@ -38,10 +72,12 @@ const songSchema = new Schema({
     },
   ],
 
-  composer: {
+composer: [
+  {
     name: { type: String },
-      contribution: { type: String, default: "" },
-  },
+    contribution: { type: String, default: "" },
+  }
+],
 
   label: {
     type: String
@@ -101,6 +137,12 @@ const songSchema = new Schema({
     requireApproval: { type: Boolean, default: false },
     monetization: { type: Boolean, default: false }  
   },
+
+  visibility: {
+  type: String,
+  enum: ["public", "private"],
+  default: "public"
+},
 
   audioFileUrl: {
     type: String,

@@ -25,6 +25,7 @@ import CustomAlbum from "../../homeFreePlanComponents/albumContent/CustomAlbum";
 export default function AlbumSong({ 
   albumToSelect, 
   Controller,
+  setValue,
   control,
   albums, 
   handleAlbumChange, 
@@ -76,7 +77,7 @@ export default function AlbumSong({
         {...field}
         fullWidth
         displayEmpty
-        value={field.value}
+        value={albums.some(a => a._id === field.value) ? field.value : ''}
         onChange={(e) => {
           field.onChange(e);
           handleAlbumChange(e);

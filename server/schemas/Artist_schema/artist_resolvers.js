@@ -19,7 +19,8 @@ import stream from "stream";
 import path from 'path';
 import crypto from "crypto";
 import { createHash } from 'crypto';
-const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDelete } = awsS3Utils;
+const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDownloadAudio, CreatePresignedUrlDelete } = awsS3Utils;
+
 
 import Fingerprinting from '../../utils/DuplicateAndCopyrights/fingerPrinting.js'
 import isCoverOrRemix from '../../utils/DuplicateAndCopyrights/coverRemix.js'
@@ -127,7 +128,7 @@ songsOfArtist: async (parent, args, context) => {
 
     try {
         // Fetch songs associated with the artist's ID and populate the album details
-        const songs = await Song.find({ artistId })
+        const songs = await Song.find({ artist: artistId })
         .populate('album')
         .populate('likedByUsers');
 
@@ -140,25 +141,6 @@ songsOfArtist: async (parent, args, context) => {
         throw new Error("Failed to fetch songs.");
     }
 },
-
-
-
-// songHash: async (parent, { audioHash }) => {
-//   try {
-//     // Query the Song model to find a song by the provided audio hash
-//     const song = await Song.findOne({ audioHash });
-
-//     // If the song is found, return it; otherwise, return null
-//     if (song) {
-//       return song;
-//     } else {
-//       return null;  // No song found with the given audio hash
-//     }
-//   } catch (error) {
-//     console.error('Error checking audio hash:', error);
-//     throw new Error('Failed to check audio hash');
-//   }
-// },
 
 
 songById : async (parent, { songId }, context) => {
@@ -418,6 +400,24 @@ console.error('Error in resolver:', error);
         throw new Error('Failed to fetch presigned URL');
     }
    },
+
+getPresignedUrlDownloadAudio: async(_, {bucket, key, region}) => {
+  try {
+    const urlToDownloadAudio = await CreatePresignedUrlDownloadAudio({ bucket, key, region });
+
+    return {
+  url: urlToDownloadAudio,
+  expiration: '18000',
+};
+
+  } catch (error) {
+    console.error('Error in resolver:', error);
+    throw new Error('Failed to fetch presigned URL');
+  }
+},
+
+
+
 
  getPresignedUrlDelete: async(_, {bucket, key, region}) =>{
     try{
@@ -756,6 +756,8 @@ updateSong: async (parent, {
   album, 
   trackNumber, 
   genre, 
+  mood,
+  subMoods,
   producer, 
   composer, 
   label, 
@@ -773,6 +775,8 @@ updateSong: async (parent, {
       album, 
       trackNumber,
       genre,
+      mood,
+  subMoods,
       producer,
       composer,
       label,
@@ -781,8 +785,9 @@ updateSong: async (parent, {
       lyrics,
       artwork
     }, { new: true });
-
+console.log("✅ Updated song document:", updatedSong);
     return updatedSong;
+
   } catch (error) {
     console.error("Error updating song:", error);
     throw new Error("Failed to update song.");
@@ -1076,6 +1081,55 @@ console.error("Error updating song:", error);
 }
 
 },
+
+
+
+toggleVisibility: async (_, { songId, visibility }, context) => {
+  try {
+    // 1. Ensure the artist is authenticated
+    if (!context.artist) {
+      throw new Error("Unauthorized: You are not logged in.");
+    }
+
+    // 2. Validate visibility value
+    if (!["public", "private"].includes(visibility)) {
+      throw new Error("Invalid visibility value. Must be 'public' or 'private'.");
+    }
+
+    // 3. Update the song visibility
+    const updatedSong = await Song.findOneAndUpdate(
+      { _id: songId, artist: context.artist._id }, // Optional: ensure artist owns the song
+      { visibility },
+      { new: true }
+    );
+
+    // 4. Check if song was found and updated
+    if (!updatedSong) {
+      throw new Error("Song not found or you are not authorized to update it.");
+    }
+
+    return updatedSong;
+
+  } catch (error) {
+    console.error("Failed to toggle the visibility:", error);
+    throw new Error("Failed to toggle the visibility.");
+  }
+},
+
+
+deleteSong: async (parent, { songId }, context) => {
+  if (!context.artist) {
+    throw new Error("Unauthorized");
+  }
+
+  const deleted = await Song.findByIdAndDelete(songId);
+  if (!deleted) {
+    throw new Error("Song not found");
+  }
+
+  return deleted;
+},
+
 
 
 

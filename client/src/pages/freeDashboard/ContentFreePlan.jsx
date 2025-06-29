@@ -131,6 +131,8 @@ const [updateSong] = useMutation(UPDATE_SONG);
         },
       });
 
+console.log('the data produced from song image upload:', data);
+
       await fetch(data.getPresignedUrl.url, {
         method: "PUT",
         body: file,
@@ -146,6 +148,11 @@ const [updateSong] = useMutation(UPDATE_SONG);
           expiresIn: 604800 // 7 days
         },
       });
+
+
+      const imageUrlToDisplay = downloadData.getPresignedUrlDownload.urlToDownload;
+
+      console.log('the link to display the image', imageUrlToDisplay)
 
       // 4. Update states
       setSongCoverImage(downloadData.getPresignedUrlDownload.urlToDownload);
@@ -325,8 +332,7 @@ reader.onload = async function (e) {
 
     // 🎯 Use the full audio buffer here (no trimming)
     const mt = new MusicTempo(audioData);
-    console.log('🎵 Full Audio BPM:', mt.tempo);
-    console.log('🕒 Beats:', mt.beats);
+    
 
     // Detect time signature
     const timeSignature = detectTimeSignature(mt.beats, mt.tempo);
@@ -386,8 +392,7 @@ useEffect(() => {
     const isFailureState = status === 'DUPLICATE' || status === 'COPYRIGHT_ISSUE';
     const isSuccessState = (status === 'COMPLETED' || status === 'SUCCESS') && isComplete;
 
-    console.log('🚀 Upload Progress Update:', subscriptionData?.songUploadProgress);
-    console.log('Upload step:', step, 'Status:', status);
+  
 
     setUploadState(prev => ({
       ...prev,
@@ -415,7 +420,7 @@ useEffect(() => {
     const safeToProceed = !isFailureState && status !== 'UPLOADING' && !uploadState.isValid;
     
     if (safeToProceed) {
-      console.log('✅ Proceeding to metadata step');
+      
       setIsSongLoading(false);
       // setActiveStep(1); // Go to metadata step
     }
@@ -536,8 +541,7 @@ const handleAlbumChange = (event) => {
 const onSubmit = async (formData) => {
   setIsSubmitting(true);
 
-  console.log("✅ onSubmit triggered with formData:", formData);
-  console.log("🧩 uploadState:", uploadState);
+ 
 
 
 
@@ -560,10 +564,8 @@ const onSubmit = async (formData) => {
   title: formData.title,
   album: albumToSelect?._id,
   releaseDate: formData.releaseDate || new Date().toISOString().split('T')[0],
-
-
-
-
+    mood: formData.mood || [],
+ subMoods: Object.values(formData.subMoods || {}).flat(),
   featuringArtist: Array.isArray(formData.featuringArtist)
   ? formData.featuringArtist.map(s => s.trim())
   : typeof formData.featuringArtist === 'string'
@@ -587,8 +589,8 @@ composer: Array.isArray(formData.composer)
   ? formData.composer
   : typeof formData.composer === 'string'
     ? formData.composer.split(',').map((entry) => {
-        const [name, role = ''] = entry.split(':').map(s => s.trim());
-        return { name, role };
+        const [name, contribution = ''] = entry.split(':').map(s => s.trim());
+        return { name, contribution };
       })
     : [],
 
@@ -599,19 +601,6 @@ composer: Array.isArray(formData.composer)
 };
 
 
-  console.log("🎯 Prepared variables:");
-console.log("🔹 songId:", songId);
-console.log("🔹 title:", formData.title);
-console.log("🔹 album:", albumToSelect?._id);
-console.log("🔹 releaseDate:", formData.releaseDate);
-console.log("🔹 featuringArtist:", formData.featuringArtist);
-console.log("🔹 trackNumber:", formData.trackNumber);
-console.log("🔹 genre:", formData.genre);
-console.log("🔹 producer:", formData.producer);
-console.log("🔹 composer:", formData.composer);
-console.log("🔹 label:", formData.label);
-console.log("🔹 lyrics:", formData.lyrics);
-console.log("🔹 artwork:", songCoverImage);
 
 
 
@@ -764,6 +753,8 @@ try {
         errors={errors} 
         albumToSelect={albumToSelect} 
         albums={albums} 
+        watch={watch}
+        setValue={setValue}
         refetchAlbums={refetchAlbums} 
         handleAlbumChange={handleAlbumChange}
       />

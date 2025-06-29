@@ -40,6 +40,8 @@ type Song {
   album: Album!         
   trackNumber: Int
   genre: String
+  mood: [String]
+  subMoods: [String]
   producer: [Producer]
   composer: [Composer]
   label: String
@@ -58,8 +60,10 @@ type Song {
  tempo: Float
  key: String
  mode: Int
+ visibility: String
  timeSignature: Int
 keyConfidence: Int
+createdAt: Date!
 }
 
 
@@ -71,7 +75,7 @@ type Producer {
 
 type Composer {
   name: String
-  role: String
+  contribution: String
 }
 
 input ProducerInput {
@@ -136,22 +140,6 @@ type Album {
 }
 
 
-type Query {
-  allArtists: [Artist]
-  artistProfile: Artist
-  songsOfArtist: [Song]
-  songHash(audioHash: String):Song
-  albumOfArtist: [Album]
-  getPresignedUrl(key: String!, operation: String!): String
-  songUrls(
-    songId: ID!
-    artistId: ID!
-  ): File
-
-  songById(songId: ID!): Song
-  
-}
-
 type AuthPayload_artist {
   artistToken: String!
   artist: Artist
@@ -180,6 +168,26 @@ type PresignedUrlResponse {
   expiration: String
 }
 
+
+type Query {
+  allArtists: [Artist]
+  artistProfile: Artist
+  songsOfArtist: [Song]
+  songHash(audioHash: String):Song
+  albumOfArtist: [Album]
+  getPresignedUrl(key: String!, operation: String!): String
+  songUrls(
+    songId: ID!
+    artistId: ID!
+  ): File
+
+  songById(songId: ID!): Song
+
+ 
+  
+}
+
+
 type Mutation {
   createArtist(
     fullName: String!
@@ -198,6 +206,9 @@ type Mutation {
   selectPlan(artistId: ID!, plan: String!): Artist
   getPresignedUrl(bucket: String!, key: String!, region: String!): PresignedUrlResponse
   getPresignedUrlDownload(bucket: String!, key: String!, region: String!): PresignedUrlResponse
+
+   getPresignedUrlDownloadAudio(bucket: String!, key: String!, region: String!): PresignedUrlResponse
+
   getPresignedUrlDelete(bucket: String!, key: String!, region: String!): PresignedUrlResponse
   
   artist_login(email: String!, password: String!): AuthPayload_artist
@@ -237,6 +248,8 @@ type Mutation {
    producer: [ProducerInput]
   composer: [ComposerInput]
   label: String
+  mood: [String]
+  subMoods:[String]
   releaseDate: Date!
   lyrics: String
   artwork: String
@@ -256,16 +269,19 @@ addArtwork(
 ): Song
 
 
-
-
-
-
   songUpload(
     file: Upload
     tempo: Float
     beats: [Float]
     timeSignature: Int
   ): Song!
+
+
+toggleVisibility(songId: ID!, visibility: String!): Song
+
+deleteSong(
+  songId: ID!
+): Song
 
 
   createAlbum(
@@ -305,7 +321,7 @@ addArtwork(
 
 
 
-  deleteSong(artistId: ID!, songId: ID!): Song
+
 
  
 

@@ -143,19 +143,47 @@ query albumOfArtist{
 }
 `
 
-// export const SONG_OF_ARTIST =gql`
-// query SongsOfArtist {
-//   songsOfArtist {
-//     _id
-//     audioHash
-//     title
-//     album {
-//       title
-//       _id
-//     }
-//   }
-// }
-// `
+export const SONG_OF_ARTIST = gql`
+  query songsOfArtist {
+    songsOfArtist {
+      _id
+      album {
+        _id
+        title
+      }
+      createdAt
+      artist {
+        _id
+      }
+      playCount
+      producer {
+        name
+        role
+      }
+      composer {
+        name
+        contribution
+      }
+      title
+      artwork
+      audioFileUrl
+      downloadCount
+      featuringArtist
+      genre
+      lyrics
+      visibility
+      label
+      releaseDate
+      streamAudioFileUrl
+      trendingScore
+      trackNumber
+      likedByUsers {
+        _id
+      }
+    }
+  }
+`;
+
 
 
 // export const SONG_HASH = gql`
