@@ -145,6 +145,7 @@ export default function ArtistStudio() {
   return (
     <>
 
+
 <ThemeProvider theme={theme}>
 
 
@@ -184,17 +185,17 @@ export default function ArtistStudio() {
 
         <Box
           component="main"
-          sx={(theme) => ({
-            flexGrow: 0,
+         sx={{
+           flexGrow: 1,
             width: '100%',
+            height: 'auto',
 
             overflow: "auto",
-            bgcolor: "var(  --secondary-background-color)",
+            bgcolor: "var(--primary-background-color)",
             alignItems: "center",
-            justifyContent: "center",
-          })}
+         }}
         >
-          <Stack
+          <Box
             spacing={4}
             sx={{
               alignItems: "center",
@@ -217,7 +218,7 @@ export default function ArtistStudio() {
               <Outlet />
           </Box>
 
-          </Stack>
+          </Box>
         </Box>
       </Box>
 </ThemeProvider>

@@ -19,6 +19,7 @@ import CustomAlbum from "../homeFreePlanComponents/albumContent/CustomAlbum";
 import TruckNumber from "./inputsForSong/TruckNumber";
 import SongLabel from "./inputsForSong/SongLabel";
 import Genre from './inputsForSong/Genre';
+import Mood from "./Mood";
 import ReleaseDate from './inputsForSong/ReleaseDate';
 import {
   MusicNote as MusicNoteIcon,
@@ -32,10 +33,14 @@ import TextField from "@mui/material/TextField";
 
 import InputAdornment from "@mui/material/InputAdornment";
 
+
+
 export default function Metadata({
   Controller,
+  setValue,
   onSubmit,
   handleSubmit,
+   watch,
   control,
   register,
   refetchAlbums,
@@ -156,9 +161,9 @@ error={!!errors.title}
 </Box>
 
 
-          <FeaturingArtist register={register} errors={errors} />
-          <Producer register={register} errors={errors} />
-          <Composer register={register} errors={errors} />
+          <FeaturingArtist register={register} watch={watch} setValue={setValue} errors={errors} />
+          <Producer register={register} watch={watch} setValue={setValue} errors={errors} />
+          <Composer register={register} watch={watch} setValue={setValue} errors={errors}  />
           
           <AlbumSong
           key="album"
@@ -175,6 +180,7 @@ error={!!errors.title}
 
            <TruckNumber key="track" register={register} errors={errors} />
            <Genre register={register} Controller={Controller}  control={control}  errors={errors} />
+           <Mood control={control} watch={watch} /> 
            <SongLabel register={register} errors={errors}/>
            <ReleaseDate register={register} errors={errors} />
 

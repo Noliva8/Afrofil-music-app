@@ -225,6 +225,16 @@ mutation getPresignedUrlDownload($bucket: String!, $key: String!, $region: Strin
 }
 `
 
+
+export const GET_PRESIGNED_URL_DOWNLOAD_AUDIO =gql `
+mutation getPresignedUrlDownloadAudio($bucket: String!, $key: String!, $region: String!) {
+  getPresignedUrlDownloadAudio(bucket: $bucket, key: $key, region: $region) {
+    expiration
+    url
+  }
+}
+`
+
 export const GET_PRESIGNED_URL_DELETE = gql`
 mutation getPresignedUrlDelete($bucket: String!, $key: String!, $region: String!) {
   getPresignedUrlDelete(bucket: $bucket, key: $key, region: $region) {
@@ -237,13 +247,45 @@ mutation getPresignedUrlDelete($bucket: String!, $key: String!, $region: String!
 
 
 export const UPDATE_SONG = gql`
-mutation UpdateSong($songId: ID!, $title: String!, $album: ID!, $releaseDate: Date!, $composer: [ComposerInput], $producer: [ProducerInput], $trackNumber: Int, $genre: String, $featuringArtist: [String], $lyrics: String, $artwork: String, $label: String) {
-  updateSong(songId: $songId, title: $title, album: $album, releaseDate: $releaseDate, composer: $composer, producer: $producer, trackNumber: $trackNumber, genre: $genre, featuringArtist: $featuringArtist, lyrics: $lyrics, artwork: $artwork, label: $label) {
-    _id
-    
+  mutation UpdateSong(
+    $songId: ID!
+    $title: String!
+    $album: ID!
+    $releaseDate: Date!
+    $composer: [ComposerInput]
+    $producer: [ProducerInput]
+    $trackNumber: Int
+    $genre: String
+    $featuringArtist: [String]
+    $lyrics: String
+    $artwork: String
+    $label: String
+    $mood: [String]
+    $subMoods: [String]
+  ) {
+    updateSong(
+      songId: $songId
+      title: $title
+      album: $album
+      releaseDate: $releaseDate
+      composer: $composer
+      producer: $producer
+      trackNumber: $trackNumber
+      genre: $genre
+      featuringArtist: $featuringArtist
+      lyrics: $lyrics
+      artwork: $artwork
+      label: $label
+      mood: $mood
+      subMoods: $subMoods
+    ) {
+      _id
+      mood
+      subMoods
+    }
   }
-}
-`
+`;
+
 
 
 export const ADD_LYRICS = gql`
@@ -274,6 +316,30 @@ mutation songUpload($file: Upload, $tempo: Float, $beats: [Float], $timeSignatur
   }
 }
 `
+
+
+export const TOGGLE_VISIBILITY = gql`
+  mutation toggleVisibility($songId: ID!, $visibility: String!) {
+    toggleVisibility(songId: $songId, visibility: $visibility) {
+      _id
+      visibility
+      title
+    }
+  }
+`;
+
+
+
+export const DELETE_SONG = gql`
+  mutation deleteSong($songId: ID!) {
+    deleteSong(songId: $songId) {
+      _id
+      title
+    }
+  }
+`;
+
+
 
 export const CREATE_ALBUM = gql`
 mutation createAlbum($title: String!) {

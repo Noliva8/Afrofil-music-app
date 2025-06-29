@@ -205,17 +205,20 @@ const response = await addArtwork({ variables });
         )}
       </Box>
 
-           <Button
-    variant="contained"
-    sx={{
-      color: 'var(--primary-background-color)',
-      backgroundColor: 'var(--primary-font-color)',
-      fontFamily: 'Roboto',
-    }}
-    type="submit"
-  >
-    Finish
-  </Button>
+    <Button
+  variant="contained"
+  sx={{
+    color: 'var(--primary-background-color)',
+    backgroundColor: 'var(--primary-font-color)',
+    fontFamily: 'Roboto',
+  }}
+  type="submit"
+  disabled={isLoading || !currentImageUrl} 
+>
+  {isLoading ? "Uploading..." : "Finish"}
+</Button>
+
+
       </form>
     </Paper>
   );

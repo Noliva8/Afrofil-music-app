@@ -106,6 +106,7 @@ function App() {
   const loggedIn = Auth.loggedIn(); 
 
   return (
+
     <ApolloProvider client={client}>
       {loggedIn && (
         <>
@@ -117,6 +118,7 @@ function App() {
         <Outlet /> {/* Render the child routes */}
       </div>
     </ApolloProvider>
+    
   );
 }
 
