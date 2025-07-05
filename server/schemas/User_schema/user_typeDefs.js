@@ -12,10 +12,12 @@ type User {
   createdAt: Date!
 }
 
+
 enum UserRole {
   USER
   ADMIN
 }
+
 
 type Playlist {
   _id: ID!
@@ -71,29 +73,14 @@ type Comment {
   createdAt: Date!
 }
 
-type Song {
-  _id: ID!
-  title: String!
-  artist: Artist
-  album: Album
-  
-  duration: Int!
-  releaseDate: Date!
-}
 
-type Artist {
-  artistAka: String!
-  bio: String
-  coverImage: String
-}
 
-type Album {
-  title: String!
-  artist: Artist
-  releaseDate: Date!
-  songs: [Song]
- 
-}
+
+
+
+
+
+
 
 
 
@@ -102,28 +89,22 @@ type Query {
   users: [User]
   userById(userId: ID!): User
   searchUser(username: String!): User
-
- 
  liked_songsByUser(userId: ID!): [Song]
  searched_songsByUser(userId: ID!): [Song]
  recommended_songsByUser(userId: ID!): [Song]
  downloaded_songsByUser(userId: ID!): [Song]
+trendingSongs: [Song!]!
 
 
-  # Songs
-  songs: [Song]
-  song(songId: ID!): Song
-  searchSong(title: String, artist: String): [Song]
 
-  # Albums
-  albums: [Album]
-  album(albumId: ID!): Album
-  searchAlbum(title: String, artist: String): Album
 
-  # Artists
-  artists: [Artist]
-  artist(artistId: ID!, songId: ID!): Artist
-  songsByArtist(name: String): [Song]
+
+
+  
+ 
+ 
+
+
 
 
 

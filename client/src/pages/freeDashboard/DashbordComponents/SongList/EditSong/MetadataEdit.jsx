@@ -11,7 +11,7 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import Fade from "@mui/material/Fade";
 import Button from "@mui/material/Button";
-import {  useTheme }from "@mui/material";
+import {  useTheme, useMediaQuery  }from "@mui/material";
 import { useFieldArray } from 'react-hook-form';
 
 import {
@@ -48,12 +48,13 @@ import { GET_ALBUM } from "../../../../../utils/queries";
 
 
 
+
 const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
 
 export default function  MetadataEdit( {song, onClose, refetch}){
-
-
  const theme = useTheme();
+ const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
 const [updateSong] = useMutation(UPDATE_SONG);
 
  const [activeStep, setActiveStep] = useState(0);
@@ -235,191 +236,208 @@ if (albumLoading) return 'album is loading ...';
 if (albumError) return `Error! ${albumError.message}`;
 
     return(
-<>
-{activeStep === 0 &&(
+ <>
+      {activeStep === 0 && (
+        <Fade in timeout={500}>
+          <Paper
+            elevation={3}
+            sx={{
+              backgroundColor: theme.palette.primary.main,
+              padding: isMobile ? 2 : 4,
+              width: "100%",
+              height: "auto",
+              borderRadius: theme.spacing(4),
+              backdropFilter: "blur(10px)",
+              border: "2px solid rgba(255, 255, 255, 0.2)",
+              maxWidth: isMobile ? '100%' : '800px',
+              mx: 'auto'
+            }}
+          >
+            <Typography
+              variant={isMobile ? "h5" : "h4"}
+              component="h1"
+              gutterBottom
+              sx={{
+                fontWeight: 700,
+                background: "linear-gradient(45deg, #6a11cb 30%, #2575fc 90%)",
+                WebkitBackgroundClip: "text",
+                color: "white",
+                textAlign: "center",
+                mb: 3,
+              }}
+            >
+              Song Details
+            </Typography>
 
-   <Fade in timeout={500}>
-      <Paper
-        elevation={3}
-        sx={{
-          backgroundColor: theme.palette.primary.main,
-          padding: theme.spacing(1),
-          width: "100%",
+            <form onSubmit={handleSubmit(onSubmit)}>
+              {/* Title Field - Responsive */}
+              <Box mb={2} sx={{ width: '100%' }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: "#ffffff",
+                    fontWeight: 500,
+                    mb: 0.5,
+                  }}
+                >
+                  Title
+                </Typography>
 
-          p: 4,
-          height: "auto",
-          borderRadius: theme.spacing(4),
-          backdropFilter: "blur(10px)",
-          border: "2px solid rgba(255, 255, 255, 0.2)",
-        }}
-      >
-        
-        <Typography
-          variant="h4"
-          component="h1"
-          gutterBottom
-          sx={{
-            fontWeight: 700,
-            background: "linear-gradient(45deg, #6a11cb 30%, #2575fc 90%)",
-            WebkitBackgroundClip: "text",
+                <TextField
+                  fullWidth
+                  placeholder="Enter song title"
+                  {...register('title', {required: 'Title is required'})}
+                  error={!!errors.title}
+                  helperText={errors.title?.message || ''}
+                  margin="normal"
+                  variant="outlined"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <MusicNoteIcon color="primary" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      color: "#ffffff",
+                      "& fieldset": {
+                        borderColor: "rgba(255, 255, 255, 0.2)",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: "#ffde00",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#ffde00",
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "rgba(255, 255, 255, 0.7)",
+                    },
+                    "& .MuiInputLabel-root.Mui-focused": {
+                      color: "#ffde00",
+                    },
+                  }}
+                />
+              </Box>
 
-            color: "white",
-            textAlign: "center",
-            mb: 3,
-          }}
-        >
-          Song Details
-        </Typography>
+              {/* Responsive Form Components */}
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                gap: 2
+              }}>
+                <Box>
+                  <FeaturingArtist 
+                    register={register}  
+                    errors={errors} 
+                    setValue={setValue} 
+                    watch={watch} 
+                  />
+                </Box>
+                <Box>
+                  <Producer 
+                    register={register} 
+                    watch={watch} 
+                    setValue={setValue} 
+                    errors={errors} 
+                  />
+                </Box>
+              </Box>
 
-        <form onSubmit={handleSubmit((onSubmit))}>
+              <Composer 
+                register={register} 
+                errors={errors} 
+                watch={watch} 
+                setValue={setValue} 
+              />
 
-          {/* input 1 */}
+              <AlbumSong
+                key="album"
+                register={register}
+                Controller={Controller}
+                control={control}
+                errors={errors}
+                albumToSelect={albumToSelect}
+                refetchAlbums={refetchAlbums} 
+                setValue={setValue}
+                albums={albums}
+                handleAlbumChange={handleAlbumChange}
+              />
 
-<Box mb={2}
-sx={{
-   display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'flex-start',
-      alignItems: 'start'
-}}>
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
+                gap: 2,
+                mt: 2
+              }}>
+                <Box>
+                  <TruckNumber key="track" register={register} errors={errors} />
+                </Box>
+                <Box>
+                  <Genre 
+                    register={register} 
+                    Controller={Controller}  
+                    control={control}  
+                    errors={errors} 
+                  />
+                </Box>
+                <Box>
+                  <SongLabel register={register} errors={errors}/>
+                </Box>
+              </Box>
 
-  <Typography
-    variant="body1"
-    sx={{
-     
-      color: "#ffffff",
-      fontWeight: 500,
-      mb: 0.5,
-    }}
-  >
-    Title
-  </Typography>
+              <Mood control={control} watch={watch} />
+              <ReleaseDate register={register} errors={errors} />
 
-  <TextField
-    fullWidth
-    
-    placeholder="Enter song title"
-  
-{...register('title', {required: 'Title is required'})}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'flex-end',
+                mt: 3
+              }}>
+                <Button
+                  variant="contained"
+                  sx={{
+                    color: 'var(--primary-background-color)',
+                    backgroundColor: 'var(--primary-font-color)',
+                    fontFamily: 'Roboto',
+                    width: isMobile ? '100%' : 'auto',
+                    py: 1.5
+                  }}
+                  type="submit"
+                >
+                  Update Song
+                </Button>
+              </Box>
+            </form>
+          </Paper>
+        </Fade>
+      )}
 
-error={!!errors.title}
-  helperText={errors.title?.message || ''}
-    margin="normal"
-    variant="outlined"
-    InputProps={{
-      startAdornment: (
-        <InputAdornment position="start">
-          <MusicNoteIcon color="primary" />
-        </InputAdornment>
-      ),
-    }}
-    
-    sx={{
-      "& .MuiOutlinedInput-root": {
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        color: "#ffffff",
-        "& fieldset": {
-          borderColor: "rgba(255, 255, 255, 0.2)",
-        },
-        "&:hover fieldset": {
-          borderColor: "#ffde00",
-        },
-        "&.Mui-focused fieldset": {
-          borderColor: "#ffde00",
-        },
-      },
-      "& .MuiInputLabel-root": {
-        color: "rgba(255, 255, 255, 0.7)",
-      },
-      "& .MuiInputLabel-root.Mui-focused": {
-        color: "#ffde00",
-      },
-    }}
-  />
+      {/* Keep your existing activeStep 1 and 2 components exactly as they were */}
+      {activeStep === 1 && (
+        <Box>
+          <LyricsEditSong  
+            activeStep={activeStep} 
+            setActiveStep={setActiveStep} 
+            songId={songId} 
+            song={song}
+          />
+        </Box>
+      )}
 
-
-
-
-
-</Box>
-          <FeaturingArtist register={register}  errors={errors} setValue={setValue} watch={watch} />
-          <Producer register={register} watch={watch} setValue={setValue} errors={errors} />
-          <Composer register={register} errors={errors} watch={watch} setValue={setValue} />
-
-          
-          <AlbumSong
-          key="album"
-          register={register}
-          Controller={Controller}
-          control={control}
-          errors={errors}
-          albumToSelect={albumToSelect}
-           refetchAlbums={refetchAlbums} 
-           setValue={setValue}
-          albums={albums}
-          handleAlbumChange={handleAlbumChange}
-        />
-
-
-
-           <TruckNumber key="track" register={register} errors={errors} />
-           <Genre register={register} Controller={Controller}  control={control}  errors={errors} />
-           < Mood control={control} watch={watch} />
-           <SongLabel register={register} errors={errors}/>
-           <ReleaseDate register={register} errors={errors} />
-
-
-            <Button
-    variant="contained"
-    sx={{
-      color: 'var(--primary-background-color)',
-      backgroundColor: 'var(--primary-font-color)',
-      fontFamily: 'Roboto',
-    }}
-    type="submit"
-  >
-   Update Song
-  </Button>
-
-
-        </form>
-
-      <Box
-  sx={{
-    display: 'flex',
-    justifyContent: 'flex-end', 
-    mt: 3,
-    margin: '2rem'
-  }}
->
- 
-</Box>
-
-
-
-      </Paper>
-    </Fade>
-
-)}
-
-{activeStep === 1 && (
-    <Box>
-         <LyricsEditSong  activeStep={activeStep} setActiveStep={setActiveStep} songId={songId} song={song}/>
-    </Box>
-)}
-
-{activeStep === 2 && (
-    <Box>
-        <SongCoverSongEdit
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-          songId={songId}
-          song={song}
-          onClose={onClose}
-        />
-      </Box>
-)}
-     
-</>
-    )
+      {activeStep === 2 && (
+        <Box>
+          <SongCoverSongEdit
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+            songId={songId}
+            song={song}
+            onClose={onClose}
+          />
+        </Box>
+      )}
+    </>
+  )
 }

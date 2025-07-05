@@ -1,357 +1,278 @@
-p{
-  color: white;
-  display: flex;
-  justify-content: center;
-  font-family: 'Montserrat Alternates', sans-serif;
-     font-size: 16px;
-     font-weight: 700;
-}
-h2{
-   color: white;
-  font-family: 'Montserrat Alternates', sans-serif;
-  font-weight: 700;
-  margin: 0; /* Remove default margin */
-  padding-bottom: 20px; /* Space between text and line */
-  text-align: center;
+/* Base Styles */
+:root {
+  --primary-bg: #f5f5f5;
+  --secondary-bg: #ffffff;
+  --text-color: #333333;
+  --accent-color: #441a49;
+  --accent-hover: #5d2463;
+  --submit-color: #1a5d5d;
+  --submit-hover: #247474;
+  --border-color: #dddddd;
+  --error-color: #d32f2f;
+  --secondary-text: #666666;
+  --input-bg: #ffffff;
 }
 
+.dark-mode {
+  --primary-bg: #121212;
+  --secondary-bg: #1e1e1e;
+  --text-color: #f5f5f5;
+  --accent-color: #8a3b92;
+  --accent-hover: #a14da9;
+  --submit-color: #247474;
+  --submit-hover: #2d8d8d;
+  --border-color: #444444;
+  --error-color: #ff6b6b;
+  --secondary-text: #aaaaaa;
+  --input-bg: #2d2d2d;
+}
 
-.login-page{
+body {
+  background-color: var(--primary-bg);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.auth-container {
+  max-width: 100%;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  background-color: #000000;;
-}
-
-.content{
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 10px;
-}
-
-.logo{
-    width: 200px;
-}
-
-/* Center the content */
-.content h1{
-  color: white;
-  font-size: 30px;
-  font-family: 'Montserrat Alternates';
-  font-weight: 700;
-  text-wrap: nowrap; 
-
-}
-
-.content p{
-     color: white;
-    text-align: center;
-     
-     font-size: 16px;
-     font-weight: 700;
-}
-
-/* Style and position the buttons */
-.signbtn {
-  display: flex;
-  justify-content: center;
-  gap: 60px;
-  position: absolute;
-  bottom: 30px;
-  width: 100%;
-  
-  padding: 0 20px; 
-}
-
-.signbtn button {
-  padding: 20px 40px;
-  font-size: 18px;
-  font-family: 'Montserrat Alternates', sans-serif;
-  font-weight: 700; 
-  cursor: pointer;
-  background-color: transparent;
-  border: 2px solid white;
-  color: white;
-  border-radius: 30px;
-  transition: background-color 0.3s ease;
-  font-size: 1.2rem;
-}
-
-
-.signbtn button:hover {
-  background-color: #153e75;
-}
-
-#signUpOnly{
-    background-color: aliceblue;
-    color: black;
-    font-size: 22px;
-}
-
-
-
-.login-form{
-  width: 100%;
-  min-height: 100vh;
-  align-items: center;
-  position: relative;
-  background-color: #000000;;
-}
-
-
-.loginHeader{
-  display: flex;
-flex-direction: column;
-align-items: center;
-}
-
-.loginHeader h2{
-  color: white;
-  font-size: 20px;
-  font-family: 'Montserrat Alternates', sans-serif;
-}
-
-.loginForm, .signup-form {
-  width: 85%;
-  max-width: 400px; 
-  margin: 100px auto; 
-  display: flex;
-  flex-direction: column;
-  gap: 20px; 
-  padding: 20px;
-  border: 2px solid #f17721;
-  border-radius: 10px;
-  background-color: #1a1a1a;
-}
-
-.loginFormInputs {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative
-}
-
-.loginFormInputs label {
-  color: white;
-  font-size: 16px;
-  font-family: 'Montserrat Alternates', sans-serif;
-}
-
-.loginFormInputs input {
-  padding: 10px 15px;
-  border: 1px solid #555;
-  border-radius: 8px;
-  background-color: #222; 
-  color: white;
-  font-family: 'Montserrat Alternates', sans-serif;
-  font-size: 14px;
-   padding-right: 2rem; /* Make space for the icon */
-  box-sizing: border-box;
-}
-
-
-.loginFormInputs input:focus {
-  outline: none;
-  border-color: #f17721;
-  box-shadow: 0 0 5px rgba(242, 117, 33, 0.7); /
-}
-
-.loginForm button {
-  padding: 12px 20px;
-  background-color:white;
-  color: black;
-  font-family: 'Montserrat Alternates', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-}
-
-.loginForm button:hover {
-  background-color: #d6631b;
-  transform: scale(1.02); 
-}
-
-.loginForm button:active {
-  transform: scale(0.98); 
-}
-
-.goBackLogin {
-  background: none !important;
-  border: none;
-  color: white !important;
-  font-family: 'Montserrat Alternates', sans-serif;
-  font-size: 14px;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.goBackLogin:hover {
-  text-decoration: none; /* Remove underline on hover for emphasis */
-  color: #d6631b; /* Optional: Darker shade for hover */
-}
-
-.goBackLogin:focus {
-  outline: none; /* Remove focus outline */
-}
-
-
-
-
-
-/* Style the password container to align icon */
-.password-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.password-container .toggle-password {
-  position: absolute;
-  right: 0.5rem; /* Adjust spacing from the right edge */
-  cursor: pointer;
-  color: #999; 
-}
-
-.password-container input {
-  flex: 1; /* Ensure input takes full width minus the icon */
-}
-
-/* Adjust for focus */
-.password-container input:focus + .toggle-password {
-  color: #333;
-}
-
-
-.customEye{
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  margin-right: 10px;
-  margin-bottom: 10px;
-  color: #999
-}
-
-
-.sampleForm{
-  background-color: #d6631b !important;
-height: 100%;
-width: 100%;
-  
-}
-
-
-/* artist registration other styling
------------------------------ /* */ */
-/* artist registration other styling */
-/* Container styling */
-.artistHome {
-  background-color: #1a1a1a;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 20px;
- 
-  text-align: center;
-  box-sizing: border-box; /* Ensure padding is inside the container */
-}
-
-.content1 {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
- 
-  margin-top: 20px; /* Space from other elements */
   box-sizing: border-box;
-}
-/* Title styling */
-.artistHome h1 {
-  color: white;
-  font-size: 2rem; /* Scales well for larger screens */
-  font-family: 'Montserrat Alternates', sans-serif;
-  font-weight: 700;
-  margin: 0; /* Remove default margin */
-  padding-bottom: 20px; /* Space between text and line */
-  text-align: center;
-  line-height: 1.2; /* Improve readability by adjusting line height */
+  background-color: var(--primary-bg);
 }
 
-/* Afrofeel color class */
-.afrofeelColor {
-  color: #D9AB23;
-}
-
-/* Line styling */
-.line {
-  width: 50%; 
-  max-width: 600px; 
+.logo {
+  max-width: 150px;
+  height: auto;
   margin-bottom: 20px;
-  height: 4px; 
-  background-color: #D9AB23;
-  border-radius: 2px;
-  animation: slideIn 1s ease-in-out forwards; /* Animate appearance */
+  filter: brightness(0.9);
 }
 
-/* Keyframe animation */
-@keyframes slideIn {
-  from {
-    width: 0;
-  }
-  to {
-    width: 50%; 
-  }
+/* Dark Mode Toggle */
+.dark-mode-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.3s ease;
 }
 
-/* Media queries for responsiveness */
-
-/* For large screens (desktop) */
-@media (min-width: 1200px) {
-  .artistHome {
-    padding: 40px; /* Add more padding for spacious layout */
-  }
-  .artistHome h1 {
-    font-size: 3rem; /* Larger font size for large screens */
-  }
-  .line {
-    width: 40%; /* Slightly narrower line for large screens */
-  }
+.dark-mode-toggle:hover {
+  background: var(--accent-hover);
+  transform: scale(1.1);
 }
 
-/* For medium screens (tablets) */
+
+
+
+
+/* Welcome Screen */
+.welcome-screen {
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.welcome-content h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  color: var(--text-color);
+}
+
+.welcome-content p {
+  font-size: 1rem;
+  color: var(--secondary-text);
+  margin-bottom: 30px;
+}
+
+
+
+
+
+/* Auth Forms */
+.auth-form {
+  width: 100%;
+  max-width: 400px;
+  background: var(--secondary-bg);
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.auth-header h2 {
+  font-size: 1.8rem;
+  color: var(--text-color);
+}
+
+/* Form Elements */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: var(--secondary-text);
+}
+
+.form-group input {
+  padding: 12px;
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.password-input {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--secondary-text);
+  cursor: pointer;
+  padding: 5px;
+}
+
+/* Buttons */
+.auth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+.auth-button, .submit-button, .switch-button {
+  padding: 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.auth-button {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.auth-button:hover {
+  background-color: var(--accent-hover);
+}
+
+.submit-button {
+  background-color: var(--submit-color);
+  color: white;
+  margin-top: 10px;
+}
+
+.submit-button:hover {
+  background-color: var(--submit-hover);
+}
+
+.switch-button {
+  background: none;
+  color: var(--submit-color);
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* Error Message */
+.error-message {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: -10px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.auth-switch p {
+  color: var(--secondary-text);
+  margin-bottom: 5px;
+}
+
+/* Responsive Adjustments */
 @media (max-width: 768px) {
-  .artistHome {
-    padding: 30px; /* Adjust padding for medium screens */
+  .auth-container {
+    padding: 15px;
   }
-  .artistHome h1 {
-    font-size: 2rem; /* Scale down for medium screens */
-    padding-top: 20px;
+  
+  .auth-form {
+    padding: 20px;
   }
-  .line {
-    width: 70%; /* Wider line for medium screens */
+  
+  .welcome-content h1 {
+    font-size: 1.8rem;
   }
 }
 
-/* For small screens (mobile) */
 @media (max-width: 480px) {
-  .artistHome {
-    padding: 20px; /* Keep padding consistent for small screens */
+  .logo {
+    max-width: 120px;
   }
-  .artistHome h1 {
-    font-size: 1.5rem; /* Smaller font size for mobile screens */
-    padding-top: 10px; /* Reduced padding for mobile */
+  
+  .welcome-content h1 {
+    font-size: 1.5rem;
   }
-  .line {
-    width: 80%; /* Make the line wider for mobile */
+  
+  .auth-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .form-group input {
+    padding: 10px;
+  }
+  
+  .auth-button, .submit-button {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+  
+  .dark-mode-toggle {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
   }
 }

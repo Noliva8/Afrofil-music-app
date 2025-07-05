@@ -18,7 +18,11 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { artist_typeDefs, artist_resolvers } from './schemas/Artist_schema/index.js';
 import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
+
 import { authMiddleware, getArtistFromToken} from './utils/artist_auth.js';
+import { user_authMiddleware, getUserFromToken } from './utils/user_auth.js';
+import { combinedAuthMiddleware } from './utils/combinedAuth.js';
+
 import merge from 'lodash.merge';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -71,26 +75,70 @@ const wsServer = new WebSocketServer({
 
 
 
+// const serverCleanup = useServer(
+//   {
+//     schema,
+//     context: async (ctx) => {
+//       try {
+//         // Get raw Authorization header
+//         const authHeader = ctx.connectionParams?.authorization || '';
+        
+//         // Verify token (simplified version)
+//         const token = authHeader.replace('Bearer ', '');
+//         if (!token) throw new Error('Missing token');
+
+//         // Verify and get artist
+//         const artist = await getArtistFromToken(token);
+//         if (!artist) throw new Error('Artist not found');
+
+//         return { artist };
+//       } catch (error) {
+//         console.error('WS Authentication Error:', error.message);
+//         // Close connection with specific code
+//         throw new Error('CONNECTION_INIT_ERROR: Authentication failed');
+//       }
+//     },
+//     onConnect: (ctx) => {
+//       console.log('New subscription connection');
+//     },
+//     onDisconnect: (ctx, code, reason) => {
+//       console.log(`Disconnected: ${code} ${reason}`);
+//     }
+//   },
+//   wsServer
+// );
+
+
+
 const serverCleanup = useServer(
   {
     schema,
     context: async (ctx) => {
       try {
-        // Get raw Authorization header
         const authHeader = ctx.connectionParams?.authorization || '';
-        
-        // Verify token (simplified version)
         const token = authHeader.replace('Bearer ', '');
-        if (!token) throw new Error('Missing token');
 
-        // Verify and get artist
-        const artist = await getArtistFromToken(token);
-        if (!artist) throw new Error('Artist not found');
+        let context = {};
 
-        return { artist };
+        try {
+          const artist = await getArtistFromToken(token);
+          if (artist) context.artist = artist;
+        } catch (_) {}
+
+        if (!context.artist) {
+          try {
+            const user = await getUserFromToken(token);
+            if (user) context.user = user;
+          } catch (_) {}
+        }
+
+        if (!context.artist && !context.user) {
+          throw new Error('Authentication failed');
+        }
+
+        return context;
       } catch (error) {
         console.error('WS Authentication Error:', error.message);
-        // Close connection with specific code
         throw new Error('CONNECTION_INIT_ERROR: Authentication failed');
       }
     },
@@ -103,6 +151,8 @@ const serverCleanup = useServer(
   },
   wsServer
 );
+
+
 
 
 // Set up Apollo Server with GraphQL schema
@@ -121,11 +171,11 @@ const server = new ApolloServer({
       }
     }
   ],
-  context: authMiddleware,
+  context: combinedAuthMiddleware,
   csrfPrevention: process.env.NODE_ENV === 'production'
 });
 
-
+//  context: authMiddleware,
 
 
 
@@ -140,9 +190,11 @@ const startApolloServer = async () => {
 
         // Use Apollo Server middleware
         app.use('/graphql', expressMiddleware(server, {
-            context: authMiddleware,
+            context: combinedAuthMiddleware,
             
         }));
+
+// context: authMiddleware,
 
         // Email verification route
         app.get('/confirmation/:artist_id_token', async (req, res) => {

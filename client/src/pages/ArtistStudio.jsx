@@ -218,6 +218,8 @@ export default function ArtistStudio() {
               <Outlet />
           </Box>
 
+          
+
           </Box>
         </Box>
       </Box>

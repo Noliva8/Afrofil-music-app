@@ -118,6 +118,7 @@ composer: [
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],
+  
   trendingScore: {
     type: Number,
     default: 0

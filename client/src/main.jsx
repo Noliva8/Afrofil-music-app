@@ -34,6 +34,7 @@ const ProtectedRoute = ({ element }) => {
 
 const ArtistProtectedRoute = ({ element, redirectToVerification = false }) => {
   const isArtistLoggedIn = ArtistAuth.isArtist();
+
   const profile = ArtistAuth.getProfile();
 
   // Debug logs

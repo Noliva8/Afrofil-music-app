@@ -1,47 +1,48 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { useApolloClient } from "@apollo/client";
-import { useQuery, useMutation } from "@apollo/client";
-import { useRef } from "react";
-import { useSubscription } from '@apollo/client';
-import Stack from "@mui/material/Stack";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import { useForm, Controller} from "react-hook-form"
-import { SONG_UPLOAD, UPDATE_SONG, GET_PRESIGNED_URL} from "../../utils/mutations";
-import { GET_ALBUM, SONG_BY_ID } from "../../utils/queries";
+import { useApolloClient, useQuery, useMutation, useSubscription } from "@apollo/client";
+import {
+  Box,
+  Paper,
+  Typography,
+  useTheme,
+  useMediaQuery
+} from "@mui/material";
+import { useForm, Controller } from "react-hook-form";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+import MusicTempo from "music-tempo";
+
+// Queries and Mutations
+import {
+  SONG_UPLOAD,
+  UPDATE_SONG,
+  GET_PRESIGNED_URL,
+  GET_PRESIGNED_URL_DOWNLOAD,
+  GET_PRESIGNED_URL_DELETE
+} from "../../utils/mutations";
+import { GET_ALBUM } from "../../utils/queries";
 import { SONG_UPLOAD_UPDATE } from "../../utils/subscription";
+
+// Components
 import SongUploadProgressComponent from "../../components/songContentPart/inputsForSong/songUploadUpdates";
 import SongCover from "../../components/songContentPart/SongCover";
-import { GET_PRESIGNED_URL_DOWNLOAD } from "../../utils/mutations";
-import { GET_PRESIGNED_URL_DELETE } from "../../utils/mutations";
-
-import TestUploadProgressTracker from "../../components/songContentPart/TestUploadProgress";
-import ArtistAuth from "../../utils/artist_auth";
-import Swal from "sweetalert2";
 import SongUpload from "../../components/songContentPart/SongUpload";
 import Metadata from "../../components/songContentPart/Metadata";
 import Lyrics from '../../components/songContentPart/Lirycs';
-import "../CSS/CSS-HOME-FREE-PLAN/content.css";
-import MusicTempo from "music-tempo";
+
+// Utils
+import ArtistAuth from "../../utils/artist_auth";
 import detectTimeSignature from "../../utils/timeSignature";
-// ----------------------------------------------
-import { toast } from "react-toastify";
+import "../CSS/CSS-HOME-FREE-PLAN/content.css";
+
 const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
 
-
-// Utulity
-
 function extractTitleFromFilename(filename) {
-  // Remove path information (handles both Unix and Windows paths)
   const basename = filename.split(/[\\/]/).pop();
-  // Remove file extension
-  const title = basename.replace(/\.[^/.]+$/, "");
-  // Clean up the title (optional)
-  return title
-    .replace(/[^a-zA-Z0-9 ]/g, ' ') 
-    .replace(/\s+/g, ' ')            
+  return basename.replace(/\.[^/.]+$/, "")
+    .replace(/[^a-zA-Z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -49,18 +50,10 @@ function extractTitleFromFilename(filename) {
 
 
 
-
 export default function ContentFreePlan() {
 
-// query the albums to display them
-// ------------------------------
-
-const { loading: albumLoading, error: albumError, data: albumData,  refetch: refetchAlbums} =useQuery(GET_ALBUM);
-
-    const { data: subscriptionData, loading: subscriptionLoading, error: subscriptionError } = useSubscription(SONG_UPLOAD_UPDATE);
-
-
-    const [uploadState, setUploadState] = useState({
+ // State management
+  const [uploadState, setUploadState] = useState({
     progress: 0,
     isValid: null,
     duplicate: null,
@@ -69,45 +62,45 @@ const { loading: albumLoading, error: albumError, data: albumData,  refetch: ref
     status: null,
     message: null
   });
-
- const [reloadFlag, setReloadFlag] = useState(false);
-const [uploadFailed, setUploadFailed] = useState(false);
-const [isSubmitting, setIsSubmitting] = useState(false);
-  const [skipped, setSkipped] = React.useState(new Set());
-const [albumToSelect, setAlbumToSelect] = useState('');
-const [albums, setAlbums] = useState([]);
+  const [reloadFlag, setReloadFlag] = useState(false);
+  const [uploadFailed, setUploadFailed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [albumToSelect, setAlbumToSelect] = useState('');
+  const [albums, setAlbums] = useState([]);
   const [activeStep, setActiveStep] = useState(0);
   const [isSongLoading, setIsSongLoading] = useState(false);
-  const [ uploadProgress, setUploadProgress] = useState(0);
-const [songId, setSongId] = useState('');
-
-  // Artwork state
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [songId, setSongId] = useState('');
   const [songCoverImage, setSongCoverImage] = useState('');
   const [keyToDelete, setKeyToDelete] = useState('');
   const [isCoverUploading, setIsCoverUploading] = useState(false);
   const [displayUrl, setDisplayUrl] = useState('');
 
-
-const { register, control, handleSubmit, setValue, watch, formState: { errors } } = useForm({defaultValues: {
-  title: '',
-}});
-
-
-const [updateSong] = useMutation(UPDATE_SONG);
-
-
-  // S3 mutations
+  // GraphQL operations
+  const { loading: albumLoading, error: albumError, data: albumData, refetch: refetchAlbums } = useQuery(GET_ALBUM);
+  const { data: subscriptionData, loading: subscriptionLoading, error: subscriptionError } = useSubscription(SONG_UPLOAD_UPDATE);
+  
+  const [updateSong] = useMutation(UPDATE_SONG);
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
   const [getPresignedUrlDelete] = useMutation(GET_PRESIGNED_URL_DELETE);
- 
+  const [songUpload] = useMutation(SONG_UPLOAD);
+
+  // Form handling
+  const { register, control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+    defaultValues: { title: '' }
+  });
+
+  // Responsive design
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
 
 
 
-  const [songUpload] =useMutation(SONG_UPLOAD);
 
-  const client = useApolloClient();
+
+  
 
 // upload image to s3 and save the url to the state
 // ===============================================
@@ -235,25 +228,7 @@ const handleSongCoverDisplay = async (fileName) => {
 
 // ======================================
 
-const handleNextStep = (event) => {
-  if (event && event.preventDefault) {
-    event.preventDefault();
-  }
 
-  if (activeStep < steps.length - 1) {
-    setActiveStep(activeStep + 1);
-  }
-};
-
-const handleBackStep = (event) => {
-  if (event && event.preventDefault) {
-    event.preventDefault();
-  }
-
-  if (activeStep > 0) {
-    setActiveStep(activeStep - 1);
-  }
-};
 
 
   const profile = ArtistAuth.getProfile();
@@ -332,7 +307,8 @@ reader.onload = async function (e) {
 
     // 🎯 Use the full audio buffer here (no trimming)
     const mt = new MusicTempo(audioData);
-    
+    console.log('🎵 Full Audio BPM:', mt.tempo);
+    console.log('🕒 Beats:', mt.beats);
 
     // Detect time signature
     const timeSignature = detectTimeSignature(mt.beats, mt.tempo);
@@ -662,144 +638,119 @@ try {
 
 
   return (
-    <>
-
-      <Box
-        className="contentContainer"
-        sx={{
-          display: "flex",
-
-          justifyContent: "flex-start",
-          flexDirection: "column",
-          bgcolor: "var(--secondary-background-color)",
-          padding: "1rem",
-
-          width: "100%",
-
-          minWidth: "350px",
-          maxWidth: "1400px",
-          minHeight: "100vh",
-          marginTop: {
-            xs: "1rem",
-            sm: "2rem",
-          },
-         
-        }}
-      >
-
-        <SongUploadProgressComponent
-     uploadState={uploadState}
-      subscriptionLoading={subscriptionLoading}
-      subscriptionError={subscriptionError}
-       />
-        {/* Step Title */}
-        <Box sx={{ alignSelf: "flex-start", padding: "0.5rem" }}>
-          <Typography
-            variant="h3"
-            sx={{
-              mt: {xs: '2rem'},
-              fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
-              color: "white",
-            }}
-          >
-            {steps[activeStep]}
-          </Typography>
-        </Box>
-
-
-{activeStep === 0 && (
-  <Box>
-    <Paper
-      elevation={3}
+    
+<Box
       sx={{
-        borderRadius: "10px",
-        width: {
-          xs: "350px",
-          sm: "400px",
-          md: "600px",
-          lg: "800px",
-          xl: "1200px",
-        },
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "var(--secondary-background-color)",
+        p: { xs: 2, sm: 3 },
+        width: "100%",
+        minHeight: "100vh",
+        mx: "auto",
+        maxWidth: 1400,
+        overflowX: "hidden"
       }}
     >
-      <SongUpload
-      
-        isSongLoading={isSongLoading}
-        setIsSongLoading={setIsSongLoading}
-        handleSongUpload={handleSongUpload}
-        activeStep={activeStep}
-        setActiveStep={setActiveStep}
-        setValue={setValue}
+      <SongUploadProgressComponent
         uploadState={uploadState}
-      subscriptionLoading={subscriptionLoading}
-      subscriptionError={subscriptionError}
-
-        
+        subscriptionLoading={subscriptionLoading}
+        subscriptionError={subscriptionError}
       />
-    </Paper>
-  </Box>
-)}
 
-<Box>
-  {/* Step 1: Metadata */}
-  {activeStep === 1 && (
-    <Box sx={{ overflowY: 'scroll', height: '100%', width: { xs: "350px", sm: "400px", md: "600px", lg: "800px", xl: "1200px" }}}>
-      <Metadata 
-      handleSubmit={handleSubmit}
-      onSubmit={onSubmit}
-        register={register} 
-        Controller={Controller}
-        control={control}
-        errors={errors} 
-        albumToSelect={albumToSelect} 
-        albums={albums} 
-        watch={watch}
-        setValue={setValue}
-        refetchAlbums={refetchAlbums} 
-        handleAlbumChange={handleAlbumChange}
-      />
-    </Box>
-  )}
+      {/* Responsive Step Title */}
+      <Typography
+        variant="h3"
+        sx={{
+          mt: { xs: 2, sm: 3 },
+          fontSize: { xs: "1.5rem", sm: "2rem" },
+          color: "white",
+          textAlign: { xs: "center", sm: "left" },
+          mb: 3
+        }}
+      >
+        {steps[activeStep]}
+      </Typography>
 
-  {/* Step 2: Lyrics */}
-  {activeStep === 2 && (
-    <Box>
-      <Lyrics  activeStep={activeStep} setActiveStep={setActiveStep} songId={songId}/>
-    </Box>
-  )}
+      {/* Dynamic Step Content */}
+      <Box sx={{
+        width: "100%",
+        maxWidth: { xs: "100%", md: 1200 },
+        mx: "auto"
+      }}>
+        {activeStep === 0 && (
+          <Paper elevation={3} sx={{ 
+            borderRadius: 2, 
+            p: { xs: 2, sm: 3 },
+            mb: 3,
+            width: "100%"
+          }}>
+            <SongUpload
+              isSongLoading={isSongLoading}
+              setIsSongLoading={setIsSongLoading}
+              handleSongUpload={handleSongUpload}
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+              setValue={setValue}
+              uploadState={uploadState}
+              subscriptionLoading={subscriptionLoading}
+              subscriptionError={subscriptionError}
+            />
+          </Paper>
+        )}
 
-  {/* Step 3: Cover Art */}
-  {activeStep === 3 && (
-    <Box sx={{width: '100%', height: '100vh'}}>
-      <SongCover 
-      activeStep={activeStep}
-       setActiveStep={setActiveStep}
-        songId={songId}
-        watch={watch}
-        currentImageUrl={songCoverImage}
-        onUpload={handleSongImageUpload}
-        onDelete={deleteSongCoverImage}
-        isLoading={isCoverUploading}
-        onChangeImage={(url) => setSongCoverImage(url)}
-      />
-    </Box>
-  )}
+        {activeStep === 1 && (
+          <Box sx={{ 
+            overflowY: "auto",
+            maxHeight: { xs: "70vh", md: "none" },
+            width: "100%"
+          }}>
+            <Metadata
+              handleSubmit={handleSubmit}
+              onSubmit={onSubmit}
+              register={register}
+              Controller={Controller}
+              control={control}
+              errors={errors}
+              albumToSelect={albumToSelect}
+              albums={albums}
+              watch={watch}
+              setValue={setValue}
+              refetchAlbums={refetchAlbums}
+              handleAlbumChange={handleAlbumChange}
+            />
+          </Box>
+        )}
 
+        {activeStep === 2 && (
+          <Box sx={{ width: "100%" }}>
+            <Lyrics
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+              songId={songId}
+            />
+          </Box>
+        )}
 
-
-
-
-</Box>
-
-
-
-{/* <TestUploadProgressTracker 
-   uploadState={uploadState}
-      subscriptionLoading={subscriptionLoading}
-      subscriptionData= {subscriptionData}
-      subscriptionError={subscriptionError} /> */}
-
+        {activeStep === 3 && (
+          <Box sx={{ 
+            width: "100%",
+            minHeight: { xs: "auto", sm: "60vh" }
+          }}>
+            <SongCover
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+              songId={songId}
+              watch={watch}
+              currentImageUrl={songCoverImage}
+              onUpload={handleSongImageUpload}
+              onDelete={deleteSongCoverImage}
+              isLoading={isCoverUploading}
+              onChangeImage={(url) => setSongCoverImage(url)}
+            />
+          </Box>
+        )}
       </Box>
-    </>
+    </Box>
   );
 }

@@ -3,12 +3,11 @@ import { useQuery, useMutation } from "@apollo/client";
 import { ARTIST_PROFILE } from "../../utils/artistQuery";
 import { ADD_BIO } from "../../utils/mutations";
 
-
 import Grid from '@mui/material/Grid2';
 import Box from "@mui/material/Box";
 import Modal from "@mui/material/Modal";
 import FormControl from "@mui/material/FormControl";
-import  Button from "@mui/material/Button";
+import Button from "@mui/material/Button";
 import FormLabel from "@mui/material/FormLabel";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
 import Card from "@mui/material/Card";
@@ -16,66 +15,68 @@ import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
 import Typography from "@mui/material/Typography";
 import ArtistAccountProfile from "./ArtistAccountProfile";
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { ToastContainer, toast } from "react-toastify"; 
 import "react-toastify/dist/ReactToastify.css";  
-
-
-
-
-const modalStyle = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: "90%",
-  maxWidth: "600px",
-  bgcolor: "#441a49",
-  color: "#fff",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-  borderRadius: "12px", // Slightly rounded corners
-};
-
-const cardStyle = {
-  backgroundColor: "#1a5d5d",
-  color: "#fff",
-  borderRadius: "12px", // Rounded corners
-  width: '100%',
-  margin: "20px auto",
-  padding: "20px",
-  boxSizing: "border-box",
-  transition: "transform 0.2s ease-in-out, box-shadow 0.3s ease", // Added smooth animation
-  "&:hover": {
-    transform: "scale(1.05)", // Slightly zoomed on hover
-    boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.2)", // Enhanced shadow on hover
-  },
-};
-
-const bioContainerStyle = {
-  backgroundColor: "white",
-  color: "#441a49",
-  padding: "1rem",
-  borderRadius: "8px",
-  minWidth: "400px",
-  maxHeight: "auto",
-  overflowY: "auto",
-  lineHeight: "1.6em",
-  fontSize: "1rem", // Adjusted font size for better readability
-  textAlign: "justify",
-  whiteSpace: "pre-wrap",
-  wordSpacing: "0.1em",
-};
-
-const MAX_BIO_LENGTH = 150;
 
 const Bio = () => {
   const [fieldValue, setFieldValue] = useState("");
   const { loading, data, refetch } = useQuery(ARTIST_PROFILE);
   const [addBio, { loading: updating }] = useMutation(ADD_BIO);
-
   const [open, setOpen] = useState(false);
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+
+  const modalStyle = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: isMobile ? '95%' : isTablet ? '85%' : '90%',
+    maxWidth: "600px",
+    bgcolor: "#441a49",
+    color: "#fff",
+    border: "2px solid #000",
+    boxShadow: 24,
+    p: isMobile ? 2 : 4,
+    borderRadius: "12px",
+    maxHeight: '90vh',
+    overflowY: 'auto'
+  };
+
+  const cardStyle = {
+    backgroundColor: "#1a5d5d",
+    color: "#fff",
+    borderRadius: "12px",
+    width: '100%',
+    margin: isMobile ? "10px auto" : "20px auto",
+    padding: isMobile ? "15px" : "20px",
+    boxSizing: "border-box",
+    transition: "transform 0.2s ease-in-out, box-shadow 0.3s ease",
+    "&:hover": {
+      transform: isMobile ? "none" : "scale(1.02)",
+      boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.2)",
+    },
+  };
+
+  const bioContainerStyle = {
+    backgroundColor: "white",
+    color: "#441a49",
+    padding: isMobile ? "0.5rem" : "1rem",
+    borderRadius: "8px",
+    width: '100%',
+    maxHeight: "auto",
+    overflowY: "auto",
+    lineHeight: "1.6em",
+    fontSize: isMobile ? "1rem" : "1.3rem",
+    textAlign: "justify",
+    whiteSpace: "pre-wrap",
+    wordSpacing: "0.1em",
+  };
 
   const handleOpen = () => {
     setFieldValue(data?.artistProfile.bio || "");
@@ -89,12 +90,12 @@ const Bio = () => {
 
   const handleUpdate = async () => {
     if (!fieldValue.trim()) {
-      toast.error("Bio cannot be empty."); // Show error toast
+      toast.error("Bio cannot be empty.");
       return;
     }
 
     if (fieldValue.length > 500) {
-      toast.error("Bio cannot exceed 500 characters."); // Show error toast
+      toast.error("Bio cannot exceed 500 characters.");
       return;
     }
 
@@ -106,17 +107,13 @@ const Bio = () => {
       });
 
       refetch();
-      toast.success("Bio updated successfully!"); // Show success toast
+      toast.success("Bio updated successfully!");
       handleClose();
     } catch (error) {
       console.error("Error updating bio:", error);
-      toast.error("Error updating bio. Please try again."); // Show error toast
+      toast.error("Error updating bio. Please try again.");
     }
   };
-
-
-
-
 
   return (
     <>
@@ -124,18 +121,20 @@ const Bio = () => {
         container
         justifyContent="center"
         alignItems="center"
-        style={{ marginTop: "20px", padding: "10px" }}
+        style={{ 
+          marginTop: isMobile ? "10px" : "20px", 
+          padding: isMobile ? "5px" : "10px" 
+        }}
       >
         {loading ? (
           <Typography variant="h6" color="textSecondary">
             Loading...
           </Typography>
         ) : (
-
           <Card sx={cardStyle}>
             <CardContent>
               <Typography
-                variant="h4"
+                variant={isMobile ? "h5" : "h4"}
                 component="div"
                 gutterBottom
                 sx={{
@@ -151,26 +150,18 @@ const Bio = () => {
               
               {data?.artistProfile?.bio ? (
                 <Box sx={bioContainerStyle}>
-
-                  <Box >
-<ArtistAccountProfile />
+                  <Box>
+                    <ArtistAccountProfile />
                   </Box>
-
-
-
-
-
-
-
                   <Typography 
                     variant="body2" 
                     sx={{ 
                       color: '#441a49', 
                       lineHeight: "1.6em",
-                      fontSize:  '1.3rem',
+                      fontSize: isMobile ? '1rem' : '1.3rem',
                       wordSpacing: "0.1em",
                       fontFamily: 'roboto', 
-                      padding: '10px'
+                      padding: isMobile ? '5px' : '10px'
                     }}
                   >
                     {data.artistProfile.bio}
@@ -181,7 +172,7 @@ const Bio = () => {
                   variant="body2"
                   sx={{
                     textAlign: "center",
-                    fontSize: "1rem",
+                    fontSize: isMobile ? "0.9rem" : "1rem",
                     lineHeight: "1.5em",
                     color: "#b0b0b0",
                   }}
@@ -198,8 +189,8 @@ const Bio = () => {
                   backgroundColor: "#6c2d73",
                   color: "#fff",
                   fontWeight: "bold",
-                  fontSize: "1rem",
-                  padding: "0.6rem 1.5rem",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  padding: isMobile ? "0.4rem 1.2rem" : "0.6rem 1.5rem",
                   borderRadius: "20px",
                   "&:hover": { backgroundColor: "#8a3b92" },
                 }}
@@ -220,7 +211,7 @@ const Bio = () => {
       >
         <Box sx={modalStyle}>
           <Typography
-            variant="h5"
+            variant={isMobile ? "h6" : "h5"}
             id="update-bio-modal"
             gutterBottom
             sx={{
@@ -239,6 +230,7 @@ const Bio = () => {
                 color: "#fff",
                 fontWeight: "bold",
                 letterSpacing: "0.03em",
+                fontSize: isMobile ? '0.95rem' : '1rem'
               }}
             >
               Biography
@@ -247,15 +239,15 @@ const Bio = () => {
               id="bio-textarea"
               value={fieldValue}
               onChange={(e) => setFieldValue(e.target.value)}
-              minRows={4}
+              minRows={isMobile ? 3 : 4}
               style={{
                 width: "100%",
                 marginTop: "10px",
-                padding: "0.8rem",
+                padding: isMobile ? "0.6rem" : "0.8rem",
                 backgroundColor: "#fff",
                 color: "#000",
                 borderRadius: "5px",
-                fontSize: "1rem",
+                fontSize: isMobile ? "0.95rem" : "1rem",
               }}
               maxLength={500}
               aria-describedby="bio-helper-text"
@@ -275,8 +267,8 @@ const Bio = () => {
                 backgroundColor: "#6c2d73",
                 color: "#fff",
                 fontWeight: "bold",
-                fontSize: "1rem",
-                padding: "0.6rem 1.5rem",
+                fontSize: isMobile ? "0.9rem" : "1rem",
+                padding: isMobile ? "0.5rem 1.3rem" : "0.6rem 1.5rem",
                 borderRadius: "20px",
                 "&:hover": { backgroundColor: "#8a3b92" },
               }}
@@ -288,8 +280,17 @@ const Bio = () => {
         </Box>
       </Modal>
 
-      {/* ToastContainer to render toasts */}
-      <ToastContainer />
+      <ToastContainer 
+        position={isMobile ? "top-center" : "top-right"}
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
     </>
   );
 };

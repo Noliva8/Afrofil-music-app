@@ -9,6 +9,17 @@
   --p-color: #d3d3d3;
   --font-size: 16px;
   --border-color: #e4b120;
+
+/* user side */
+ --bg-primary: #0F0F0F; 
+  --bg-secondary: #1A1A1A; 
+  
+  /* Logo-inspired accent colors */
+  --gold: #E4C421;
+  --gold-hover: #F8D347; 
+  --rust: #B25035; 
+  --rust-hover: #C96146;
+
   
 }
 

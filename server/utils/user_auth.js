@@ -1,6 +1,7 @@
 import { GraphQLError } from 'graphql';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import User from '../models/User/User.js';
 dotenv.config();
 
 const secret = process.env.JWT_SECRET; 
@@ -12,6 +13,46 @@ export const AuthenticationError = new GraphQLError('Could not authenticate user
     code: 'UNAUTHENTICATED',
   },
 });
+
+
+// Function to extract and verify user token
+
+export const getUserFromToken = async (token) => {
+  try {
+    if (!token) throw new Error('No token provided');
+    
+    // Handle case where full header might be passed
+    const cleanedToken = token.startsWith('Bearer ') 
+      ? token.slice(7) 
+      : token;
+
+    if (!cleanedToken) throw new Error('Invalid token format');
+
+    // Verify token
+    const { data } = jwt.verify(cleanedToken, secret, { 
+      maxAge: expiration 
+    });
+
+    // Get user with only necessary fields
+    const user = await User.findById(data._id)
+      .select('_id username email')
+      .lean();
+
+    if (!user) throw new Error('User not found');
+
+    return user;
+  } catch (error) {
+    console.error('Token verification failed:', error.message);
+    throw error; // Re-throw for proper handling
+  }
+};
+
+
+
+
+
+
+
 
 
 // User authentication middleware
