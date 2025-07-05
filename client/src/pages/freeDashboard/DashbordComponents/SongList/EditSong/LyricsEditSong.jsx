@@ -2,19 +2,23 @@ import React, { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation } from "@apollo/client";
 import Swal from "sweetalert2";
-
-import Fade from "@mui/material/Fade";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import Typography from "@mui/material/Typography";
-import Button from "@mui/material/Button";
-import TextareaAutosize from "@mui/material/TextareaAutosize";
+import { useTheme, useMediaQuery } from "@mui/material";
+import {
+  Fade,
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextareaAutosize,
+} from "@mui/material";
 
 import { ADD_LYRICS } from "../../../../../utils/mutations";
 import { SONG_OF_ARTIST } from "../../../../../utils/queries";
 
-export default function LyricsEditSong({ songId, song, setActiveStep }) {
-  // 1️⃣ Hook up RHF
+export default function LyricsEditSong({ songId, song, setActiveStep, activeStep }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const {
     control,
     reset,
@@ -24,24 +28,20 @@ export default function LyricsEditSong({ songId, song, setActiveStep }) {
     defaultValues: { lyrics: song?.lyrics || "" },
   });
 
-  // 2️⃣ Reset whenever `song.lyrics` changes
   useEffect(() => {
-    console.log("💡 received song:", song);
     reset({ lyrics: song?.lyrics || "" });
   }, [song, reset]);
 
-  // 3️⃣ Mutation with cache update
   const [addLyrics, { loading }] = useMutation(ADD_LYRICS, {
     refetchQueries: [{ query: SONG_OF_ARTIST }],
   });
 
-  // 4️⃣ On submit
   const onSubmit = async ({ lyrics }) => {
     if (!songId) {
       Swal.fire({
         icon: "warning",
         title: "Missing song",
-        text: "Couldn’t find the song—please refresh and try again.",
+        text: "Couldn't find the song—please refresh and try again.",
       });
       return;
     }
@@ -50,7 +50,7 @@ export default function LyricsEditSong({ songId, song, setActiveStep }) {
       await addLyrics({ variables: { songId, lyrics } });
       setActiveStep((s) => s + 1);
     } catch (err) {
-      console.error("🔥 Error updating lyrics:", err);
+      console.error("Error updating lyrics:", err);
       Swal.fire({
         icon: "error",
         title: "Update failed",
@@ -64,26 +64,46 @@ export default function LyricsEditSong({ songId, song, setActiveStep }) {
       <Paper
         elevation={3}
         sx={{
-          p: 3,
+          p: isMobile ? 2 : 3,
           borderRadius: 2,
           bgcolor: "background.paper",
           width: "100%",
           height: "100%",
           display: "flex",
           flexDirection: "column",
+          maxWidth: isMobile ? '100%' : '800px',
+          mx: 'auto'
         }}
       >
-        <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+        <Typography 
+          variant={isMobile ? "h6" : "h5"} 
+          gutterBottom 
+          sx={{ 
+            fontWeight: 600,
+            color: theme.palette.text.primary
+          }}
+        >
           Song Lyrics
         </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
+        
+        <Typography 
+          variant="body2" 
+          color="text.secondary" 
+          gutterBottom
+          sx={{ mb: 2 }}
+        >
           Add or edit your lyrics (optional)
         </Typography>
 
         <Box
           component="form"
           onSubmit={handleSubmit(onSubmit)}
-          sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}
+          sx={{ 
+            flexGrow: 1, 
+            display: "flex", 
+            flexDirection: "column",
+            gap: 2
+          }}
         >
           <Controller
             name="lyrics"
@@ -91,34 +111,63 @@ export default function LyricsEditSong({ songId, song, setActiveStep }) {
             render={({ field }) => (
               <TextareaAutosize
                 {...field}
-                minRows={10}
-                maxRows={25}
+                minRows={isMobile ? 8 : 12}
+                maxRows={isMobile ? 20 : 25}
                 placeholder={`[Verse 1]\n...\n\n[Chorus]\n...`}
                 style={{
                   flex: 1,
                   width: "100%",
-                  padding: 16,
+                  padding: isMobile ? 12 : 16,
                   border: errors.lyrics
-                    ? "1px solid #d32f2f"
-                    : "1px solid #ced4da",
+                    ? `1px solid ${theme.palette.error.main}`
+                    : `1px solid ${theme.palette.divider}`,
                   borderRadius: 4,
-                  fontFamily: "inherit",
+                  fontFamily: theme.typography.fontFamily,
                   fontSize: "0.875rem",
                   lineHeight: 1.5,
                   resize: "vertical",
+                  backgroundColor: theme.palette.background.default,
+                  color: theme.palette.text.primary,
                 }}
               />
             )}
           />
+          
           {errors.lyrics && (
-            <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+            <Typography variant="caption" color="error" sx={{ mt: -1 }}>
               {errors.lyrics.message}
             </Typography>
           )}
 
-          <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
-            <Button type="submit" variant="contained" disabled={loading}>
-              {loading ? "Saving…" : "Next"}
+          <Box 
+            sx={{ 
+              display: "flex", 
+              justifyContent: "space-between",
+              gap: 2,
+              flexDirection: isMobile ? 'column-reverse' : 'row'
+            }}
+          >
+            <Button 
+              variant="outlined" 
+              onClick={() => setActiveStep(activeStep - 1)}
+              fullWidth={isMobile}
+            >
+              Back
+            </Button>
+            
+            <Button 
+              type="submit" 
+              variant="contained" 
+              disabled={loading}
+              fullWidth={isMobile}
+              sx={{
+                backgroundColor: theme.palette.primary.main,
+                '&:hover': {
+                  backgroundColor: theme.palette.primary.dark
+                }
+              }}
+            >
+              {loading ? "Saving..." : "Save & Continue"}
             </Button>
           </Box>
         </Box>

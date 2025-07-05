@@ -206,6 +206,106 @@ albumOfArtist: async (parent, args, context) => {
 },
 
 
+// trendingSongs: async (context) => {
+//       const limit = 20;
+//       const userId = context.user?._id?.toString();
+//      console.log("check if the context conatain user id:", userId)
+
+//       try {
+//         const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+//           Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
+//           Song.aggregate([
+//             { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
+//             { $sort: { likesCount: -1, createdAt: -1 } },
+//             { $limit: limit }
+//           ]),
+//           Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
+//           Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist')
+//         ]);
+
+//         const likedIds = topLikesAgg.map(s => s._id);
+//         const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist');
+
+//         const merged = [];
+//         const seen = new Set();
+//         const addUnique = (songs) => {
+//           for (const s of songs) {
+//             const id = s._id.toString();
+//             if (!seen.has(id)) {
+//               seen.add(id);
+//               merged.push(s);
+//               if (merged.length === limit) break;
+//             }
+//           }
+//         };
+
+//         addUnique(topPlays);
+//         addUnique(topLikes);
+//         addUnique(topDownloads);
+//         addUnique(latestSongs);
+
+//         return merged.slice(0, limit);
+//       } catch (err) {
+//         console.error('❌ Trending songs error:', err);
+//         return [];
+//       }
+//     },
+
+
+
+trendingSongs: async () => {
+  const limit = 20;
+
+  try {
+    const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+      Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
+      Song.aggregate([
+        {
+          $addFields: {
+            likesCount: { $size: { $ifNull: ['$likedByUsers', []] } }
+          }
+        },
+        { $sort: { likesCount: -1, createdAt: -1 } },
+        { $limit: limit }
+      ]),
+      Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
+      Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist').lean()
+    ]);
+
+    // Re-fetch full data for top liked songs
+    const likedIds = topLikesAgg.map(s => s._id);
+    const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist').lean();
+
+    const merged = [];
+    const seen = new Set();
+
+    const addUnique = (songs) => {
+      for (const s of songs) {
+        const id = s._id.toString();
+        if (!seen.has(id)) {
+          seen.add(id);
+          merged.push({
+            ...s,
+            likesCount: s.likedByUsers?.length || 0, // ✅ add computed like count
+          });
+          if (merged.length === limit) break;
+        }
+      }
+    };
+
+    addUnique(topPlays);
+    addUnique(topLikes);
+    addUnique(topDownloads);
+    addUnique(latestSongs);
+
+    return merged.slice(0, limit);
+  } catch (err) {
+    console.error('❌ Trending songs error:', err);
+    return [];
+  }
+},
+
+
 
 },
 
@@ -1303,7 +1403,14 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
         }
       )
     }
-  }
+  },
+
+
+  Song: {
+    likesCount: (parent) => {
+      return parent.likedByUsers?.length || 0;
+    },
+  },
 
 
 

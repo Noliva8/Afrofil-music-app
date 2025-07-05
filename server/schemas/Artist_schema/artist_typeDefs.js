@@ -45,12 +45,15 @@ type Song {
   producer: [Producer]
   composer: [Composer]
   label: String
-  duration: Int!
+  duration: Float! 
   playCount: Int
   releaseDate: Date!   
   downloadCount: Int
   likedByUsers: [User]  
-  trendingScore: Int
+   likedByMe: Boolean
+   likesCount: Int
+ trendingScore: Float
+
   tags: [String]
   lyrics: String
   artwork: String
@@ -59,10 +62,10 @@ type Song {
  beats: [Float]
  tempo: Float
  key: String
- mode: Int
+ mode: Float
  visibility: String
- timeSignature: Int
-keyConfidence: Int
+ timeSignature: Float
+keyConfidence: Float
 createdAt: Date!
 }
 
@@ -115,7 +118,7 @@ type UploadProgress {
   step: UploadStep!
   status: UploadStatus!
   message: String
-  percent: Int
+  percent: Float
   isComplete: Boolean
 }
 
@@ -273,7 +276,7 @@ addArtwork(
     file: Upload
     tempo: Float
     beats: [Float]
-    timeSignature: Int
+    timeSignature: Float
   ): Song!
 
 

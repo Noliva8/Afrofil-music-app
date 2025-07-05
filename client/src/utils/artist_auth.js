@@ -15,10 +15,12 @@ class ArtistAuth {
     }
   }
 
-  isArtist() {
-    const artistToken = this.getToken();
-    return artistToken && !this.isTokenExpired(artistToken);
-  }
+ isArtist() {
+  const artistToken = this.getToken();
+  if (!artistToken) return false; 
+  return !this.isTokenExpired(artistToken);
+}
+
 
   isTokenExpired(token) {
     try {

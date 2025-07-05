@@ -208,3 +208,31 @@ query songById($songId: ID!) {
   }
 }
 `
+
+export const TRENDING_SONGS_PUBLIC = gql`
+query trendingSongs {
+  trendingSongs {
+    _id
+    title
+    artist {
+      artistAka
+      country
+    }
+    artwork
+    streamAudioFileUrl
+    audioFileUrl
+    createdAt
+    downloadCount
+    duration
+    featuringArtist
+    genre
+    likedByUsers {
+      _id
+    }
+    playCount
+    trendingScore
+    likesCount      
+  }
+}
+`
+

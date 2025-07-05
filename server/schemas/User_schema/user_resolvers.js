@@ -18,55 +18,6 @@ const resolvers = {
 },
 
 
-// ------------------------------------------------------------------
-
-songs: async () => {
-  try {
-    const songData = await Song.find({})
-      .populate('artist') 
-      .populate('album')
-     
-      .populate('likedByUsers')
-     return songData;
-  } catch (error) {
-    console.error("Error occurred during songs data fetching:", error);
-    throw new Error("Could not fetch songs data");
-  }
-},
-
-// -----------------------------------------------------------------------
-
-
-albums: async () => {
-  try{
-    const albumData = await Album.find({})
-    .populate('artists')
-    .populate('songs')
-    .sort({ createdAt: -1 })
-   
-     return albumData;
-  }catch(error){
-    console.error("Error occurred during albums data fetching:", error);
-    throw new Error("Could not fetch albums data");
-
-  }
-},
-
-// ----------------------------------------------------------------------------
-
-artists:  async () => {
-  try{
-   const artistData = await Artist.find({})
-   .populate('followers')
-   return artistData;
-  }catch(error){
-console.error("Error occurred during artist data fetching:", error);
-    throw new Error("Could not fetch artist data");
-  }
-},
-
-// ---------------------------------------------------------------------------
-// ------------------------------------------------------------------------
 
 playlists: async () => {
   try {
@@ -137,106 +88,84 @@ userById: async (parent, { userId }) => {
 
 // -----------------------------------------------------------------------------------
 
-song: async (parent, { songId }) => {
-  try{
-
-const song = await Song.findById({_id: songId})
-.populate('artist')
-.populate('album')
-
-
- if (!song) {
-      throw new Error(`song with ID ${songId} not found`);
-    }
-return song;
-  }catch(error){
-throw new Error(error.message);
-  }
-},
 
 // ----------------------------------------------------------------------------------
 
-searchSong: async (parent, { title, artist }) => {
-  try {
-    const song = await Song.find({ title, artist })
-     
-      .populate('album');
 
-   if (song.length === 0) {
-  throw new Error(`Song with title "${title}" by artist "${artist}" not found`);
-}
-return song;
+
+// Treding Songs
+// ------------
+
+trendingSongs: async () => {
+
+  console.log('trending songs is called')
+  const limit = 20;
+
+  try {
+    // Fetch all song sets in parallel
+    const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+      Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
+
+      Song.aggregate([
+        {
+          $addFields: {
+            likesCount: { $size: { $ifNull: ["$likedByUsers", []] } }
+          }
+        },
+        { $sort: { likesCount: -1, createdAt: -1 } },
+        { $limit: limit }
+      ]),
+
+      Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
+
+      Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist')
+    ]);
+
+    // Populate artists for topLikesAgg results
+    const likedIds = topLikesAgg.map(song => song._id);
+    const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist');
+
+    // Merge them uniquely
+    const merged = [];
+    const seen = new Set();
+
+    const addUnique = (songs) => {
+      for (const song of songs) {
+        const id = song._id.toString();
+        if (!seen.has(id)) {
+          seen.add(id);
+          merged.push(song);
+          if (merged.length === limit) break;
+        }
+      }
+    };
+console.log("Top Plays:", topPlays.length);
+console.log("Top Likes (agg):", topLikesAgg.length);
+console.log("Top Downloads:", topDownloads.length);
+console.log("Latest Songs:", latestSongs.length);
+
+    addUnique(topPlays);
+    addUnique(topLikes);
+    addUnique(topDownloads);
+    addUnique(latestSongs);
+
+    return merged.slice(0, limit);
   } catch (error) {
-    throw new Error(error.message);
+    console.error("❌ Trending songs fetch error:", error);
+    return [];
   }
 },
 
+
+
+// 
 // ---------------------------------------------------------------------------------------
 
-album: async (parent, { albumId }) => {
-  try {
-    const album = await Album.findById({_id: albumId})
-      .populate('songs') 
-      .populate('artist') 
-      
 
-    if (!album) {
-      throw new Error(`Album with ID ${albumId} not found`);
-    }
-    return album;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
-// ---------------------------------------------------------------------------------------
 
-searchAlbum: async (parent, { title, artist }) => {
-  try {
-    const albums = await Album.find({ title, artist })
-      .populate('songs') 
-      .populate('artist'); 
-
-    if (albums.length === 0) {
-      throw new Error(`No albums found with title "${title}" by artist "${artist}"`);
-    }
-    return albums; // Return an array of albums
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
-// --------------------------------------------------------------------------------------
-
-artist: async (parent, { artistId }) => {
-  try {
-    const artist = await Artist.findById({_id:artistId})
-    [{ type: Schema.Types.ObjectId, ref: 'User' }];
-
-    if (!artist) {
-      throw new Error(`Artist with ID ${artistId} not found`);
-    }
-    return artist;
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
 
 // -------------------------------------------------------------------------------------------
 
-songsByArtist: async (parent, { name }) => {
-  try {
-    // Fetch songs where the artist's name matches the provided name
-    const songs = await Song.find({ artist: name })
-      .populate('album')
-     
-
-    if (songs.length === 0) {
-      throw new Error(`No songs found for artist "${name}"`);
-    }
-    return songs; // Return the array of songs
-  } catch (error) {
-    throw new Error(error.message);
-  }
-},
 
 
 
