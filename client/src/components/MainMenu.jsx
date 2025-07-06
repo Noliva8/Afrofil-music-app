@@ -18,16 +18,18 @@ const MainMenu = ({ songsWithArtwork, onSongPlay, playingSongId,  nowPlaying, is
   
 
   return (
-    <Box
-      sx={{
-        pt: { xs: 8, md: 10 },
-        mt: 5,
-        px: { xs: 2, md: 4 },
-        backgroundColor: "#0A0A0A",
-        color: "white",
-        minHeight: "100vh",
-      }}
-    >
+   <Box
+  sx={{
+    pt: { xs: 8, md: 10 },
+    mt: 5,
+    px: { xs: 2, md: 4 },
+    backgroundColor: "#0A0A0A",
+    color: "white",
+    minHeight: "100vh",
+    pb: { xs: 20, sm: 24 }, 
+  }}
+>
+
       <TrendingSongs
         songsWithArtwork={songsWithArtwork}
         playingSongId={playingSongId}
