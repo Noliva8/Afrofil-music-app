@@ -207,6 +207,8 @@ const showUser = isUserLoggedIn && lastLogin === "user";
     handleLoginFormDisplay={handleLoginFormDisplay}
     handleSignupFormDisplay={handleSignupFormDisplay}
     handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
+     onSwitchToLogin={() => setFormDisplay("login")}
+      onSwitchToSignup={() => setFormDisplay("signup")}
   />
 )}
 
@@ -229,6 +231,7 @@ const showUser = isUserLoggedIn && lastLogin === "user";
   {formDisplay === "login" && (
     <LoginSignin
       display="login"
+      onSwitchToLogin={() => setFormDisplay("login")}
       onSwitchToSignup={() => setFormDisplay("signup")}
       onClose={() => setFormDisplay("")}
       isUserLoggedIn={isUserLoggedIn}
@@ -239,7 +242,9 @@ const showUser = isUserLoggedIn && lastLogin === "user";
     <LoginSignin
       display="signup"
       onSwitchToLogin={() => setFormDisplay("login")}
+      onSwitchToSignup={() => setFormDisplay("signup")}
       onClose={() => setFormDisplay("")}
+      isUserLoggedIn={isUserLoggedIn}
     />
   )}
 </main>

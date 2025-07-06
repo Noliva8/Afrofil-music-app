@@ -1,6 +1,6 @@
 import './CSS/loginSignin.css';
 import logo from '../images/logo.png';
-import react, { useState, useEffect } from 'react';
+import react, { useState, useEffect, useCallback } from 'react';
 import {  useQuery, useMutation} from "@apollo/client";
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
 import UserAuth from '../utils/auth';
@@ -25,291 +25,369 @@ import ModernMusicPlayer from '../components/userAudioPlayer';
 import { useRef } from 'react';
 import AuthModal from '../components/WelcomePage/AuthModal';
 
-
-
-
-const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, onClose, isUserLoggedIn}) {
+import { useOutletContext } from 'react-router-dom';
 
 
 
 
-// Query the data to play and to display
-const { data, loading,  error } = useQuery(TRENDING_SONGS_PUBLIC);
 
-// Presigned url to show images and play songs from s3
-const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
-const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
+const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
+  const { data, loading, error } = useQuery(TRENDING_SONGS_PUBLIC);
+  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
 
-// Song states
-const [songsWithArtwork, setSongsWithArtwork] = useState([]);
-const [selectedSong, setSelectedSong] = useState(null);
-const [duration, setDuration] = useState(0);
-const [currentTime, setCurrentTime] = useState(0);
-const [volume, setVolume] = useState(1);
+  const [songsWithArtwork, setSongsWithArtwork] = useState([]);
+  const [selectedSong, setSelectedSong] = useState(null);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [teaserMode, setTeaserMode] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-
-
-// Playing States
   const audioRef = useRef(null);
-const [nowPlaying, setNowPlaying] = useState({
-  songId: null,
-  isPlaying: false,
-  audioUrl: null
-});
+  const hasTriggeredTeaserRef = useRef(false);
+  const animationFrameRef = useRef();
+  const prevUpdateTime = useRef(0);
+  const teaserTimeoutRef = useRef(null);
+  const currentSongIdRef = useRef(null);
+  const handleNextSongRef = useRef(null);
 
 
+  // const {  isUserLoggedIn } = useOutletContext() || {};
 
-// for teaser
-const teaserTimeoutRef = useRef(null);
-const [teaserMode, setTeaserMode] = useState(false);    
-const [showAuthModal, setShowAuthModal] = useState(false); 
+  const [nowPlaying, setNowPlaying] = useState({
+    songId: null,
+    isPlaying: false,
+    audioUrl: null,
+  });
 
-const TEASER_DURATION = 30;
+  const TEASER_DURATION = 30;
+  const SMOOTH_UPDATE_INTERVAL = 50;
+  
 
-
-// slider animation
-const [isDragging, setIsDragging] = useState(false);
-
-
-
-
-
-
-// next and previous
+  const handleSliderChange = useCallback((_, value) => {
+    setIsDragging(true);
+    setCurrentTime(value);
+  }, []);
 
 
-
-
-/* 
-Here we need to fetch the songs to dsplay in cards. But because we dont have any button to trigger this function, we are using useEffect which will trigger the function once the component mounts.
-*/
-
-useEffect(() => {
-  const fetchArtworksAndAudio = async () => {
-    if (!data?.trendingSongs) return;
-
-    const updatedSongs = await Promise.all(
-      data.trendingSongs.map(async (song) => {
-        let artworkUrl = 'https://via.placeholder.com/300x300?text=No+Cover';
-        let audioUrl = null;
-
-        // Artwork
-        if (song.artwork) {
-          try {
-            const artworkKey = new URL(song.artwork).pathname.split('/').pop();
-            const { data: artworkData } = await getPresignedUrlDownload({
-              variables: {
-                bucket: 'afrofeel-cover-images-for-songs',
-                key: decodeURIComponent(artworkKey),
-                region: 'us-east-2',
-                expiresIn: 604800,
-              },
-            });
-            artworkUrl = artworkData.getPresignedUrlDownload.urlToDownload;
-          } catch (err) {
-            console.error('Error fetching artwork for', song.title, err);
-          }
-        }
-
-        // Audio
-        if (song.streamAudioFileUrl) {
-          try {
-            const audioKey = new URL(song.streamAudioFileUrl).pathname.split('/').pop();
-            const { data: audioData } = await getPresignedUrlDownloadAudio({
-              variables: {
-                bucket: 'afrofeel-songs-streaming',
-                key: `for-streaming/${decodeURIComponent(audioKey)}`,
-                region: 'us-west-2',
-              },
-            });
-            audioUrl = audioData.getPresignedUrlDownloadAudio.url;
-          } catch (err) {
-            console.error('Error fetching audio for', song.title, err);
-          }
-        }
-
-        return {
-          ...song,
-          artworkUrl,
-          audioUrl,
-        };
-      })
-    );
-
-    setSongsWithArtwork(updatedSongs);
-  };
-
-  fetchArtworksAndAudio();
-}, [data, getPresignedUrlDownload, getPresignedUrlDownloadAudio]);
-
-console.log('check the fetched song:', songsWithArtwork);
-
-
-
-
-// 1. Utilities: Next and Previous Song
-const handleNextSong = () => {
-  const index = songsWithArtwork.findIndex(s => s._id === nowPlaying.songId);
-  const next = songsWithArtwork[(index + 1) % songsWithArtwork.length];
-  if (next) handleSongPlay(next);
-};
-
-const handlePreviousSong = () => {
-  const index = songsWithArtwork.findIndex(s => s._id === nowPlaying.songId);
-  const prev = songsWithArtwork[(index - 1 + songsWithArtwork.length) % songsWithArtwork.length];
-  if (prev) handleSongPlay(prev);
-};
-
-
-// 2. Play Song Handler
-const handleSongPlay = (song) => {
-  const isSame = nowPlaying.songId === song._id;
-
-  if (!isUserLoggedIn) {
-    setTeaserMode(true); // 🔒 Teaser mode active
-  } else {
-    setTeaserMode(false);
-  }
-
-  if (isSame && nowPlaying.isPlaying) {
-    audioRef.current?.pause();
-    setNowPlaying(prev => ({ ...prev, isPlaying: false }));
-  } else {
-    if (!isSame) {
-      audioRef.current?.pause();
-      audioRef.current.currentTime = 0;
+  const handleSliderCommit = useCallback((_, value) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value;
     }
-    setSelectedSong(song);
-    setNowPlaying({
-      songId: song._id,
-      isPlaying: true,
-      audioUrl: song.audioUrl,
-    });
-  }
-};
+    setIsDragging(false);
+  }, []);
 
 
-// 3. Cleanup on Unmount (just in case teaserTimeoutRef is used anywhere)
-useEffect(() => {
-  return () => {
-    clearTimeout(teaserTimeoutRef.current);
-  };
-}, []);
 
+const handleSongPlay = useCallback((song) => {
+  hasTriggeredTeaserRef.current = false;
+  currentSongIdRef.current = song._id;
 
-// 4. Play / Pause when `nowPlaying` state changes
-useEffect(() => {
   const audio = audioRef.current;
-  if (!audio || !nowPlaying.audioUrl) return;
+  clearTimeout(teaserTimeoutRef.current);
+  teaserTimeoutRef.current = null;
 
-  if (audio.src !== nowPlaying.audioUrl) {
-    audio.src = nowPlaying.audioUrl;
-  }
+  setTeaserMode(!isUserLoggedIn);
 
-  nowPlaying.isPlaying
-    ? audio.play().catch(console.error)
-    : audio.pause();
-}, [nowPlaying.audioUrl, nowPlaying.isPlaying]);
+  setSelectedSong(song);
+  setNowPlaying({ songId: song._id, isPlaying: true, audioUrl: song.audioUrl });
 
-
-// 5. Smooth Slider Progress + Teaser Playback Control
-useEffect(() => {
-  const audio = audioRef.current;
-  if (!audio) return;
-
-  const updateTime = () => {
-    if (!isDragging) {
-      setCurrentTime(audio.currentTime);
-    }
-
-
-   if (
-  teaserMode &&
-  !isUserLoggedIn &&
-  audio.currentTime >= TEASER_DURATION
-) {
   audio.pause();
-  setNowPlaying(prev => ({ ...prev, isPlaying: false }));
+  audio.currentTime = 0;
+  audio.src = song.audioUrl;
 
-  // Ensure we only trigger once
-  if (!teaserTimeoutRef.current) {
-    teaserTimeoutRef.current = setTimeout(() => {
-      setShowAuthModal(true);
-      handleNextSong(); // ⏭ Play next song after showing modal
-      teaserTimeoutRef.current = null;
-    }, 800); // enough delay for pause to register
-  }
-}
-
-
-
-  };
-
-  audio.addEventListener("timeupdate", updateTime);
-  return () => audio.removeEventListener("timeupdate", updateTime);
-}, [teaserMode, handleNextSong, isDragging, isUserLoggedIn]);
-
-
-// 6. Sync Duration (override to 30s in teaser mode)
-useEffect(() => {
-  const audio = audioRef.current;
-  if (!audio) return;
-
-  const setAudioDuration = () => {
-    setDuration(teaserMode ? TEASER_DURATION : audio.duration);
-  };
-
-  audio.addEventListener("loadedmetadata", setAudioDuration);
-  return () => audio.removeEventListener("loadedmetadata", setAudioDuration);
-}, [teaserMode]);
-
-
-// 7. Auto-Play Next on End (full songs only)
-useEffect(() => {
-  const audio = audioRef.current;
-  if (!audio) return;
-
-  audio.addEventListener("ended", handleNextSong);
-  return () => audio.removeEventListener("ended", handleNextSong);
-}, [handleNextSong]);
-
-
-// 8. Keep Volume in Sync with UI
-useEffect(() => {
-  const audio = audioRef.current;
-  if (!audio) return;
-
-  const syncVolume = () => setVolume(audio.volume);
-  audio.addEventListener("volumechange", syncVolume);
-  return () => audio.removeEventListener("volumechange", syncVolume);
-}, []);
-
-
-// 9. Exit Teaser Mode When Logged In
-useEffect(() => {
-  if (isUserLoggedIn) {
-    setTeaserMode(false);
-    clearTimeout(teaserTimeoutRef.current); // defensive, even if unused
-  }
+  audio.addEventListener("loadeddata", function onLoad() {
+    audio.removeEventListener("loadeddata", onLoad);
+    audio.play().catch(err => console.warn("Audio play failed:", err));
+  });
 }, [isUserLoggedIn]);
 
 
-// 10. Slider Handlers (for drag/seek behavior)
-const handleSliderChange = (_, value) => {
-  setIsDragging(true);
-  setCurrentTime(value);
-};
 
-const handleSliderCommit = (_, value) => {
-  audioRef.current.currentTime = value;
-  setIsDragging(false);
-};
+const handleNextSong = useCallback(() => {
+  const currentId = currentSongIdRef.current;
+
+  if (!songsWithArtwork || songsWithArtwork.length === 0) {
+    console.warn("⛔ Cannot play next song — songsWithArtwork is empty.");
+    return;
+  }
+
+  const index = songsWithArtwork.findIndex(s => s._id === currentId);
+
+  if (index === -1) {
+    console.warn("❌ Current song not found — fallback to first.");
+    handleSongPlay(songsWithArtwork[0]);
+    return;
+  }
+
+  const next = songsWithArtwork[(index + 1) % songsWithArtwork.length];
+  console.log("🎵 Playing next song:", next.title);
+  handleSongPlay(next);
+}, [songsWithArtwork, handleSongPlay]);
+
+// Keep ref updated
+useEffect(() => {
+  handleNextSongRef.current = handleNextSong;
+}, [handleNextSong]);
+
+
+// const handleNextSongRef = useRef(handleNextSong);
+
+
+  const handlePreviousSong = useCallback(() => {
+    const index = songsWithArtwork.findIndex(s => s._id === nowPlaying.songId);
+    const prev = songsWithArtwork[(index - 1 + songsWithArtwork.length) % songsWithArtwork.length];
+    if (prev) handleSongPlay(prev);
+  }, [songsWithArtwork, nowPlaying.songId, handleSongPlay]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !nowPlaying.audioUrl) return;
+
+    if (audio.src !== nowPlaying.audioUrl) {
+      audio.src = nowPlaying.audioUrl;
+    }
+
+    if (nowPlaying.isPlaying) {
+      audio.play().catch(err => {
+        console.error("Autoplay failed:", err);
+        setNowPlaying(prev => ({ ...prev, isPlaying: false }));
+      });
+    } else {
+      audio.pause();
+    }
+  }, [nowPlaying.audioUrl, nowPlaying.isPlaying]);
+  
 
 
 
 
+useEffect(() => {
+  const audio = audioRef.current;
+
+  // Guard against early load
+  if (!audio || !songsWithArtwork || songsWithArtwork.length === 0) {
+    console.warn("🚫 Teaser setup skipped — audio or songs missing.");
+    return;
+  }
+
+  const enforceTeaser = () => {
+    if (teaserMode && !isUserLoggedIn) {
+      console.log("🔒 Enforcing teaser...");
+
+      if (audio.currentTime >= TEASER_DURATION) {
+        console.log("⏳ Teaser finished at", audio.currentTime);
+        audio.currentTime = TEASER_DURATION;
+        audio.pause();
+        setNowPlaying(prev => ({ ...prev, isPlaying: false }));
+        setShowAuthModal(true);
+
+        clearTimeout(teaserTimeoutRef.current);
+        setTimeout(() => {
+          console.log("🕒 Waiting 3s to play next song...");
+          teaserTimeoutRef.current = setTimeout(() => {
+            console.log("🎯 Triggering next teaser song...");
+            hasTriggeredTeaserRef.current = false;
+            handleNextSongRef.current(); // ✅ Always latest
+          }, 3000);
+        }, 100); // wait for refs to update
+      }
+    }
+  };
+
+  const updateProgress = () => {
+    const now = performance.now();
+    if (!isDragging && now - prevUpdateTime.current >= SMOOTH_UPDATE_INTERVAL) {
+      setCurrentTime(audio.currentTime);
+      prevUpdateTime.current = now;
+
+      if (
+        teaserMode &&
+        !isUserLoggedIn &&
+        !hasTriggeredTeaserRef.current &&
+        audio.currentTime >= TEASER_DURATION
+      ) {
+        hasTriggeredTeaserRef.current = true;
+        enforceTeaser();
+      }
+    }
+
+    animationFrameRef.current = requestAnimationFrame(updateProgress);
+  };
+
+  const startUpdates = () => {
+    prevUpdateTime.current = performance.now();
+    hasTriggeredTeaserRef.current = false;
+    animationFrameRef.current = requestAnimationFrame(updateProgress);
+  };
+
+  const stopUpdates = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+  };
+
+  const handleSeeked = () => {
+    setCurrentTime(audio.currentTime);
+    if (teaserMode && !isUserLoggedIn && audio.currentTime > TEASER_DURATION) {
+      enforceTeaser();
+    }
+  };
+
+  const handleEnded = () => {
+    if (teaserMode && !isUserLoggedIn) {
+      enforceTeaser();
+    }
+  };
+
+  audio.addEventListener("play", startUpdates);
+  audio.addEventListener("pause", stopUpdates);
+  audio.addEventListener("seeked", handleSeeked);
+  audio.addEventListener("ended", handleEnded);
+
+  if (!audio.paused) startUpdates();
+
+  return () => {
+    audio.removeEventListener("play", startUpdates);
+    audio.removeEventListener("pause", stopUpdates);
+    audio.removeEventListener("seeked", handleSeeked);
+    audio.removeEventListener("ended", handleEnded);
+    stopUpdates();
+    clearTimeout(teaserTimeoutRef.current);
+  };
+}, [teaserMode, isUserLoggedIn, isDragging, songsWithArtwork]);
 
 
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const setAudioDuration = () => {
+      if (audio.duration && Number.isFinite(audio.duration)) {
+        const d = teaserMode ? Math.min(TEASER_DURATION, audio.duration) : audio.duration;
+        setDuration(d);
+      }
+    };
+
+    setAudioDuration();
+    audio.addEventListener("loadedmetadata", setAudioDuration);
+    audio.addEventListener("emptied", setAudioDuration);
+
+    return () => {
+      audio.removeEventListener("loadedmetadata", setAudioDuration);
+      audio.removeEventListener("emptied", setAudioDuration);
+    };
+  }, [teaserMode, nowPlaying.audioUrl]);
+
+// -----------------------------------
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const handleEnded = () => {
+      if (!teaserMode) {
+        handleNextSong();
+      }
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    return () => audio.removeEventListener("ended", handleEnded);
+  }, [handleNextSong, teaserMode]);
+
+// -----------------------------
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const updateVolume = () => setVolume(audio.volume);
+    audio.addEventListener("volumechange", updateVolume);
+    return () => audio.removeEventListener("volumechange", updateVolume);
+  }, []);
+
+// -------------------------
+
+  useEffect(() => {
+    if (isUserLoggedIn) {
+      setTeaserMode(false);
+      clearTimeout(teaserTimeoutRef.current);
+    }
+  }, [isUserLoggedIn]);
+// -----------------------------------
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(teaserTimeoutRef.current);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
+// ----------------------------------
+
+  useEffect(() => {
+    const fetchArtworksAndAudio = async () => {
+      if (!data?.trendingSongs) return;
+
+      const updatedSongs = await Promise.all(
+        data.trendingSongs.map(async (song) => {
+          let artworkUrl = 'https://via.placeholder.com/300x300?text=No+Cover';
+          let audioUrl = null;
+
+          if (song.artwork) {
+            try {
+              const artworkKey = new URL(song.artwork).pathname.split('/').pop();
+              const { data: artworkData } = await getPresignedUrlDownload({
+                variables: {
+                  bucket: 'afrofeel-cover-images-for-songs',
+                  key: decodeURIComponent(artworkKey),
+                  region: 'us-east-2',
+                  expiresIn: 604800,
+                },
+              });
+              artworkUrl = artworkData.getPresignedUrlDownload.urlToDownload;
+            } catch (err) {
+              console.error('Error fetching artwork for', song.title, err);
+            }
+          }
+
+          if (song.streamAudioFileUrl) {
+            try {
+              const audioKey = new URL(song.streamAudioFileUrl).pathname.split('/').pop();
+              const { data: audioData } = await getPresignedUrlDownloadAudio({
+                variables: {
+                  bucket: 'afrofeel-songs-streaming',
+                  key: `for-streaming/${decodeURIComponent(audioKey)}`,
+                  region: 'us-west-2',
+                },
+              });
+              audioUrl = audioData.getPresignedUrlDownloadAudio.url;
+            } catch (err) {
+              console.error('Error fetching audio for', song.title, err);
+            }
+          }
+
+          return {
+            ...song,
+            artworkUrl,
+            audioUrl,
+          };
+        })
+      );
+
+      setSongsWithArtwork(updatedSongs);
+    };
+
+    fetchArtworksAndAudio();
+  }, [data, getPresignedUrlDownload, getPresignedUrlDownloadAudio]);
+
+
+// ------------------------
+// LOGIN & SIGNUP
 
 
   // Page toggle state
@@ -410,8 +488,7 @@ const handleGoogleLogin = async () => {
 
 
 
-
- const renderLogin = () => (
+const renderLogin = () => (
   <div className="auth-container" style={{
     background: `
       radial-gradient(circle at 20% 30%, 
@@ -669,6 +746,7 @@ const handleGoogleLogin = async () => {
   </div>
 );
 
+
 const renderSignup = () => (
   <div className="auth-container" style={{
     background: `
@@ -871,6 +949,7 @@ const renderSignup = () => (
           <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0 }}>
             Already have an account?
           </p>
+
           <button
             type="button"
             className="switch-button"
@@ -890,6 +969,7 @@ const renderSignup = () => (
           >
             Log in
           </button>
+          
         </div>
 
         <button
@@ -919,70 +999,70 @@ const renderSignup = () => (
   </div>
 );
 
+
+
+
+
+
   return (
     <>
       <audio ref={audioRef} src={nowPlaying.audioUrl} style={{ display: 'none' }} />
-      {display === 'login' && renderLogin()}
+
+        {display === 'login' && renderLogin()}
       {display === 'signup' && renderSignup()}
 
+      {display === '' && (
+        <MainMenu
+          songsWithArtwork={songsWithArtwork}
+          nowPlaying={nowPlaying}
+          isPlaying={nowPlaying.isPlaying}
+          playingSongId={nowPlaying.songId}
+          onSongPlay={handleSongPlay}
+          onSwitchToLogin={onSwitchToLogin}
 
-     {display === '' && (
-  <MainMenu
-    
-    songsWithArtwork={songsWithArtwork}
-    nowPlaying={nowPlaying} // ✅ add this
- isPlaying={nowPlaying.isPlaying}
-    playingSongId={nowPlaying.songId}
-  onSongPlay={handleSongPlay}
-  />
-)}
+        />
+      )}
 
-
-{selectedSong?.audioUrl && (
-  <ModernMusicPlayer
-   isDragging={isDragging}
-    teaserMode={teaserMode}
-    currentSong={selectedSong}
-    audioUrl={selectedSong.audioUrl}
-    audioRef={audioRef}
-    isPlaying={nowPlaying.isPlaying}
-    onPlayPause={(isPlaying) =>
-      setNowPlaying((prev) => ({
-        ...prev,
-        songId: selectedSong._id,
-        isPlaying,
-      }))
-    }
-    onNext={handleNextSong}
-    onPrev={handlePreviousSong}
-    currentTime={currentTime}
-    duration={teaserMode ? TEASER_DURATION : duration}
-    onSeek={(time) => audioRef.current.currentTime = time}
-    volume={volume}
-    onVolumeChange={(v) => {
-      if (audioRef.current) {
-        audioRef.current.volume = v;
-      }
-      setVolume(v);
-    }}
-    onSliderChange={handleSliderChange} // ✅ Optional
-    onSliderCommit={handleSliderCommit} // ✅ Optional
-  />
-)}
-
+      {selectedSong?.audioUrl && (
+        <ModernMusicPlayer
+          isDragging={isDragging}
+          teaserMode={teaserMode}
+          currentSong={selectedSong}
+          audioUrl={selectedSong.audioUrl}
+          audioRef={audioRef}
+          isPlaying={nowPlaying.isPlaying}
+          onPlayPause={(isPlaying) =>
+            setNowPlaying((prev) => ({
+              ...prev,
+              songId: selectedSong._id,
+              isPlaying,
+            }))
+          }
+          onNext={handleNextSong}
+          onPrev={handlePreviousSong}
+          currentTime={currentTime}
+          duration={teaserMode ? TEASER_DURATION : duration}
+          onSeek={(time) => audioRef.current.currentTime = time}
+          volume={volume}
+          onVolumeChange={(v) => {
+            if (audioRef.current) audioRef.current.volume = v;
+            setVolume(v);
+          }}
+          onSliderChange={handleSliderChange}
+          onSliderCommit={handleSliderCommit}
+        />
+      )}
 
 <AuthModal
   open={showAuthModal}
   onClose={() => setShowAuthModal(false)}
-  
   currentSong={selectedSong}
 />
-
-
-
 
 
     </>
   );
 };
+
 export default LoginSignin;
+
