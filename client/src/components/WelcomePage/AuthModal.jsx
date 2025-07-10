@@ -8,10 +8,7 @@ import {
 import { Close } from '@mui/icons-material';
 import { useOutletContext } from "react-router-dom";
 
-export default function AuthModal({ open, onClose, currentSong }) {
-  const outletContext = useOutletContext() || {};
-  const { onSwitchToLogin, onSwitchToSignup } = outletContext;
-
+export default function AuthModal({ open, onClose, currentSong, onSwitchToLogin, onSwitchToSignup }) {
   return (
     <Dialog
       open={open}
@@ -50,7 +47,6 @@ export default function AuthModal({ open, onClose, currentSong }) {
         p: 4,
         textAlign: 'center'
       }}>
-        {/* Artwork with Glow Effect */}
         <Box sx={{
           width: { xs: '180px', sm: '220px' },
           height: { xs: '180px', sm: '220px' },
@@ -84,7 +80,6 @@ export default function AuthModal({ open, onClose, currentSong }) {
           />
         </Box>
 
-        {/* Minimalist Message */}
         <Typography variant="h6" sx={{ 
           fontWeight: 600,
           mb: 2,
@@ -102,7 +97,6 @@ export default function AuthModal({ open, onClose, currentSong }) {
           Sign up for free to enjoy unlimited music
         </Typography>
 
-        {/* Auth Buttons - Stacked */}
         <Box sx={{ width: '100%', maxWidth: '280px' }}>
           <Button
             fullWidth

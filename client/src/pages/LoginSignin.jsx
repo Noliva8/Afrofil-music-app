@@ -21,9 +21,9 @@ import { ChevronRight } from '@mui/icons-material';
 import WelcomeAppNavBar from '../components/WelcomePage/WelcomAppNavBar';
 import MainMenu from '../components/MainMenu';
 import { GoogleLogin } from '@react-oauth/google';
-import ModernMusicPlayer from '../components/userAudioPlayer';
+
 import { useRef } from 'react';
-import AuthModal from '../components/WelcomePage/AuthModal';
+
 
 import { useOutletContext } from 'react-router-dom';
 
@@ -37,296 +37,16 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
   const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
 
   const [songsWithArtwork, setSongsWithArtwork] = useState([]);
-  const [selectedSong, setSelectedSong] = useState(null);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [teaserMode, setTeaserMode] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
-  const audioRef = useRef(null);
-  const hasTriggeredTeaserRef = useRef(false);
-  const animationFrameRef = useRef();
-  const prevUpdateTime = useRef(0);
-  const teaserTimeoutRef = useRef(null);
-  const currentSongIdRef = useRef(null);
-  const handleNextSongRef = useRef(null);
 
 
-  // const {  isUserLoggedIn } = useOutletContext() || {};
 
-  const [nowPlaying, setNowPlaying] = useState({
-    songId: null,
-    isPlaying: false,
-    audioUrl: null,
-  });
 
-  const TEASER_DURATION = 30;
-  const SMOOTH_UPDATE_INTERVAL = 50;
-  
 
-  const handleSliderChange = useCallback((_, value) => {
-    setIsDragging(true);
-    setCurrentTime(value);
-  }, []);
 
 
-  const handleSliderCommit = useCallback((_, value) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = value;
-    }
-    setIsDragging(false);
-  }, []);
 
 
-
-const handleSongPlay = useCallback((song) => {
-  hasTriggeredTeaserRef.current = false;
-  currentSongIdRef.current = song._id;
-
-  const audio = audioRef.current;
-  clearTimeout(teaserTimeoutRef.current);
-  teaserTimeoutRef.current = null;
-
-  setTeaserMode(!isUserLoggedIn);
-
-  setSelectedSong(song);
-  setNowPlaying({ songId: song._id, isPlaying: true, audioUrl: song.audioUrl });
-
-  audio.pause();
-  audio.currentTime = 0;
-  audio.src = song.audioUrl;
-
-  audio.addEventListener("loadeddata", function onLoad() {
-    audio.removeEventListener("loadeddata", onLoad);
-    audio.play().catch(err => console.warn("Audio play failed:", err));
-  });
-}, [isUserLoggedIn]);
-
-
-
-const handleNextSong = useCallback(() => {
-  const currentId = currentSongIdRef.current;
-
-  if (!songsWithArtwork || songsWithArtwork.length === 0) {
-    console.warn("⛔ Cannot play next song — songsWithArtwork is empty.");
-    return;
-  }
-
-  const index = songsWithArtwork.findIndex(s => s._id === currentId);
-
-  if (index === -1) {
-    console.warn("❌ Current song not found — fallback to first.");
-    handleSongPlay(songsWithArtwork[0]);
-    return;
-  }
-
-  const next = songsWithArtwork[(index + 1) % songsWithArtwork.length];
-  console.log("🎵 Playing next song:", next.title);
-  handleSongPlay(next);
-}, [songsWithArtwork, handleSongPlay]);
-
-// Keep ref updated
-useEffect(() => {
-  handleNextSongRef.current = handleNextSong;
-}, [handleNextSong]);
-
-
-// const handleNextSongRef = useRef(handleNextSong);
-
-
-  const handlePreviousSong = useCallback(() => {
-    const index = songsWithArtwork.findIndex(s => s._id === nowPlaying.songId);
-    const prev = songsWithArtwork[(index - 1 + songsWithArtwork.length) % songsWithArtwork.length];
-    if (prev) handleSongPlay(prev);
-  }, [songsWithArtwork, nowPlaying.songId, handleSongPlay]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !nowPlaying.audioUrl) return;
-
-    if (audio.src !== nowPlaying.audioUrl) {
-      audio.src = nowPlaying.audioUrl;
-    }
-
-    if (nowPlaying.isPlaying) {
-      audio.play().catch(err => {
-        console.error("Autoplay failed:", err);
-        setNowPlaying(prev => ({ ...prev, isPlaying: false }));
-      });
-    } else {
-      audio.pause();
-    }
-  }, [nowPlaying.audioUrl, nowPlaying.isPlaying]);
-  
-
-
-
-
-useEffect(() => {
-  const audio = audioRef.current;
-
-  // Guard against early load
-  if (!audio || !songsWithArtwork || songsWithArtwork.length === 0) {
-    console.warn("🚫 Teaser setup skipped — audio or songs missing.");
-    return;
-  }
-
-  const enforceTeaser = () => {
-    if (teaserMode && !isUserLoggedIn) {
-      console.log("🔒 Enforcing teaser...");
-
-      if (audio.currentTime >= TEASER_DURATION) {
-        console.log("⏳ Teaser finished at", audio.currentTime);
-        audio.currentTime = TEASER_DURATION;
-        audio.pause();
-        setNowPlaying(prev => ({ ...prev, isPlaying: false }));
-        setShowAuthModal(true);
-
-        clearTimeout(teaserTimeoutRef.current);
-        setTimeout(() => {
-          console.log("🕒 Waiting 3s to play next song...");
-          teaserTimeoutRef.current = setTimeout(() => {
-            console.log("🎯 Triggering next teaser song...");
-            hasTriggeredTeaserRef.current = false;
-            handleNextSongRef.current(); // ✅ Always latest
-          }, 3000);
-        }, 100); // wait for refs to update
-      }
-    }
-  };
-
-  const updateProgress = () => {
-    const now = performance.now();
-    if (!isDragging && now - prevUpdateTime.current >= SMOOTH_UPDATE_INTERVAL) {
-      setCurrentTime(audio.currentTime);
-      prevUpdateTime.current = now;
-
-      if (
-        teaserMode &&
-        !isUserLoggedIn &&
-        !hasTriggeredTeaserRef.current &&
-        audio.currentTime >= TEASER_DURATION
-      ) {
-        hasTriggeredTeaserRef.current = true;
-        enforceTeaser();
-      }
-    }
-
-    animationFrameRef.current = requestAnimationFrame(updateProgress);
-  };
-
-  const startUpdates = () => {
-    prevUpdateTime.current = performance.now();
-    hasTriggeredTeaserRef.current = false;
-    animationFrameRef.current = requestAnimationFrame(updateProgress);
-  };
-
-  const stopUpdates = () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-  };
-
-  const handleSeeked = () => {
-    setCurrentTime(audio.currentTime);
-    if (teaserMode && !isUserLoggedIn && audio.currentTime > TEASER_DURATION) {
-      enforceTeaser();
-    }
-  };
-
-  const handleEnded = () => {
-    if (teaserMode && !isUserLoggedIn) {
-      enforceTeaser();
-    }
-  };
-
-  audio.addEventListener("play", startUpdates);
-  audio.addEventListener("pause", stopUpdates);
-  audio.addEventListener("seeked", handleSeeked);
-  audio.addEventListener("ended", handleEnded);
-
-  if (!audio.paused) startUpdates();
-
-  return () => {
-    audio.removeEventListener("play", startUpdates);
-    audio.removeEventListener("pause", stopUpdates);
-    audio.removeEventListener("seeked", handleSeeked);
-    audio.removeEventListener("ended", handleEnded);
-    stopUpdates();
-    clearTimeout(teaserTimeoutRef.current);
-  };
-}, [teaserMode, isUserLoggedIn, isDragging, songsWithArtwork]);
-
-
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const setAudioDuration = () => {
-      if (audio.duration && Number.isFinite(audio.duration)) {
-        const d = teaserMode ? Math.min(TEASER_DURATION, audio.duration) : audio.duration;
-        setDuration(d);
-      }
-    };
-
-    setAudioDuration();
-    audio.addEventListener("loadedmetadata", setAudioDuration);
-    audio.addEventListener("emptied", setAudioDuration);
-
-    return () => {
-      audio.removeEventListener("loadedmetadata", setAudioDuration);
-      audio.removeEventListener("emptied", setAudioDuration);
-    };
-  }, [teaserMode, nowPlaying.audioUrl]);
-
-// -----------------------------------
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const handleEnded = () => {
-      if (!teaserMode) {
-        handleNextSong();
-      }
-    };
-
-    audio.addEventListener("ended", handleEnded);
-    return () => audio.removeEventListener("ended", handleEnded);
-  }, [handleNextSong, teaserMode]);
-
-// -----------------------------
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const updateVolume = () => setVolume(audio.volume);
-    audio.addEventListener("volumechange", updateVolume);
-    return () => audio.removeEventListener("volumechange", updateVolume);
-  }, []);
-
-// -------------------------
-
-  useEffect(() => {
-    if (isUserLoggedIn) {
-      setTeaserMode(false);
-      clearTimeout(teaserTimeoutRef.current);
-    }
-  }, [isUserLoggedIn]);
-// -----------------------------------
-
-  useEffect(() => {
-    return () => {
-      clearTimeout(teaserTimeoutRef.current);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, []);
 // ----------------------------------
 
   useEffect(() => {
@@ -384,7 +104,8 @@ useEffect(() => {
 
     fetchArtworksAndAudio();
   }, [data, getPresignedUrlDownload, getPresignedUrlDownloadAudio]);
-
+  
+console.log('the trending songs we are sending to children:', songsWithArtwork);
 
 // ------------------------
 // LOGIN & SIGNUP
@@ -1006,58 +727,16 @@ const renderSignup = () => (
 
   return (
     <>
-      <audio ref={audioRef} src={nowPlaying.audioUrl} style={{ display: 'none' }} />
-
         {display === 'login' && renderLogin()}
       {display === 'signup' && renderSignup()}
 
-      {display === '' && (
-        <MainMenu
-          songsWithArtwork={songsWithArtwork}
-          nowPlaying={nowPlaying}
-          isPlaying={nowPlaying.isPlaying}
-          playingSongId={nowPlaying.songId}
-          onSongPlay={handleSongPlay}
-          onSwitchToLogin={onSwitchToLogin}
-
-        />
-      )}
-
-      {selectedSong?.audioUrl && (
-        <ModernMusicPlayer
-          isDragging={isDragging}
-          teaserMode={teaserMode}
-          currentSong={selectedSong}
-          audioUrl={selectedSong.audioUrl}
-          audioRef={audioRef}
-          isPlaying={nowPlaying.isPlaying}
-          onPlayPause={(isPlaying) =>
-            setNowPlaying((prev) => ({
-              ...prev,
-              songId: selectedSong._id,
-              isPlaying,
-            }))
-          }
-          onNext={handleNextSong}
-          onPrev={handlePreviousSong}
-          currentTime={currentTime}
-          duration={teaserMode ? TEASER_DURATION : duration}
-          onSeek={(time) => audioRef.current.currentTime = time}
-          volume={volume}
-          onVolumeChange={(v) => {
-            if (audioRef.current) audioRef.current.volume = v;
-            setVolume(v);
-          }}
-          onSliderChange={handleSliderChange}
-          onSliderCommit={handleSliderCommit}
-        />
-      )}
-
-<AuthModal
-  open={showAuthModal}
-  onClose={() => setShowAuthModal(false)}
-  currentSong={selectedSong}
+{display === '' && (
+<MainMenu
+  songsWithArtwork={songsWithArtwork}    
+  onSwitchToLogin={onSwitchToLogin}
 />
+
+)}
 
 
     </>
