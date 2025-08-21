@@ -104,96 +104,149 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
 
     fetchArtworksAndAudio();
   }, [data, getPresignedUrlDownload, getPresignedUrlDownloadAudio]);
-  
+
 console.log('the trending songs we are sending to children:', songsWithArtwork);
 
-// ------------------------
-// LOGIN & SIGNUP
 
 
-  // Page toggle state
-  const [formDisplay, setFormDisplay] = useState('');
 
-  // Handlers for displaying forms
-  function handleLoginFormDisplay() {
-    setFormDisplay('login');
+// SIGNUP LOGIN
+// ------------
+
+
+// useToggle: toggles boolean state
+const useToggle = (initialState = false) => {
+  const [state, setState] = useState(initialState);
+  const toggle = () => setState(prev => !prev);
+  return [state, toggle];
+};
+
+// useFormState: handles form field updates and resets
+const useFormState = (initialState) => {
+  const [state, setState] = useState(initialState);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setState(prev => ({ ...prev, [name]: value }));
+  };
+  const reset = () => setState(initialState);
+  return [state, handleChange, reset];
+};
+
+
+// Signup & Login form states
+const [signupFormState, handleSignupChange, resetSignup] = useFormState({
+  username: '',
+  email: '',
+  password: ''
+});
+const [loginFormState, handleLoginChange, resetLogin] = useFormState({
+  email: '',
+  password: ''
+});
+const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+// Error messages
+const [signupErrorMessage, setSignupErrorMessage] = useState('');
+const [loginErrorMessage, setLoginErrorMessage] = useState('');
+
+// Password visibility toggles
+const [showPasswordLogin, setShowPasswordLogin] = useToggle(false);
+const [showPasswordSignup, setShowPasswordSignup] = useToggle(false);
+
+// Apollo GraphQL mutation hooks
+const [createUser] = useMutation(CREATE_USER);
+const [login] = useMutation(LOGIN_USER);
+
+
+const validateSignupForm = ({ username, email, password }) => {
+  if (!username.trim() || !email.trim() || !password) {
+    throw new Error('All fields are required');
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error('Please enter a valid email address');
+  }
+  if (password.length < 8) {
+    throw new Error('Password must be at least 8 characters');
+  }
+};
+
+const handleAuthError = (error, setErrorMessage) => {
+  console.error('Auth error:', error);
+  let message = 'An unexpected error occurred. Please try again.';
+
+  if (
+    error.message.includes('required') ||
+    error.message.includes('valid email') ||
+    error.message.includes('Password')
+  ) {
+    message = error.message;
+  } else if (error.networkError) {
+    message = 'Network error. Please check your connection.';
+  } else if (error.graphQLErrors?.length > 0) {
+    message = error.graphQLErrors[0].message;
   }
 
-  function handleSignupFormDisplay() {
-    setFormDisplay('signup');
+  setErrorMessage(message);
+};
+
+
+
+// Signup submission
+const handleSignupSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    validateSignupForm(signupFormState);
+
+
+  const { data } = await createUser({
+  variables: {
+    input: {
+      username: signupFormState.username,
+      email: signupFormState.email,
+      password: signupFormState.password,
+      role: 'regular'
+    }
   }
+});
 
-  // Login form states and handlers
-  const [loginFormState, setLoginFormState] = useState({ email: '', password: '' });
-  const [loginErrorMessage, setLoginErrorMessage] = useState('');
-  const [login, { error: loginError }] = useMutation(LOGIN_USER);
 
-  const handleLoginChange = (event) => {
-    const { name, value } = event.target;
-    setLoginFormState({
-      ...loginFormState,
-      [name]: value,
-    });
-  };
+    const token = data?.createUser?.userToken;
+    if (token) {
+      UserAuth.login(token);
+      resetSignup();
+      onClose();
+    }
+  } catch (error) {
+    handleAuthError(error, setSignupErrorMessage);
+  }
+};
 
-  const handleLoginSubmit = async (event) => {
-    event.preventDefault();
-    try {
-      const { data } = await login({
-        variables: { ...loginFormState },
-      });
-      UserAuth.login(data.login.userToken);
-      setLoginErrorMessage(''); 
-    } catch (e) {
-      setLoginErrorMessage('Invalid email or password.');
-      console.error(e);
+
+// Login submission
+const handleLoginSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    if (!loginFormState.email.trim() || !loginFormState.password) {
+      throw new Error('Email and password are required');
     }
 
-    // Clear form values
-    setLoginFormState({ email: '', password: '' });
-  };
-
-  // Signup form states and handlers
-  const [signupFormState, setSignupFormState] = useState({ username: '', email: '', password: '' });
-  const [signupErrorMessage, setSignupErrorMessage] = useState('');
-  const [createUser, { error: signupError }] = useMutation(CREATE_USER);
-
-  const handleSignupChange = (event) => {
-    const { name, value } = event.target;
-    setSignupFormState({
-      ...signupFormState,
-      [name]: value,
+    const { data } = await login({
+      variables: {
+        email: loginFormState.email,
+        password: loginFormState.password
+      }
     });
-  };
 
-  const handleSignupSubmit = async (event) => {
-    event.preventDefault();
-    try {
-      const { data } = await createUser({
-        variables: { ...signupFormState },
-      });
-      UserAuth.login(data.createUser.userToken);
-      setSignupErrorMessage(''); // Clear error if successful
-    } catch (e) {
-      setSignupErrorMessage('Signup failed. Please ensure your details are correct.');
-      console.error(e);
+    const token = data?.login?.userToken;
+    if (token) {
+       UserAuth.login(token);
+      resetLogin();
+      onClose();
     }
-
-    // Clear form values
-    setSignupFormState({ username: '', email: '', password: '' });
-  };
-
-  // Hide or show password toggle logic
-  const [showPasswordLogin, setShowPasswordLogin] = useState(false);
-  const [showPasswordSignup, setShowPasswordSignup] = useState(false);
-
-  const toggleLoginPasswordVisibility = () => {
-    setShowPasswordLogin((prevState) => !prevState);
-  };
-
-  const toggleSignupPasswordVisibility = () => {
-    setShowPasswordSignup((prevState) => !prevState);
-  };
+  } catch (error) {
+    handleAuthError(error, setLoginErrorMessage);
+  }
+};
 
 
 const handleGoogleLogin = async () => {
@@ -564,7 +617,7 @@ const renderSignup = () => (
             onChange={handleSignupChange}
             value={signupFormState.email}
             required
-            style={{
+              style={{
               width: '100%',
               padding: '12px 15px',
               borderRadius: '8px',
@@ -596,16 +649,20 @@ const renderSignup = () => (
               onChange={handleSignupChange}
               value={signupFormState.password}
               required
-              style={{
-                width: '100%',
-                padding: '12px 15px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'white',
-                fontSize: '16px',
-                paddingRight: '40px'
-              }}
+                 style={{
+              width: '100%',
+              padding: '12px 15px',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.05)',
+              color: 'white',
+              fontSize: '16px',
+              ':focus': {
+                outline: 'none',
+                borderColor: '#E4C421',
+                boxShadow: '0 0 0 2px rgba(228, 196, 33, 0.2)'
+              }
+            }}
             />
             <button
               type="button"
@@ -639,6 +696,28 @@ const renderSignup = () => (
           </p>
         )}
 
+
+                 <div style={{ marginBottom: '20px' }}>
+  <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>
+    <input
+      type="checkbox"
+      checked={agreedToTerms}
+      onChange={() => setAgreedToTerms(prev => !prev)}
+      required
+      style={{ marginRight: '8px' }}
+    />
+    I agree to the{' '}
+    <a href="/terms" target="_blank" style={{ color: '#E4C421', textDecoration: 'underline' }}>
+      Terms of Use
+    </a>{' '}
+    and{' '}
+    <a href="/privacy" target="_blank" style={{ color: '#E4C421', textDecoration: 'underline' }}>
+      Privacy Policy
+    </a>
+  </label>
+</div>
+
+
         <button
           type="submit"
           className="submit-button"
@@ -670,6 +749,8 @@ const renderSignup = () => (
           <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0 }}>
             Already have an account?
           </p>
+
+ 
 
           <button
             type="button"

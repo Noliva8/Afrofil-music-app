@@ -1,6 +1,10 @@
 
 import { User, Playlist, Comment,  LikedSongs, SearchHistory, PlayCount , Recommended, Download, Artist, Song, Album } from '../../models/User/user_index.js';
-import { signUserToken, AuthenticationError} from '../../utils/user_auth.js';
+import {  signUserToken , AuthenticationError, enrichUser} from '../../utils/user_auth.js';
+import { GraphQLError } from 'graphql';
+import bcrypt from 'bcrypt';
+
+
 
 
 const resolvers = {
@@ -205,44 +209,184 @@ commentsForSong: async (parent, { songId }) => {
   Mutation: {
 // Create a new user
 
-   createUser: async (parent, { username, email, password }) => {
-  // Input validation
-  if (!username || !email || !password) {
-    throw new Error("All fields are required.");
-  }
 
-  try {
-    const newUser = await User.create({ username, email, password, role: 'user' });
-    const userToken = signUserToken(newUser);
-    return { userToken, newUser }; 
-
-  } catch (error) {
-    console.error("Error while trying to create the user:", error);
-    throw new Error("Failed to create the user.");
-  }
-},
-
-    // Login user
-    login: async (parent, { email, password }) => {
+createUser: async (_, { input }) => {
       try {
-        const user = await User.findOne({ email });
+        const { username, email, password, role = 'REGULAR' } = input;
 
-        if (!user) {
-          throw new AuthenticationError('User not found');
+        // Validate input
+        if (!username?.trim() || !email?.trim() || !password) {
+          throw new GraphQLError('All fields are required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
         }
 
-        const correctPw = await user.isCorrectPassword(password);
-        if (!correctPw) {
-          throw new AuthenticationError('Incorrect password');
+        // Validate email format
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          throw new GraphQLError('Invalid email format', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
         }
 
-        const userToken = signUserToken(user);
-        return { userToken, user };
+        // Validate password strength
+        if (password.length < 8) {
+          throw new GraphQLError('Password must be at least 8 characters', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+
+        // Normalize role to lowercase
+        const normalizedRole = role.toLowerCase(); 
+
+        // Check for existing non-artist user
+        const existingUser = await User.findOne({
+          email: email.toLowerCase(),
+          role: { $ne: 'ARTIST' }
+        }).lean();
+
+        if (existingUser) {
+          throw new GraphQLError('Email already in use by a regular/premium user', {
+            extensions: { code: 'CONFLICT' }
+          });
+        }
+
+         // Create user
+        const newUser = await User.create({
+          username: username.trim(),
+          email: email.toLowerCase().trim(),
+          password,
+          role: normalizedRole,
+          subscription: {
+            status: normalizedRole === 'premium' ? 'active' : 'trialing',
+            periodEnd: normalizedRole === 'premium'
+              ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+              : null,
+            planId: null
+          },
+          adLimits: {
+            skipsAllowed: 5,
+            lastReset: new Date()
+          }
+        });
+
+           const token = signUserToken(newUser);
+
+           const isPremium = normalizedRole === 'premium';
+
+
+
+      
+
+        return {
+          userToken: token,
+          user: {
+            _id: newUser._id,
+            username: newUser.username,
+            email: newUser.email,
+            role: newUser.role,
+            isPremium,
+            shouldSeeAds: !isPremium,
+            canSkipAd: true,
+            subscription: newUser.subscription,
+            adLimits: newUser.adLimits,
+            createdAt: newUser.createdAt,
+            updatedAt: newUser.updatedAt
+          }
+        };
+
       } catch (error) {
-        console.error("Login failed:", error);
-        throw new AuthenticationError('Login failed.');
+        console.error('User creation error:', error);
+
+        if (error.code === 11000) {
+          throw new GraphQLError('User already exists', {
+            extensions: { code: 'CONFLICT' }
+          });
+        }
+
+        if (error.extensions?.code) {
+          throw error;
+        }
+
+        throw new GraphQLError('Failed to create user', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
       }
     },
+
+
+
+   // LOGIN
+    login: async (_, { email, password }) => {
+      try {
+        if (!email?.trim() || !password) {
+          throw new GraphQLError('Email and password are required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const user = await User.findOne({
+  email: email.toLowerCase().trim()
+}).select('+password'); // Add this!
+
+if (!user) {
+  throw new GraphQLError('Invalid credentials', {
+    extensions: { code: 'UNAUTHENTICATED' }
+  });
+}
+
+const isMatch = await bcrypt.compare(password, user.password);
+if (!isMatch) {
+  throw new GraphQLError('Invalid credentials', {
+    extensions: { code: 'UNAUTHENTICATED' }
+  });
+}
+
+
+        const token = signUserToken(user);
+
+        const isPremium = user.role === 'premium' &&
+          user.subscription?.status === 'active' &&
+          (!user.subscription?.periodEnd || new Date(user.subscription.periodEnd) > new Date());
+
+        return {
+          userToken: token,
+          user: {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            isPremium,
+            shouldSeeAds: !isPremium,
+            canSkipAd: isPremium || (user.adLimits?.skipsAllowed > 0),
+            subscription: user.subscription,
+            adLimits: user.adLimits,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt
+          }
+        };
+
+      } catch (error) {
+        console.error('Login error:', error);
+
+        if (error.extensions?.code) {
+          throw error;
+        }
+
+        throw new GraphQLError('Login failed', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+  
+
+
+
+  
+
+
+
+
 
     // Update user (username or password)
     updateUser: async (parent, { userId, username, password }) => {
@@ -263,6 +407,40 @@ commentsForSong: async (parent, { songId }) => {
         throw new Error("Failed to update user.");
       }
     },
+
+
+
+    // upgradeUserToPremium
+  // ---------------------
+  // upgradeCurrentUserToPremium: async (_, __, { user }) => {
+  //     if (!user?._id) {
+  //       throw new AuthenticationError('You must be logged in to upgrade.');
+  //     }
+
+  //     console.log('verify, user:', user)
+
+  //     const now = new Date();
+  //     const oneMonthLater = new Date(now.setMonth(now.getMonth() + 1));
+
+  //     const updatedUser = await User.findByIdAndUpdate(
+  //       user._id,
+  //       {
+  //         role: 'premium',
+  //         subscription: {
+  //           status: 'active',
+  //           periodEnd: oneMonthLater,
+  //           planId: 'manual-test'
+  //         }
+  //       },
+  //       { new: true }
+  //     );
+
+  //     return updatedUser;
+  //   },
+
+
+
+
 
     // Delete user
     deleteUser: async (parent, { userId }) => {

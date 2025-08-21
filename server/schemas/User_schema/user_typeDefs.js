@@ -7,16 +7,52 @@ type User {
   _id: ID!
   username: String!
   email: String!
-  role: UserRole
-  following: [Artist]
+  role: UserRole!
+  subscription: Subscription
+  adLimits: AdLimits
+  following: [Artist!]!
   createdAt: Date!
+  updatedAt: Date!
+
+  # Computed/virtuals
+  isPremium: Boolean!
+  shouldSeeAds: Boolean!
+  canSkipAd: Boolean!
 }
+
 
 
 enum UserRole {
-  USER
-  ADMIN
+  regular
+  premium
 }
+
+type Subscription {
+  status: SubscriptionStatus!
+  periodEnd: Date
+  planId: String
+  lastPaymentDate: Date
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  NONE
+  TRIALING
+  PAST_DUE
+  CANCELED
+}
+
+type AdLimits {
+  skipsAllowed: Int!
+  lastReset: Date!
+  skipsUsedToday: Int! 
+}
+
+
+
+
+
+
 
 
 type Playlist {
@@ -73,17 +109,6 @@ type Comment {
   createdAt: Date!
 }
 
-
-
-
-
-
-
-
-
-
-
-
 type Query {
   # Users
   users: [User]
@@ -101,12 +126,6 @@ trendingSongs: [Song!]!
 
 
   
- 
- 
-
-
-
-
 
   # Playlists
   playlists: [Playlist]
@@ -119,28 +138,39 @@ trendingSongs: [Song!]!
  
 }
 
-type user_AuthPayload {
-  userToken: String
-  user: User
+input CreateUserInput {
+  username: String!
+  email: String!
+  password: String!
+  role: UserRole = regular
+}
+
+type UserAuthPayload {
+  userToken: String!
+  user: User!
 }
 
 
 
 type Mutation {
   
-  createUser(
-    username: String!,
-     email: String!, 
-     password: String!
-     ): user_AuthPayload
+ createUser(input: CreateUserInput!): UserAuthPayload
+
+
 
   login(
     email: String!, 
-    password: String!): user_AuthPayload
+    password: String!): UserAuthPayload
 
   updateUser(userId: ID!,
    username: String!,
   password: String!): User
+
+  upgradeCurrentUserToPremium: User!
+
+
+
+
 
   deleteUser(userId: ID!): String
 

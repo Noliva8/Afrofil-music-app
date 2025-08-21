@@ -1,127 +1,122 @@
-import { useState } from 'react';
-import searchSong from '../utils/api.js';
-import ForArtistOnly from '../components/ForArtistOnly.jsx';
-import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaHome, FaMusic, FaHeart, FaUser } from 'react-icons/fa';
-import { MdLibraryMusic } from 'react-icons/md';
-import ProfileDropdown from '../components/ProfileDropdown'; // Added back
-import Auth from '../utils/auth'; // Import Auth for logout
+// Home.jsx (modularized entry)
+import { useState, useEffect } from 'react';
+import UserSideBar from '../components/userComponents/Home/UserSideBar';
+import UserMobileHeader from '../components/userComponents/Home/UserMobileHeader';
+import PremiumCard from '../components/userComponents/Home/PremiumCard';
+import AdBanner from '../components/userComponents/Home/AdBanner';
+import PlaylistSection from '../components/userComponents/Home/PlaylistSection';
+import MadeForYou from '../components/userComponents/Home/MadeForYou';
+import EventsSection from '../components/userComponents/Home/EventsSection';
+import PromotedArtists from '../components/userComponents/Home/PromotedArtists';
+import NowPlayingBar from '../components/userComponents/Home/NowPlayingBar';
+import '../pages/CSS/CSS-HOME-FREE-PLAN/home.css';
+import PremiumCheckout from '../components/userComponents/Home/Premium/PremiumCheckout';
+import PremiumCheckoutPage from '../components/userComponents/Home/Premium/PremiumCheckoutPage';
+import PremiumPromoModal from '../components/userComponents/Home/Premium/PremiumPromoModal';
 
-export default function Home({ isMobile }) {
-  const [findSongs, setFindSongs] = useState([]);
-  const [query, setQuery] = useState('');
-  const [selectedSong, setSelectedSong] = useState(null);
-  const navigate = useNavigate();
 
-  const songs = async (query) => {
-    try {
-      const { data } = await searchSong(query);
-      if (data?.data) {
-        setFindSongs(data.data);
-      } else {
-        setFindSongs([]);
-      }
-    } catch (error) {
-      console.error('Error fetching songs:', error);
-    }
-  };
+const Home = ({ upgradeToPremium }) => {
+  const [activeTab, setActiveTab] = useState('home');
+  const [currentSong, setCurrentSong] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
-  const handleSearchChange = (e) => setQuery(e.target.value);
-  const handleSearch = () => songs(query);
-  const handlePlay = (song) => setSelectedSong(song);
+  // Checkout Visibility
+  // ------------------
+  const [showCheckout, setShowCheckout] = useState(false);
 
-  // Logout function
-  const handleLogout = () => {
-    Auth.logout();
-    navigate('/login');
-  };
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth < 768;
+  const togglePlay = () => setIsPlaying(!isPlaying);
 
   return (
-    <div className="home-container">
-      {/* Desktop Profile Dropdown */}
+    <div className="music-app">
       {!isMobile && (
-        <div className="profile-dropdown-container">
-          <ProfileDropdown onLogout={handleLogout} />
-        </div>
+        <UserSideBar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
       )}
 
-      {/* Artist Entrance - Positioned carefully */}
-      {!isMobile && (
-        <div className="artist-entrance-desktop">
-          <ForArtistOnly />
-        </div>
-      )}
+      <main className="content-area">
+        {isMobile && <UserMobileHeader />}
 
-      <div className="search-section">
-        <h1>Search and Play Songs</h1>
-        <div className="search-bar">
-          <input
-            type="text"
-            value={query}
-            onChange={handleSearchChange}
-            placeholder="Search for a song..."
-          />
-          <button onClick={handleSearch}>
-            <FaSearch />
-          </button>
-        </div>
-      </div>
+        <div className="content-wrapper">
+         <PremiumCard upgradeToPremium={() => setShowCheckout(true)} />
+           <AdBanner />
 
-      {/* Song List */}
-      <div className="song-list">
-        {findSongs.length === 0 ? (
-          <p className="no-songs">No songs found. Try searching again.</p>
-        ) : (
-          findSongs.map((song) => (
-            <div
-              key={song.id}
-              className="song-item"
-              onClick={() => handlePlay(song)}
-            >
-              <img src={song.image} alt={song.name} />
-              <div className="song-info">
-                <h3>{song.name}</h3>
-                <p>{song.artist}</p>
-              </div>
+          <div className="main-content-grid">
+            <div className="main-content-column">
+              <PlaylistSection
+                currentSong={currentSong}
+                setCurrentSong={setCurrentSong}
+                setIsPlaying={setIsPlaying}
+              />
+              <MadeForYou />
+              <EventsSection />
             </div>
-          ))
-        )}
-      </div>
 
-      {/* Audio Player */}
-      {selectedSong && (
-        <div className="audio-player">
-          <h2>Now Playing: {selectedSong.name}</h2>
-          <audio controls autoPlay>
-            <source src={selectedSong.preview} type="audio/mp3" />
-          </audio>
+            {!isMobile && <PromotedArtists />}
+          </div>
         </div>
-      )}
+      </main>
 
-      {/* Mobile Bottom Navigation */}
       {isMobile && (
-        <nav className="bottom-nav">
-          <button onClick={() => navigate('/')}>
-            <FaHome />
-            <span>Home</span>
+        <nav className="mobile-nav">
+          <button 
+            className={activeTab === 'home' ? 'active' : ''}
+            onClick={() => setActiveTab('home')}
+          >
+            Home
           </button>
-          <button onClick={() => navigate('/search')}>
-            <FaSearch />
-            <span>Search</span>
+          <button 
+            className={activeTab === 'search' ? 'active' : ''}
+            onClick={() => setActiveTab('search')}
+          >
+            Search
           </button>
-          <button className="artist-button">
-            <ForArtistOnly mobileVersion />
+          <button 
+            className={activeTab === 'library' ? 'active' : ''}
+            onClick={() => setActiveTab('library')}
+          >
+            Library
           </button>
-          <button onClick={() => navigate('/library')}>
-            <MdLibraryMusic />
-            <span>Library</span>
-          </button>
-          <button onClick={() => navigate('/profile')}>
-            <FaUser />
-            <span>Profile</span>
+          <button 
+            className={activeTab === 'events' ? 'active' : ''}
+            onClick={() => setActiveTab('events')}
+          >
+            Events
           </button>
         </nav>
       )}
+
+      <NowPlayingBar
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        togglePlay={togglePlay}
+      />
+
+
+      {showCheckout && (
+  <PremiumPromoModal
+    onClose={() => setShowCheckout(false)}
+    onSubscribe={(plan) => {
+      console.log('Subscribed to:', plan);
+      // TODO: update user context to 'premium'
+      setShowCheckout(false);
+    }}
+  />
+)}
+
     </div>
+
   );
-}
+};
+
+export default Home;

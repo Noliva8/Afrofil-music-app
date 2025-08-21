@@ -1,159 +1,336 @@
+// ✅ Setup early
+import express from "express";
+import dotenv from "dotenv";
+dotenv.config();
+
+import { fileURLToPath } from 'url';
+
 // Import necessary packages and functions
-import connectDB from './config/connection.js'; 
-import { expressMiddleware } from '@apollo/server/express4';
-import graphqlUploadExpress from 'graphql-upload/graphqlUploadExpress.mjs';
-import express from 'express';
-import { ApolloServer } from '@apollo/server';
+import connectDB from "./config/connection.js";
+import { expressMiddleware } from "@apollo/server/express4";
+import graphqlUploadExpress from "graphql-upload/graphqlUploadExpress.mjs";
 
-import { createServer } from 'http';
-import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
-import { makeExecutableSchema } from '@graphql-tools/schema';
-import { WebSocketServer } from 'ws';
-import { useServer } from 'graphql-ws/use/ws';
+import { ApolloServer } from "@apollo/server";
+import Stripe from 'stripe';
+import { createServer } from "http";
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import { WebSocketServer } from "ws";
+import { useServer } from "graphql-ws/use/ws";
+import cleanupAbandonedDrafts from "./utils/serverCleanUpAd.js";
+
+import path from "path";
+
+import {
+  artist_typeDefs,
+  artist_resolvers,
+} from "./schemas/Artist_schema/index.js";
+import { user_typeDefs, user_resolvers } from "./schemas/User_schema/index.js";
+import { advertizer_typeDefs, advertizer_resolver} from "./schemas/Advertizer_schema/index.js"
+
+import { getArtistFromToken } from "./utils/artist_auth.js";
+import { getUserFromToken } from "./utils/user_auth.js";
+import { getAdvertizerFromToken } from "./utils/advertizer_auth.js";
+import { combinedAuthMiddleware } from "./utils/combinedAuth.js";
+
+import merge from "lodash.merge";
+import cors from "cors";
+import jwt from "jsonwebtoken";
+import Artist from "./models/Artist/Artist.js";
+import stripeRoutes from "./routes/stripeRoutes.js";
+import location from './routes/location.js';
+import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
+
+import monitorSubscriptions from "./utils/subscriptionMonitor.js";
+import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded, handlePaymentIntentFailed} from "./routes/webhook.js";
 
 
 
-
-import path from 'path';
-import dotenv from 'dotenv';
-import { artist_typeDefs, artist_resolvers } from './schemas/Artist_schema/index.js';
-import { user_typeDefs, user_resolvers } from './schemas/User_schema/index.js';
-
-import { authMiddleware, getArtistFromToken} from './utils/artist_auth.js';
-import { user_authMiddleware, getUserFromToken } from './utils/user_auth.js';
-import { combinedAuthMiddleware } from './utils/combinedAuth.js';
-
-import merge from 'lodash.merge';
-import cors from 'cors';
-import jwt from 'jsonwebtoken';
-import Artist from './models/Artist/Artist.js';
+import { resolve } from "dns";
 
 // Initialize dotenv for environment variables
 dotenv.config();
 
+const app = express();
 // Set up port and express app
 const PORT = process.env.PORT || 3001;
-const app = express();
+app.set("trust proxy", 1); // ✅ FIXED
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Register webhook endpoint
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+const DASHBOARD_WHSEC = process.env.STRIPE_WEBHOOK_ADS_PAYMENT 
+
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, DASHBOARD_WHSEC);
+    console.log(`🔔 Received ${event.type} (${event.id})`); // Added event logging
+  } catch (err) {
+    console.error('❌ Webhook Error:', {
+      message: err.message,
+      event: req.body?.type || 'unknown'
+    });
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // ========== Event Processing ==========
+  try {
+    switch (event.type) {
+      // ----- Subscription Events -----
+      case 'invoice.payment_succeeded':
+      case 'invoice_payment.paid': {
+        const invoice = event.data.object;
+        console.log('💰 Invoice paid:', invoice.id);
+        handleInvoicePaymentSucceeded(invoice);
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        console.log('❌ Invoice failed:', invoice.id);
+        handleInvoicePaymentFailed(invoice);
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        console.log('🗑️ Subscription deleted:', subscription.id);
+        handleSubscriptionDeleted(subscription);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        console.log('🔄 Subscription updated:', subscription.id);
+        handleSubscriptionUpdated(subscription);
+        break;
+      }
+
+      // ----- Checkout Events -----
+      case 'checkout.session.expired': {
+        const session = event.data.object;
+        console.log('⏳ Checkout expired:', session.id);
+        handleSessionExpired(session);
+        break;
+      }
+
+      // ----- Payment Intents (Ads) -----
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object;
+        console.log('✅ Ad payment succeeded:', paymentIntent.id);
+        handlePaymentIntentSucceeded(paymentIntent);
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = event.data.object;
+        console.log('❌ Ad payment failed:', paymentIntent.id);
+        handlePaymentIntentFailed(paymentIntent);
+        break;
+      }
+
+      case 'payment_intent.canceled': {
+        const paymentIntent = event.data.object;
+        console.log('🚫 Ad payment canceled:', paymentIntent.id);
+        if (typeof handlePaymentIntentCanceled === 'function') {
+          handlePaymentIntentCanceled(paymentIntent);
+        }
+        break;
+      }
+
+      default: {
+        console.warn(`⚠️ Unhandled event: ${event.type} (${event.id})`);
+        break;
+      }
+    }
+
+    return res.status(200).json({ 
+      received: true,
+      event: event.type  // Echo back for debugging
+    });
+
+  } catch (handlerErr) {
+    console.error('⚠️ Handler Error:', {
+      event: event.type,
+      error: handlerErr.message,
+      stack: handlerErr.stack
+    });
+    return res.status(500).json({ error: 'Handler processing failed' });
+  }
+});
+
+
+// adPayment webhook 
+// ==================
+
+// app.post('/api/stripe/webhook-ads', express.raw({ type: 'application/json' }), (req, res) => {
+//   console.log('the ad webhook is firing ...');
+  
+  
+//   const signature = req.headers['stripe-signature'];
+//   let event;
+
+//   if (endPointSecretForAdPayment) {
+//     try {
+//       event = stripe.webhooks.constructEvent(
+//         req.body,  // The raw request body
+//         signature,
+//         endPointSecretForAdPayment
+//       );
+//     } catch (error) {  // You had 'err' here but declared 'error' above
+//       console.log(`⚠️  Webhook signature verification failed.`, error.message);
+//       return res.sendStatus(400);
+//     }
+
+//     // Handle the event
+//     switch (event.type) {
+//       case 'payment_intent.succeeded':
+//         const paymentIntent = event.data.object;
+//         // update the database, send the message to the advertiser
+//         handlePaymentIntentSucceeded(paymentIntent);
+//         break;
+        
+//       case 'payment_intent.payment_failed':
+//         const paymentIntentFailed = event.data.object;
+//         // send the message to tell him/her the payment failed or is abandoned
+//         handlePaymentIntentFailed(paymentIntentFailed);
+//         break;
+        
+//       // It's good practice to handle unexpected event types
+//       default:
+//         console.log(`Unhandled event type ${event.type}`);
+//     }
+//   } else {
+//     console.log('Warning: No endpoint secret configured for ad payments');
+//     return res.sendStatus(400);
+//   }
+
+//   // Return a response to acknowledge receipt of the event
+//   res.json({ received: true });
+// });
+
+
+
+
+
+
+
+
+
 
 const httpServer = createServer(app);
 
 
 
+
+// List of allowed origins
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', 'http://localhost:5173'];
+
 // CORS configuration
 const corsOptions = {
-    origin: 'http://localhost:3000', // Allow requests from this origin
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+  origin: function (origin, callback) {
+    // Allow requests from allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true); // Allow the origin
+    } else {
+      console.error(`❌ CORS Error: ${origin} is not allowed`);
+      callback(new Error('Not allowed by CORS')); // Reject the request if the origin is not allowed
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true // This allows cookies or authentication headers to be sent
 };
 
 // Use CORS middleware
 app.use(cors(corsOptions));
 
+
+
+
+
+
+
 // Body parsing middleware
 app.use(express.urlencoded({ extended: false }));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// File upload middleware for handling file uploads with GraphQL
+// File upload middleware
 app.use(graphqlUploadExpress({ maxFileSize: 100000000, maxFiles: 10 }));
 
 // Combining typeDefs and resolvers
-const typeDefs = [artist_typeDefs, user_typeDefs];
-const resolvers = merge(artist_resolvers, user_resolvers);
+const typeDefs = [artist_typeDefs, user_typeDefs, advertizer_typeDefs];
+const resolvers = merge(artist_resolvers, user_resolvers, advertizer_resolver);
 
-
-// creating  an instance of GraphQLSchema
-
+// Create GraphQL schema
 const schema = makeExecutableSchema({ typeDefs, resolvers });
-
-
 
 // Creating the WebSocket server
 const wsServer = new WebSocketServer({
   server: httpServer,
- path: '/graphql',
+  path: "/graphql",
 });
-
-
-
-// const serverCleanup = useServer(
-//   {
-//     schema,
-//     context: async (ctx) => {
-//       try {
-//         // Get raw Authorization header
-//         const authHeader = ctx.connectionParams?.authorization || '';
-        
-//         // Verify token (simplified version)
-//         const token = authHeader.replace('Bearer ', '');
-//         if (!token) throw new Error('Missing token');
-
-//         // Verify and get artist
-//         const artist = await getArtistFromToken(token);
-//         if (!artist) throw new Error('Artist not found');
-
-//         return { artist };
-//       } catch (error) {
-//         console.error('WS Authentication Error:', error.message);
-//         // Close connection with specific code
-//         throw new Error('CONNECTION_INIT_ERROR: Authentication failed');
-//       }
-//     },
-//     onConnect: (ctx) => {
-//       console.log('New subscription connection');
-//     },
-//     onDisconnect: (ctx, code, reason) => {
-//       console.log(`Disconnected: ${code} ${reason}`);
-//     }
-//   },
-//   wsServer
-// );
-
-
 
 const serverCleanup = useServer(
   {
     schema,
     context: async (ctx) => {
       try {
-        const authHeader = ctx.connectionParams?.authorization || '';
-        const token = authHeader.replace('Bearer ', '');
+        const authHeader = ctx.connectionParams?.authorization || "";
+        const token = authHeader.replace("Bearer ", "");
 
         let context = {};
 
+        // Try artist auth first
         try {
           const artist = await getArtistFromToken(token);
-          if (artist) context.artist = artist;
+          if (artist) {
+            context.artist = artist;
+            return context;
+          }
         } catch (_) {}
 
-        if (!context.artist) {
-          try {
-            const user = await getUserFromToken(token);
-            if (user) context.user = user;
-          } catch (_) {}
-        }
+        // Then try user auth
+        try {
+          const user = await getUserFromToken(token);
+          if (user) {
+            context.user = user;
+            return context;
+          }
+        } catch (_) {}
 
-        if (!context.artist && !context.user) {
-          throw new Error('Authentication failed');
-        }
+        // Finally try advertizer auth
+        try {
+          const advertizer = await getAdvertizerFromToken(token);
+          if (advertizer) {
+            context.advertizer = advertizer;
+            return context;
+          }
+        } catch (_) {}
 
-        return context;
+        throw new Error("Authentication failed");
       } catch (error) {
-        console.error('WS Authentication Error:', error.message);
-        throw new Error('CONNECTION_INIT_ERROR: Authentication failed');
+        console.error("WS Authentication Error:", error.message);
+        throw new Error("CONNECTION_INIT_ERROR: Authentication failed");
       }
     },
     onConnect: (ctx) => {
-      console.log('New subscription connection');
+      console.log("New subscription connection");
     },
     onDisconnect: (ctx, code, reason) => {
       console.log(`Disconnected: ${code} ${reason}`);
-    }
+    },
   },
   wsServer
 );
-
-
-
 
 // Set up Apollo Server with GraphQL schema
 const server = new ApolloServer({
@@ -166,99 +343,128 @@ const server = new ApolloServer({
           async drainServer() {
             await serverCleanup.dispose();
             await wsServer.close();
-          }
+          },
         };
-      }
-    }
+      },
+    },
   ],
-  context: combinedAuthMiddleware,
-  csrfPrevention: process.env.NODE_ENV === 'production'
+  csrfPrevention: process.env.NODE_ENV === "production",
 });
 
-//  context: authMiddleware,
+// Routes
+app.use("/api", stripeRoutes);
 
 
-
+app.use("/api/location", location);
+app.use('/api', verifyAdvertizerEmail);
 
 // Start the Apollo Server and connect to the DB
 const startApolloServer = async () => {
-    try {
-        // Start Apollo Server
-        console.log('Apollo Server starting...');
-        await server.start();
-        console.log('Apollo Server started successfully');
+  try {
+    // Start Apollo Server
+    console.log("Apollo Server starting...");
+    await server.start();
+    console.log("Apollo Server started successfully");
 
-        // Use Apollo Server middleware
-        app.use('/graphql', expressMiddleware(server, {
-            context: combinedAuthMiddleware,
-            
-        }));
+    // Use combined auth middleware
+    app.use(async (req, _res, next) => {
+      await combinedAuthMiddleware({ req });
+      next();
+    });
 
-// context: authMiddleware,
+    app.use(
+      "/graphql",
+      expressMiddleware(server, {
+        context: async ({ req }) => ({
+          req,
+          artist: req.artist || null,
+          user: req.user || null,
+          advertizer: req.advertizer || null,
+        }),
+      })
+    );
 
-        // Email verification route
-        app.get('/confirmation/:artist_id_token', async (req, res) => {
-            try {
-                const decoded = jwt.verify(req.params.artist_id_token, process.env.JWT_SECRET_ARTIST);
-                console.log(decoded);
-                if (!decoded || !decoded.data || !decoded.data._id) {
-                    throw new Error('Invalid token structure');
-                }
-                const { _id } = decoded.data;
-                await Artist.findByIdAndUpdate(_id, { confirmed: true });
-            } catch (e) {
-                console.log('Error confirming email:', e);
-                res.status(400).json({ success: false, message: 'Error during verification' });
-            }
-            return res.redirect('http://localhost:3000/artist/login');
-        });
+    // Start background monitoring
+    monitorSubscriptions();
 
-        // Plan verification and confirmation status route
-        app.post('/api/confirmationStatusAndPlanStatus', async (req, res) => {
-            const { email } = req.body;
-            if (!email) {
-                return res.status(400).json({ error: 'Email is required' });
-            }
-            try {
-                const artist = await Artist.findOne({ email });
-                if (!artist) {
-                    return res.status(404).json({ error: 'Artist not found' });
-                }
-                return res.json({
-                    confirmed: artist.confirmed,
-                    selectedPlan: artist.selectedPlan,
-                    plan: artist.plan,
-                    artistAka: artist.artistAka,
-                });
-            } catch (error) {
-                console.error('Error checking confirmation:', error);
-                return res.status(500).json({ error: 'Internal server error' });
-            }
-        });
-
-        // Production setup: Serve static files if in production mode
-        if (process.env.NODE_ENV === 'production') {
-            app.use(express.static(path.join(__dirname, '../client/dist')));
-            app.get('*', (req, res) => {
-                res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-            });
+    // Email verification route
+    app.get("/confirmation/:artist_id_token", async (req, res) => {
+      try {
+        const decoded = jwt.verify(
+          req.params.artist_id_token,
+          process.env.JWT_SECRET_ARTIST
+        );
+        console.log(decoded);
+        if (!decoded || !decoded.data || !decoded.data._id) {
+          throw new Error("Invalid token structure");
         }
+        const { _id } = decoded.data;
+        await Artist.findByIdAndUpdate(_id, { confirmed: true });
+      } catch (e) {
+        console.log("Error confirming email:", e);
+        res
+          .status(400)
+          .json({ success: false, message: "Error during verification" });
+      }
+      return res.redirect("http://localhost:3000/artist/login");
+    });
 
-        // Attempt to connect to the database
-        console.log('Attempting to connect to the database...');
-        await connectDB();  // Call connectDB function to connect to MongoDB
-
-        // Start the server only after DB is connected
-        httpServer.listen(PORT, () => {
-            console.log(`API server running on port ${PORT}!`);
-            console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
+    // Plan verification and confirmation status route
+    app.post("/api/confirmationStatusAndPlanStatus", async (req, res) => {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      try {
+        const artist = await Artist.findOne({ email });
+        if (!artist) {
+          return res.status(404).json({ error: "Artist not found" });
+        }
+        return res.json({
+          confirmed: artist.confirmed,
+          selectedPlan: artist.selectedPlan,
+          plan: artist.plan,
+          artistAka: artist.artistAka,
         });
+      } catch (error) {
+        console.error("Error checking confirmation:", error);
+        return res.status(500).json({ error: "Internal server error" });
+      }
+    });
 
-    } catch (error) {
-        console.error('Error starting Apollo Server:', error);
+
+    // Define the cleanup route
+app.post('/api/cleanup', async (req, res) => {
+  try {
+    const deletedCount = await cleanupAbandonedDrafts();
+    res.status(200).json({ message: `Deleted ${deletedCount} abandoned draft ads.` });
+  } catch (error) {
+    console.error('Error cleaning up:', error);
+    res.status(500).json({ error: 'Failed to clean up abandoned drafts.' });
+  }
+});
+
+    // Production setup
+    if (process.env.NODE_ENV === "production") {
+      app.use(express.static(path.join(__dirname, "../client/dist")));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+      });
     }
-};
 
+    // Connect to database
+    console.log("Attempting to connect to the database...");
+    await connectDB();
+
+    // Start the server
+    httpServer.listen(PORT, () => {
+      console.log(`API server running on port ${PORT}!`);
+      console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
+    });
+  } catch (error) {
+    console.error("Error starting Apollo Server:", error);
+  }
+};
 
 // Call the function to start the Apollo Server
 startApolloServer();

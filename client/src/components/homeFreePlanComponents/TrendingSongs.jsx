@@ -179,7 +179,7 @@ const handleTrendingSongPlay = async (song) => {
     right: 12,
     backgroundColor: '#E4C421',
     '&:hover': { backgroundColor: '#F8D347' },
-    opacity: 0.9,
+    
     transition: 'opacity 0.2s',
     '&:hover': { opacity: 1 }
   }}

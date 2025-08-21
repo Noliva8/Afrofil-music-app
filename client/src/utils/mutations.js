@@ -1,31 +1,42 @@
 import { gql } from '@apollo/client';
 
+
+
 export const CREATE_USER = gql`
-mutation CreateUser($username: String!, $email: String!, $password: String!) {
-  createUser(username: $username, email: $email, password: $password) {
-     userToken
-    user {
-      username
-      email
-      _id
+  mutation CreateUser($input: CreateUserInput!) {
+    createUser(input: $input) {
+      userToken
+      user {
+        _id
+        username
+        email
+        role
+        isPremium
+        shouldSeeAds
+      }
     }
   }
-}
 `;
+
+
+
 
 export const LOGIN_USER = gql`
   mutation Login($email: String!, $password: String!) {
-  login(email: $email, password: $password) {
-     userToken
-    user {
-      username
-      email
-      _id
-      createdAt
+    login(email: $email, password: $password) {
+      userToken
+      user {
+        _id
+        username
+        email
+        role
+        isPremium
+        shouldSeeAds
+      }
     }
   }
-}
 `;
+
 
 export const CREATE_PLAYLIST = gql`
 mutation CreatePlaylist($title: String!, $createdBy: ID!, $description: String) {
