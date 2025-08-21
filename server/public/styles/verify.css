@@ -1,0 +1,128 @@
+
+    :root {
+      --primary: #6E00FF;
+      --secondary: #FF00A8;
+      --accent: #E4C421;
+      --dark: #0F0F0F;
+      --light: #FFFFFF;
+      --gray: #F5F5F7;
+      --success: #4BB543;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, 
+                   Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--dark);
+      color: var(--light);
+      padding: 2rem;
+      text-align: center;
+      background-image: 
+        radial-gradient(circle at 25% 25%, rgba(110, 0, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(255, 0, 168, 0.1) 0%, transparent 50%);
+    }
+
+    .verification-card {
+      background: rgba(15, 15, 15, 0.9);
+      padding: 3rem;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--success);
+      border-radius: 50%;
+      animation: bounce 0.6s ease;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+      40% {transform: translateY(-20px);}
+      60% {transform: translateY(-10px);}
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 2rem;
+      background: linear-gradient(90deg, var(--accent), var(--success));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.3;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      text-decoration: none;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(110, 0, 255, 0.4);
+    }
+
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: var(--accent);
+      opacity: 0;
+    }
+
+    @media (max-width: 768px) {
+      .verification-card {
+        padding: 2rem;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .success-icon {
+        width: 60px;
+        height: 60px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 1rem;
+      }
+      
+      .verification-card {
+        padding: 1.5rem;
+        border-radius: 0;
+        backdrop-filter: none;
+      }
+    }
+  

@@ -36,6 +36,7 @@ import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
 // Apollo Client setup remains the same...
 const httpLink = createUploadLink({ uri: "/graphql" });
 
+
 const authLink = setContext((_, { headers }) => {
   const userToken = localStorage.getItem("user_id_token");
   const artistToken = localStorage.getItem("artist_id_token");

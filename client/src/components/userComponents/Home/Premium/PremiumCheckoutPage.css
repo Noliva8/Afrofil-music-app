@@ -1,0 +1,301 @@
+/* PremiumCheckoutPage.css */
+
+/* Base Layout */
+.checkout-page {
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background-color: #121212;
+  color: #ffffff;
+  font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.checkout-container {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Header Section */
+.checkout-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.premium-icon {
+  font-size: 2.5rem;
+  color: #1db954;
+  margin-bottom: 1rem;
+}
+
+.checkout-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.subheader {
+  color: #b3b3b3;
+  font-size: 1.1rem;
+}
+
+/* Main Grid Layout */
+.checkout-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.payment-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .payment-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Payment Method Section */
+.payment-section {
+  background-color: #181818;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.payment-methods {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.payment-method {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #282828;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #b3b3b3;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payment-method.active {
+  background-color: rgba(29, 185, 84, 0.1);
+  border-color: #1db954;
+  color: #1db954;
+}
+
+.payment-method:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.payment-method svg {
+  font-size: 1.25rem;
+}
+
+/* Card Form Styles */
+.card-details {
+  margin-bottom: 1.5rem;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #ffffff;
+}
+
+.stripe-card {
+  padding: 0.9rem 1.2rem;
+  background-color: #282828;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Security & Error Messages */
+.security-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  font-size: 0.85rem;
+  color: #b3b3b3;
+}
+
+.security-info svg {
+  color: #1db954;
+}
+
+.error-message {
+  padding: 1rem;
+  margin: 1.5rem 0;
+  background-color: rgba(223, 27, 65, 0.1);
+  border-left: 3px solid #DF1B41;
+  color: #ff6b81;
+  font-size: 0.9rem;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Subscribe Button */
+.subscribe-btn {
+  width: 100%;
+  padding: 1rem;
+  background-color: #1db954;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subscribe-btn:hover:not(:disabled) {
+  background-color: #1ed760;
+}
+
+.subscribe-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Order Summary */
+.order-summary {
+  background-color: #181818;
+  padding: 2rem;
+  border-radius: 8px;
+}
+
+.plan-options {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.plan-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.2rem;
+  background-color: #282828;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.plan-option.selected {
+  background-color: rgba(29, 185, 84, 0.1);
+  border-color: #1db954;
+}
+
+.plan-radio {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 1px solid #b3b3b3;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.15rem;
+}
+
+.radio-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  background-color: #1db954;
+  border-radius: 50%;
+}
+
+.plan-info h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.plan-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.plan-price small {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #b3b3b3;
+}
+
+.savings-badge {
+  font-size: 0.75rem;
+  background-color: #1db954;
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+.trial-info {
+  font-size: 0.85rem;
+  color: #b3b3b3;
+}
+
+/* Total Section */
+.total-section {
+  padding: 1.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.total-row:last-child {
+  margin-bottom: 0;
+}
+
+/* Terms Notice */
+.terms-notice {
+  font-size: 0.8rem;
+  color: #b3b3b3;
+  line-height: 1.6;
+}
+
+.terms-notice a {
+  color: #1db954;
+  text-decoration: none;
+}
+
+.terms-notice a:hover {
+  text-decoration: underline;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #b3b3b3;
+}

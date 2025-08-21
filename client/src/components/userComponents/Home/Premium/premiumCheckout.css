@@ -1,0 +1,373 @@
+:root {
+  --primary: #1db954;
+  --primary-light: #1ed760;
+  --dark-bg: #121212;
+  --dark-secondary: #181818;
+  --dark-tertiary: #282828;
+  --light-text: #ffffff;
+  --light-secondary: #b3b3b3;
+  --border-radius: 12px;
+  --box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.checkout-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.checkout-container {
+  background: linear-gradient(to bottom, #1a1a1a, #121212);
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 500px;
+  padding: 30px;
+  position: relative;
+  box-shadow: var(--box-shadow);
+  overflow-y: auto;
+  max-height: 90vh;
+}
+
+.close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: var(--light-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  color: var(--light-text);
+  transform: scale(1.1);
+}
+
+.checkout-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.checkout-header h2 {
+  font-size: 24px;
+  margin: 15px 0 5px;
+}
+
+.checkout-header p {
+  color: var(--light-secondary);
+  font-size: 14px;
+}
+
+.premium-icon {
+  color: var(--primary);
+  font-size: 32px;
+}
+
+.plan-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.plan-card {
+  background-color: var(--dark-secondary);
+  border: 1px solid var(--dark-tertiary);
+  border-radius: var(--border-radius);
+  padding: 15px;
+  display: flex;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.plan-card.selected {
+  border-color: var(--primary);
+  background-color: rgba(29, 185, 84, 0.1);
+}
+
+.plan-card:hover:not(.selected) {
+  background-color: var(--dark-tertiary);
+}
+
+.plan-radio {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--light-secondary);
+  border-radius: 50%;
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.plan-card.selected .plan-radio {
+  border-color: var(--primary);
+}
+
+.radio-dot {
+  width: 10px;
+  height: 10px;
+  background-color: var(--primary);
+  border-radius: 50%;
+}
+
+.plan-details {
+  flex: 1;
+}
+
+.plan-details h3 {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.plan-price span {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.plan-price small {
+  color: var(--light-secondary);
+  font-size: 14px;
+}
+
+.savings-badge {
+  background-color: var(--primary);
+  color: black;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.trial-info {
+  color: var(--light-secondary);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plan-features li {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.feature-icon {
+  color: var(--primary);
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.payment-form {
+  margin-bottom: 30px;
+}
+
+.payment-form h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+}
+
+.payment-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.payment-option {
+  background-color: var(--dark-secondary);
+  border: 1px solid var(--dark-tertiary);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.payment-option:hover {
+  border-color: var(--light-secondary);
+}
+
+.payment-option.active {
+  border-color: var(--primary);
+  background-color: rgba(29, 185, 84, 0.1);
+}
+
+.payment-option svg {
+  font-size: 20px;
+}
+
+.card-details {
+  background-color: var(--dark-secondary);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 5px;
+  color: var(--light-secondary);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  background-color: var(--dark-tertiary);
+  border: 1px solid var(--dark-tertiary);
+  border-radius: 6px;
+  color: var(--light-text);
+  font-size: 16px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.security-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--light-secondary);
+  margin-bottom: 20px;
+}
+
+.security-info svg {
+  color: var(--primary);
+}
+
+.subscribe-btn {
+  width: 100%;
+  padding: 16px;
+  background-color: var(--primary);
+  color: black;
+  border: none;
+  border-radius: var(--border-radius);
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 15px;
+}
+
+.subscribe-btn:hover {
+  background-color: var(--primary-light);
+  transform: scale(1.02);
+}
+
+.subscribe-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.terms-notice {
+  font-size: 12px;
+  color: var(--light-secondary);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.terms-notice a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.benefits-section {
+  margin-top: 30px;
+}
+
+.benefits-section h3 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
+}
+
+.benefit-card {
+  background-color: var(--dark-secondary);
+  border-radius: var(--border-radius);
+  padding: 20px 15px;
+  text-align: center;
+}
+
+.benefit-icon {
+  font-size: 24px;
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+
+.benefit-card h4 {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.benefit-card p {
+  font-size: 13px;
+  color: var(--light-secondary);
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .checkout-container {
+    padding: 20px 15px;
+  }
+  
+  .payment-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}

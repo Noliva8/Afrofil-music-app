@@ -20,9 +20,15 @@ import ArtistDashboardPremium from './pages/ArtistDashboardPremium.jsx';
 import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
 import ContentFreePlan from './pages/freeDashboard/ContentFreePlan.jsx';
 import DashboardFreePlan from './pages/freeDashboard/DashboardFreePlan.jsx';
+import CheckoutPage from './pages/CheckoutPage.jsx';
+import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
+import PremiumCheckoutWrapper from './components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx';
+
+
 
 
 import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
+import CompletePageWrapper from './components/userComponents/Home/Premium/CompletePageWrapper.jsx';
 
 // Protected Route Component
 const ProtectedRoute = ({ element }) => {
@@ -71,6 +77,17 @@ const router = createBrowserRouter([
         index: true,
         element: <ProtectedRoute element={<Home />} />, // Protect home route
       },
+
+      {
+    path: "checkout",
+    element: <ProtectedRoute element={<PremiumCheckoutWrapper />} />,
+  },
+
+    {
+    path: "complete",
+    element: <ProtectedRoute element={<CompletePageWrapper />} />,
+  },
+
       {
         path: "search",
         element: <ProtectedRoute element={<Search />} />, // Protect search route

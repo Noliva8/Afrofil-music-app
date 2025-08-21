@@ -215,6 +215,7 @@ type Mutation {
   getPresignedUrlDelete(bucket: String!, key: String!, region: String!): PresignedUrlResponse
   
   artist_login(email: String!, password: String!): AuthPayload_artist
+  
   deleteArtist(artistId: ID!): Artist
 
   updateArtistProfile(

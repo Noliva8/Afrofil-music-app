@@ -553,6 +553,7 @@ console.error('Error in resolver:', error);
 
     // Step 3: Check if the password is correct
     const correctPw = await artist.isCorrectPassword(password);
+    
     if (!correctPw) {
       throw new AuthenticationError('Incorrect password.');
     }
@@ -896,6 +897,7 @@ console.log("✅ Updated song document:", updatedSong);
 
 
 songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
+
   // Initialize with proper directory setup
   const __dirname = path.dirname(new URL(import.meta.url).pathname);
   const uploadsDir = path.join(__dirname, "uploads");
@@ -1067,6 +1069,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
         Body: fs.createReadStream(processedFilePath),
         ContentType: "audio/mpeg"
       })),
+      
       s3.send(new PutObjectCommand({
         Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,
         Key: originalSongKey,

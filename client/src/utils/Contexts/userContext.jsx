@@ -56,7 +56,7 @@ export const UserProvider = ({ children }) => {
     isGuest: !user && !loading,
     
     // Role checks (will respect null/empty roles if explicitly set)
-    isUser: user?.role === 'user',
+    isRegular: user?.role === 'regular',
     isPremium: user?.role === 'premium',
     isAdmin: user?.role === 'admin',
     
