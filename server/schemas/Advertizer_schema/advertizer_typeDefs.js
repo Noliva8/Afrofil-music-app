@@ -2,6 +2,7 @@ const typeDefs = `
 
 scalar Upload
 scalar Date
+scalar JSON
 
 enum AdvertizerRole {
   advertizer
@@ -52,12 +53,15 @@ type Advertizer {
   country: String!
   companyWebsite: String
   brandType: BrandTypes!
-
+isSuperAdmin: Boolean
+permissions:[String]
   isConfirmed: Boolean
   confirmationToken: String
   confirmationTokenExpire: Date
   isPhoneConfirmed: Boolean
   phoneCode: Int
+
+
 
   acceptedTerms: Boolean!
   acceptedTermsAt: Date
@@ -86,7 +90,7 @@ type ResendEmailResponse {
 
 enum AdType { audio banner overlay }
 enum TargetingScope { worldwide country city }
-enum AdStatus { draft waiting_for_approval active paused completed }
+enum AdStatus { draft waiting_for_approval rejected active paused completed }
 enum AUDIOADFORMAT {
   AUDIO_MPEG
   AUDIO_WAV
@@ -104,13 +108,91 @@ enum BANNERFORMAT {
   IMAGE_PNG
 }
 
+ enum UserTier {
+    guest
+    regular
+    premium
+  }
+
+  enum Mood {
+    Party
+    Chill
+    Gospel
+    Heartbreak
+    Traditional
+    Romantic
+    Motivational
+    Cultural
+  }
+
+
+   enum SubMood {
+    Worship
+    Praise
+    Traditional_Gospel
+    Club_Anthem
+    Wedding
+    Breakup
+    Street
+    Motivation
+    Prayer
+    Rebellion
+  }
+
+
+    enum AdEvent {
+    impression
+    complete
+    click
+  }
+
+
+
+enum PlaybackSource {
+  # Core sources
+  PLAYLIST
+  ALBUM
+  ARTIST
+  TRACK
+
+  # Dynamic
+  SEARCH
+  RADIO         # Seed-based (e.g. song/artist/genre)
+  RECOMMENDATION
+  DISCOVER
+
+  # Editorial
+  STATION       # Curated station (editorial/genre/mood)
+  CHART
+  GENRE
+  MOOD
+  TRENDING
+
+  # User Activity
+  LIKED
+  HISTORY
+  RECENT
+  USER_GENERATED
+
+  # Other
+  PODCAST
+  UNKNOWN
+}
+
+enum RepeatMode {
+  OFF
+  TRACK
+  CONTEXT
+}
+
 # ------------------------------------------- 
 
 type Ad {
 
   # Basics ----
   id: ID!
-  advertiserId: ID!
+   advertiserId: ID!        
+  advertiser: Advertizer
   campaignId: String!
   adTitle: String!
   description: String
@@ -147,6 +229,7 @@ type Ad {
   status: AdStatus!                   
   isApproved: Boolean!
   approvedAt: Date
+  approvedBy: String
   rejectionReason: String
 
 duration: Int
@@ -281,6 +364,117 @@ type ConfirmPriceResponse {
 }
 
 
+
+
+type AdVariant {
+  codec: String!
+  pointer: String!  # NOT a URL; client will presign
+}
+
+type AdPayload {
+  id: ID!
+  type: String!
+  duration: Int!
+  variants: [AdVariant!]!
+}
+
+
+type AdDecision {
+  decision: String!       
+  reason: String
+  retryAfter: Int
+  ad: AdPayload
+  metadata: JSON
+}
+
+type BookResult {
+  ok: Boolean!
+}
+
+
+
+
+  type AdCreative {
+    streamingOverlayAdUrl: String
+    originalOverlayUrl: String
+    streamingBannerAdUrl: String
+    originalBannerAdUrl: String
+    masterAudioAdUrl: String
+    streamingAudioAdUrl: String
+    streamingFallbackAudioUrl: String
+    adArtworkUrl: String
+  }
+
+  type AdPick {
+    campaignId: ID!
+    adId: ID
+    durationSec: Int!
+    priority: Int!
+    creative: AdCreative
+  }
+
+ 
+  type TrackStartPayload {
+    ok: Boolean
+    deduped: Boolean  
+  }
+
+
+
+  type TrackCompletePayload {
+    ok: Boolean
+    deduped: Boolean
+    ad: AdPick
+  }
+
+   type TrackSkipPayload {
+    ok: Boolean
+    deduped: Boolean
+     ad: AdPick
+     }
+
+       type TrackAdEventPayload {
+    ok: Boolean
+    deduped: Boolean
+     ad: AdPick
+  }
+
+  type TrackEndPayload {
+    ok: Boolean
+    now: String
+  }
+  
+
+  type PlaybackContextState {
+  v: Int!                          
+  
+  userId: ID
+  sessionId: ID
+
+  # last known track & position
+  trackId: ID!
+  positionSec: Float!
+  updatedAt: Date!
+  queueIds: [ID!]! 
+song: Song
+  playbackContext: PlaybackContextOutput!
+}
+
+type PlaybackContextOutput {
+  source: PlaybackSource!
+  sourceId: ID
+  sourceName: String
+  queuePosition: Int!
+  queueLength: Int!
+  shuffle: Boolean!
+  repeat: RepeatMode!
+  contextUri: String
+  radioSeed: String
+  searchQuery: String
+  recommendationType: String
+}
+
+
 # ----------------------------------------------
 
 
@@ -308,6 +502,166 @@ input CreateAdBasicInput {
   description: String
 }
 
+input PlayerContextInput {
+  userId: ID!
+  userTier: String!
+  locationCountry: String
+  locationState: String
+  locationCity: String
+  device: String
+  availableAdTime: Int
+  wantType: String
+}
+
+
+
+
+
+
+
+ input GeoInput {
+    country: String
+    state: String
+    city: String
+    latitude: Float
+    longitude: Float
+    accuracyMeters: Int
+    source: String
+  }
+
+
+input PlaybackContextInput {
+  source: PlaybackSource!
+  sourceId: ID
+  sourceName: String
+  queuePosition: Int!
+  queueLength: Int!
+  shuffle: Boolean!
+  repeat: RepeatMode!
+  contextUri: String
+
+  # Additional context fields
+  radioSeed: String
+  searchQuery: String
+  recommendationType: String
+}
+
+
+input SavePlaybackContextStateInput {
+  userId: ID
+  sessionId: ID
+  trackId: ID!
+  positionSec: Float! = 0
+  playbackContext: PlaybackContextInput!
+}
+
+
+
+input TrackStartInput {
+  # Core Identity
+  userId: ID!
+  sessionId: ID!
+  
+  # Device & Tier
+  device: String!          
+  platform: String!       
+  userTier: String!         
+  
+  # Location
+  geo: GeoInput
+  
+  # Current Song
+  trackId: ID!
+  trackGenre: String!
+  trackMood: String!
+  trackSubMood: String
+  artistId: ID!
+  albumId: ID!
+  tempo: Int!               
+  duration: Int!
+  country: String            
+  
+  # Playback Context
+
+  playbackContext: PlaybackContextInput!        
+  
+  # Technical
+  eventId: ID              
+}
+
+
+
+
+
+
+
+
+input TrackCompleteInput {
+  eventId: ID
+  userId: ID!
+  sessionId: ID!
+  trackId: ID!
+  trackGenre: String
+  ms_listened: Int
+  mood: String
+  subMoods: String  
+}
+
+
+
+  input TrackSkipInput {
+    eventId: ID
+    userId: ID!
+    sessionId: ID!
+    trackId: ID!
+    trackGenre: String
+    mood: String
+    subMood: String
+  }
+
+
+
+   input TrackAdEventInput {
+    userId: ID!
+    campaignId: ID!
+    adId: ID
+    event: String!   
+    completed: Boolean
+    clicked: Boolean
+  }
+
+
+
+
+
+  input TrackProgressInput {
+    userId: ID!
+    sessionId: ID!
+    trackId: ID!
+    positionSec: Int!  
+    heartbeatSec: Int
+  }
+
+
+  input TrackEndInput {
+    userId: ID!
+    sessionId: ID!
+    trackId: ID!
+    durationSec: Int!
+    listenedSec: Int!
+    finished: Boolean
+  }
+
+
+
+  type TelemetryAck {
+    ok: Boolean!
+    now: String!
+  }
+
+
+
+
 
 
 
@@ -321,7 +675,9 @@ type Query {
   getPendingAds: [Ad] 
   ad(id: ID!): Ad
   adsByAdvertiser(advertiserId: ID!): [Ad!]!
- myAds(limit: Int = 25, offset: Int = 0): [Ad!]!
+  myAds: [Ad!]!
+   getPlaybackContextState(userId: ID, sessionId: ID): PlaybackContextState
+
    # -----------------------------------------------
 
 
@@ -343,6 +699,7 @@ type Mutation {
     termsVersion: String
     
   ): AuthPayload_advertizer
+
 
   resendAdvertizerVerificationEmail(businessEmail: ID!): ResendEmailResponse
 
@@ -417,19 +774,35 @@ BannerAdUpload(
    file: Upload!
    ): Ad
 
-
-
-
-
-
-
-
+AdAprouve(adId: ID! campainId: String): Ad
+AdReject(adId: ID campainId: String rejectionReason: String): Ad
 
   logAdPerformance(
     adId: ID!
     viewerUserId: ID
     type: PerformanceType!
   ): AdPerformanceLog
+
+
+
+   adDecisionEngine(player: PlayerContextInput!): AdDecision!
+  adBumpServed(userId: ID!): BookResult!  
+
+
+
+
+
+  trackStart(input: TrackStartInput!): TrackStartPayload!
+
+    trackComplete(input: TrackCompleteInput!): TrackCompletePayload!
+    trackSkip(input: TrackSkipInput!): TrackSkipPayload!
+    trackAdEvent(input: TrackAdEventInput!): TrackAdEventPayload!
+    trackEnd(input: TrackEndInput!): TrackEndPayload!
+
+    savePlaybackContextState(input: SavePlaybackContextStateInput!): Boolean!  
+
+    clearPlaybackContextState(userId: ID, sessionId: ID): Boolean!
+    
 
 
 }

@@ -1,4 +1,5 @@
 import { jwtDecode } from "jwt-decode";
+import { sessionManager } from "./sessions/sessionGenerator";
 
 class UserAuth {
   getProfile() {
@@ -41,6 +42,7 @@ class UserAuth {
 
   logout() {
     localStorage.removeItem("user_id_token");
+      sessionManager.endSession();
     window.location.reload(); // Reload to reset state
   }
 }

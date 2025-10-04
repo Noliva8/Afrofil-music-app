@@ -39,6 +39,9 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
   const [songsWithArtwork, setSongsWithArtwork] = useState([]);
 
 
+console.log('Loading:', loading);
+console.log('Error:', error);
+console.log('Data:', data);
 
 
 
@@ -90,6 +93,7 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
               console.error('Error fetching audio for', song.title, err);
             }
           }
+
 
           return {
             ...song,

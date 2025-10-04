@@ -9,12 +9,24 @@ import uploadArtwork from "./resolvers/adArtworkUpload.js";
 import { createAdBasic } from "./resolvers/createAd.js";
 import confirmPrice from "./resolvers/confirmPrice.js";
 import myAds from "./resolvers/adDisplay.js";
+import { AdAprouve, AdReject } from "./resolvers/adAprouveAndReject.js";
+import {adDecisionEngine }from "./resolvers/adDecision.js";
+import {adBumpServed } from "./resolvers/adDecision.js";
+// import { trackProgress, trackStart, trackEnd } from "./resolvers/telemetry.js";
+
+import { trackStart, trackComplete, trackSkip, trackAdEvent, trackEnd} from './resolvers/telemetry.js'
+import { savePlaybackContextState } from "./resolvers/playbackContext/savePlaybackContextState.js";
+import { getPlaybackContextState } from "./resolvers/playbackContext/getPlaybackContextState.js";
+
+import { clearPlaybackContextState } from "./resolvers/playbackContext/clearPlaybackContextState.js";
+
 
 
 const resolvers = {
      Upload: GraphQLUpload,
      Query: {
 myAds,
+getPlaybackContextState,
 
      },
 
@@ -25,7 +37,22 @@ myAds,
          createAdBasic,
          confirmPrice,
          audioAdUpload,
-         uploadArtwork
+         uploadArtwork,
+         AdAprouve,
+         AdReject,
+         
+         adDecisionEngine,
+         adBumpServed,
+
+          trackStart, 
+          trackComplete,
+           trackSkip, 
+           trackAdEvent,
+           trackEnd,
+           savePlaybackContextState,
+           clearPlaybackContextState
+
+
      }
 
 }

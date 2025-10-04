@@ -2,6 +2,10 @@ import { GraphQLError } from 'graphql';
 import { Advertizer, Ad } from "../../../models/Advertizer/index_advertizer.js";
 import { calculateAdPrice } from '../../../utils/priceCalculator.js';
 
+import { createOrUpdateAdRedis } from './Redis/createAdRedis.js';
+
+
+
 // Define authentication error
 const AuthError = new GraphQLError('Could not authenticate advertizer.', {
   extensions: { code: 'UNAUTHENTICATED' }
@@ -48,11 +52,7 @@ await cleanupDraftAds(advertiserId);
 
   const { adTitle = '', adType = 'audio', description = '', targeting, schedule } = input;
 
-  // Debugging: Log the received input
-  // console.log("Received input:", input);
-  // console.log("Received adType:", adType);  // Log adType
 
-  // Validate adType to ensure it's a valid enum value
   const validAdTypes = ['audio', 'banner', 'overlay'];
   if (!validAdTypes.includes(adType)) {
     console.log("Invalid adType received:", adType); // Log if adType is invalid
@@ -156,6 +156,12 @@ await cleanupDraftAds(advertiserId);
     schedule: { startDate, endDate },
     status: 'draft',
   });
+
+
+
+// mirror ad to redis
+
+
 
   return {
 adId: ad._id,  

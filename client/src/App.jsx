@@ -27,9 +27,13 @@ import { Box } from "@mui/material";
 import LoginSignin from "./pages/LoginSignin";
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import { UserProvider } from "./utils/Contexts/userContext.jsx";
+import { LocationProvider  } from "./utils/Contexts/useLocationContext.jsx";
+
+import LocationGate from "./utils/Contexts/LocationGate.jsx";
 import { AudioPlayerProvider } from "./utils/Contexts/AudioPlayerContext.jsx";
 import AuthModal from "./components/WelcomePage/AuthModal.jsx";
 import MediaPlayerContainer from "./components/MusicPlayer/MediaPlayerContainer.jsx";
+
 import { useAudioPlayer } from "./utils/Contexts/AudioPlayerContext.jsx";
 import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
 
@@ -55,8 +59,6 @@ const authLink = setContext((_, { headers }) => {
 
 
 
-
-
 const wsLink = new GraphQLWsLink(
   createClient({
     url: "ws://localhost:3001/graphql",
@@ -73,6 +75,12 @@ const wsLink = new GraphQLWsLink(
     shouldRetry: (err) => !err.message.includes("Authentication failed"),
   })
 );
+
+
+
+
+
+
 
 const splitLink = split(
   ({ query }) => {
@@ -147,6 +155,8 @@ function App() {
  return (
   <ApolloProvider client={client}>
     <UserProvider>
+      <LocationProvider>
+      <LocationGate>
       <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
         <div
           className="app-container"
@@ -228,6 +238,8 @@ function App() {
           <PauseOnLogin formDisplay={formDisplay} />
         </div>
       </AudioPlayerProvider>
+      </LocationGate>
+      </LocationProvider>
     </UserProvider>
   </ApolloProvider>
 );

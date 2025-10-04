@@ -214,9 +214,17 @@ query trendingSongs {
   trendingSongs {
     _id
     title
+    mood
+    tempo
+    subMoods
     artist {
+      _id
       artistAka
       country
+    }
+    album{
+      _id
+      title
     }
     artwork
     streamAudioFileUrl
@@ -232,6 +240,105 @@ query trendingSongs {
     playCount
     trendingScore
     likesCount      
+  }
+}
+`
+
+
+
+
+
+export const GET_SONG_METADATA = gql`
+query getSongMetadata($songId: ID!) {
+  getSongMetadata(songId: $songId) {
+    album {
+    
+      _id
+        
+    }
+    albumTitle
+    artist
+    artistAka
+    country
+    duration
+    genre
+    languages
+    mood
+    songId
+    subMoods
+    tempo
+    title
+  }
+}
+`
+
+
+export const GET_PLAYBACK_CONTEXT_STATE = gql`
+  query GetPlaybackContextState($userId: ID, $sessionId: ID) {
+    getPlaybackContextState(userId: $userId, sessionId: $sessionId) {
+      trackId
+      positionSec
+      updatedAt
+      playbackContext {
+        source
+        sourceId
+        sourceName
+        contextUri
+        queuePosition
+        queueLength
+        shuffle
+        repeat
+        radioSeed
+        searchQuery
+        recommendationType
+      }
+      song {
+        _id
+        title
+        duration
+        artwork
+        streamAudioFileUrl   # minted on resume if available
+        
+      }
+    }
+  }
+`;
+
+
+export const SIMILAR_SONGS_TRENDINGS = gql`
+query Query($songId: ID!) {
+  similarSongs(songId: $songId) {
+    _id
+    album {
+      _id
+      title
+    }
+    artist {
+      _id
+      artistAka
+      country
+    }
+    artwork
+    audioFileUrl
+    composer {
+      name
+      contribution
+    }
+    duration
+    featuringArtist
+    genre
+    lyrics
+    mood
+    producer {
+      name
+      role
+    }
+    releaseDate
+    streamAudioFileUrl
+    subMoods
+    tempo
+    title
+    trackNumber
   }
 }
 `

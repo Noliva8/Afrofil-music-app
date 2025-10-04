@@ -1,7 +1,7 @@
 // loginAdvertizer.js
 import { Advertizer } from "../../../models/Advertizer/index_advertizer.js";
 import { GraphQLError } from 'graphql';
-import { signAdvertizerToken, getAdvertizerFromToken } from '../../../utils/advertizer_auth.js';
+import { signAdvertizerToken,getAdvertizerFromToken, generateToken } from '../../../utils/advertizer_auth.js';
 // import { generateConfirmationTokenAndSendEmail } from '../../../utils/emailUtils.js';
 
 
@@ -30,7 +30,7 @@ const loginAdvertizer = async (_, { businessEmail, password }) => {
     });
   }
 
-  const advertizerToken = signAdvertizerToken(advertizer); // should only encode necessary info
+  const advertizerToken = generateToken(advertizer); // should only encode necessary info
 console.log('check the token:', advertizerToken);
 
 

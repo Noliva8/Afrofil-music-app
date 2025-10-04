@@ -71,6 +71,34 @@ createdAt: Date!
 
 
 
+type SongMetadata {
+  songId: ID!
+  title: String!
+  artist: ID!
+  genre: String!
+  mood: String!
+  subMoods: String
+  tempo: Int
+  
+ 
+  duration: Int!
+
+#populate them from artist Modal
+
+  artistAka: String!
+ country: String
+ languages: [String]
+
+#populate them from album modal
+
+ album: Album
+ albumTitle: String
+
+
+}
+
+
+
 type Producer {
   name: String
   role: String
@@ -172,6 +200,22 @@ type PresignedUrlResponse {
 }
 
 
+
+
+ input NextSongInput {
+    userId: ID!
+    currentSongId: ID!
+  }
+
+
+  type NextSongPayload {
+    ok: Boolean!
+    songId: ID        
+  }
+
+
+
+
 type Query {
   allArtists: [Artist]
   artistProfile: Artist
@@ -185,7 +229,9 @@ type Query {
   ): File
 
   songById(songId: ID!): Song
-
+ getSongMetadata(songId: ID!): SongMetadata
+ trendingSongs: [Song!]!
+ similarSongs(songId: ID!): [Song]
  
   
 }
@@ -320,7 +366,11 @@ deleteSong(
 
 
 
+nextSongAfterComplete(input: NextSongInput!): NextSongPayload!
 
+handlePlayCount(
+  songId: String!
+):Song
 
 
 

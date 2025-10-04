@@ -1,9 +1,11 @@
 
-import { User, Playlist, Comment,  LikedSongs, SearchHistory, PlayCount , Recommended, Download, Artist, Song, Album } from '../../models/User/user_index.js';
+import { Song, Album, Artist, } from '../../models/Artist/index_artist.js'
+import { User,  Playlist, Comment,} from '../../models/User/user_index.js'
 import {  signUserToken , AuthenticationError, enrichUser} from '../../utils/user_auth.js';
 import { GraphQLError } from 'graphql';
 import bcrypt from 'bcrypt';
-
+import { detectUserLocation } from './OtherResorvers/detectUserLocation.js';
+import { createSongRedis, redisTrending } from '../Artist_schema/Redis/songCreateRedis.js';
 
 
 
@@ -100,65 +102,178 @@ userById: async (parent, { userId }) => {
 // Treding Songs
 // ------------
 
-trendingSongs: async () => {
+// trendingSongs: async () => {
 
-  console.log('trending songs is called')
-  const limit = 20;
+//   console.log('trending songs is called')
+//   const limit = 20;
 
-  try {
-    // Fetch all song sets in parallel
-    const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
-      Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
+//   try {
+//     // Fetch all song sets in parallel
+//     const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+//       Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist').populate('album'),
 
-      Song.aggregate([
-        {
-          $addFields: {
-            likesCount: { $size: { $ifNull: ["$likedByUsers", []] } }
-          }
-        },
-        { $sort: { likesCount: -1, createdAt: -1 } },
-        { $limit: limit }
-      ]),
+//       Song.aggregate([
+//         {
+//           $addFields: {
+//             likesCount: { $size: { $ifNull: ["$likedByUsers", []] } }
+//           }
+//         },
+//         { $sort: { likesCount: -1, createdAt: -1 } },
+//         { $limit: limit }
+//       ]),
 
-      Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
+//       Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist').populate('album'),
 
-      Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist')
-    ]);
+//       Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist').populate('album')
+//     ]);
 
-    // Populate artists for topLikesAgg results
-    const likedIds = topLikesAgg.map(song => song._id);
-    const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist');
+//     // Populate artists for topLikesAgg results
+//     const likedIds = topLikesAgg.map(song => song._id);
+//     const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist').populate('album');
 
-    // Merge them uniquely
-    const merged = [];
-    const seen = new Set();
+//     // Merge them uniquely
+//     const merged = [];
+//     const seen = new Set();
 
-    const addUnique = (songs) => {
-      for (const song of songs) {
-        const id = song._id.toString();
-        if (!seen.has(id)) {
-          seen.add(id);
-          merged.push(song);
-          if (merged.length === limit) break;
-        }
-      }
-    };
-console.log("Top Plays:", topPlays.length);
-console.log("Top Likes (agg):", topLikesAgg.length);
-console.log("Top Downloads:", topDownloads.length);
-console.log("Latest Songs:", latestSongs.length);
+//     const addUnique = (songs) => {
+//       for (const song of songs) {
+//         const id = song._id.toString();
+//         if (!seen.has(id)) {
+//           seen.add(id);
+//           merged.push(song);
+//           if (merged.length === limit) break;
+//         }
+//       }
+//     };
+// console.log("Top Plays:", topPlays.length);
+// console.log("Top Likes (agg):", topLikesAgg.length);
+// console.log("Top Downloads:", topDownloads.length);
+// console.log("Latest Songs:", latestSongs.length);
 
-    addUnique(topPlays);
-    addUnique(topLikes);
-    addUnique(topDownloads);
-    addUnique(latestSongs);
+//     addUnique(topPlays);
+//     addUnique(topLikes);
+//     addUnique(topDownloads);
+//     addUnique(latestSongs);
 
-    return merged.slice(0, limit);
-  } catch (error) {
-    console.error("❌ Trending songs fetch error:", error);
-    return [];
-  }
-},
+   
+
+//     return merged.slice(0, limit);
+//   } catch (error) {
+//     console.error("❌ Trending songs fetch error:", error);
+//     return [];
+//   }
+// },
+
+
+
+
+// trendingSongs: async () => {
+//   const limit = 20;
+
+//   // // 1) Try Redis first
+//   // try {
+//   //   const fromRedis = await redisTrending(limit);
+//   //   if (fromRedis && fromRedis.length) {
+//   //     return fromRedis;
+//   //   }
+//   // } catch (e) {
+//   //   console.warn("[trendingSongs] Redis fetch failed, falling back:", e.message);
+//   // }
+
+//   // 2) DB fallback
+//   try {
+//     const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+//       Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit)
+//         .populate({path: 'artist', select: '-password -email -__v'}).populate({ path: 'album', populate: {
+//       path: 'artist',
+//       select: ' artistAka profileImage bio country genre languages coverImage' 
+//     }}).lean(),
+
+
+
+//       Song.aggregate([
+//         { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
+//         { $sort: { likesCount: -1, createdAt: -1 } },
+//         { $limit: limit }
+//       ]),
+
+//       Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit)
+//         .populate('artist').populate('album').lean(),
+
+//       Song.find().sort({ createdAt: -1 }).limit(limit)
+//         .populate('artist').populate('album').lean(),
+//     ]);
+
+
+
+
+
+//     // Re-fetch liked with full docs
+//     const likedIds = topLikesAgg.map(s => s._id);
+//     const topLikes = await Song.find({ _id: { $in: likedIds } })
+//       .populate('artist').populate('album').lean();
+
+//     const merged = [];
+//     const seen = new Set();
+
+//     const addUnique = (songs) => {
+//       for (const s of songs) {
+//         const id = s._id.toString();
+//         if (seen.has(id)) continue;
+
+//         // ⚠️ Sanitize missing artist/album/title — allow song through
+//         const artist = s.artist || null;
+//         const album = s.album || null;
+//         const albumTitle = album?.title || 'Unknown Album';
+
+//         seen.add(id);
+//         merged.push({
+//           ...s,
+//           artist,
+//           album: album ? { ...album, title: albumTitle } : null,
+//           likesCount: s.likedByUsers?.length || s.likesCount || 0,
+//         });
+
+//         if (merged.length === limit) break;
+//       }
+//     };
+
+//     addUnique(topPlays);
+//     addUnique(topLikes);
+//     addUnique(topDownloads);
+//     addUnique(latestSongs);
+
+//     const result = merged.slice(0, limit);
+
+
+
+// console.log('retruned songs:', result)
+//     // 3) Best-effort Redis backfill
+//     (async () => {
+//       try {
+//         const r = await getRedis();
+//         for (const doc of result) {
+//           try {
+//             await createSongRedis(doc);
+//             if (typeof recomputeTrendingFor === "function") {
+//               await recomputeTrendingFor(r, String(doc._id));
+//             }
+//           } catch (e) {
+//             console.warn("[trendingSongs] backfill for", doc._id, "failed:", e.message);
+//           }
+//         }
+//       } catch (e) {
+//         console.warn("[trendingSongs] Redis backfill skipped:", e.message);
+//       }
+//     })();
+
+//     return result;
+//   } catch (err) {
+//     console.error("❌ Trending songs DB fallback error:", err);
+//     return [];
+//   }
+// },
+
 
 
 
@@ -561,6 +676,7 @@ searched_Songs: async (parent, { songId }, { user, SearchHistory }) => {
   }
 },
 
+
 recommended_songs: async (parent, { userId, algorithm }, { User, Song, Recommended }) => {
   try {
     // Step 1: Validate the algorithm input
@@ -656,6 +772,10 @@ recommended_songs: async (parent, { userId, algorithm }, { User, Song, Recommend
   }
 },
 
+
+// other resolvers
+
+detectUserLocation,
 
   }
 
