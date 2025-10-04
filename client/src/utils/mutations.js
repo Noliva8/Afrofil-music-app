@@ -319,7 +319,7 @@ mutation addArtwork($songId: ID!, $artwork: String) {
 
 
 export const SONG_UPLOAD = gql`
-mutation songUpload($file: Upload, $tempo: Float, $beats: [Float], $timeSignature: Int) {
+mutation songUpload($file: Upload, $tempo: Float, $beats: [Float], $timeSignature: Float) {
   songUpload(file: $file, tempo: $tempo, beats: $beats, timeSignature: $timeSignature) {
     _id
     title
@@ -400,4 +400,195 @@ mutation createCustomAlbum($title: String!, $releaseDate: String, $albumCoverIma
 }
 `
 
+
+
+export const AD_BUMPER =gql`
+mutation AdBumpServed($userId: ID!) {
+  adBumpServed(userId: $userId) {
+    ok
+  }
+}
+`
+
+
+export const AD_DECISION_ENGINE = gql `
+mutation AdDecisionEngine($player: PlayerContextInput!) {
+  adDecisionEngine(player: $player) {
+    ad {
+      duration
+      id
+      type
+      variants {
+        codec
+        pointer
+      }
+    }
+    decision
+    metadata
+    reason
+    retryAfter
+  }
+}
+`
+
+
+
+
+
+
+export const TRACK_PROGRESS = gql`
+  mutation TrackProgress($input: TrackProgressInput!) {
+    trackProgress(input: $input) { ok now }
+  }
+`;
+
+
+
+
+
+export const AD_CREATIVE_FIELDS = gql`
+  fragment AdCreativeFields on AdCreative {
+    adArtworkUrl
+    masterAudioAdUrl
+    originalBannerAdUrl
+    originalOverlayUrl
+    streamingAudioAdUrl
+    streamingBannerAdUrl
+    streamingFallbackAudioUrl
+    streamingOverlayAdUrl
+  }
+`;
+
+export const AD_PICK_FIELDS = gql`
+  fragment AdPickFields on AdPick {
+    adId
+    campaignId
+    durationSec
+    priority
+    creative { ...AdCreativeFields }
+  }
+  ${AD_CREATIVE_FIELDS}
+`;
+
+/* ─── Mutations ──────────────────────────────────────────── */
+
+// trackStart: returns preview ad (no freq-cap reservation)
+export const TRACK_START = gql`
+  mutation trackStart($input: TrackStartInput!) {
+  trackStart(input: $input) {
+    deduped
+    ok
+  }
+}
+`;
+
+
+
+
+// trackComplete: returns real ad (reserved), plus dedupe flag
+export const TRACK_COMPLETE = gql`
+ mutation trackComplete($input: TrackCompleteInput!) {
+  trackComplete(input: $input) {
+    ad {
+      adId
+      campaignId
+      creative {
+        streamingOverlayAdUrl
+        streamingFallbackAudioUrl
+        streamingBannerAdUrl
+        streamingAudioAdUrl
+        adArtworkUrl
+      }
+    }
+    deduped
+    ok
+  }
+}
+`;
+
+
+
+// trackSkip: same shape as trackComplete
+export const TRACK_SKIP = gql`
+  mutation TrackSkip($input: TrackSkipInput!) {
+    trackSkip(input: $input) {
+      ad { ...AdPickFields }
+      deduped
+      ok
+    }
+  }
+  ${AD_PICK_FIELDS}
+`;
+
+// trackAdEvent: server returns ok; ad field will be null (kept for shape compatibility)
+export const TRACK_AD_EVENT = gql`
+  mutation TrackAdEvent($input: TrackAdEventInput!) {
+    trackAdEvent(input: $input) {
+      ad { ...AdPickFields }
+      deduped
+      ok
+    }
+  }
+  ${AD_PICK_FIELDS}
+`;
+
+// trackEnd: lightweight marker for client bookkeeping
+export const TRACK_END = gql`
+  mutation TrackEnd($input: TrackEndInput!) {
+    trackEnd(input: $input) {
+      now
+      ok
+    }
+  }
+`;
+
+
+export const NEXT_SONG = gql`
+mutation NextSongAfterComplete($input: NextSongInput!) {
+  nextSongAfterComplete(input: $input) {
+    ok
+    songId
+  }
+}
+`
+
+
+export const INCREMENT_PLAY_COUNT = gql`
+  mutation IncrementPlayCount($songId: String!) {
+    handlePlayCount(songId: $songId) {
+      _id
+      title
+      playCount
+    }
+  }
+`;
+
+
+export const USER_LOCATION_DETECT = gql`
+mutation detectUserLocation($lon: Float, $lat: Float) {
+  detectUserLocation(lon: $lon, lat: $lat) {
+    city
+    country
+    countryCode
+    province
+    region
+    state
+  }
+}
+
+
+`
+
+
+export const SAVE_PLAYBACK_CONTEXT_STATE = gql`
+  mutation SavePlaybackContextState($input: SavePlaybackContextStateInput!) {
+    savePlaybackContextState(input: $input)
+  }
+`;
+
+export const CLEAR_PLAYBACK_CONTEXT_STATE = gql`
+  mutation ClearPlaybackContextState($userId: ID, $sessionId: ID) {
+    clearPlaybackContextState(userId: $userId, sessionId: $sessionId)
+  }
+`;
 

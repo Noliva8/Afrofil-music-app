@@ -109,6 +109,26 @@ type Comment {
   createdAt: Date!
 }
 
+
+
+
+
+
+type userLocation{
+ country: String
+  countryCode: String
+  state: String       
+  province: String    
+  region: String     
+  city: String
+}
+
+
+
+
+
+
+
 type Query {
   # Users
   users: [User]
@@ -118,7 +138,7 @@ type Query {
  searched_songsByUser(userId: ID!): [Song]
  recommended_songsByUser(userId: ID!): [Song]
  downloaded_songsByUser(userId: ID!): [Song]
-trendingSongs: [Song!]!
+
 
 
 
@@ -149,6 +169,9 @@ type UserAuthPayload {
   userToken: String!
   user: User!
 }
+
+
+
 
 
 
@@ -199,8 +222,18 @@ type Mutation {
 
  createPlaylist(title: String!, description: String, songs: [ID], createdBy: ID!): Playlist
 
-}
 
+
+
+
+ detectUserLocation(
+ lon: Float
+  lat: Float
+ ):userLocation
+
+}
 `;
+
+
 
 export default typeDefs;

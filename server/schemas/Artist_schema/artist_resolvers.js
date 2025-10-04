@@ -41,9 +41,21 @@ import tempoDetect from '../../utils/Covers/Indicators/tempoDetection.js';
 import { title } from 'process';
 // import kMeans from 'kmeans-js';
 
+import { upsertSongMeta } from '../../utils/AdEngine/redis/redisSchema.js';
+import { recommendNextAfterFull } from '../../utils/AdEngine/nextSong.js';
+
 // import SimHash from 'simhash';
+// cache
+import { createSongRedis, getSongRedis, updateSongRedis, incrementPlayCount, deleteSongRedis, redisTrending } from './Redis/songCreateRedis.js';
+import { checkRedisHealth } from '../../utils/AdEngine/redis/redisClient.js';
+import { ensureSongCached } from '../../utils/doesSongExistInCache.js';
+import { artistCreateRedis, artistUpdateRedis, deleteArtistRedis,getArtistRedis, getArtistsByCountryRedis, getTopArtistsRedis, searchArtistsRedis,} from './Redis/artistCreateRedis.js';
 
+import { albumCreateRedis, albumUpdateRedis, deleteAlbumRedis, getLatestAlbumsRedis,getAlbumsByReleaseDateRedis, getAlbumsBySongCountRedis, searchAlbumsRedis,getMultipleAlbumsRedis, addSongToAlbumRedis,getAlbumRedis, removeSongFromAlbumRedis } from './Redis/albumCreateRedis.js';
 
+import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
+import { trendingSongs } from './trendingSongs/trendings.js';
+import { similarSongs } from './similarSongs/similarSongs.js';
 
 
 const pipe = util.promisify(pipeline);
@@ -73,6 +85,149 @@ function analyzeFingerprints(fingerprint) {
 const SONG_UPLOAD_UPDATE = 'SONG_UPLOAD_UPDATE';
 dotenv.config();
 
+
+
+
+// Redis update helpers
+// -----------------
+
+
+
+/** Helpers */
+const isDefined = (v) => v !== undefined;            // keep nulls (to allow clearing), drop only undefined
+const asId = (v) => (v && typeof v === 'object' && v._id ? String(v._id) : (v != null ? String(v) : v));
+const asIdArray = (arr) => Array.isArray(arr) ? arr.map(asId) : arr;
+
+/** Only the fields you actually want to keep in Redis' doc blob (intentionally no 'beats') */
+
+const shapeForRedis = (songDoc) => ({
+  _id: String(songDoc._id),
+  title: songDoc.title ?? null,
+  artist: asId(songDoc.artist) ?? null,
+  featuringArtist: asIdArray(songDoc.featuringArtist) ?? [],
+  album: asId(songDoc.album) ?? null,
+  trackNumber: songDoc.trackNumber ?? null,
+  genre: songDoc.genre ?? null,
+  mood: songDoc.mood ?? [],
+  subMoods: songDoc.subMoods ?? [],
+  producer: asIdArray(songDoc.producer) ?? [],
+  composer: asIdArray(songDoc.composer) ?? [],
+  label: songDoc.label ?? null,
+  releaseDate: songDoc.releaseDate ? new Date(songDoc.releaseDate) : null,
+  lyrics: songDoc.lyrics ?? null,
+  artwork: songDoc.artwork ?? null,
+  audioFileUrl: songDoc.audioFileUrl ?? null,
+  streamAudioFileUrl: songDoc.streamAudioFileUrl ?? null,
+  visibility: songDoc.visibility ?? 'public',
+
+  // ✅ counters you’ll use for trending
+  playCount: Number(songDoc.playCount || 0),
+  downloadCount: Number(songDoc.downloadCount || 0),
+  likesCount: Number(
+    // prefer an explicit likesCount if you add it on Mongo,
+    // otherwise derive from likedByUsers length when present
+    songDoc.likesCount ??
+    (Array.isArray(songDoc.likedByUsers) ? songDoc.likedByUsers.length : 0)
+  ),
+
+  // ✅ timestamps
+  createdAt: songDoc.createdAt ? new Date(songDoc.createdAt) : new Date(),
+  updatedAt: new Date(),
+  // optional:
+  // lastPlayedAt: songDoc.lastPlayedAt ? new Date(songDoc.lastPlayedAt) : null,
+});
+
+
+/** Build a shallow patch from args: include keys that were provided; stringify IDs where needed */
+const buildRedisPatch = (args) => {
+  const {
+    title,
+    featuringArtist,
+    album,
+    trackNumber,
+    genre,
+    mood,
+    subMoods,
+    producer,
+    composer,
+    label,
+    releaseDate,
+    lyrics,
+    artwork,
+  } = args;
+
+  const patch = {
+    title,
+    featuringArtist: isDefined(featuringArtist) ? asIdArray(featuringArtist) : undefined,
+    album: isDefined(album) ? asId(album) : undefined,
+    trackNumber,
+    genre,
+    mood,
+    subMoods,
+    producer: isDefined(producer) ? asIdArray(producer) : undefined,
+    composer: isDefined(composer) ? asIdArray(composer) : undefined,
+    label,
+    releaseDate: isDefined(releaseDate) ? (releaseDate ? new Date(releaseDate) : null) : undefined,
+    lyrics,
+    artwork,
+  };
+
+  // drop only undefined keys; keep nulls (explicit clears)
+  Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k]);
+  return patch;
+};
+
+
+// helper to extract url of s3 to delete the song in case the song is being deleted
+
+// --- helpers ---
+const keyFromUrl = (url, expectedPrefix = null) => {
+  try {
+    if (!url) return null;
+    const u = new URL(url);
+
+    // strip leading slash and URL-decode (so spaces become spaces again)
+    let key = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+
+    // If you expect a prefix (e.g. "original_songs/" or "for-streaming/")
+    // and the key is just a bare filename, prepend the prefix.
+    if (expectedPrefix) {
+      if (!key.startsWith(expectedPrefix)) {
+        // If key has no folder (bare filename), add the prefix
+        if (!key.includes('/')) key = `${expectedPrefix}${key}`;
+        // If it already has some folder but not the one you expect,
+        // leave it as-is to avoid deleting the wrong object.
+      }
+    }
+    return key || null;
+  } catch {
+    return null;
+  }
+};
+
+
+
+
+// for handle play counts
+// ---------------------
+
+function getViewerId(context) {
+  if (context?.user?._id)   return `user:${String(context.user._id)}`;
+  if (context?.artist?._id) return `artist:${String(context.artist._id)}`;
+  const ip =
+    (context?.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()) ||
+    context?.req?.ip ||
+    '0.0.0.0';
+  const ua = context?.req?.headers?.['user-agent'] || '';
+  const anon = crypto.createHash('sha256').update(`${ip}|${ua}`).digest('hex').slice(0, 32);
+  return `anon:${anon}`;
+}
+
+const PLAY_COOLDOWN_SECONDS = 60 * 60; 
+
+
+// -------------------------
+
 const resolvers = {
   Upload: GraphQLUpload,
 Query: {
@@ -81,7 +236,7 @@ Query: {
   artistProfile: async (parent, args, context) => {
   try {
     // Debugging: Log the entire artistContext to see what it contains
-    console.log('context in artist profile:', context);
+    // console.log('context in artist profile:', context);
 
     // Check if the artist is authenticated
     if (!context.artist) {
@@ -89,7 +244,7 @@ Query: {
     }
 
     // Debugging: Log the artist's ID from the context
-    console.log('Artist ID from Context:', context.artist._id);
+    // console.log('Artist ID from Context:', context.artist._id);
 
     // Find the artist's profile using the artist's ID from the context
     const artist = await Artist.findById(context.artist._id)
@@ -172,6 +327,43 @@ songById : async (parent, { songId }, context) => {
 },
 
 
+getSongMetadata: async (parent, { songId }, context) => {
+  try {
+    // No artist authentication required
+    // Just fetch the public metadata needed for playback
+    
+    const song = await Song.findOne({ songId })
+      .populate('artist', 'artistAka country languages') 
+      .populate('album', 'title releaseDate albumCoverImage') 
+      .lean();
+    
+    if (!song) {
+      throw new Error('Song not found');
+    }
+
+    // Return the complete metadata with populated artist and album data
+    return {
+      songId: song.songId,
+      title: song.title,
+      artist: song.artist?._id || song.artist, // Return artist ID
+      artistAka: song.artist?.artistaka || '', // From populated artist
+      country: song.artist?.country || '', // From populated artist
+      languages: song.artist?.languages || [], // From populated artist
+      genre: song.genre || '',
+      mood: song.mood || '',
+      subMoods: song.subMoods || '',
+      country: song.artist.country,
+      tempo: song.tempo || 0,
+      album: song.album || null, // Return album object
+      albumTitle: song.album?.title || '', // From populated album
+      duration: song.duration || 0
+    };
+
+  } catch (error) {
+    console.error('Error fetching song metadata:', error);
+    throw new Error('Failed to fetch song metadata');
+  }
+},
 
 
 
@@ -253,57 +445,780 @@ albumOfArtist: async (parent, args, context) => {
 
 
 
-trendingSongs: async () => {
-  const limit = 20;
+// trendingSongs: async () => {
+//       const limit = 20;
 
-  try {
-    const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
-      Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
-      Song.aggregate([
-        {
-          $addFields: {
-            likesCount: { $size: { $ifNull: ['$likedByUsers', []] } }
-          }
-        },
-        { $sort: { likesCount: -1, createdAt: -1 } },
-        { $limit: limit }
-      ]),
-      Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
-      Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist').lean()
-    ]);
+//       // 1) Try Redis first
+//       try {
+//         const fromRedis = await redisTrending(limit);
+//         if (fromRedis && fromRedis.length) {
+//           return fromRedis; // already shaped like your Mongo doc
+//         }
+//       } catch (e) {
+//         console.warn("[trendingSongs] Redis fetch failed, falling back:", e.message);
+//       }
 
-    // Re-fetch full data for top liked songs
-    const likedIds = topLikesAgg.map(s => s._id);
-    const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist').lean();
+//       // 2) DB fallback (your existing merge logic)
+//       try {
+//         const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+//           Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
+//           Song.aggregate([
+//             { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
+//             { $sort: { likesCount: -1, createdAt: -1 } },
+//             { $limit: limit }
+//           ]),
+//           Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
+//           Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist').lean(),
+//         ]);
 
-    const merged = [];
-    const seen = new Set();
+//         // Re-fetch full docs for liked ones
+//         const likedIds = topLikesAgg.map(s => s._id);
+//         const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist').lean();
 
-    const addUnique = (songs) => {
-      for (const s of songs) {
-        const id = s._id.toString();
-        if (!seen.has(id)) {
-          seen.add(id);
-          merged.push({
-            ...s,
-            likesCount: s.likedByUsers?.length || 0, // ✅ add computed like count
-          });
-          if (merged.length === limit) break;
-        }
-      }
-    };
+//         const merged = [];
+//         const seen = new Set();
+//         const addUnique = (songs) => {
+//           for (const s of songs) {
+//             const id = s._id.toString();
+//             if (!seen.has(id)) {
+//               seen.add(id);
+//               merged.push({
+//                 ...s,
+//                 likesCount: s.likedByUsers?.length || s.likesCount || 0,
+//               });
+//               if (merged.length === limit) break;
+//             }
+//           }
+//         };
 
-    addUnique(topPlays);
-    addUnique(topLikes);
-    addUnique(topDownloads);
-    addUnique(latestSongs);
+//         addUnique(topPlays);
+//         addUnique(topLikes);
+//         addUnique(topDownloads);
+//         addUnique(latestSongs);
 
-    return merged.slice(0, limit);
-  } catch (err) {
-    console.error('❌ Trending songs error:', err);
-    return [];
-  }
-},
+//         const result = merged.slice(0, limit);
+
+//         // 3) Best-effort backfill Redis so next call is fast
+//         (async () => {
+//           try {
+//             const r = await getRedis();
+//             for (const doc of result) {
+//               try {
+//                 await createSongRedis(doc);
+//                 // optional: recompute trending in case your create path didn’t
+//                 if (typeof recomputeTrendingFor === "function") {
+//                   await recomputeTrendingFor(r, String(doc._id));
+//                 }
+//               } catch (e) {
+//                 console.warn("[trendingSongs] backfill for", doc._id, "failed:", e.message);
+//               }
+//             }
+//             // optionally enforce cap:
+//             // await enforceSongLimit();
+//           } catch (e) {
+//             console.warn("[trendingSongs] Redis backfill skipped:", e.message);
+//           }
+//         })();
+
+//         return result;
+//       } catch (err) {
+//         console.error("❌ Trending songs DB fallback error:", err);
+//         return [];
+//       }
+//     },
+
+
+
+// trendingSongs: async () => {
+//   const limit = 20;
+
+//   // 1) Try Redis first
+//   try {
+//     const fromRedis = await redisTrending(limit);
+
+//     if (fromRedis && fromRedis.length) {
+//       const enrichedSongs = [];
+//       const artistCache = new Map();
+//       const albumCache = new Map();
+
+//       for (const song of fromRedis) {
+//         if (!song?._id || !song?.artist) continue;
+
+//         // Get artist from Redis cache/helper
+//         let artist = artistCache.get(song.artist);
+//         if (!artist) {
+//           artist = await getArtistRedis(song.artist);
+//           if (artist) artistCache.set(song.artist, artist);
+//         }
+
+//         if (!artist || !artist._id) continue;
+
+//         // Get album from Redis cache/helper
+//         let album = null;
+//         if (song.album) {
+//           album = albumCache.get(song.album);
+//           if (!album) {
+//             album = await getAlbumRedis(song.album);
+//             if (album) albumCache.set(song.album, album);
+//           }
+//         }
+
+//         enrichedSongs.push({
+//           ...song,
+//           artist,
+//           album: album || { _id: 'unknown', title: 'Unknown Album' },
+//         });
+
+//         if (enrichedSongs.length >= limit) break;
+//       }
+
+//       if (enrichedSongs.length) {
+//         console.log(`✅ Returning ${enrichedSongs.length} trending songs from Redis`);
+//         return enrichedSongs;
+//       }
+//     }
+//   } catch (e) {
+//     console.warn("[trendingSongs] Redis fetch failed, falling back:", e.message);
+//   }
+
+
+
+//   try {
+//     console.log('🎵 Starting trending songs query...');
+
+//     // Step 1: Get all candidate songs first
+//     const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+//       Song.find()
+//         .sort({ playCount: -1, createdAt: -1 })
+//         .limit(limit)
+//         .populate({ 
+//           path: 'artist', 
+//           select: 'artistAka country'
+//         })
+//         .populate({ 
+//           path: 'album',
+//           select: 'title'
+//         })
+//         .lean(),
+
+//       Song.aggregate([
+//         { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
+//         { $sort: { likesCount: -1, createdAt: -1 } },
+//         { $limit: limit }
+//       ]),
+
+//       Song.find()
+//         .sort({ downloadCount: -1, createdAt: -1 })
+//         .limit(limit)
+//         .populate({ 
+//           path: 'artist', 
+//           select: 'artistAka country'
+//         })
+//         .populate({ 
+//           path: 'album',
+//           select: 'title'
+//         })
+//         .lean(),
+
+//       Song.find()
+//         .sort({ createdAt: -1 })
+//         .limit(limit)
+//         .populate({ 
+//           path: 'artist', 
+//           select: 'artistAka country'
+//         })
+//         .populate({ 
+//           path: 'album',
+//           select: 'title'
+//         })
+//         .lean(),
+//     ]);
+
+//     // Step 2: Re-fetch liked songs with population
+//     const likedIds = topLikesAgg.map(s => s._id);
+//     const topLikes = likedIds.length > 0 ? await Song.find({ 
+//       _id: { $in: likedIds }
+//     })
+//       .populate({ 
+//         path: 'artist', 
+//         select: 'artistAka country'
+//       })
+//       .populate({ 
+//         path: 'album',
+//         select: 'title'
+//       })
+//       .lean() : [];
+
+//     // Step 3: Collect all songs and identify ones with population issues
+//     const allSongs = [...topPlays, ...topLikes, ...topDownloads, ...latestSongs];
+    
+//     console.log(`📊 Initial songs found: ${allSongs.length}`);
+    
+//     // Identify songs with population issues
+//     const songsWithPopulationIssues = allSongs.filter(song => {
+//       const hasArtistIssue = !song.artist || typeof song.artist !== 'object' || !song.artist._id;
+//       return hasArtistIssue;
+//     });
+
+//     console.log(`❌ Songs with population issues: ${songsWithPopulationIssues.length}`);
+    
+//     if (songsWithPopulationIssues.length > 0) {
+//       console.log('🔍 Sample of problematic songs:');
+//       songsWithPopulationIssues.slice(0, 3).forEach(song => {
+//         console.log(`   - ${song._id}: "${song.title}"`, {
+//           artistType: typeof song.artist,
+//           artistValue: song.artist
+//         });
+//       });
+//     }
+
+//     // Step 4: Batch fix population issues (single database query)
+//     const problematicArtistIds = songsWithPopulationIssues
+//       .map(song => {
+//         // Extract ObjectId from problematic artist field
+//         if (song.artist && song.artist.constructor && song.artist.constructor.name === 'ObjectId') {
+//           return song.artist;
+//         }
+//         return null;
+//       })
+//       .filter(id => id !== null);
+
+//     let fixedArtists = new Map();
+    
+//     if (problematicArtistIds.length > 0) {
+//       console.log(`🔄 Batch populating ${problematicArtistIds.length} problematic artists...`);
+      
+//       try {
+//         const Artist = Song.model('Artist');
+//         const artists = await Artist.find({ 
+//           _id: { $in: problematicArtistIds } 
+//         }).select('artistAka country').lean();
+        
+//         artists.forEach(artist => {
+//           fixedArtists.set(artist._id.toString(), artist);
+//         });
+        
+//         console.log(`✅ Successfully populated ${artists.length} artists`);
+//       } catch (error) {
+//         console.error('❌ Batch population failed:', error.message);
+//       }
+//     }
+
+//     // Step 5: Process songs with fixed population data
+//     const merged = [];
+//     const seen = new Set();
+//     let skippedCount = 0;
+
+//     const processSongs = (songs) => {
+//       for (const s of songs) {
+//         const id = s._id.toString();
+//         if (seen.has(id)) continue;
+        
+//         let artistData = s.artist;
+        
+//         // Check if this song has a population issue that we can fix
+//         if (s.artist && s.artist.constructor && s.artist.constructor.name === 'ObjectId') {
+//           const artistId = s.artist.toString();
+//           if (fixedArtists.has(artistId)) {
+//             artistData = fixedArtists.get(artistId);
+//             console.log(`✅ Fixed population for song ${s._id} with artist ${artistId}`);
+//           } else {
+//             console.warn(`❌ Skipping song ${s._id} - artist ${artistId} not found in batch population`);
+//             skippedCount++;
+//             continue;
+//           }
+//         }
+        
+//         // Final check for valid artist data
+//         if (!artistData || typeof artistData !== 'object' || !artistData._id) {
+//           console.warn(`❌ Skipping song ${s._id} - invalid artist data`);
+//           skippedCount++;
+//           continue;
+//         }
+
+//         // Create the song object with all required fields
+//         const songWithDefaults = {
+//           ...s,
+//           artist: artistData,
+//           album: s.album && typeof s.album === 'object' && s.album._id ? s.album : { _id: 'unknown', title: 'Unknown Album' },
+//           mood: s.mood || [],
+//           subMoods: s.subMoods || [],
+//           tempo: s.tempo || 0,
+//           likesCount: s.likedByUsers?.length || s.likesCount || 0,
+//           trendingScore: s.trendingScore || 0,
+//           downloadCount: s.downloadCount || 0,
+//           playCount: s.playCount || 0,
+//           featuringArtist: s.featuringArtist || [],
+//           genre: s.genre || '',
+//           duration: s.duration || 0,
+//           artwork: s.artwork || '',
+//           streamAudioFileUrl: s.streamAudioFileUrl || '',
+//           audioFileUrl: s.audioFileUrl || '',
+//           createdAt: s.createdAt || new Date(),
+//         };
+
+//         seen.add(id);
+//         merged.push(songWithDefaults);
+
+//         if (merged.length >= limit) break;
+//       }
+//     };
+
+//     // Process all song batches
+//     processSongs(topPlays);
+//     if (merged.length < limit) processSongs(topLikes);
+//     if (merged.length < limit) processSongs(topDownloads);
+//     if (merged.length < limit) processSongs(latestSongs);
+
+//     const result = merged.slice(0, limit);
+
+//     console.log('📊 FINAL RESULT:');
+//     console.log(`   ✅ Valid songs returned: ${result.length}`);
+//     console.log(`   ❌ Songs skipped: ${skippedCount}`);
+    
+//     if (result.length > 0) {
+//       console.log('✅ Successfully returned trending songs');
+//     }
+
+//     // Step 6: Async Redis backfill (non-blocking)
+//     if (result.length > 0) {
+//       (async () => {
+//         try {
+//           const r = await getRedis();
+//           for (const doc of result) {
+//             try {
+//               await createSongRedis(doc);
+//               if (typeof recomputeTrendingFor === "function") {
+//                 await recomputeTrendingFor(r, String(doc._id));
+//               }
+//             } catch (e) {
+//               console.warn("[trendingSongs] Redis backfill failed for", doc._id);
+//             }
+//           }
+//         } catch (e) {
+//           console.warn("[trendingSongs] Redis backfill skipped");
+//         }
+//       })();
+//     }
+
+//     return result;
+//   } catch (err) {
+//     console.error("❌ Trending songs error:", err);
+//     return [];
+//   }
+// },
+
+// trendingSongs: async () => {
+//   const limit = 20;
+//   let source = 'unknown';
+
+//   // 1) Try Redis first
+//   try {
+//     console.log('🔍 Attempting to fetch from Redis...');
+//     const fromRedis = await redisTrending(limit);
+
+//     if (fromRedis && fromRedis.length > 0) {
+//       console.log(`✅ Redis returned ${fromRedis.length} songs, enriching data...`);
+      
+//       const enrichedSongs = [];
+//       const artistCache = new Map();
+//       const albumCache = new Map();
+
+//       for (const song of fromRedis) {
+//         if (!song?._id || !song?.artist) continue;
+
+//         // Get artist from Redis
+//         let artist = artistCache.get(song.artist);
+//         if (!artist) {
+//           artist = await getArtistRedis(song.artist);
+//           if (artist) artistCache.set(song.artist, artist);
+//         }
+
+//         if (!artist || !artist._id) continue;
+
+//         // Get album from Redis
+//         let album = null;
+//         if (song.album) {
+//           album = albumCache.get(song.album);
+//           if (!album) {
+//             album = await getAlbumRedis(song.album);
+//             if (album) albumCache.set(song.album, album);
+//           }
+//         }
+
+//         enrichedSongs.push({
+//           ...song,
+//           artist,
+//           album: album || { _id: 'unknown', title: 'Unknown Album' },
+//         });
+
+//         if (enrichedSongs.length >= limit) break;
+//       }
+
+//       if (enrichedSongs.length > 0) {
+//         source = 'redis';
+//         console.log(`🎵 RETURNING FROM REDIS: ${enrichedSongs.length} songs`);
+//         return enrichedSongs;
+//       }
+//     } else {
+//       console.log('❌ Redis returned no songs or empty result');
+//     }
+//   } catch (e) {
+//     console.warn('Redis fetch failed, falling back to DB');
+//   }
+
+
+
+//   // 2) Database Fallback
+//   try {
+//     console.log('🔄 Falling back to database query...');
+//     source = 'database';
+
+//     const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
+//       Song.find({ artist: { $exists: true, $ne: null } })
+//         .sort({ playCount: -1, createdAt: -1 })
+//         .limit(limit)
+//         .populate({ 
+//           path: 'artist', 
+//           select: 'artistAka country'
+//         })
+//         .populate({ 
+//           path: 'album',
+//           select: 'title'
+//         })
+//         .lean(),
+
+//       Song.aggregate([
+//         { $match: { artist: { $exists: true, $ne: null } } },
+//         { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
+//         { $sort: { likesCount: -1, createdAt: -1 } },
+//         { $limit: limit }
+//       ]),
+
+//       Song.find({ artist: { $exists: true, $ne: null } })
+//         .sort({ downloadCount: -1, createdAt: -1 })
+//         .limit(limit)
+//         .populate({ 
+//           path: 'artist', 
+//           select: 'artistAka country'
+//         })
+//         .populate({ 
+//           path: 'album',
+//           select: 'title'
+//         })
+//         .lean(),
+
+//       Song.find({ artist: { $exists: true, $ne: null } })
+//         .sort({ createdAt: -1 })
+//         .limit(limit)
+//         .populate({ 
+//           path: 'artist', 
+//           select: 'artistAka country'
+//         })
+//         .populate({ 
+//           path: 'album',
+//           select: 'title'
+//         })
+//         .lean(),
+//     ]);
+
+//     // Re-fetch liked songs
+//     const likedIds = topLikesAgg.map(s => s._id);
+//     const topLikes = likedIds.length > 0 ? await Song.find({ 
+//       _id: { $in: likedIds },
+//       artist: { $exists: true, $ne: null } 
+//     })
+//       .populate({ 
+//         path: 'artist', 
+//         select: 'artistAka country'
+//       })
+//       .populate({ 
+//         path: 'album',
+//         select: 'title'
+//       })
+//       .lean() : [];
+
+//     // Merge and deduplicate
+//     const merged = [];
+//     const seen = new Set();
+
+//     const addUnique = (songs) => {
+//       for (const s of songs) {
+//         const id = s._id.toString();
+//         if (seen.has(id)) continue;
+        
+//         if (!s.artist || typeof s.artist !== 'object' || !s.artist._id) {
+//           continue; // Skip invalid songs
+//         }
+
+//         const songWithDefaults = {
+//           ...s,
+//           mood: s.mood || [],
+//           subMoods: s.subMoods || [],
+//           tempo: s.tempo || 0,
+//           likesCount: s.likedByUsers?.length || s.likesCount || 0,
+//           trendingScore: s.trendingScore || 0,
+//           downloadCount: s.downloadCount || 0,
+//           playCount: s.playCount || 0,
+//           featuringArtist: s.featuringArtist || [],
+//           genre: s.genre || '',
+//           duration: s.duration || 0,
+//           artwork: s.artwork || '',
+//           streamAudioFileUrl: s.streamAudioFileUrl || '',
+//           audioFileUrl: s.audioFileUrl || '',
+//           createdAt: s.createdAt || new Date(),
+//         };
+
+//         seen.add(id);
+//         merged.push(songWithDefaults);
+
+//         if (merged.length >= limit) break;
+//       }
+//     };
+
+//     addUnique(topPlays);
+//     addUnique(topLikes);
+//     addUnique(topDownloads);
+//     addUnique(latestSongs);
+
+//     const result = merged.slice(0, limit);
+
+//     console.log(`🎵 RETURNING FROM DATABASE: ${result.length} songs`);
+
+//     // Cache results in Redis for next time (async)
+//     (async () => {
+//       try {
+//         for (const song of result) {
+//           await createSongRedis(song).catch(e => null);
+//         }
+//         console.log(`💾 Cached ${result.length} songs in Redis for next request`);
+//       } catch (e) {
+//         // Silent fail for caching
+//       }
+//     })();
+
+//     return result;
+
+//   } catch (err) {
+//     console.error("❌ Database query failed:", err);
+//     source = 'error';
+//     return [];
+//   } finally {
+//     console.log(`📊 TRENDING SONGS SOURCE: ${source.toUpperCase()}`);
+//   }
+// },
+
+
+
+// trendingSongs: async () => {
+
+//   const limit = 20;
+//   let source = 'unknown';
+
+//   // 1) Try Redis first with parallel enrichment
+//   try {
+//     console.log('🔍 Attempting to fetch from Redis...');
+//     const fromRedis = await redisTrending(limit);
+
+//     if (fromRedis?.length > 0) {
+//       console.log(`✅ Redis returned ${fromRedis.length} songs, enriching data...`);
+      
+//       // Get unique artist and album IDs for batch fetching
+//       const artistIds = new Set();
+//       const albumIds = new Set();
+      
+//       fromRedis.forEach(song => {
+//         if (song?.artist) artistIds.add(song.artist);
+//         if (song?.album) albumIds.add(song.album);
+//       });
+
+//       // Parallel batch fetching
+//       const [artistsMap, albumsMap] = await Promise.all([
+//         // Fetch all artists in parallel
+//         (async () => {
+//           const artistPromises = Array.from(artistIds).map(id => 
+//             getArtistRedis(id).catch(() => null)
+//           );
+//           const artists = await Promise.all(artistPromises);
+//           const map = new Map();
+//           artists.forEach(artist => {
+//             if (artist?._id) map.set(artist._id, artist);
+//           });
+//           return map;
+//         })(),
+        
+//         // Fetch all albums in parallel
+//         (async () => {
+//           const albumPromises = Array.from(albumIds).map(id => 
+//             getAlbumRedis(id).catch(() => null)
+//           );
+//           const albums = await Promise.all(albumPromises);
+//           const map = new Map();
+//           albums.forEach(album => {
+//             if (album?._id) map.set(album._id, album);
+//           });
+//           return map;
+//         })()
+//       ]);
+
+//       // Enrich songs with parallel processing
+//       const enrichmentPromises = fromRedis.slice(0, limit).map(async (song) => {
+//         if (!song?._id || !song?.artist) return null;
+
+//         const artist = artistsMap.get(song.artist);
+//         if (!artist?._id) return null;
+
+//         const album = song.album ? albumsMap.get(song.album) : null;
+
+//         return {
+//           ...song,
+//           artist,
+//           album: album || { _id: 'unknown', title: 'Unknown Album' },
+//         };
+//       });
+
+//       const enrichedSongs = (await Promise.all(enrichmentPromises))
+//         .filter(song => song !== null);
+
+//       if (enrichedSongs.length > 0) {
+//         source = 'redis';
+//         console.log(`🎵 RETURNING FROM REDIS: ${enrichedSongs.length} songs`);
+//         return enrichedSongs;
+//       }
+//     } else {
+//       console.log('❌ Redis returned no songs or empty result');
+//     }
+//   } catch (e) {
+//     console.warn('Redis fetch failed, falling back to DB:', e.message);
+//   }
+
+//   // 2) Optimized Database Fallback
+//   try {
+//     console.log('🔄 Falling back to optimized database query...');
+//     source = 'database';
+
+//     // Single optimized aggregation query instead of multiple separate queries
+//     const trendingSongs = await Song.aggregate([
+//       { 
+//         $match: { 
+//           artist: { $exists: true, $ne: null },
+//           // Add any other filters you need
+//         } 
+//       },
+//       {
+//         $addFields: {
+//           likesCount: { $size: { $ifNull: ['$likedByUsers', []] } },
+//           // Calculate a combined trending score
+//           trendingScore: {
+//             $add: [
+//               { $multiply: ['$playCount', 0.4] },
+//               { $multiply: ['$downloadCount', 0.3] },
+//               { $multiply: [{ $size: { $ifNull: ['$likedByUsers', []] } }, 0.2] },
+//               { 
+//                 $multiply: [
+//                   { $dateDiff: { startDate: '$createdAt', endDate: new Date(), unit: 'day' } },
+//                   -0.1 // Penalize older songs
+//                 ]
+//               }
+//             ]
+//           }
+//         }
+//       },
+//       {
+//         $sort: { 
+//           trendingScore: -1,
+//           createdAt: -1 
+//         }
+//       },
+//       { $limit: limit * 2 }, // Get extra for filtering
+//       {
+//         $lookup: {
+//           from: 'artists', // Replace with actual collection name
+//           localField: 'artist',
+//           foreignField: '_id',
+//           as: 'artistData'
+//         }
+//       },
+//       {
+//         $lookup: {
+//           from: 'albums', // Replace with actual collection name
+//           localField: 'album',
+//           foreignField: '_id',
+//           as: 'albumData'
+//         }
+//       },
+//       {
+//         $addFields: {
+//           artist: { $arrayElemAt: ['$artistData', 0] },
+//           album: { $arrayElemAt: ['$albumData', 0] }
+//         }
+//       },
+//       {
+//         $project: {
+//           artistData: 0,
+//           albumData: 0,
+//           likedByUsers: 0 // Exclude large array if not needed
+//         }
+//       },
+//       {
+//         $match: {
+//           'artist._id': { $exists: true }
+//         }
+//       }
+//     ]);
+
+//     // Apply defaults and limit
+//     const result = trendingSongs.slice(0, limit).map(song => ({
+//       ...song,
+//       mood: song.mood || [],
+//       subMoods: song.subMoods || [],
+//       tempo: song.tempo || 0,
+//       likesCount: song.likesCount || 0,
+//       trendingScore: song.trendingScore || 0,
+//       downloadCount: song.downloadCount || 0,
+//       playCount: song.playCount || 0,
+//       featuringArtist: song.featuringArtist || [],
+//       genre: song.genre || '',
+//       duration: song.duration || 0,
+//       artwork: song.artwork || '',
+//       streamAudioFileUrl: song.streamAudioFileUrl || '',
+//       audioFileUrl: song.audioFileUrl || '',
+//       createdAt: song.createdAt || new Date(),
+//       album: song.album || { _id: 'unknown', title: 'Unknown Album' }
+//     }));
+
+//     console.log(`🎵 RETURNING FROM DATABASE: ${result.length} songs`);
+
+//     // Cache results asynchronously without blocking response
+//     if (result.length > 0) {
+//       process.nextTick(async () => {
+//         try {
+//           const cachePromises = result.map(song => 
+//             createSongRedis(song).catch(() => null)
+//           );
+//           await Promise.all(cachePromises);
+//           console.log(`💾 Cached ${result.length} songs in Redis for next request`);
+//         } catch (e) {
+//           console.warn('Caching failed silently:', e.message);
+//         }
+//       });
+//     }
+
+//     return result;
+
+//   } catch (err) {
+//     console.error("❌ Database query failed:", err);
+//     source = 'error';
+//     return [];
+//   } finally {
+//     console.log(`📊 TRENDING SONGS SOURCE: ${source.toUpperCase()}`);
+//   }
+// },
+
+trendingSongs,
+
+
+    similarSongs,
 
 
 
@@ -358,6 +1273,8 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
     }, 0);
 
     // Explicitly include the 'confirmed' field in the return object
+
+
     return {
       artistToken,
       confirmed: newArtist.confirmed, 
@@ -396,8 +1313,8 @@ resendVerificationEmail: async (parent, { email }) => {
     // Construct the verification link
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${artistToken}`;
 
- console.log(process.env.FRONTEND_URL) ;
-  console.log(verificationLink) ;
+//  console.log(process.env.FRONTEND_URL) ;
+  // console.log(verificationLink) ;
 
     // Send the verification email
     await sendEmail(artist.email, "Verify Your Email", `
@@ -416,42 +1333,42 @@ resendVerificationEmail: async (parent, { email }) => {
 
 
 
-verifyEmail: async (parent, { token }) => {
-  try {
-    // Verify the JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+// verifyEmail: async (parent, { token }) => {
+//   try {
+//     // Verify the JWT token
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Find the artist by ID
-    const artist = await Artist.findById(decoded._id);
-    if (!artist) {
-      throw new Error('Artist not found');
-    }
+//     // Find the artist by ID
+//     const artist = await Artist.findById(decoded._id);
+//     if (!artist) {
+//       throw new Error('Artist not found');
+//     }
 
-    // Check if the artist is already confirmed
-    if (artist.confirmed) {
-      return { success: false, message: 'Email is already verified' };
-    }
+//     // Check if the artist is already confirmed
+//     if (artist.confirmed) {
+//       return { success: false, message: 'Email is already verified' };
+//     }
 
-    // Update the `confirmed` field to true
-    artist.confirmed = true;
-    await artist.save();
+//     // Update the `confirmed` field to true
+//     artist.confirmed = true;
+//     await artist.save();
 
-    return { success: true, message: 'Email verified successfully' };
-  } catch (error) {
-    console.error('Failed to verify email:', error);
+//     return { success: true, message: 'Email verified successfully' };
+//   } catch (error) {
+//     console.error('Failed to verify email:', error);
 
-    // Handle different errors based on the error type or message
-    if (error.name === 'JsonWebTokenError' || error.message === 'invalid token') {
-      return { success: false, message: 'Invalid token. Please request a new verification email.' };
-    }
-    if (error.message === 'jwt expired') {
-      return { success: false, message: 'Verification token has expired. Please request a new one.' };
-    }
+//     // Handle different errors based on the error type or message
+//     if (error.name === 'JsonWebTokenError' || error.message === 'invalid token') {
+//       return { success: false, message: 'Invalid token. Please request a new verification email.' };
+//     }
+//     if (error.message === 'jwt expired') {
+//       return { success: false, message: 'Verification token has expired. Please request a new one.' };
+//     }
 
-    // Generic error message
-    return { success: false, message: 'An error occurred while verifying your email' };
-  }
-},
+//     // Generic error message
+//     return { success: false, message: 'An error occurred while verifying your email' };
+//   }
+// },
 
 
 // ------------------------------------------------------------------------------
@@ -459,6 +1376,51 @@ verifyEmail: async (parent, { token }) => {
 // addProfileImage
 // --------------
 
+
+verifyEmail: async (parent, { token }) => {
+  try {
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Find artist
+    const artist = await Artist.findById(decoded._id);
+    if (!artist) {
+      throw new Error('Artist not found');
+    }
+
+    // Already confirmed?
+    if (artist.confirmed) {
+      return { success: false, message: 'Email is already verified' };
+    }
+
+    // Confirm the artist
+    artist.confirmed = true;
+    await artist.save();
+
+    // Fetch updated artist with related data
+    const populatedArtist = await Artist.findById(artist._id)
+      .populate('songs', '_id title')
+      .populate('albums', '_id title')
+      .populate('followers', '_id username')
+      .lean();
+
+    // ✅ Mirror into Redis
+    await artistCreateRedis(populatedArtist);
+
+    return { success: true, message: 'Email verified successfully' };
+    
+  } catch (error) {
+    console.error('Failed to verify email:', error);
+
+    if (error.name === 'JsonWebTokenError' || error.message === 'invalid token') {
+      return { success: false, message: 'Invalid token. Please request a new verification email.' };
+    }
+    if (error.message === 'jwt expired') {
+      return { success: false, message: 'Verification token has expired. Please request a new one.' };
+    }
+
+    return { success: false, message: 'An error occurred while verifying your email' };
+  }},
 
 
 
@@ -595,6 +1557,8 @@ selectPlan: async (parent, { artistId, plan }) => {
       { new: true }
     );
 
+await artistUpdateRedis(artist); 
+
     if (!artist) {
       throw new Error('Artist not found.');
     }
@@ -622,9 +1586,9 @@ updateArtistProfile: async (
       throw new Error('Unauthorized: You must be logged in to update your profile.');
     }
 
-    console.log('Context:', context);
-    console.log('Artist ID from Context:', context.artist._id);
-    console.log('Update Payload:', { bio, country, languages, genre, mood, profileImage, coverImage });
+    // console.log('Context:', context);
+    // console.log('Artist ID from Context:', context.artist._id);
+    // console.log('Update Payload:', { bio, country, languages, genre, mood, profileImage, coverImage });
 
     // Create an object to hold the fields to update
     const updateFields = {};
@@ -642,6 +1606,9 @@ updateArtistProfile: async (
       updateFields, // Use the dynamically created updateFields object
       { new: true } // Return the updated document
     );
+// keep Redis in sync
+    await artistUpdateRedis(newArtist); 
+
 
     if (!newArtist) {
       throw new Error('Artist not found or update failed.');
@@ -665,6 +1632,8 @@ addBio: async (parent, { bio }, context) => {
         { bio },
         { new: true }
       );
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
 
       if (!updatedArtist) {
         throw new Error('Artist not found or update failed.');
@@ -685,6 +1654,9 @@ addCountry: async (parent, { country }, context) => {
         { new: true }
       );
 
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
+
       if (!updatedArtist) {
         throw new Error('Artist not found or update failed.');
       }
@@ -704,6 +1676,9 @@ addCountry: async (parent, { country }, context) => {
         { new: true }
       );
 
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
+
       if (!updatedArtist) {
         throw new Error('Artist not found or update failed.');
       }
@@ -721,6 +1696,9 @@ addCountry: async (parent, { country }, context) => {
         { genre },
         { new: true }
       );
+
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
 
       if (!updatedArtist) {
         throw new Error('Artist not found or update failed.');
@@ -745,6 +1723,8 @@ removeGenre: async (_, { genre }, context) => {
 
         // Save the updated artist profile
         await artist.save();
+        await artistUpdateRedis(artist); 
+
 
         return {
           _id: artist._id,
@@ -768,6 +1748,9 @@ removeGenre: async (_, { genre }, context) => {
         { mood },
         { new: true }
       );
+
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
 
       if (!updatedArtist) {
         throw new Error('Artist not found or update failed.');
@@ -800,6 +1783,9 @@ removeGenre: async (_, { genre }, context) => {
       { new: true }  // Ensures the returned object is the updated one
     );
 
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
+
     // If no artist is found or update fails
     if (!updatedArtist) {
       throw new Error('Artist not found or update failed.');
@@ -830,6 +1816,8 @@ const updatedArtist = await Artist.findOneAndUpdate(
   { new: true } 
   );
 
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
     // If no artist is found or update fails
     if (!updatedArtist) {
       throw new Error('Artist not found or update failed.');
@@ -850,60 +1838,172 @@ const updatedArtist = await Artist.findOneAndUpdate(
 
 
 
-updateSong: async (parent, { 
-  songId, 
-  title, 
-  featuringArtist, 
-  album, 
-  trackNumber, 
-  genre, 
-  mood,
-  subMoods,
-  producer, 
-  composer, 
-  label, 
-  releaseDate, 
-  lyrics, 
-  artwork
-},  context) => {
-  try {
-    if (!context.artist) {
-      throw new Error("Unauthorized: You must be logged in to update a song.");
-    }
-    const updatedSong = await Song.findByIdAndUpdate(songId, {
-      title,
-      featuringArtist,
-      album, 
-      trackNumber,
-      genre,
-      mood,
-  subMoods,
-      producer,
-      composer,
-      label,
-  
-      releaseDate,
-      lyrics,
-      artwork
-    }, { new: true });
-console.log("✅ Updated song document:", updatedSong);
-    return updatedSong;
 
-  } catch (error) {
-    console.error("Error updating song:", error);
-    throw new Error("Failed to update song.");
-  }
-},
+
+// updateSong: async (
+//   parent,
+//   {
+//     songId,
+//     title,
+//     featuringArtist,
+//     album,
+//     trackNumber,
+//     genre,
+//     mood,
+//     subMoods,          // array (we’ll pick the first as primary unless you upgraded upsertSongMeta to index multiple)
+//     producer,
+//     composer,
+//     label,
+//     releaseDate,
+//     lyrics,
+//     artwork
+//   },
+//   context
+// ) => {
+//   try {
+//     if (!context.artist) {
+//       throw new Error('Unauthorized: You must be logged in to update a song.');
+//     }
+
+//     const updatedSong = await Song.findByIdAndUpdate(
+//       songId,
+//       {
+//         title,
+//         featuringArtist,
+//         album,
+//         trackNumber,
+//         genre,
+//         mood,
+//         subMoods,
+//         producer,
+//         composer,
+//         label,
+//         releaseDate,
+//         lyrics,
+//         artwork,
+//       },
+//       { new: true }
+//     );
+
+//     console.log('✅ Updated song document:', updatedSong);
+
+
+//     // ---------- we need to find this song in redis and update it ----------
+// //  we use updateSongRedis here
+
+
+
+
+//     return updatedSong;
+//   } catch (error) {
+//     console.error('Error updating song:', error);
+//     throw new Error('Failed to update song.');
+//   }
+// },
+
+updateSong: async (
+      _parent,
+      args, // includes songId and optional fields
+      context
+    ) => {
+      try {
+        if (!context.artist) {
+          throw new Error('Unauthorized: You must be logged in to update a song.');
+        }
+
+        const {
+          songId,
+          title,
+          featuringArtist,
+          album,
+          trackNumber,
+          genre,
+          mood,
+          subMoods,
+          producer,
+          composer,
+          label,
+          releaseDate,
+          lyrics,
+          artwork,
+        } = args;
+
+        // 1) Update MongoDB (source of truth)
+        const updatedSong = await Song.findByIdAndUpdate(
+          songId,
+          {
+            ...(isDefined(title) && { title }),
+            ...(isDefined(featuringArtist) && { featuringArtist }),
+            ...(isDefined(album) && { album }),
+            ...(isDefined(trackNumber) && { trackNumber }),
+            ...(isDefined(genre) && { genre }),
+            ...(isDefined(mood) && { mood }),
+            ...(isDefined(subMoods) && { subMoods }),
+            ...(isDefined(producer) && { producer }),
+            ...(isDefined(composer) && { composer }),
+            ...(isDefined(label) && { label }),
+            ...(isDefined(releaseDate) && { releaseDate }),
+            ...(isDefined(lyrics) && { lyrics }),
+            ...(isDefined(artwork) && { artwork }),
+            updatedAt: new Date(),
+          },
+          { new: true }
+        );
+
+        if (!updatedSong) {
+          throw new Error('Song not found.');
+        }
+
+        console.log('✅ Updated song document:', updatedSong._id);
+
+        // 2) Sync Redis (best-effort)
+        try {
+          const patch = buildRedisPatch({
+            title,
+            featuringArtist,
+            album,
+            trackNumber,
+            genre,
+            mood,
+            subMoods,
+            producer,
+            composer,
+            label,
+            releaseDate,
+            lyrics,
+            artwork,
+          });
+
+          // try to update; if missing in Redis, mirror fresh doc
+          await updateSongRedis(String(updatedSong._id), patch).catch(async (err) => {
+            if (/song not found/i.test(err.message)) {
+              // Not in cache yet → put a trimmed doc
+              await createSongRedis(shapeForRedis(updatedSong));
+            } else {
+              throw err;
+            }
+          });
+        } catch (redisErr) {
+          console.warn('[Redis] updateSongRedis failed (non-blocking):', redisErr.message);
+        }
+
+        return updatedSong;
+      } catch (error) {
+        console.error('Error updating song:', error);
+        throw new Error('Failed to update song.');
+      }
+    },
+  
+
 
 
 songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
-
   // Initialize with proper directory setup
   const __dirname = path.dirname(new URL(import.meta.url).pathname);
   const uploadsDir = path.join(__dirname, "uploads");
   
-  console.log('🚀 Starting songUpload resolver');
-  console.time('⏱️ Total upload time');
+  // console.log('🚀 Starting songUpload resolver');
+  // console.time('⏱️ Total upload time');
   
   if (!context.artist) {
     throw new Error("Unauthorized: You must be logged in to create a song.");
@@ -915,17 +2015,17 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
 
   // Enhanced cleanup function
   const cleanupFiles = async () => {
-    console.log('🧹 Starting cleanup procedure');
+    // console.log('🧹 Starting cleanup procedure');
     
     const cleanupTasks = [];
-    if (tempFilePath) {
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
       cleanupTasks.push(
         fs.promises.unlink(tempFilePath)
           .then(() => console.log(`✅ Deleted temp file: ${tempFilePath}`))
           .catch(err => console.error(`❌ Error deleting temp file: ${err.message}`))
       );
     }
-    if (processedFilePath) {
+    if (processedFilePath && fs.existsSync(processedFilePath)) {
       cleanupTasks.push(
         fs.promises.unlink(processedFilePath)
           .then(() => console.log(`✅ Deleted processed file: ${processedFilePath}`))
@@ -933,24 +2033,28 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
       );
     }
     
-    await Promise.all(cleanupTasks);
+    await Promise.allSettled(cleanupTasks);
   };
 
   const updateProgress = async (step, status, message, percent, isComplete = false) => {
-    await pubsub.publish('SONG_UPLOAD_UPDATE', {
-      songUploadProgress: {
-        artistId: loggedInArtistId,
-        step,
-        status,
-        message,
-        percent,
-        isComplete
-      }
-    });
-    console.log(`📢 Progress: ${step} (${percent}%) - ${status}`);
+    try {
+      await pubsub.publish(SONG_UPLOAD_UPDATE, {
+        songUploadProgress: {
+          artistId: loggedInArtistId.toString(),
+          step,
+          status,
+          message,
+          percent,
+          isComplete,
+          timestamp: Date.now()
+        }
+      });
+      // console.log(`📢 Progress sent: ${step} (${percent}%) - ${status}`);
+    } catch (pubError) {
+      console.error('❌ Failed to publish progress:', pubError.message);
+      // Don't throw - continue upload even if progress fails
+    }
   };
-
-  
 
   try {
     // ===== INITIALIZATION =====
@@ -961,9 +2065,20 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    const { createReadStream, filename } = await file;
+    // Check if file is properly provided
+    if (!file) {
+      throw new Error("No file provided for upload.");
+    }
+
+    const { createReadStream, filename, mimetype } = await file;
     if (!createReadStream || !filename) {
       throw new Error("Invalid file input.");
+    }
+
+    // Validate file type
+    const allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mp3'];
+    if (mimetype && !allowedMimeTypes.includes(mimetype)) {
+      throw new Error("Invalid file type. Please upload an audio file (MP3 or WAV).");
     }
 
     const sanitizedFilename = filename.replace(/[^\w.-]/g, '_');
@@ -987,6 +2102,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
     // ===== DUPLICATE CHECK =====
     await updateProgress('CHECKING_DUPLICATES', 'IN_PROGRESS', 'Checking for duplicate songs...', 25);
 
+    // Ensure these functions are properly imported/defined
     const fingerprint = await FingerprintGenerator(fs.createReadStream(tempFilePath));
     const matchingResults = await FingerprintMatcher.findMatches(fingerprint, loggedInArtistId, { minMatches: 5 });
 
@@ -1011,6 +2127,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
     // ===== AUDIO PROCESSING =====
     await updateProgress('PROCESSING', 'IN_PROGRESS', 'Analyzing audio features...', 40);
 
+    // Ensure these functions are properly imported/defined
     const [resultFromTempoDetect, duration, features] = await Promise.all([
       tempoDetect(tempFilePath),
       extractDuration(tempFilePath),
@@ -1033,15 +2150,18 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
       return norm > 0 ? mfcc.map(x => x / norm) : mfcc;
     });
 
-    // Generate structure hash
+    // Generate structure hash (ensure this function exists)
     const hash = generateStructureHash({ allMfcc, allChroma, tempo, beats });
     
-    // Detect musical key
+    // Detect musical key (ensure this function exists)
     const { key, mode } = await detectKey(allChroma);
     
-    // Generate harmonic fingerprint
+    // Generate harmonic fingerprint (ensure this function exists)
     const harmonicFingerprint = await generateHarmonicFingerprint(allChroma, beats);
-    const normalizedHarmonic = harmonicFingerprint.map(v => v / Math.max(...harmonicFingerprint));
+    const maxHarmonic = Math.max(...harmonicFingerprint);
+    const normalizedHarmonic = maxHarmonic > 0 ? 
+      harmonicFingerprint.map(v => v / maxHarmonic) : 
+      harmonicFingerprint;
 
     // Get chroma peaks (top 2 peaks per frame)
     const chromaPeaks = allChroma.map(chroma => {
@@ -1059,9 +2179,12 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
     await processAudio(tempFilePath, processedFilePath);
 
     // ===== S3 UPLOAD =====
+    await updateProgress('UPLOADING', 'IN_PROGRESS', 'Uploading to cloud storage...', 80);
+
     const fileKey = `for-streaming/${fingerprint[0].hash}_${path.basename(filename)}`;
     const originalSongKey = `original_songs/${fingerprint[0].hash}_${path.basename(filename)}`;
 
+    // Ensure S3 client is properly configured
     await Promise.all([
       s3.send(new PutObjectCommand({
         Bucket: process.env.BUCKET_NAME_STREAMING,
@@ -1081,29 +2204,88 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
     // ===== DATABASE RECORDS =====
     await updateProgress('FINALIZING', 'IN_PROGRESS', 'Creating database record...', 90);
 
-const album = await Album.findOne({ artist: loggedInArtistId });
+    // Find or create album
+    let album = await Album.findOne({ artist: loggedInArtistId });
+    if (!album) {
+      album = await Album.create({
+        title: "Uncategorized",
+        artist: loggedInArtistId,
+        releaseDate: new Date()
+      });
+    }
+
     songData = await Song.create({
       title: path.basename(filename, path.extname(filename)),
-      album: album,
+      album: album._id,
       artist: loggedInArtistId,
       audioFileUrl: `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`,
       streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
-      timeSignature,
+      timeSignature: timeSignature || "4/4",
       key,
       mode,
       duration,
-      tempo: resultFromTempoDetect,
-      beats,
-      releaseDate: Date.now()
+      tempo: resultFromTempoDetect || tempo,
+      beats: beats || [],
+      releaseDate: new Date()
     });
 
+
+
+    try {
+      // added
+
+
+
+
+
+      await checkRedisHealth();
+  await createSongRedis({
+    ...songData.toObject(),
+    _id: songData._id
+  });
+  console.log('Cached in Redis successfully');
+} catch (redisError) {
+  console.warn('Redis caching failed (continuing anyway):', redisError);
+}
+
+
+// try {
+//   // Check if artist or album are missing required populated fields
+//   if (
+//     !songData.artist?.country || typeof songData.artist === 'string' ||
+//     !songData.album?.title || typeof songData.album === 'string'
+//   ) {
+//     songData = await Song.findById(songData._id)
+//       .populate('artist', 'country artistAka genre profileImage')
+//       .populate('album', 'title albumCoverImage releaseDate')
+//       .lean();
+//   }
+
+//   // Cache enriched song data in Redis
+//   await createSongRedis({
+//     ...songData,
+//     _id: songData._id  // just to be sure _id is included
+//   });
+
+//   console.log('Cached in Redis successfully');
+// } catch (redisError) {
+//   console.warn('Redis caching failed (continuing anyway):', redisError);
+// }
+
+
+
+
+
+
+
+  
     await Fingerprint.create({
       song: songData._id,
       audioHash: fingerprint,
       structureHash: hash,
       chromaPeaks,
       harmonicFingerprint: normalizedHarmonic,
-      beats
+      beats: beats || []
     });
 
     // Final steps with proper sequencing
@@ -1144,46 +2326,65 @@ const album = await Album.findOne({ artist: loggedInArtistId });
 
 
 // ====================
-addLyrics:  async (parent, {songId, lyrics}, context) => {
+addLyrics:  async (_parent, { songId, lyrics }, context) => {
+      try {
+        if (!context.artist) throw new Error('Unauthorized: You are not logged in.');
 
-try{
+        const updatedSong = await Song.findByIdAndUpdate(
+          songId,
+          { $set: { lyrics }, $currentDate: { updatedAt: true } },
+          { new: true, runValidators: true }
+        );
+        if (!updatedSong) throw new Error('Song not found.');
 
-   if (!context.artist) {
-      throw new Error('Unauthorized: You are not logged in.');
-    }
- const updatedSong = await Song.findByIdAndUpdate(songId, {
-      lyrics,
-      
-    }, { new: true });
+        // Redis: only lyrics changed
 
-    return updatedSong;
+        try {
 
-}catch(error){
-console.error("Error updating song:", error);
-    throw new Error("Failed to add lyrics.");
-}
+         await ensureSongCached(String(songId));
+await updateSongRedis(String(songId), { lyrics }); 
+        } catch (e) {
 
-},
+         console.warn('[Redis] addArtwork update failed:', e.message);
+        }
 
-addArtwork:  async (parent, {songId, artwork}, context) => {
+        return updatedSong;
+      } catch (error) {
+        console.error('Error updating song (lyrics):', error);
+        throw new Error('Failed to add lyrics.');
+      }
+    },
 
-try{
+    addArtwork: async (_parent, { songId, artwork }, context) => {
+      try {
+        if (!context.artist) throw new Error('Unauthorized: You are not logged in.');
 
-   if (!context.artist) {
-      throw new Error('Unauthorized: You are not logged in.');
-    }
- const updatedSong = await Song.findByIdAndUpdate(songId, {
-      artwork,
-    }, { new: true });
+        const updatedSong = await Song.findByIdAndUpdate(
+          songId,
+          { $set: { artwork }, $currentDate: { updatedAt: true } },
+          { new: true, runValidators: true }
+        );
+        if (!updatedSong) throw new Error('Song not found.');
 
-    return updatedSong;
+        // Redis: only artwork changed
+        try {
+        await ensureSongCached(String(songId));
+   
+await updateSongRedis(String(songId), { artwork });
 
-}catch(error){
-console.error("Error updating song:", error);
-    throw new Error("Failed to add artwork.");
-}
 
-},
+        } catch (e) {
+          console.warn('[Redis] addArtwork update failed:', e.message);
+        }
+
+        return updatedSong;
+      } catch (error) {
+        console.error('Error updating song (artwork):', error);
+        throw new Error('Failed to add artwork.');
+      }
+    },
+
+
 
 
 
@@ -1220,25 +2421,76 @@ toggleVisibility: async (_, { songId, visibility }, context) => {
 },
 
 
-deleteSong: async (parent, { songId }, context) => {
-  if (!context.artist) {
-    throw new Error("Unauthorized");
+deleteSong: async (_parent, { songId }, context) => {
+  if (!context.artist) throw new Error("Unauthorized");
+
+  // 1) Read first so we have URLs/album
+  const song = await Song.findOne({ _id: songId, artist: context.artist._id }).lean();
+  if (!song) throw new Error("Song not found");
+
+  // 2) Mongo delete (SoT)
+  await Song.deleteOne({ _id: songId });
+
+  // 3) S3 deletes (best-effort)
+  const originalKey  = keyFromUrl(song.audioFileUrl, 'original_songs/');  // expects prefix
+  const streamingKey = keyFromUrl(song.streamAudioFileUrl, 'for-streaming/'); // expects prefix
+    const albumId      = song.album || null;
+
+  const artworkUrl = typeof song.artwork === 'string' ? song.artwork : song?.artwork?.url;
+  const artworkKey = keyFromUrl(artworkUrl); // no prefix for cover images
+
+  const toDelete = [
+    originalKey  && { Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,   Key: originalKey  },
+    streamingKey && { Bucket: process.env.BUCKET_NAME_STREAMING,        Key: streamingKey },
+    artworkKey   && { Bucket: process.env.BUCKET_NAME_COVER_IMAGE_SONG, Key: artworkKey   },
+  ].filter(Boolean);
+
+  for (const params of toDelete) {
+    try { await s3.send(new DeleteObjectCommand(params)); }
+    catch (e) { console.warn('[S3] Delete failed:', params.Bucket, params.Key, e?.message || e); }
   }
 
-  const deleted = await Song.findByIdAndDelete(songId);
-  if (!deleted) {
-    throw new Error("Song not found");
+  // 4) Best-effort Redis cleanup
+  try {
+    await deleteSongRedis(String(songId));
+  } catch (e) {
+    console.warn("[Redis] deleteSong cache cleanup failed:", e.message);
   }
 
-  return deleted;
+
+  if (albumId) {
+    const remaining = await Song.countDocuments({ album: albumId });
+    if (remaining === 0) {
+      const albumDoc = await Album.findById(albumId).lean();
+      const albumCoverUrl = typeof albumDoc?.coverImage === "string"
+        ? albumDoc.coverImage
+        : albumDoc?.coverImage?.url || null;
+      const albumKey = keyFromUrl(albumCoverUrl);
+
+      // delete album doc
+      await Album.deleteOne({ _id: albumId });
+
+      // delete album cover in S3 (best-effort)
+      if (albumKey) {
+        try {
+          await s3.send(new DeleteObjectCommand({
+            Bucket: BUCKET_ALBUM_COVER_IMAGE,
+            Key: albumKey
+          }));
+        } catch (e) {
+          console.warn("[S3] Album cover delete failed:", e?.message || e);
+        }
+      }
+    }
+  }
+
+  return song;
 },
 
 
 
 
 // ========================
-
-
 
 
 createAlbum: async (parent, { title }, context) => {
@@ -1258,8 +2510,9 @@ createAlbum: async (parent, { title }, context) => {
         title: "Unknown",
         artist: artistId, 
       });
+      await albumCreateRedis(defaultAlbum);
 
-      return defaultAlbum;
+      return defaultAlbum(defaultAlbum);
     }
 
     return existingAlbum; 
@@ -1299,6 +2552,7 @@ createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, conte
       createdAt: new Date().toISOString(), // Automatically set created date
     });
 
+  await albumCreateRedis(customAlbum);
     // Return the created album
     return customAlbum;
 
@@ -1340,6 +2594,7 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
       throw new Error("Album not found or unauthorized.");
     }
 
+await albumUpdateRedis(updatedAlbum);
     return updatedAlbum;
   } catch (error) {
     console.error("Failed to update album:", error);
@@ -1348,7 +2603,80 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
 },
 
 
+
+nextSongAfterComplete: async (_p, { input }) => {
+      // your existing recommender
+      const { recommendNextAfterFull } = await import('../../../utils/AdEngine/reco/nextSong.js');
+      const songId = await recommendNextAfterFull(input);
+      return { ok: true, songId };
+    },
   // ----------------------------------------------------------------------
+
+
+
+ handlePlayCount: async (_parent, { songId }, context) => {
+      // Load song first (we need artist id and to fail fast if missing)
+      const song = await Song.findById(songId).lean();
+      if (!song) throw new Error('Song not found');
+
+      // Don’t count the artist’s own plays
+      if (context.artist && String(song.artist) === String(context.artist._id)) {
+        await Song.findByIdAndUpdate(songId, { $set: { lastPlayedAt: new Date() } });
+        // Optional: also reflect in Redis doc
+        try { await updateSongRedis(String(songId), { lastPlayedAt: new Date() }); } catch {}
+        return await Song.findById(songId).lean();
+      }
+
+      const viewerId = getViewerId(context);
+      const r = await getRedis();
+
+      const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
+      const onCooldown = await r.exists(cooldownKey);
+
+      if (onCooldown) {
+        // No increment; just keep lastPlayedAt fresh
+        const fresh = await Song.findByIdAndUpdate(
+          songId,
+          { $set: { lastPlayedAt: new Date() } },
+          { new: true, runValidators: true }
+        );
+        try { await updateSongRedis(String(songId), { lastPlayedAt: new Date() }); } catch {}
+        return fresh;
+      }
+
+      // Count this as a play (Mongo = source of truth)
+      const updatedSong = await Song.findByIdAndUpdate(
+        songId,
+        { $inc: { playCount: 1 }, $set: { lastPlayedAt: new Date() } },
+        { new: true, runValidators: true }
+      );
+      if (!updatedSong) throw new Error('Song not found');
+
+      // Mirror to Redis (best-effort)
+      try {
+        let next = await incrementPlayCount(String(songId));
+        if (!next) {
+          const cached = await ensureSongCached(String(songId));
+          if (cached) next = await incrementPlayCount(String(songId));
+        }
+        await updateSongRedis(String(songId), { lastPlayedAt: new Date() });
+      } catch (e) {
+        console.warn('[Redis] playCount sync skipped:', e.message);
+      }
+
+      // Start cooldown window
+      try {
+        // NX to avoid overwriting a running TTL
+        await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
+      } catch {}
+
+      return updatedSong;
+    },
+
+
+
+
+
 
     // Update user (username or password)
     updateUser: async (parent, { userId, username, password }) => {
@@ -1392,21 +2720,51 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
 
 
 
- Subscription: {
-    songUploadProgress: {
-      subscribe: withFilter(
-        () => pubsub.asyncIterableIterator([SONG_UPLOAD_UPDATE]),
-        (payload, variables, context) => {
-          // The magic happens here - we're using the artist from the WS context
-          if (!context.artist) {
-            console.error('No artist in context');
-            return false;
-          }
-          return true; // All authenticated artists get their own updates
+
+Subscription: {
+  songUploadProgress: {
+    subscribe: withFilter(
+      () => {
+        console.log('🎯 Subscription created for:', SONG_UPLOAD_UPDATE);
+        return pubsub.asyncIterableIterator([SONG_UPLOAD_UPDATE]);
+      },
+      (payload, variables, context) => {
+        // Debug logging
+        const payloadArtistId = payload.songUploadProgress?.artistId;
+        const contextArtistId = context.artist?._id?.toString();
+        
+        console.log('🔍 Filter check:', {
+          payloadArtistId,
+          contextArtistId,
+          matches: payloadArtistId === contextArtistId
+        });
+
+        if (!context.artist) {
+          console.error('❌ No artist in context - rejecting subscription');
+          return false;
         }
-      )
-    }
-  },
+
+        if (!payload.songUploadProgress?.artistId) {
+          console.error('❌ No artistId in payload - rejecting');
+          return false;
+        }
+
+        // Only send to the specific artist
+        const shouldDeliver = payload.songUploadProgress.artistId === context.artist._id.toString();
+        
+        if (shouldDeliver) {
+          /*
+          console.log('✅ Delivering progress to artist:', contextArtistId);
+          */
+        } else {
+          console.log('🚫 Blocking progress for different artist');
+        }
+        
+        return shouldDeliver;
+      }
+    )
+  }
+},
 
 
   Song: {

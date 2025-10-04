@@ -18,7 +18,8 @@ const MediaPlayerContainer = () => {
     skipPrevious,
     setVolume,
     toggleMute,
-    queue
+    queue,
+    playerState // ✅ Add playerState to access playbackContext
   } = useAudioPlayer();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -37,22 +38,23 @@ const MediaPlayerContainer = () => {
     setIsVisible(!!currentTrack);
   }, [currentTrack]);
 
-  // For debugging teaser state
-  // useEffect(() => {
-  //   console.log('[MediaPlayer] State:', {
-  //     isPlaying,
-  //     currentTime,
-  //     duration,
-  //     isTeaser
-  //   });
-  // }, [isPlaying, currentTime, duration, isTeaser]);
 
   const handlePlayPause = () => {
-    console.log('play button is clicked in media player')
-    console.log('the current song is:', currentTrack)
+    console.log('play button is clicked in media player');
+    console.log('the current song is:', currentTrack);
+    console.log('check if playback context works:', playerState )
+    
     if (!currentTrack) return;
-    isPlaying ? pause(true) : play(); // ✅ manually triggered pause
+    
+    if (isPlaying) {
+      pause(true); // ✅ manually triggered pause
+    } else {
+      // ✅ Pass the stored playback context when resuming
+      play(null, playerState?.playbackContext);
+    }
   };
+
+
 
   const handleSliderChange = (_, newValue) => {
     setIsDragging(true);
@@ -89,7 +91,7 @@ const MediaPlayerContainer = () => {
         isMuted={isMuted}
         teaserMode={isTeaser}
         onPlayPause={handlePlayPause}
-        onPrev={skipPrevious}
+        onPrev={skipPrevious} // ⚠️ Check if this should be skipPrevious
         onNext={skipNext}
         onSeek={seek}
         onVolumeChange={handleVolumeChange}

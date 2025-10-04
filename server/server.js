@@ -3,6 +3,12 @@ import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
 
+// testing redis
+import { getUserProfile, getSession, K} from "./utils/AdEngine/redis/redisSchema.js";
+import { getRedis, initializeRedis, populateTestData, debugRedisKeys } from "./utils/AdEngine/redis/redisClient.js";
+import { checkRedisHealth } from "./utils/AdEngine/redis/redisClient.js";
+
+
 import { fileURLToPath } from 'url';
 
 // Import necessary packages and functions
@@ -43,6 +49,7 @@ import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
 import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded, handlePaymentIntentFailed} from "./routes/webhook.js";
+import geoip from 'geoip-lite';
 
 
 
@@ -233,26 +240,20 @@ const httpServer = createServer(app);
 // List of allowed origins
 const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', 'http://localhost:5173'];
 
-// CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests from allowed origins
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true); // Allow the origin
-    } else {
-      console.error(`❌ CORS Error: ${origin} is not allowed`);
-      callback(new Error('Not allowed by CORS')); // Reject the request if the origin is not allowed
-    }
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true // This allows cookies or authentication headers to be sent
-};
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','apollo-require-preflight'],
+}));
 
-// Use CORS middleware
-app.use(cors(corsOptions));
-
-
+// (optional) make OPTIONS succeed fast
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','apollo-require-preflight'],
+}));
 
 
 
@@ -279,42 +280,44 @@ const wsServer = new WebSocketServer({
   path: "/graphql",
 });
 
+
 const serverCleanup = useServer(
   {
     schema,
     context: async (ctx) => {
       try {
         const authHeader = ctx.connectionParams?.authorization || "";
-        const token = authHeader.replace("Bearer ", "");
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
-        let context = {};
+        console.log('WS Auth called with token:', token ? 'present' : 'missing');
 
-        // Try artist auth first
-        try {
-          const artist = await getArtistFromToken(token);
-          if (artist) {
-            context.artist = artist;
-            return context;
-          }
-        } catch (_) {}
+        if (!token) {
+          throw new Error("No token provided");
+        }
 
-        // Then try user auth
-        try {
-          const user = await getUserFromToken(token);
-          if (user) {
-            context.user = user;
-            return context;
-          }
-        } catch (_) {}
+        // Create a mock request object to use with combinedAuthMiddleware
+        const mockReq = { 
+          headers: { 
+            authorization: `Bearer ${token}` 
+          } 
+        };
+        
+        // Use the SAME authentication logic as HTTP requests
+        const reqWithAuth = await combinedAuthMiddleware({ req: mockReq });
 
-        // Finally try advertizer auth
-        try {
-          const advertizer = await getAdvertizerFromToken(token);
-          if (advertizer) {
-            context.advertizer = advertizer;
-            return context;
-          }
-        } catch (_) {}
+        // Return the authenticated context
+        if (reqWithAuth.artist) {
+          console.log('WS Artist authenticated:', reqWithAuth.artist._id);
+          return { artist: reqWithAuth.artist };
+        }
+        if (reqWithAuth.user) {
+          console.log('WS User authenticated:', reqWithAuth.user._id);
+          return { user: reqWithAuth.user };
+        }
+        if (reqWithAuth.advertizer) {
+          console.log('WS Advertizer authenticated:', reqWithAuth.advertizer._id);
+          return { advertizer: reqWithAuth.advertizer };
+        }
 
         throw new Error("Authentication failed");
       } catch (error) {
@@ -331,6 +334,8 @@ const serverCleanup = useServer(
   },
   wsServer
 );
+
+
 
 // Set up Apollo Server with GraphQL schema
 const server = new ApolloServer({
@@ -354,8 +359,142 @@ const server = new ApolloServer({
 // Routes
 app.use("/api", stripeRoutes);
 
+// =============================
+
+app.set('trust proxy', 1);
 
 app.use("/api/location", location);
+
+
+
+
+
+
+
+// ======================================
+
+// testing redis
+// Initialize Redis on server start
+
+app.use(async (req, res, next) => {
+  try {
+    await initializeRedis();
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Redis connection failed' });
+  }
+});
+
+// Your location endpoint - FIXED
+app.get('/api/location/redis', async (req, res) => {
+  const { userId, sessionId } = req.query;
+  
+  console.log('Redis Location Request:', { userId, sessionId });
+  
+  try {
+    const r = await getRedis();
+    
+    // Get user and session data
+    const [userData, sessionData] = await Promise.all([
+      getUserProfile(userId),
+      getSession(sessionId)
+    ]);
+    
+    const response = {
+      userId,
+      sessionId,
+      user: userData || { 
+        role: null, 
+        lastGeo: null, 
+        profileUpdatedAt: null 
+      },
+      session: sessionData || {
+        songsPlayed: 0,
+        songsFinished: 0,
+        songsSkipped: 0,
+        ms_listened: 0,
+        timeSecs: 0,
+        lastEventTs: null,
+        device: null,
+        role: null,
+        country: null,
+        city: null
+      },
+      userAgg: null,
+      eventsCount: 0,
+      latestEvents: []
+    };
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error('Redis location error:', error);
+    res.status(500).json({ 
+      error: error.message,
+      userId,
+      sessionId 
+    });
+  }
+});
+
+// Debug endpoints
+app.get('/api/debug/redis-keys', async (req, res) => {
+  const { pattern = 'user:*' } = req.query;
+  try {
+    const keys = await debugRedisKeys(pattern);
+    res.json({ keys, pattern });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/debug/populate-test', async (req, res) => {
+  try {
+    await populateTestData();
+    res.json({ success: true, message: 'Test data populated' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/debug/health', async (req, res) => {
+  try {
+    const healthy = await checkRedisHealth();
+    res.json({ redis: healthy ? 'healthy' : 'unhealthy' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+// ==========================
+
+
+
+
+
+
+
+
+
+
+// ------------------------
+
+
+// utils/locationDetectorServerSide.js
+
+
+// -----------------------------------------
+
+
+
 app.use('/api', verifyAdvertizerEmail);
 
 // Start the Apollo Server and connect to the DB

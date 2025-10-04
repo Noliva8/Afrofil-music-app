@@ -35,54 +35,71 @@ export const combinedAuthMiddleware = async ({ req }) => {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
+  console.log('Auth middleware called with token:', token ? 'present' : 'missing');
+  
   if (!token) {
+    console.log('No token provided');
     return req;
   }
 
   // Try each authentication type sequentially
   try {
     // 1. Try Artist authentication first
+    console.log('Attempting artist authentication...');
     try {
       const { data } = jwt.verify(token, secrets.artist, { maxAge: expiration });
+      console.log('Artist token decoded:', data);
       const artist = await Artist.findById(data._id).select(modelSelectFields.artist);
       if (artist) {
+        console.log('Artist authenticated successfully:', artist._id);
         req.artist = artist;
-        return req; // Return early if artist auth succeeds
+        return req;
+      } else {
+        console.log('Artist not found in database');
       }
     } catch (artistError) {
-      // Not an artist token, continue to next attempt
+      console.log('Artist auth failed:', artistError.message);
     }
 
     // 2. Try User authentication
+    console.log('Attempting user authentication...');
     try {
       const { data } = jwt.verify(token, secrets.user, { maxAge: expiration });
+      console.log('User token decoded:', data);
       const user = await User.findById(data._id).select(modelSelectFields.user);
       if (user) {
+        console.log('User authenticated successfully:', user._id);
         req.user = user;
-        return req; // Return early if user auth succeeds
+        return req;
+      } else {
+        console.log('User not found in database');
       }
     } catch (userError) {
-      // Not a user token, continue to next attempt
+      console.log('User auth failed:', userError.message);
     }
 
     // 3. Try Advertizer authentication
+    console.log('Attempting advertiser authentication...');
     try {
       const { data } = jwt.verify(token, secrets.advertizer, { maxAge: expiration });
+      console.log('Advertiser token decoded:', data);
       const advertizer = await Advertizer.findById(data._id).select(modelSelectFields.advertizer);
       if (advertizer) {
+        console.log('Advertiser authenticated successfully:', advertizer._id);
         req.advertizer = advertizer;
-        return req; // Return early if advertizer auth succeeds
+        return req;
+      } else {
+        console.log('Advertiser not found in database');
       }
     } catch (advertizerError) {
-      // Not an advertizer token
+      console.log('Advertiser auth failed:', advertizerError.message);
     }
 
-    // If we get here, no authentication succeeded
-    console.debug('Authentication failed for all types with provided token');
+    console.log('All authentication attempts failed');
     return req;
 
   } catch (error) {
-    console.error('Unexpected error in combinedAuthMiddleware:', error);
+    console.error('Unexpected error:', error);
     return req;
   }
 };

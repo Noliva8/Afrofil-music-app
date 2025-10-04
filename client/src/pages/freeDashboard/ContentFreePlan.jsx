@@ -238,6 +238,8 @@ const navigate = useNavigate();
 
 
 
+
+
 const handleSongUpload = async (event) => {
  
   setIsSongLoading(true);
@@ -353,10 +355,6 @@ reader.readAsArrayBuffer(songFile);
   
  
 };
-
-
-
-
 
 
 // Centralized data processing from server

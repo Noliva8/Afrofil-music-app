@@ -104,7 +104,7 @@ audioFormat: {
   // === Status ===
   status: {
     type: String,
-    enum: ['draft', 'waiting_for_approval', 'active', 'paused', 'completed'],
+    enum: ['draft', 'waiting_for_approval', 'rejected','active', 'paused', 'completed'],
     default: 'draft'
   },
 
@@ -117,8 +117,18 @@ audioFormat: {
   bannerAdHeghtPx: {type: Number},
 
   isApproved: { type: Boolean, default: false },
+  approvedBy: {type: String},
   approvedAt: { type: Date, default: null },
   rejectionReason: { type: String, default: '' },
+
+
+// Added fields:
+
+  // platform
+
+  platform: {type: String, enum: ['ios', 'android', 'all'], default: 'all'},
+
+  
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
@@ -135,6 +145,12 @@ AdSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
+
+
+AdSchema.index({ updatedAt: -1, _id: -1 });                 
+AdSchema.index({ advertiserId: 1, updatedAt: -1, _id: -1 }); 
+
+
 
 const Ad = model('Ad', AdSchema);
 export default Ad;

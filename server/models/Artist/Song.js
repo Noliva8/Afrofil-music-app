@@ -89,11 +89,7 @@ composer: [
     min: 0
   },
 
-  playCount: {
-    type: Number,
-    default: 0,
-   
-  },
+ 
 
   releaseDate: {
     type: Date,
@@ -110,6 +106,14 @@ composer: [
     type: String
   },
 
+  
+
+   playCount: {
+    type: Number,
+    default: 0,
+   
+  },
+
   downloadCount: {
     type: Number,
     default: 0
@@ -123,6 +127,8 @@ composer: [
     type: Number,
     default: 0
   },
+
+
   tags: [{
     type: String
   }],
@@ -190,13 +196,16 @@ timeSignature: {
 
 
 // Add indexes for frequently queried fields
-songSchema.index({ title: 1 });
-songSchema.index({ artist: 1 }); 
-songSchema.index({ genre: 1 });
-songSchema.index({ releaseDate: -1 });
-songSchema.index({ trendingScore: -1 });
+// Add these indexes to your songSchema (before creating the model)
+songSchema.index({ artist: 1, album: 1, genre: 1, tempo: 1 });
+songSchema.index({ genre: 1, mood: 1, subMoods: 1, tempo: 1 });
+songSchema.index({ mood: 1, subMoods: 1, tempo: 1 });
+songSchema.index({ subMoods: 1, tempo: 1 });
+songSchema.index({ tempo: 1 });
+songSchema.index({ releaseDate: -1, trendingScore: -1 });
 
-
+// For population performance
+songSchema.index({ artist: 1, releaseDate: -1 });
 
 const Song = model('Song', songSchema);
 
