@@ -118,10 +118,17 @@ composer: [
     type: Number,
     default: 0
   },
+
   likedByUsers: [{
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],
+
+  likesCount: {
+    type: Number,
+    default: 0
+  },
+  likedByMe: {type: Boolean, default: false},
   
   trendingScore: {
     type: Number,

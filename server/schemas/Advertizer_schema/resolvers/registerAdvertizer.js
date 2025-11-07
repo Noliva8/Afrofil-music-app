@@ -1,5 +1,6 @@
 import { Advertizer } from "../../../models/Advertizer/index_advertizer.js";
-import { signAdvertizerToken } from "../../../utils/advertizer_auth.js";
+import { signAdvertiserToken } from '../../../utils/AuthSystem/tokenUtils.js'
+import { USER_TYPES } from "../../../utils/AuthSystem/constant/systemRoles.js";
 import crypto from 'crypto';
 import sendEmail from "../../../utils/emailTransportation.js";
 import { GraphQLError } from 'graphql';
@@ -113,7 +114,7 @@ const registerAdvertizer = async (_, args) => {
     `
   );
 
-  const advertizerToken = signAdvertizerToken(newAdvertizer);
+  const advertizerToken = signAdvertiserToken(newAdvertizer, USER_TYPES.ADVERTISER );
 
   return {
     advertizerToken,

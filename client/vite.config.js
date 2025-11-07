@@ -11,6 +11,7 @@ export default defineConfig({
       '/graphql': {
         target: 'http://localhost:3001', // Backend API URL
         changeOrigin: true,
+            ws: true,
         secure: false, // Skip SSL verification for local development
       },
     },

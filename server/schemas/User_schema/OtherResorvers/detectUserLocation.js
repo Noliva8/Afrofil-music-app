@@ -101,81 +101,186 @@ import {
 } from "./redis/userLocationRedis.js";
 
 
+
+
+// export const detectUserLocation = async (_parent, { lat, lon }, context) => {
+//   const user = context?.user;
+//   console.log('user context:', user)
+//   if (!user) throw new Error('Authentication required');
+
+//   const userId = user._id;
+//   const _lat = +Number(lat).toFixed(6);
+//   const _lon = +Number(lon).toFixed(6);
+//   const inputLocation = { lat: _lat, lon: _lon };
+
+//   console.log(`--- New Location Request ---`);
+//   console.log(`User: ${userId} | lat: ${_lat}, lon: ${_lon}`);
+
+//   // Step 1: Return cache if location hasn't changed
+//   const cached = await getCachedLocation(userId);
+//   if (cached && isSameLocation(cached, inputLocation)) {
+//     console.log('✅ Returning cached location.');
+//     return cached;
+//   }
+
+//   // Step 2: Use Google if under quota
+//   const googleAllowed = await checkVendorLimit('google');
+//   if (googleAllowed) {
+//     try {
+//       console.log('🔍 Trying Google Reverse Geocoding...');
+//       const googleResult = await reverseGeocode({ lat: _lat, lon: _lon });
+//       await incrementVendorUsage('google');
+
+//       const fullGoogleData = {
+//         ...googleResult,
+//         lat: _lat,
+//         lon: _lon,
+//         vendor: 'google'
+//       };
+
+//       await cacheUserLocation(userId, fullGoogleData);
+
+//       console.log('✅ Google reverse geocode succeeded.');
+//       return fullGoogleData;
+
+//     } catch (error) {
+//       console.warn('⚠️ Google failed:', error.message);
+//     }
+//   } else {
+//     console.warn('⛔ Google quota exceeded. Skipping...');
+//   }
+
+//   // Step 3: Fallback to IPWho if under limit
+//   const ipwhoAllowed = await checkVendorLimit('ipwho');
+//   if (ipwhoAllowed) {
+//     try {
+//       console.log('🌐 Trying IPWho fallback...');
+//       const ipwhoResult = await getLocationFromIpWho(context);
+//       await incrementVendorUsage('ipwho');
+
+//       const fullIpData = {
+//         ...ipwhoResult,
+//         lat: ipwhoResult.latitude || _lat,
+//         lon: ipwhoResult.longitude || _lon,
+//         vendor: 'ipwho'
+//       };
+
+//       await cacheUserLocation(userId, fullIpData);
+
+//       console.log('✅ IPWho succeeded as fallback.');
+      
+//       return fullIpData;
+
+//     } catch (error) {
+//       console.error('❌ IPWho also failed:', error.message);
+//     }
+//   } else {
+//     console.warn('⛔ IPWho quota exceeded. Cannot proceed.');
+//   }
+
+//   throw new Error('Location detection failed. All vendors unavailable.');
+// };
+
+
+// vendors
+
+
+// derive a stable cache key for guests based on IP
+function anonKeyFromContext(context) {
+  const req = context?.req || context?.request;
+  const xfwd = req?.headers?.['x-forwarded-for'];
+  const ip = Array.isArray(xfwd) ? xfwd[0] : (xfwd || req?.ip || req?.socket?.remoteAddress || 'unknown');
+  return `anon:${String(ip)}`;
+}
+
+function parseCoords(lat, lon) {
+  const la = Number(lat), lo = Number(lon);
+  const has = Number.isFinite(la) && Number.isFinite(lo)
+           && la <= 90 && la >= -90 && lo <= 180 && lo >= -180;
+  return { has, lat: has ? +la.toFixed(6) : null, lon: has ? +lo.toFixed(6) : null };
+}
+
 export const detectUserLocation = async (_parent, { lat, lon }, context) => {
-  const user = context?.user;
-  if (!user) throw new Error('Authentication required');
+  const user = context?.user || null;
+  const userKey = user?._id ? String(user._id) : anonKeyFromContext(context);
 
-  const userId = user._id;
-  const _lat = +Number(lat).toFixed(6);
-  const _lon = +Number(lon).toFixed(6);
-  const inputLocation = { lat: _lat, lon: _lon };
+  const { has: hasCoords, lat: _lat, lon: _lon } = parseCoords(lat, lon);
+  const inputLocation = hasCoords ? { lat: _lat, lon: _lon } : null;
 
-  console.log(`--- New Location Request ---`);
-  console.log(`User: ${userId} | lat: ${_lat}, lon: ${_lon}`);
+  console.log('--- New Location Request ---');
+  console.log('user:', user ? user._id : '(guest)', '| hasCoords:', hasCoords, _lat, _lon);
 
-  // Step 1: Return cache if location hasn't changed
-  const cached = await getCachedLocation(userId);
-  if (cached && isSameLocation(cached, inputLocation)) {
-    console.log('✅ Returning cached location.');
-    return cached;
+  // Step 1: Return cache if present (and if coords match when provided)
+  try {
+    const cached = await getCachedLocation(userKey);
+    if (cached && (!inputLocation || isSameLocation(cached, inputLocation))) {
+      console.log('✅ Returning cached location.');
+      return cached;
+    }
+  } catch (e) {
+    console.warn('cache read failed:', e?.message || e);
   }
 
-  // Step 2: Use Google if under quota
-  const googleAllowed = await checkVendorLimit('google');
-  if (googleAllowed) {
+  // Helper: safe vendor checks (tolerate missing counters after FLUSHALL)
+  const safeCheck = async (vendor) => {
+    try { return await checkVendorLimit(vendor); } catch { return true; }
+  };
+  const safeInc = async (vendor) => {
+    try { await incrementVendorUsage(vendor); } catch {}
+  };
+
+  // Step 2: Use Google if we have coords AND under quota
+  if (hasCoords && await safeCheck('google')) {
     try {
-      console.log('🔍 Trying Google Reverse Geocoding...');
+      console.log('🔍 Trying Google Reverse Geocoding…');
       const googleResult = await reverseGeocode({ lat: _lat, lon: _lon });
-      await incrementVendorUsage('google');
+      await safeInc('google');
 
-      const fullGoogleData = {
-        ...googleResult,
-        lat: _lat,
-        lon: _lon,
-        vendor: 'google'
-      };
-
-      await cacheUserLocation(userId, fullGoogleData);
-
+      const payload = { ...googleResult, lat: _lat, lon: _lon, vendor: 'google' };
+      try { await cacheUserLocation(userKey, payload); } catch {}
       console.log('✅ Google reverse geocode succeeded.');
-      return fullGoogleData;
-
+      return payload;
     } catch (error) {
-      console.warn('⚠️ Google failed:', error.message);
+      console.warn('⚠️ Google failed:', error?.message || error);
     }
+  } else if (!hasCoords) {
+    console.log('ℹ️ Skipping Google: no valid coordinates provided.');
   } else {
-    console.warn('⛔ Google quota exceeded. Skipping...');
+    console.warn('⛔ Google quota exceeded. Skipping…');
   }
 
   // Step 3: Fallback to IPWho if under limit
-  const ipwhoAllowed = await checkVendorLimit('ipwho');
-  if (ipwhoAllowed) {
+  if (await safeCheck('ipwho')) {
     try {
-      console.log('🌐 Trying IPWho fallback...');
-      const ipwhoResult = await getLocationFromIpWho(context);
-      await incrementVendorUsage('ipwho');
+      console.log('🌐 Trying IPWho fallback…');
+      const ipwho = await getLocationFromIpWho(context);
+      await safeInc('ipwho');
 
-      const fullIpData = {
-        ...ipwhoResult,
-        lat: ipwhoResult.latitude || _lat,
-        lon: ipwhoResult.longitude || _lon,
+      const payload = {
+        ...ipwho,
+        lat: ipwho?.latitude ?? _lat,
+        lon: ipwho?.longitude ?? _lon,
         vendor: 'ipwho'
       };
-
-      await cacheUserLocation(userId, fullIpData);
-
+      try { await cacheUserLocation(userKey, payload); } catch {}
       console.log('✅ IPWho succeeded as fallback.');
-      
-      return fullIpData;
-
+      return payload;
     } catch (error) {
-      console.error('❌ IPWho also failed:', error.message);
+      console.error('❌ IPWho failed:', error?.message || error);
     }
   } else {
     console.warn('⛔ IPWho quota exceeded. Cannot proceed.');
   }
 
-  throw new Error('Location detection failed. All vendors unavailable.');
+  // Final: don’t block the UI—return a neutral payload
+  console.warn('All providers failed; returning neutral location.');
+  return {
+    country: null,
+    region: null,
+    city: null,
+    lat: _lat,
+    lon: _lon,
+    vendor: null
+  };
 };
-
 

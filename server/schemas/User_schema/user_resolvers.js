@@ -1,13 +1,32 @@
 
-import { Song, Album, Artist, } from '../../models/Artist/index_artist.js'
+import {  Album, Artist, } from '../../models/Artist/index_artist.js'
 import { User,  Playlist, Comment,} from '../../models/User/user_index.js'
-import {  signUserToken , AuthenticationError, enrichUser} from '../../utils/user_auth.js';
+import {   AuthenticationError} from '../../utils/user_auth.js';
 import { GraphQLError } from 'graphql';
 import bcrypt from 'bcrypt';
 import { detectUserLocation } from './OtherResorvers/detectUserLocation.js';
 import { createSongRedis, redisTrending } from '../Artist_schema/Redis/songCreateRedis.js';
+import { toggleLikeSong } from './OtherResorvers/toggleLikeSong.js';
+
+import {USER_TYPES} from '../../utils/AuthSystem/constant/systemRoles.js'
+import {signUserToken } from '../../utils/AuthSystem/tokenUtils.js';
+import { addSongRedis } from '../Artist_schema/Redis/addSongRedis.js';
+import { songKey } from '../Artist_schema/Redis/keys.js';
+import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
+import { Song  } from '../Artist_schema/songResolver.js';
 
 
+
+
+// Helper function to determine if song should be cached
+function shouldCacheSong(song) {
+  return (
+    song.playCount > 100 ||        // Already popular
+    song.releaseDate > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) || // New release
+    song.isFeatured ||             // Featured song
+    song.artist?.isPopular         // Popular artist
+  );
+}
 
 const resolvers = {
 
@@ -385,7 +404,7 @@ createUser: async (_, { input }) => {
           }
         });
 
-           const token = signUserToken(newUser);
+           const token = signUserToken(newUser, USER_TYPES.USER);
 
            const isPremium = normalizedRole === 'premium';
 
@@ -458,7 +477,7 @@ if (!isMatch) {
 }
 
 
-        const token = signUserToken(user);
+        const token = signUserToken(user, USER_TYPES.USER);
 
         const isPremium = user.role === 'premium' &&
           user.subscription?.status === 'active' &&
@@ -571,33 +590,10 @@ if (!isMatch) {
       }
     },
 
-    incrementPlayCount: async (parent, { songId }, { user, PlayCount }) => {
-  if (!user) {
-    throw new AuthenticationError('You must be logged in!');
-  }
-  try {
-    
-    let playCount = await PlayCount.findOne({ userId: user.id, songId });
 
-    if (playCount) {
-      // Increment the count if the document exists
-      playCount.count += 1;
-      await playCount.save();
-    } else {
-      // Create a new PlayCount document if it doesn't exist
-      playCount = new PlayCount({
-        userId: user.id,
-        songId,
-        count: 1,
-      });
-      await playCount.save();
-    }
-    return playCount;
-  } catch (error) {
-    console.error('Failed to increase the count:', error);
-    throw new Error('Failed to increase the count.');
-  }
-},
+
+
+
 
 
 addDownload: async (parent, { songId }, { user, Download }) => {
@@ -776,8 +772,10 @@ recommended_songs: async (parent, { userId, algorithm }, { User, Song, Recommend
 // other resolvers
 
 detectUserLocation,
+toggleLikeSong,
 
-  }
+  },
+  Song
 
   };
 

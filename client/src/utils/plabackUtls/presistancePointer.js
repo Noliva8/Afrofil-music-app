@@ -1,4 +1,5 @@
-// plabackUtls/presistancePointer.js
+
+
 const PTR_KEY = 'af_ctx_ptr_v1';
 
 export function writeCtxPointer({ userId, sessionId }) {
@@ -19,6 +20,9 @@ export function writeCtxPointer({ userId, sessionId }) {
     localStorage.setItem(PTR_KEY, JSON.stringify(next));
   } catch {}
 }
+
+
+
 
 export function readCtxPointer() {
   try {

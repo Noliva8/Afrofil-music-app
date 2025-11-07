@@ -37,7 +37,8 @@ import { advertizer_typeDefs, advertizer_resolver} from "./schemas/Advertizer_sc
 import { getArtistFromToken } from "./utils/artist_auth.js";
 import { getUserFromToken } from "./utils/user_auth.js";
 import { getAdvertizerFromToken } from "./utils/advertizer_auth.js";
-import { combinedAuthMiddleware } from "./utils/combinedAuth.js";
+// import { combinedAuthMiddleware } from "./utils/combinedAuth.js";
+import {combinedAuthMiddleware} from './utils/AuthSystem/authMiddleware.js'
 
 import merge from "lodash.merge";
 import cors from "cors";
@@ -48,7 +49,7 @@ import location from './routes/location.js';
 import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
-import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded, handlePaymentIntentFailed} from "./routes/webhook.js";
+import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded,   handlePaymentIntentFailed} from "./routes/webhook.js";
 import geoip from 'geoip-lite';
 
 
@@ -500,16 +501,36 @@ app.use('/api', verifyAdvertizerEmail);
 // Start the Apollo Server and connect to the DB
 const startApolloServer = async () => {
   try {
+
+ // Connect to database
+    console.log("Attempting to connect to the database...");
+    await connectDB();
+
     // Start Apollo Server
     console.log("Apollo Server starting...");
     await server.start();
     console.log("Apollo Server started successfully");
 
+    
+
     // Use combined auth middleware
+    // app.use(async (req, _res, next) => {
+    //   await combinedAuthMiddleware({ req });
+    //   next();
+    // });
+
     app.use(async (req, _res, next) => {
-      await combinedAuthMiddleware({ req });
-      next();
-    });
+
+  const authenticatedReq = await combinedAuthMiddleware({ req });
+  
+  // Copy the authenticated properties to the original request
+  if (authenticatedReq.user) req.user = authenticatedReq.user;
+  if (authenticatedReq.artist) req.artist = authenticatedReq.artist;
+  if (authenticatedReq.advertiser) req.advertiser = authenticatedReq.advertiser;
+  if (authenticatedReq.auth) req.auth = authenticatedReq.auth;
+
+  next();
+});
 
     app.use(
       "/graphql",
@@ -518,10 +539,31 @@ const startApolloServer = async () => {
           req,
           artist: req.artist || null,
           user: req.user || null,
-          advertizer: req.advertizer || null,
+          advertizer: req.advertiser || null,
         }),
       })
     );
+
+//     app.use(
+//   "/graphql",
+//   expressMiddleware(server, {
+//     context: async ({ req }) => {
+//       console.log('🔍 GraphQL Context DEBUG:');
+//       console.log('  - req.user:', req.user?._id, req.user?.email);
+//       console.log('  - req.artist:', req.artist?._id);
+//       console.log('  - req.advertiser:', req.advertiser?._id);
+//       console.log('  - req.auth:', req.auth?.kind, req.auth?.id);
+      
+//       return {
+//         user: req.user || null,
+//         artist: req.artist || null,
+//         advertiser: req.advertiser || null,
+//       };
+//     },
+//   })
+// );
+
+
 
     // Start background monitoring
     monitorSubscriptions();
@@ -591,9 +633,7 @@ app.post('/api/cleanup', async (req, res) => {
       });
     }
 
-    // Connect to database
-    console.log("Attempting to connect to the database...");
-    await connectDB();
+   
 
     // Start the server
     httpServer.listen(PORT, () => {

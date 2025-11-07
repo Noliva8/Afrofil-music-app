@@ -10,7 +10,7 @@ import ArtistSongPage from "./ArtistSongPage";
 import { useState } from "react";
 
 const MainMenu = ({ 
-  songsWithArtwork, 
+  songsWithArtwork,refetch
    }) => {
 
   const [selectedArtist, setSelectedArtist] = useState(null);
@@ -58,6 +58,7 @@ const MainMenu = ({
       <TrendingSongs
         songsWithArtwork={songsWithArtwork}
         onCardClick={handleCardClick}
+        refetch={refetch}
       />
       <RecommendedSongs />
       <Grid2 container spacing={4}>

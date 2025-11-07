@@ -17,7 +17,7 @@ const stableSort = (arr, fns) =>
 // main
 export function buildTrendingQueue(clickedSong, allTrendingSongs, opts = {}) {
   const {
-    maxQueueSize = 20,
+    maxQueueSize = 50,
     capSameArtistFirstK = { cap: 2, window: 10 },
     capSameAlbumFirstK  = { cap: 1, window: 8 },
     w1 = 10, w2 = 15, w3 = 20, w4 = 25,            // tempo windows

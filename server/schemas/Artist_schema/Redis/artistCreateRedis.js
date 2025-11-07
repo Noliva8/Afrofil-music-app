@@ -12,6 +12,8 @@ const A = {
   TTL: 24 * 60 * 60, // 24 hours in seconds
 }
 
+
+
 const artistKey = (id) => `${A.ARTIST_PREFIX}${id}`;
 
 /** Timeout wrapper */
@@ -53,6 +55,8 @@ const serializeArtist = (artist) => {
   };
 };
 
+
+
 /** Helper to check Redis memory usage */
 const checkMemoryAndNotify = async (redis, operation) => {
   try {
@@ -66,22 +70,20 @@ const checkMemoryAndNotify = async (redis, operation) => {
   }
 };
 
-/** Create/Update artist in Redis */
+
+/** Create/Update artist in Redis (JSON canonical) */
+
 export async function artistCreateRedis(artistData, options = {}) {
   const { updateExisting = false, ttl = A.TTL } = options;
   let redis;
-  
+
   try {
     redis = await getRedis();
     const artistId = artistData._id?.toString();
-    
-    if (!artistId) {
-      throw new Error('Artist ID is required');
-    }
+    if (!artistId) throw new Error('Artist ID is required');
 
     const key = artistKey(artistId);
-    
-    // Check if artist already exists (unless we're forcing update)
+
     if (!updateExisting) {
       const exists = await redis.exists(key);
       if (exists) {
@@ -90,7 +92,7 @@ export async function artistCreateRedis(artistData, options = {}) {
       }
     }
 
-    // Get fresh data from database if needed
+    // hydrate if missing fields
     let artist = artistData;
     if (!artist.artistAka || !artist.country) {
       artist = await Artist.findById(artistId)
@@ -98,30 +100,32 @@ export async function artistCreateRedis(artistData, options = {}) {
         .populate('albums', '_id title')
         .populate('followers', '_id username')
         .lean();
-      
-      if (!artist) {
-        throw new Error(`Artist ${artistId} not found in database`);
-      }
+      if (!artist) throw new Error(`Artist ${artistId} not found in database`);
     }
 
-    // Serialize artist data
     const serializedArtist = serializeArtist(artist);
-    if (!serializedArtist) {
-      throw new Error('Failed to serialize artist data');
+    if (!serializedArtist) throw new Error('Failed to serialize artist data');
+
+    // Make sure ids in arrays are strings
+    serializedArtist.songs = (serializedArtist.songs || []).map(String);
+    serializedArtist.albums = (serializedArtist.albums || []).map(String);
+
+    // 🔁 Store canonical as JSON
+    const type = await redis.type(key);
+    if (type && type !== 'none' && type !== 'ReJSON-RL' && type !== 'json') {
+      await redis.unlink(key); // convert any legacy non-JSON
+    }
+    await withTimeout(redis.json.set(key, '$', serializedArtist), 3000, 'Redis JSON set timeout');
+
+    // TTL at key-level (works for JSON)
+    if (Number.isFinite(ttl) && ttl > 0) {
+      await withTimeout(redis.expire(key, ttl), 1500, 'Redis expire timeout');
     }
 
-    // Store in Redis
-  await withTimeout(
-  redis.set(key, JSON.stringify(serializedArtist), 'EX', ttl),
-  3000,
-  'Redis set timeout'
-);
-
-
-    // Update indexes
+    // Update secondary indexes
     await updateArtistIndexes(redis, serializedArtist);
 
-    // Check memory usage
+    // Memory check (best-effort)
     await checkMemoryAndNotify(redis, `artistCreateRedis:${artistId}`);
 
     console.log(`✅ Artist ${artistId} ${updateExisting ? 'updated' : 'created'} in Redis`);
@@ -133,45 +137,93 @@ export async function artistCreateRedis(artistData, options = {}) {
   }
 }
 
+
+
+
 /** Update artist in Redis (alias for create with update flag) */
 export async function artistUpdateRedis(artistData, options = {}) {
   return artistCreateRedis(artistData, { ...options, updateExisting: true });
 }
 
-/** Get artist from Redis */
-export async function getArtistRedis(artistId) {
-  let redis;
-  
-  try {
-    redis = await getRedis();
-    const key = artistKey(artistId);
-    
-    const artistData = await withTimeout(
-      redis.get(key),
-      2000,
-      'Redis get timeout'
-    );
 
-    if (!artistData) {
-      return null;
+
+
+/** Get artist from Redis (JSON-first) */
+export async function getArtistRedis(artistId) {
+  try {
+    const redis = await getRedis();
+    const key = artistKey(artistId);
+    const t = await withTimeout(redis.type(key), 1000, 'Type timeout');
+
+    if (t === 'ReJSON-RL' || t === 'json') {
+      const artist = await withTimeout(redis.json.get(key), 1500, 'JSON get timeout');
+      if (!artist) return null;
+      if (Number.isFinite(A.TTL) && A.TTL > 0) {
+        redis.expire(key, A.TTL).catch(()=>{});
+      }
+      return artist;
     }
 
-    const artist = JSON.parse(artistData);
-    
-    // Refresh TTL on access
-    await withTimeout(
-      redis.expire(key, A.TTL),
-      1000,
-      'Redis expire timeout'
-    );
+    if (t === 'string') {
+      // legacy fallback (you were doing redis.get)
+      const raw = await withTimeout(redis.get(key), 1500, 'GET timeout');
+      if (!raw) return null;
+      const artist = JSON.parse(raw);
+      if (Number.isFinite(A.TTL) && A.TTL > 0) redis.expire(key, A.TTL).catch(()=>{});
+      return artist;
+    }
 
-    return artist;
-
+    return null;
   } catch (error) {
     console.error('❌ getArtistRedis error:', error);
     return null;
   }
 }
+
+/** Get multiple artists (JSON-first). NOTE: pass `redis` (like your song helper). */
+export async function getMultipleArtistsRedis(redis, artistIds = [], { touchTTL = true } = {}) {
+  if (!artistIds?.length) return [];
+  const keys = artistIds.map(artistKey);
+  const out = new Array(keys.length).fill(null);
+
+  const p1 = redis.multi();
+  for (const k of keys) p1.json.get(k);
+  const res1 = await p1.exec();
+
+  const fallbackIdxs = [];
+  for (let i = 0; i < res1.length; i++) {
+    const [, val] = res1[i] || [];
+    if (val) out[i] = val; else fallbackIdxs.push(i);
+  }
+
+  // Fallback to legacy string values (pre-JSON)
+  if (fallbackIdxs.length) {
+    const p2 = redis.multi();
+    for (const i of fallbackIdxs) p2.get(keys[i]);
+    const res2 = await p2.exec();
+    for (let j = 0; j < res2.length; j++) {
+      const [, raw] = res2[j] || [];
+      if (!raw) continue;
+      try { out[fallbackIdxs[j]] = JSON.parse(raw); } catch {}
+    }
+  }
+
+  if (touchTTL && Number.isFinite(A.TTL) && A.TTL > 0) {
+    const p3 = redis.multi();
+    let has = false;
+    for (let i = 0; i < keys.length; i++) {
+      if (out[i]) { p3.expire(keys[i], A.TTL); has = true; }
+    }
+    if (has) await p3.exec();
+  }
+
+  return out.filter(Boolean);
+}
+
+
+
+
+
 
 /** Delete artist from Redis */
 export async function deleteArtistRedis(artistId) {
@@ -202,107 +254,65 @@ export async function deleteArtistRedis(artistId) {
   }
 }
 
-/** Get multiple artists from Redis */
 
-export async function getMultipleArtistsRedis(redis, artistIds = []) {
-  if (!artistIds.length) return [];
-  const keys = artistIds.map(artistKey);
-
-  const blobs = await withTimeout(redis.mGet(keys), 1500, 'Redis mget timeout');
-
-  const out = [];
-  const pipe = redis.multi(); // batch EXPIREs
-  for (let i = 0; i < blobs.length; i++) {
-    const raw = blobs[i];
-    if (!raw) continue;
-    try {
-      const a = JSON.parse(raw);
-      if (a && a._id) {
-        out.push(a);
-        // optionally keep TTL fresh; comment out to skip
-        pipe.expire(keys[i], A.TTL);
-      }
-    } catch {/* ignore parse errors */}
-  }
-  if (out.length) await pipe.exec();
-  return out;
-}
-
-
-
-
-
+/** Update artist indexes */
 /** Update artist indexes */
 async function updateArtistIndexes(redis, artist) {
   try {
-  const pipeline = redis.multi(); 
-    
-    // Add to all artists index
-    pipeline.zadd(A.IDX_ALL_ARTIST, Date.now(), artist._id);
-    
-    // Add to country index
+    const pipeline = redis.multi();
+    // all artists (score = time)
+    pipeline.zAdd(A.IDX_ALL_ARTIST, [{ score: Date.now(), value: artist._id }]);
+
+    // by country (score = time)
     if (artist.country) {
-      const countryKey = A.byCountry(artist.country);
-      pipeline.zadd(countryKey, Date.now(), artist._id);
+      pipeline.zAdd(A.byCountry(artist.country), [{ score: Date.now(), value: artist._id }]);
     }
-    
-    // Add to score index (using followers count as score)
-    const score = artist.followersCount * 10 + artist.songsCount * 5 + artist.albumsCount * 3;
-    pipeline.zadd(A.IDX_TOP_ARTIST_SCORE, score, artist._id);
-    
-    await withTimeout(
-      pipeline.exec(),
-      3000,
-      'Index update timeout'
-    );
-    
+
+    // top score (followersWeight + songs/albums)
+    const score = (artist.followersCount || 0) * 10 + (artist.songsCount || 0) * 5 + (artist.albumsCount || 0) * 3;
+    pipeline.zAdd(A.IDX_TOP_ARTIST_SCORE, [{ score, value: artist._id }]);
+
+    await withTimeout(pipeline.exec(), 3000, 'Index update timeout');
   } catch (error) {
     console.warn('Index update failed:', error);
   }
 }
 
-/** Remove from indexes */
+/** Remove from indexes (read doc to know country; avoid KEYS scan) */
 async function removeFromIndexes(redis, artistId) {
   try {
-    const pipeline = redis.multi(); 
-    
-    pipeline.zrem(A.IDX_ALL_ARTIST, artistId);
-    pipeline.zrem(A.IDX_TOP_ARTIST_SCORE, artistId);
-    
-    // Remove from all country indexes (this is inefficient but safe)
-    // In production, you might want to track which countries each artist is in
-    const countries = await redis.keys('index:artist:*:artists');
-    for (const countryKey of countries) {
-      pipeline.zrem(countryKey, artistId);
+    const key = artistKey(artistId);
+    let artist = await redis.json.get(key).catch(()=>null);
+    if (!artist) {
+      const raw = await redis.get(key).catch(()=>null);
+      if (raw) { try { artist = JSON.parse(raw); } catch {} }
     }
-    
+
+    const pipeline = redis.multi();
+    pipeline.zRem(A.IDX_ALL_ARTIST, artistId);
+    pipeline.zRem(A.IDX_TOP_ARTIST_SCORE, artistId);
+    if (artist?.country) {
+      pipeline.zRem(A.byCountry(artist.country), artistId);
+    }
     await pipeline.exec();
-    
   } catch (error) {
     console.warn('Index removal failed:', error);
   }
 }
 
+
+/** Get artists by country from Redis */
 /** Get artists by country from Redis */
 export async function getArtistsByCountryRedis(country, limit = 50) {
-  let redis;
-  
   try {
-    redis = await getRedis();
+    const redis = await getRedis();
     const countryKey = A.byCountry(country);
-    
     const artistIds = await withTimeout(
-      redis.zrevrange(countryKey, 0, limit - 1),
-      2000,
-      'Redis zrevrange timeout'
+      redis.zRange(countryKey, 0, limit - 1, { REV: true }),
+      2000, 'Redis zrange timeout'
     );
-
-    if (artistIds.length === 0) {
-      return [];
-    }
-
-    return await getMultipleArtistsRedis(artistIds);
-
+    if (!artistIds.length) return [];
+    return await getMultipleArtistsRedis(redis, artistIds);
   } catch (error) {
     console.error('❌ getArtistsByCountryRedis error:', error);
     return [];
@@ -311,62 +321,90 @@ export async function getArtistsByCountryRedis(country, limit = 50) {
 
 /** Get top artists by score from Redis */
 export async function getTopArtistsRedis(limit = 50) {
-  let redis;
-  
   try {
-    redis = await getRedis();
-    
+    const redis = await getRedis();
     const artistIds = await withTimeout(
-      redis.zrevrange(A.IDX_TOP_ARTIST_SCORE, 0, limit - 1),
-      2000,
-      'Redis zrevrange timeout'
+      redis.zRange(A.IDX_TOP_ARTIST_SCORE, 0, Math.max(0, limit - 1), { REV: true }),
+      2000, 'Redis zrange timeout'
     );
-
-    if (artistIds.length === 0) {
-      return [];
-    }
-
-    return await getMultipleArtistsRedis(artistIds);
-
+    if (!artistIds.length) return [];
+    return await getMultipleArtistsRedis(redis, artistIds);
   } catch (error) {
     console.error('❌ getTopArtistsRedis error:', error);
     return [];
   }
 }
 
-/** Search artists in Redis (basic implementation) */
+
+/** Search artists (FT first, fallback to client filter) */
 export async function searchArtistsRedis(query, limit = 20) {
+  const q = (query || '').trim();
+  if (!q) return [];
+
   let redis;
-  
   try {
     redis = await getRedis();
-    
-    // Get all artist IDs from index
-    const allArtistIds = await withTimeout(
-      redis.zrange(A.IDX_ALL_ARTIST, 0, -1),
-      3000,
-      'Redis zrange timeout'
+  } catch (e) {
+    console.error('searchArtistsRedis conn error:', e);
+    return [];
+  }
+
+  // Try RediSearch (ON JSON)
+  try {
+    const rs = await redis.ft.search(
+      'idx:artists',
+      // match in artistAka/fullName; allow prefix
+      `(@artistAka:(${escapeFt(q)}*)) | (@fullName:(${escapeFt(q)}*)) | (@genre:{${escapeFt(q)}})`
+      , { LIMIT: { from: 0, size: limit } }
     );
-
-    if (allArtistIds.length === 0) {
-      return [];
+    if (rs?.documents?.length) {
+      return rs.documents.map(d => d.value); // Node client returns parsed JSON for JSON indexes
     }
+  } catch (e) {
+    // fall through to client-side if idx missing
+  }
 
-    // Get all artists
-    const allArtists = await getMultipleArtistsRedis(allArtistIds);
-    
-    // Basic client-side search (for production, consider Redis Search module)
-    const searchTerm = query.toLowerCase();
-    const results = allArtists.filter(artist => 
-      artist.artistAka?.toLowerCase().includes(searchTerm) ||
-      artist.fullName?.toLowerCase().includes(searchTerm) ||
-      artist.genre?.some(g => g.toLowerCase().includes(searchTerm))
+  // Fallback: client-side filter
+  try {
+    const allIds = await redis.zRange(A.IDX_ALL_ARTIST, 0, -1);
+    const all = await getMultipleArtistsRedis(redis, allIds);
+    const s = q.toLowerCase();
+    return all.filter(a =>
+      a?.artistAka?.toLowerCase().includes(s) ||
+      a?.fullName?.toLowerCase().includes(s) ||
+      (Array.isArray(a?.genre) && a.genre.some(g => g?.toLowerCase().includes(s)))
     ).slice(0, limit);
+  } catch (e) {
+    console.error('searchArtistsRedis fallback error:', e);
+    return [];
+  }
+}
 
-    return results;
+function escapeFt(s='') {
+  // minimal escaper for RediSearch special chars
+  return String(s).replace(/([\-+\|\{\}\[\]\(\)\^\~\*\:\\"@])/g, '\\$1');
+}
 
-  } catch (error) {
-    console.error('❌ searchArtistsRedis error:', error);
+
+
+/** Fetch songs for an artist via RediSearch or set membership */
+export async function getSongsByArtistId(artistId, limit = 50) {
+  const r = await getRedis();
+  // Preferred: FT.SEARCH on your idx:songs ON JSON
+  try {
+    const rs = await r.ft.search('idx:songs',
+      `@artistId:{${escapeFt(String(artistId))}}`,
+      { LIMIT: { from: 0, size: limit }, SORTBY: { BY: 'createdAtMs', DIRECTION: 'DESC' } }
+    );
+    if (rs?.documents?.length) return rs.documents.map(d => d.value);
+  } catch { /* ignore */ }
+
+  // Fallback: use your existing per-artist set & fetch docs
+  try {
+    const ids = await r.sMembers(C.byArtist(String(artistId)));
+    if (!ids?.length) return [];
+    return await fetchDocsForIds(r, ids.slice(0, limit));
+  } catch {
     return [];
   }
 }
