@@ -2,8 +2,11 @@
 import { getRedis } from "../utils/AdEngine/redis/redisClient.js";
 import { artistCreateRedis } from "../schemas/Artist_schema/Redis/artistCreateRedis.js";
 import { albumCreateRedis } from "../schemas/Artist_schema/Redis/albumCreateRedis.js";
-import {Artist, Album,Song} from "../models/Artist/index_artist.js"
+import {Artist, Album,Song} from "../models/Artist/index_artist.js",
 
+import { withTimeout } from "../schemas/Artist_schema/Redis/songCreateRedis.js";
+import { createSongIndex } from "../schemas/Artist_schema/Redis/songCreateRedis.js";
+import { createSongRedis } from "../schemas/Artist_schema/Redis/songCreateRedis.js";
 
 class DataMigrator {
   constructor() {
@@ -394,3 +397,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   });
 }
+
+
+
+
+
+

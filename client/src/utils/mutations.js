@@ -592,3 +592,35 @@ export const CLEAR_PLAYBACK_CONTEXT_STATE = gql`
   }
 `;
 
+
+export const LIKES = gql`
+mutation ToggleLikeSong($songId: ID!) {
+  toggleLikeSong(songId: $songId) {
+    _id
+    title
+    likesCount
+    likedByMe
+    streamAudioFileUrl
+    genre
+    artwork
+    album {
+      _id
+      title
+    }
+    artist {
+      _id
+      artistAka
+    }
+  }
+}
+`
+
+
+
+export const SAVE_PLAYBACK_SESSION = gql`
+  mutation SavePlaybackSession($data: PlaybackSessionInput!) {
+    savePlaybackSession(data: $data)
+  }
+`;
+
+

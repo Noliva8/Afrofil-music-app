@@ -117,18 +117,18 @@ async function fetchSongFromDatabase(trackId, context) {
 
 // ---------- Main resolver ----------
 export async function getPlaybackContextState(_, { userId, sessionId }, context) {
-  console.log("[getPlaybackContextState] invoked with:", { userId, sessionId });
+  // console.log("[getPlaybackContextState] invoked with:", { userId, sessionId });
 
   try {
     const redis = await getRedis();
     const candidates = keyCandidates({ userId, sessionId });
 
     if (!candidates.length) {
-      console.log("[getPlaybackContextState] no valid key candidates");
+      // console.log("[getPlaybackContextState] no valid key candidates");
       return null;
     }
 
-    console.log("[getPlaybackContextState] checking keys:", candidates);
+    // console.log("[getPlaybackContextState] checking keys:", candidates);
 
     let saved = null;
     let raw = null;
@@ -141,7 +141,7 @@ export async function getPlaybackContextState(_, { userId, sessionId }, context)
         saved = JSON.parse(val);
         raw = val;
         hitKey = key;
-        console.log("[getPlaybackContextState] found data in key:", key);
+        // console.log("[getPlaybackContextState] found data in key:", key);
         break;
       } catch {
         console.warn("[getPlaybackContextState] corrupted JSON, deleting key:", key);
@@ -150,12 +150,12 @@ export async function getPlaybackContextState(_, { userId, sessionId }, context)
     }
 
     if (!saved) {
-      console.log("[getPlaybackContextState] no saved data found");
+      // console.log("[getPlaybackContextState] no saved data found");
       return null;
     }
 
     if (!saved?.trackId || !saved?.playbackContext?.source) {
-      console.log("[getPlaybackContextState] missing trackId/source in snapshot");
+      // console.log("[getPlaybackContextState] missing trackId/source in snapshot");
       return null;
     }
 
@@ -163,16 +163,16 @@ export async function getPlaybackContextState(_, { userId, sessionId }, context)
     if (userId && hitKey?.startsWith("ctx:session:")) {
       try {
         await redis.set(userKey(userId), raw, { EX: TTL_SECONDS });
-        console.log("[getPlaybackContextState] copied session snapshot to user key");
+        // console.log("[getPlaybackContextState] copied session snapshot to user key");
       } catch {}
     }
 
     const trackId = String(saved.trackId);
-    console.log("[getPlaybackContextState] processing track:", trackId);
+    // console.log("[getPlaybackContextState] processing track:", trackId);
 
     // 1) hydrate song from Redis
     let songDoc = await getSongRedis(trackId);
-    console.log("[getPlaybackContextState] song from redis:", !!songDoc);
+    // console.log("[getPlaybackContextState] song from redis:", !!songDoc);
 
     // 2) DB fallback + seed Redis
     if (!songDoc) {

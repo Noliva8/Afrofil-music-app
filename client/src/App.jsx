@@ -41,19 +41,36 @@ import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
 const httpLink = createUploadLink({ uri: "/graphql" });
 
 
+// const authLink = setContext((_, { headers }) => {
+//   const userToken = localStorage.getItem("user_id_token");
+//   const artistToken = localStorage.getItem("artist_id_token");
+//   return {
+//     headers: {
+//       ...headers,
+//       authorization: artistToken
+//         ? `Bearer ${artistToken}`
+//         : userToken
+//           ? `Bearer ${userToken}`
+//           : "",
+//     },
+//   };
+// });
+
 const authLink = setContext((_, { headers }) => {
   const userToken = localStorage.getItem("user_id_token");
   const artistToken = localStorage.getItem("artist_id_token");
-  return {
-    headers: {
-      ...headers,
-      authorization: artistToken
-        ? `Bearer ${artistToken}`
-        : userToken
-          ? `Bearer ${userToken}`
-          : "",
-    },
-  };
+  
+  const headersWithAuth = { ...headers };
+  
+  // Set both headers, backend will use the valid one
+  if (artistToken) {
+    headersWithAuth['x-artist-authorization'] = `Bearer ${artistToken}`;
+  }
+  if (userToken) {
+    headersWithAuth['x-user-authorization'] = `Bearer ${userToken}`;
+  }
+  
+  return { headers: headersWithAuth };
 });
 
 
@@ -93,6 +110,10 @@ const splitLink = split(
   wsLink,
   authLink.concat(httpLink)
 );
+
+
+
+
 
 const client = new ApolloClient({
   link: splitLink,

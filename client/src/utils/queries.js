@@ -47,7 +47,7 @@ query Songs {
       _id
       profileImage
       songs {
-        title
+        titl
         releaseDate
         duration
         genre {
@@ -65,6 +65,7 @@ query Songs {
       }
       releaseDate
       coverImage
+      likesCount
       createdAt
       albumCoverImage
     }
@@ -210,39 +211,39 @@ query songById($songId: ID!) {
 `
 
 export const TRENDING_SONGS_PUBLIC = gql`
-query trendingSongs {
-  trendingSongs {
-    _id
-    title
-    mood
-    tempo
-    subMoods
-    artist {
-      _id
-      artistAka
-      country
-    }
-    album{
+  query trendingSongs {
+    trendingSongs {
       _id
       title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+      }
+      album {
+        _id
+        title
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      duration
+      featuringArtist
+      genre
+
+      # ✅ Only these two are needed for likes UI
+      likesCount
+      likedByMe
+      playCount
+      trendingScore
     }
-    artwork
-    streamAudioFileUrl
-    audioFileUrl
-    createdAt
-    downloadCount
-    duration
-    featuringArtist
-    genre
-    likedByUsers {
-      _id
-    }
-    playCount
-    trendingScore
-    likesCount      
   }
-}
-`
+`;
 
 
 
@@ -305,41 +306,179 @@ export const GET_PLAYBACK_CONTEXT_STATE = gql`
 `;
 
 
-export const SIMILAR_SONGS_TRENDINGS = gql`
-query Query($songId: ID!) {
-  similarSongs(songId: $songId) {
-    _id
-    album {
-      _id
-      title
-    }
-    artist {
-      _id
-      artistAka
-      country
-    }
-    artwork
-    audioFileUrl
-    composer {
-      name
-      contribution
-    }
-    duration
-    featuringArtist
-    genre
-    lyrics
-    mood
-    producer {
-      name
-      role
-    }
-    releaseDate
-    streamAudioFileUrl
-    subMoods
-    tempo
-    title
-    trackNumber
-  }
-}
-`
+// export const SIMILAR_SONGS_TRENDINGS = gql`
+// query Query($songId: ID!) {
+//   similarSongs(songId: $songId) {
+//     _id
+//     album {
+//       _id
+      
+//     }
+//     artist {
+//       _id
+    
+//     }
+//     artwork
+//     audioFileUrl
+//     composer {
+//       name
+//       contribution
+//     }
+   
+//     featuringArtist
+//     genre
+//     lyrics
+//     mood
+//     producer {
+//       name
+//       role
+//     }
+//     releaseDate
+//     streamAudioFileUrl
+//     subMoods
+//     tempo
+//     title
+//     trackNumber
+//   }
+// }
+// `
 
+
+export const SIMILAR_SONGS_TRENDINGS = gql`
+  query SimilarSongs($songId: ID!) {
+    similarSongs(songId: $songId) {
+      # context
+      context
+      expireAt
+
+      songs {
+        _id
+        title
+
+        # raw presigned url
+        streamAudioFileUrl
+         audioFileUrl
+         artwork
+
+        composer { name contribution }
+        featuringArtist
+        genre
+        lyrics
+        mood
+        producer { name role }
+        releaseDate
+       
+        subMoods
+        tempo
+        trackNumber
+
+        # for direct playback  
+         artworkPresignedUrl
+         audioPresignedUrl
+
+        # nested
+        album {
+           _id
+           title
+            }
+        artist {
+           _id 
+           artistAka
+           bio
+           country
+           }
+
+      }
+    }
+  }
+`;
+
+
+
+export const SONGS_I_LIKE = gql`
+  query songsLikedByMe($limit: Int, $offset: Int) {
+    songsLikedByMe(limit: $limit, offset: $offset) {
+      hasNextPage
+      hasPreviousPage
+      totalCount  # ✅ Make sure this is included
+      songs {
+        _id
+        title
+        mood
+        tempo
+        subMoods
+        artwork
+        genre
+        trackNumber
+        createdAt
+        duration
+        featuringArtist
+        streamAudioFileUrl
+        audioFileUrl
+        playCount
+        downloadCount
+
+        artist {
+          _id
+          artistAka
+          country
+        }
+        album {
+          _id
+          title
+        }
+
+        # ✅ Required for likes UI
+        likesCount
+        likedByMe
+
+        trendingScore
+      }
+    }
+  }
+`;
+
+
+
+
+
+
+
+
+export const GET_PLAYBACK_SESSION = gql`
+  query GetPlaybackSession {
+    playbackSession {
+      currentTime
+      wasPlaying
+      volume
+      isMuted
+      shuffle
+      repeat
+      updatedAt
+      track {
+        id
+        title
+        url
+        audioUrl
+        fullUrl
+        fullUrlWithAds
+        teaserUrl
+        isTeaser
+        artworkUrl
+        artworkPresignedUrl
+      }
+      queue {
+        id
+        title
+        url
+        audioUrl
+        fullUrl
+        fullUrlWithAds
+        teaserUrl
+        isTeaser
+        artworkUrl
+        artworkPresignedUrl
+      }
+    }
+  }
+`;

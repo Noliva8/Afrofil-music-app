@@ -5,9 +5,12 @@ import { ApolloError } from 'apollo-server-express';
 import util from 'util';
 import  { Artist, Album, Song, User, Fingerprint } from '../../models/Artist/index_artist.js';
 import dotenv from 'dotenv';
-import { AuthenticationError, signArtistToken } from '../../utils/artist_auth.js';
+import { AuthenticationError } from '../../utils/artist_auth.js';
+import {signArtistToken} from '../../utils/AuthSystem/tokenUtils.js'
+import { USER_TYPES } from '../../utils/AuthSystem/constant/systemRoles.js';
+
 import sendEmail from '../../utils/emailTransportation.js';
-import awsS3Utils from '../../utils/awsS3.js';
+// import awsS3Utils from '../../utils/awsS3.js';
 import { S3Client, PutObjectCommand ,CreateMultipartUploadCommand, HeadObjectCommand, UploadPartCommand, DeleteObjectCommand, CompleteMultipartUploadCommand } from "@aws-sdk/client-s3";
  import GraphQLUpload from "graphql-upload/GraphQLUpload.mjs";
 import { processAudio} from '../../utils/AudioIntegrity.js';
@@ -19,7 +22,7 @@ import stream from "stream";
 import path from 'path';
 import crypto from "crypto";
 import { createHash } from 'crypto';
-const { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDownloadAudio, CreatePresignedUrlDelete } = awsS3Utils;
+import { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDownloadAudio, CreatePresignedUrlDelete  } from '../../utils/awsS3.js';
 
 
 import Fingerprinting from '../../utils/DuplicateAndCopyrights/fingerPrinting.js'
@@ -55,7 +58,23 @@ import { albumCreateRedis, albumUpdateRedis, deleteAlbumRedis, getLatestAlbumsRe
 
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import { trendingSongs } from './trendingSongs/trendings.js';
-import { similarSongs } from './similarSongs/similarSongs.js';
+// import { similarSongs } from './similarSongs/similarSongs.js';
+
+import { similarSongs } from './similarSongs/similasongResolver.js'
+import { songsLikedByMe } from '../User_schema/OtherResorvers/songsLikedByMe.js';
+import { addSongRedis } from './Redis/addSongRedis.js';
+import { songKey } from './Redis/keys.js';
+import { songHashExpiration } from './Redis/redisExpiration.js';
+import { addSongToTrendingOnUpload } from './Redis/redisTrendingOnUpload.js';
+import { INITIAL_RECENCY_SCORE } from './Redis/keys.js';
+import { TRENDING_WEIGHTS } from './Redis/keys.js';
+import { trendIndexZSet } from './Redis/keys.js';
+import { PLAY_COOLDOWN_SECONDS } from './Redis/keys.js';
+import { generateSimilarSongs} from './similarSongs/similasongResolver.js';
+import { savePlaybackSession } from './playbackRestore/savePlaybackSession.js';
+
+import { playbackSession } from './playbackRestore/getPlaybackSession.js';
+
 
 
 const pipe = util.promisify(pipeline);
@@ -94,13 +113,12 @@ dotenv.config();
 
 
 /** Helpers */
-const isDefined = (v) => v !== undefined;            // keep nulls (to allow clearing), drop only undefined
-const asId = (v) => (v && typeof v === 'object' && v._id ? String(v._id) : (v != null ? String(v) : v));
-const asIdArray = (arr) => Array.isArray(arr) ? arr.map(asId) : arr;
+export const isDefined = (v) => v !== undefined;           
+export const asId = (v) => (v && typeof v === 'object' && v._id ? String(v._id) : (v != null ? String(v) : v));
+export const asIdArray = (arr) => Array.isArray(arr) ? arr.map(asId) : arr;
 
-/** Only the fields you actually want to keep in Redis' doc blob (intentionally no 'beats') */
 
-const shapeForRedis = (songDoc) => ({
+export const shapeForRedis = (songDoc) => ({
   _id: String(songDoc._id),
   title: songDoc.title ?? null,
   artist: asId(songDoc.artist) ?? null,
@@ -136,6 +154,10 @@ const shapeForRedis = (songDoc) => ({
   // optional:
   // lastPlayedAt: songDoc.lastPlayedAt ? new Date(songDoc.lastPlayedAt) : null,
 });
+
+
+
+
 
 
 /** Build a shallow patch from args: include keys that were provided; stringify IDs where needed */
@@ -208,6 +230,7 @@ const keyFromUrl = (url, expectedPrefix = null) => {
 
 
 
+
 // for handle play counts
 // ---------------------
 
@@ -223,7 +246,7 @@ function getViewerId(context) {
   return `anon:${anon}`;
 }
 
-const PLAY_COOLDOWN_SECONDS = 60 * 60; 
+
 
 
 // -------------------------
@@ -398,829 +421,13 @@ albumOfArtist: async (parent, args, context) => {
 },
 
 
-// trendingSongs: async (context) => {
-//       const limit = 20;
-//       const userId = context.user?._id?.toString();
-//      console.log("check if the context conatain user id:", userId)
-
-//       try {
-//         const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
-//           Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
-//           Song.aggregate([
-//             { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
-//             { $sort: { likesCount: -1, createdAt: -1 } },
-//             { $limit: limit }
-//           ]),
-//           Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist'),
-//           Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist')
-//         ]);
-
-//         const likedIds = topLikesAgg.map(s => s._id);
-//         const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist');
-
-//         const merged = [];
-//         const seen = new Set();
-//         const addUnique = (songs) => {
-//           for (const s of songs) {
-//             const id = s._id.toString();
-//             if (!seen.has(id)) {
-//               seen.add(id);
-//               merged.push(s);
-//               if (merged.length === limit) break;
-//             }
-//           }
-//         };
-
-//         addUnique(topPlays);
-//         addUnique(topLikes);
-//         addUnique(topDownloads);
-//         addUnique(latestSongs);
-
-//         return merged.slice(0, limit);
-//       } catch (err) {
-//         console.error('❌ Trending songs error:', err);
-//         return [];
-//       }
-//     },
-
-
-
-// trendingSongs: async () => {
-//       const limit = 20;
-
-//       // 1) Try Redis first
-//       try {
-//         const fromRedis = await redisTrending(limit);
-//         if (fromRedis && fromRedis.length) {
-//           return fromRedis; // already shaped like your Mongo doc
-//         }
-//       } catch (e) {
-//         console.warn("[trendingSongs] Redis fetch failed, falling back:", e.message);
-//       }
-
-//       // 2) DB fallback (your existing merge logic)
-//       try {
-//         const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
-//           Song.find().sort({ playCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
-//           Song.aggregate([
-//             { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
-//             { $sort: { likesCount: -1, createdAt: -1 } },
-//             { $limit: limit }
-//           ]),
-//           Song.find().sort({ downloadCount: -1, createdAt: -1 }).limit(limit).populate('artist').lean(),
-//           Song.find().sort({ createdAt: -1 }).limit(limit).populate('artist').lean(),
-//         ]);
-
-//         // Re-fetch full docs for liked ones
-//         const likedIds = topLikesAgg.map(s => s._id);
-//         const topLikes = await Song.find({ _id: { $in: likedIds } }).populate('artist').lean();
-
-//         const merged = [];
-//         const seen = new Set();
-//         const addUnique = (songs) => {
-//           for (const s of songs) {
-//             const id = s._id.toString();
-//             if (!seen.has(id)) {
-//               seen.add(id);
-//               merged.push({
-//                 ...s,
-//                 likesCount: s.likedByUsers?.length || s.likesCount || 0,
-//               });
-//               if (merged.length === limit) break;
-//             }
-//           }
-//         };
-
-//         addUnique(topPlays);
-//         addUnique(topLikes);
-//         addUnique(topDownloads);
-//         addUnique(latestSongs);
-
-//         const result = merged.slice(0, limit);
-
-//         // 3) Best-effort backfill Redis so next call is fast
-//         (async () => {
-//           try {
-//             const r = await getRedis();
-//             for (const doc of result) {
-//               try {
-//                 await createSongRedis(doc);
-//                 // optional: recompute trending in case your create path didn’t
-//                 if (typeof recomputeTrendingFor === "function") {
-//                   await recomputeTrendingFor(r, String(doc._id));
-//                 }
-//               } catch (e) {
-//                 console.warn("[trendingSongs] backfill for", doc._id, "failed:", e.message);
-//               }
-//             }
-//             // optionally enforce cap:
-//             // await enforceSongLimit();
-//           } catch (e) {
-//             console.warn("[trendingSongs] Redis backfill skipped:", e.message);
-//           }
-//         })();
-
-//         return result;
-//       } catch (err) {
-//         console.error("❌ Trending songs DB fallback error:", err);
-//         return [];
-//       }
-//     },
-
-
-
-// trendingSongs: async () => {
-//   const limit = 20;
-
-//   // 1) Try Redis first
-//   try {
-//     const fromRedis = await redisTrending(limit);
-
-//     if (fromRedis && fromRedis.length) {
-//       const enrichedSongs = [];
-//       const artistCache = new Map();
-//       const albumCache = new Map();
-
-//       for (const song of fromRedis) {
-//         if (!song?._id || !song?.artist) continue;
-
-//         // Get artist from Redis cache/helper
-//         let artist = artistCache.get(song.artist);
-//         if (!artist) {
-//           artist = await getArtistRedis(song.artist);
-//           if (artist) artistCache.set(song.artist, artist);
-//         }
-
-//         if (!artist || !artist._id) continue;
-
-//         // Get album from Redis cache/helper
-//         let album = null;
-//         if (song.album) {
-//           album = albumCache.get(song.album);
-//           if (!album) {
-//             album = await getAlbumRedis(song.album);
-//             if (album) albumCache.set(song.album, album);
-//           }
-//         }
-
-//         enrichedSongs.push({
-//           ...song,
-//           artist,
-//           album: album || { _id: 'unknown', title: 'Unknown Album' },
-//         });
-
-//         if (enrichedSongs.length >= limit) break;
-//       }
-
-//       if (enrichedSongs.length) {
-//         console.log(`✅ Returning ${enrichedSongs.length} trending songs from Redis`);
-//         return enrichedSongs;
-//       }
-//     }
-//   } catch (e) {
-//     console.warn("[trendingSongs] Redis fetch failed, falling back:", e.message);
-//   }
-
-
-
-//   try {
-//     console.log('🎵 Starting trending songs query...');
-
-//     // Step 1: Get all candidate songs first
-//     const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
-//       Song.find()
-//         .sort({ playCount: -1, createdAt: -1 })
-//         .limit(limit)
-//         .populate({ 
-//           path: 'artist', 
-//           select: 'artistAka country'
-//         })
-//         .populate({ 
-//           path: 'album',
-//           select: 'title'
-//         })
-//         .lean(),
-
-//       Song.aggregate([
-//         { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
-//         { $sort: { likesCount: -1, createdAt: -1 } },
-//         { $limit: limit }
-//       ]),
-
-//       Song.find()
-//         .sort({ downloadCount: -1, createdAt: -1 })
-//         .limit(limit)
-//         .populate({ 
-//           path: 'artist', 
-//           select: 'artistAka country'
-//         })
-//         .populate({ 
-//           path: 'album',
-//           select: 'title'
-//         })
-//         .lean(),
-
-//       Song.find()
-//         .sort({ createdAt: -1 })
-//         .limit(limit)
-//         .populate({ 
-//           path: 'artist', 
-//           select: 'artistAka country'
-//         })
-//         .populate({ 
-//           path: 'album',
-//           select: 'title'
-//         })
-//         .lean(),
-//     ]);
-
-//     // Step 2: Re-fetch liked songs with population
-//     const likedIds = topLikesAgg.map(s => s._id);
-//     const topLikes = likedIds.length > 0 ? await Song.find({ 
-//       _id: { $in: likedIds }
-//     })
-//       .populate({ 
-//         path: 'artist', 
-//         select: 'artistAka country'
-//       })
-//       .populate({ 
-//         path: 'album',
-//         select: 'title'
-//       })
-//       .lean() : [];
-
-//     // Step 3: Collect all songs and identify ones with population issues
-//     const allSongs = [...topPlays, ...topLikes, ...topDownloads, ...latestSongs];
-    
-//     console.log(`📊 Initial songs found: ${allSongs.length}`);
-    
-//     // Identify songs with population issues
-//     const songsWithPopulationIssues = allSongs.filter(song => {
-//       const hasArtistIssue = !song.artist || typeof song.artist !== 'object' || !song.artist._id;
-//       return hasArtistIssue;
-//     });
-
-//     console.log(`❌ Songs with population issues: ${songsWithPopulationIssues.length}`);
-    
-//     if (songsWithPopulationIssues.length > 0) {
-//       console.log('🔍 Sample of problematic songs:');
-//       songsWithPopulationIssues.slice(0, 3).forEach(song => {
-//         console.log(`   - ${song._id}: "${song.title}"`, {
-//           artistType: typeof song.artist,
-//           artistValue: song.artist
-//         });
-//       });
-//     }
-
-//     // Step 4: Batch fix population issues (single database query)
-//     const problematicArtistIds = songsWithPopulationIssues
-//       .map(song => {
-//         // Extract ObjectId from problematic artist field
-//         if (song.artist && song.artist.constructor && song.artist.constructor.name === 'ObjectId') {
-//           return song.artist;
-//         }
-//         return null;
-//       })
-//       .filter(id => id !== null);
-
-//     let fixedArtists = new Map();
-    
-//     if (problematicArtistIds.length > 0) {
-//       console.log(`🔄 Batch populating ${problematicArtistIds.length} problematic artists...`);
-      
-//       try {
-//         const Artist = Song.model('Artist');
-//         const artists = await Artist.find({ 
-//           _id: { $in: problematicArtistIds } 
-//         }).select('artistAka country').lean();
-        
-//         artists.forEach(artist => {
-//           fixedArtists.set(artist._id.toString(), artist);
-//         });
-        
-//         console.log(`✅ Successfully populated ${artists.length} artists`);
-//       } catch (error) {
-//         console.error('❌ Batch population failed:', error.message);
-//       }
-//     }
-
-//     // Step 5: Process songs with fixed population data
-//     const merged = [];
-//     const seen = new Set();
-//     let skippedCount = 0;
-
-//     const processSongs = (songs) => {
-//       for (const s of songs) {
-//         const id = s._id.toString();
-//         if (seen.has(id)) continue;
-        
-//         let artistData = s.artist;
-        
-//         // Check if this song has a population issue that we can fix
-//         if (s.artist && s.artist.constructor && s.artist.constructor.name === 'ObjectId') {
-//           const artistId = s.artist.toString();
-//           if (fixedArtists.has(artistId)) {
-//             artistData = fixedArtists.get(artistId);
-//             console.log(`✅ Fixed population for song ${s._id} with artist ${artistId}`);
-//           } else {
-//             console.warn(`❌ Skipping song ${s._id} - artist ${artistId} not found in batch population`);
-//             skippedCount++;
-//             continue;
-//           }
-//         }
-        
-//         // Final check for valid artist data
-//         if (!artistData || typeof artistData !== 'object' || !artistData._id) {
-//           console.warn(`❌ Skipping song ${s._id} - invalid artist data`);
-//           skippedCount++;
-//           continue;
-//         }
-
-//         // Create the song object with all required fields
-//         const songWithDefaults = {
-//           ...s,
-//           artist: artistData,
-//           album: s.album && typeof s.album === 'object' && s.album._id ? s.album : { _id: 'unknown', title: 'Unknown Album' },
-//           mood: s.mood || [],
-//           subMoods: s.subMoods || [],
-//           tempo: s.tempo || 0,
-//           likesCount: s.likedByUsers?.length || s.likesCount || 0,
-//           trendingScore: s.trendingScore || 0,
-//           downloadCount: s.downloadCount || 0,
-//           playCount: s.playCount || 0,
-//           featuringArtist: s.featuringArtist || [],
-//           genre: s.genre || '',
-//           duration: s.duration || 0,
-//           artwork: s.artwork || '',
-//           streamAudioFileUrl: s.streamAudioFileUrl || '',
-//           audioFileUrl: s.audioFileUrl || '',
-//           createdAt: s.createdAt || new Date(),
-//         };
-
-//         seen.add(id);
-//         merged.push(songWithDefaults);
-
-//         if (merged.length >= limit) break;
-//       }
-//     };
-
-//     // Process all song batches
-//     processSongs(topPlays);
-//     if (merged.length < limit) processSongs(topLikes);
-//     if (merged.length < limit) processSongs(topDownloads);
-//     if (merged.length < limit) processSongs(latestSongs);
-
-//     const result = merged.slice(0, limit);
-
-//     console.log('📊 FINAL RESULT:');
-//     console.log(`   ✅ Valid songs returned: ${result.length}`);
-//     console.log(`   ❌ Songs skipped: ${skippedCount}`);
-    
-//     if (result.length > 0) {
-//       console.log('✅ Successfully returned trending songs');
-//     }
-
-//     // Step 6: Async Redis backfill (non-blocking)
-//     if (result.length > 0) {
-//       (async () => {
-//         try {
-//           const r = await getRedis();
-//           for (const doc of result) {
-//             try {
-//               await createSongRedis(doc);
-//               if (typeof recomputeTrendingFor === "function") {
-//                 await recomputeTrendingFor(r, String(doc._id));
-//               }
-//             } catch (e) {
-//               console.warn("[trendingSongs] Redis backfill failed for", doc._id);
-//             }
-//           }
-//         } catch (e) {
-//           console.warn("[trendingSongs] Redis backfill skipped");
-//         }
-//       })();
-//     }
-
-//     return result;
-//   } catch (err) {
-//     console.error("❌ Trending songs error:", err);
-//     return [];
-//   }
-// },
-
-// trendingSongs: async () => {
-//   const limit = 20;
-//   let source = 'unknown';
-
-//   // 1) Try Redis first
-//   try {
-//     console.log('🔍 Attempting to fetch from Redis...');
-//     const fromRedis = await redisTrending(limit);
-
-//     if (fromRedis && fromRedis.length > 0) {
-//       console.log(`✅ Redis returned ${fromRedis.length} songs, enriching data...`);
-      
-//       const enrichedSongs = [];
-//       const artistCache = new Map();
-//       const albumCache = new Map();
-
-//       for (const song of fromRedis) {
-//         if (!song?._id || !song?.artist) continue;
-
-//         // Get artist from Redis
-//         let artist = artistCache.get(song.artist);
-//         if (!artist) {
-//           artist = await getArtistRedis(song.artist);
-//           if (artist) artistCache.set(song.artist, artist);
-//         }
-
-//         if (!artist || !artist._id) continue;
-
-//         // Get album from Redis
-//         let album = null;
-//         if (song.album) {
-//           album = albumCache.get(song.album);
-//           if (!album) {
-//             album = await getAlbumRedis(song.album);
-//             if (album) albumCache.set(song.album, album);
-//           }
-//         }
-
-//         enrichedSongs.push({
-//           ...song,
-//           artist,
-//           album: album || { _id: 'unknown', title: 'Unknown Album' },
-//         });
-
-//         if (enrichedSongs.length >= limit) break;
-//       }
-
-//       if (enrichedSongs.length > 0) {
-//         source = 'redis';
-//         console.log(`🎵 RETURNING FROM REDIS: ${enrichedSongs.length} songs`);
-//         return enrichedSongs;
-//       }
-//     } else {
-//       console.log('❌ Redis returned no songs or empty result');
-//     }
-//   } catch (e) {
-//     console.warn('Redis fetch failed, falling back to DB');
-//   }
-
-
-
-//   // 2) Database Fallback
-//   try {
-//     console.log('🔄 Falling back to database query...');
-//     source = 'database';
-
-//     const [topPlays, topLikesAgg, topDownloads, latestSongs] = await Promise.all([
-//       Song.find({ artist: { $exists: true, $ne: null } })
-//         .sort({ playCount: -1, createdAt: -1 })
-//         .limit(limit)
-//         .populate({ 
-//           path: 'artist', 
-//           select: 'artistAka country'
-//         })
-//         .populate({ 
-//           path: 'album',
-//           select: 'title'
-//         })
-//         .lean(),
-
-//       Song.aggregate([
-//         { $match: { artist: { $exists: true, $ne: null } } },
-//         { $addFields: { likesCount: { $size: { $ifNull: ['$likedByUsers', []] } } } },
-//         { $sort: { likesCount: -1, createdAt: -1 } },
-//         { $limit: limit }
-//       ]),
-
-//       Song.find({ artist: { $exists: true, $ne: null } })
-//         .sort({ downloadCount: -1, createdAt: -1 })
-//         .limit(limit)
-//         .populate({ 
-//           path: 'artist', 
-//           select: 'artistAka country'
-//         })
-//         .populate({ 
-//           path: 'album',
-//           select: 'title'
-//         })
-//         .lean(),
-
-//       Song.find({ artist: { $exists: true, $ne: null } })
-//         .sort({ createdAt: -1 })
-//         .limit(limit)
-//         .populate({ 
-//           path: 'artist', 
-//           select: 'artistAka country'
-//         })
-//         .populate({ 
-//           path: 'album',
-//           select: 'title'
-//         })
-//         .lean(),
-//     ]);
-
-//     // Re-fetch liked songs
-//     const likedIds = topLikesAgg.map(s => s._id);
-//     const topLikes = likedIds.length > 0 ? await Song.find({ 
-//       _id: { $in: likedIds },
-//       artist: { $exists: true, $ne: null } 
-//     })
-//       .populate({ 
-//         path: 'artist', 
-//         select: 'artistAka country'
-//       })
-//       .populate({ 
-//         path: 'album',
-//         select: 'title'
-//       })
-//       .lean() : [];
-
-//     // Merge and deduplicate
-//     const merged = [];
-//     const seen = new Set();
-
-//     const addUnique = (songs) => {
-//       for (const s of songs) {
-//         const id = s._id.toString();
-//         if (seen.has(id)) continue;
-        
-//         if (!s.artist || typeof s.artist !== 'object' || !s.artist._id) {
-//           continue; // Skip invalid songs
-//         }
-
-//         const songWithDefaults = {
-//           ...s,
-//           mood: s.mood || [],
-//           subMoods: s.subMoods || [],
-//           tempo: s.tempo || 0,
-//           likesCount: s.likedByUsers?.length || s.likesCount || 0,
-//           trendingScore: s.trendingScore || 0,
-//           downloadCount: s.downloadCount || 0,
-//           playCount: s.playCount || 0,
-//           featuringArtist: s.featuringArtist || [],
-//           genre: s.genre || '',
-//           duration: s.duration || 0,
-//           artwork: s.artwork || '',
-//           streamAudioFileUrl: s.streamAudioFileUrl || '',
-//           audioFileUrl: s.audioFileUrl || '',
-//           createdAt: s.createdAt || new Date(),
-//         };
-
-//         seen.add(id);
-//         merged.push(songWithDefaults);
-
-//         if (merged.length >= limit) break;
-//       }
-//     };
-
-//     addUnique(topPlays);
-//     addUnique(topLikes);
-//     addUnique(topDownloads);
-//     addUnique(latestSongs);
-
-//     const result = merged.slice(0, limit);
-
-//     console.log(`🎵 RETURNING FROM DATABASE: ${result.length} songs`);
-
-//     // Cache results in Redis for next time (async)
-//     (async () => {
-//       try {
-//         for (const song of result) {
-//           await createSongRedis(song).catch(e => null);
-//         }
-//         console.log(`💾 Cached ${result.length} songs in Redis for next request`);
-//       } catch (e) {
-//         // Silent fail for caching
-//       }
-//     })();
-
-//     return result;
-
-//   } catch (err) {
-//     console.error("❌ Database query failed:", err);
-//     source = 'error';
-//     return [];
-//   } finally {
-//     console.log(`📊 TRENDING SONGS SOURCE: ${source.toUpperCase()}`);
-//   }
-// },
-
-
-
-// trendingSongs: async () => {
-
-//   const limit = 20;
-//   let source = 'unknown';
-
-//   // 1) Try Redis first with parallel enrichment
-//   try {
-//     console.log('🔍 Attempting to fetch from Redis...');
-//     const fromRedis = await redisTrending(limit);
-
-//     if (fromRedis?.length > 0) {
-//       console.log(`✅ Redis returned ${fromRedis.length} songs, enriching data...`);
-      
-//       // Get unique artist and album IDs for batch fetching
-//       const artistIds = new Set();
-//       const albumIds = new Set();
-      
-//       fromRedis.forEach(song => {
-//         if (song?.artist) artistIds.add(song.artist);
-//         if (song?.album) albumIds.add(song.album);
-//       });
-
-//       // Parallel batch fetching
-//       const [artistsMap, albumsMap] = await Promise.all([
-//         // Fetch all artists in parallel
-//         (async () => {
-//           const artistPromises = Array.from(artistIds).map(id => 
-//             getArtistRedis(id).catch(() => null)
-//           );
-//           const artists = await Promise.all(artistPromises);
-//           const map = new Map();
-//           artists.forEach(artist => {
-//             if (artist?._id) map.set(artist._id, artist);
-//           });
-//           return map;
-//         })(),
-        
-//         // Fetch all albums in parallel
-//         (async () => {
-//           const albumPromises = Array.from(albumIds).map(id => 
-//             getAlbumRedis(id).catch(() => null)
-//           );
-//           const albums = await Promise.all(albumPromises);
-//           const map = new Map();
-//           albums.forEach(album => {
-//             if (album?._id) map.set(album._id, album);
-//           });
-//           return map;
-//         })()
-//       ]);
-
-//       // Enrich songs with parallel processing
-//       const enrichmentPromises = fromRedis.slice(0, limit).map(async (song) => {
-//         if (!song?._id || !song?.artist) return null;
-
-//         const artist = artistsMap.get(song.artist);
-//         if (!artist?._id) return null;
-
-//         const album = song.album ? albumsMap.get(song.album) : null;
-
-//         return {
-//           ...song,
-//           artist,
-//           album: album || { _id: 'unknown', title: 'Unknown Album' },
-//         };
-//       });
-
-//       const enrichedSongs = (await Promise.all(enrichmentPromises))
-//         .filter(song => song !== null);
-
-//       if (enrichedSongs.length > 0) {
-//         source = 'redis';
-//         console.log(`🎵 RETURNING FROM REDIS: ${enrichedSongs.length} songs`);
-//         return enrichedSongs;
-//       }
-//     } else {
-//       console.log('❌ Redis returned no songs or empty result');
-//     }
-//   } catch (e) {
-//     console.warn('Redis fetch failed, falling back to DB:', e.message);
-//   }
-
-//   // 2) Optimized Database Fallback
-//   try {
-//     console.log('🔄 Falling back to optimized database query...');
-//     source = 'database';
-
-//     // Single optimized aggregation query instead of multiple separate queries
-//     const trendingSongs = await Song.aggregate([
-//       { 
-//         $match: { 
-//           artist: { $exists: true, $ne: null },
-//           // Add any other filters you need
-//         } 
-//       },
-//       {
-//         $addFields: {
-//           likesCount: { $size: { $ifNull: ['$likedByUsers', []] } },
-//           // Calculate a combined trending score
-//           trendingScore: {
-//             $add: [
-//               { $multiply: ['$playCount', 0.4] },
-//               { $multiply: ['$downloadCount', 0.3] },
-//               { $multiply: [{ $size: { $ifNull: ['$likedByUsers', []] } }, 0.2] },
-//               { 
-//                 $multiply: [
-//                   { $dateDiff: { startDate: '$createdAt', endDate: new Date(), unit: 'day' } },
-//                   -0.1 // Penalize older songs
-//                 ]
-//               }
-//             ]
-//           }
-//         }
-//       },
-//       {
-//         $sort: { 
-//           trendingScore: -1,
-//           createdAt: -1 
-//         }
-//       },
-//       { $limit: limit * 2 }, // Get extra for filtering
-//       {
-//         $lookup: {
-//           from: 'artists', // Replace with actual collection name
-//           localField: 'artist',
-//           foreignField: '_id',
-//           as: 'artistData'
-//         }
-//       },
-//       {
-//         $lookup: {
-//           from: 'albums', // Replace with actual collection name
-//           localField: 'album',
-//           foreignField: '_id',
-//           as: 'albumData'
-//         }
-//       },
-//       {
-//         $addFields: {
-//           artist: { $arrayElemAt: ['$artistData', 0] },
-//           album: { $arrayElemAt: ['$albumData', 0] }
-//         }
-//       },
-//       {
-//         $project: {
-//           artistData: 0,
-//           albumData: 0,
-//           likedByUsers: 0 // Exclude large array if not needed
-//         }
-//       },
-//       {
-//         $match: {
-//           'artist._id': { $exists: true }
-//         }
-//       }
-//     ]);
-
-//     // Apply defaults and limit
-//     const result = trendingSongs.slice(0, limit).map(song => ({
-//       ...song,
-//       mood: song.mood || [],
-//       subMoods: song.subMoods || [],
-//       tempo: song.tempo || 0,
-//       likesCount: song.likesCount || 0,
-//       trendingScore: song.trendingScore || 0,
-//       downloadCount: song.downloadCount || 0,
-//       playCount: song.playCount || 0,
-//       featuringArtist: song.featuringArtist || [],
-//       genre: song.genre || '',
-//       duration: song.duration || 0,
-//       artwork: song.artwork || '',
-//       streamAudioFileUrl: song.streamAudioFileUrl || '',
-//       audioFileUrl: song.audioFileUrl || '',
-//       createdAt: song.createdAt || new Date(),
-//       album: song.album || { _id: 'unknown', title: 'Unknown Album' }
-//     }));
-
-//     console.log(`🎵 RETURNING FROM DATABASE: ${result.length} songs`);
-
-//     // Cache results asynchronously without blocking response
-//     if (result.length > 0) {
-//       process.nextTick(async () => {
-//         try {
-//           const cachePromises = result.map(song => 
-//             createSongRedis(song).catch(() => null)
-//           );
-//           await Promise.all(cachePromises);
-//           console.log(`💾 Cached ${result.length} songs in Redis for next request`);
-//         } catch (e) {
-//           console.warn('Caching failed silently:', e.message);
-//         }
-//       });
-//     }
-
-//     return result;
-
-//   } catch (err) {
-//     console.error("❌ Database query failed:", err);
-//     source = 'error';
-//     return [];
-//   } finally {
-//     console.log(`📊 TRENDING SONGS SOURCE: ${source.toUpperCase()}`);
-//   }
-// },
-
 trendingSongs,
 
 
     similarSongs,
-
-
+    // similarSongsResolver,
+    songsLikedByMe,
+     playbackSession,
 
 },
 
@@ -1247,7 +454,7 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
     });
 
     // Generate the token for email verification
-    const artistToken = signArtistToken(newArtist);
+    const artistToken = signArtistToken(newArtist, USER_TYPES.ARTIST);
 
     // Create the verification link
     const verificationLink = `http://localhost:3001/confirmation/${artistToken}`;
@@ -1521,7 +728,7 @@ console.error('Error in resolver:', error);
     }
 
     // Step 4: Generate a JWT token for the artist
-    const artistToken = signArtistToken(artist);
+    const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
 
     // Step 5: Return the token and artist object
     return { artistToken, artist };
@@ -1927,67 +1134,43 @@ updateSong: async (
           lyrics,
           artwork,
         } = args;
+// 1) Update MongoDB (source of truth)
+const updatedSong = await Song.findByIdAndUpdate(
+  songId,
+  {
+    ...(isDefined(title) && { title }),
+    ...(isDefined(featuringArtist) && { featuringArtist }),
+    ...(isDefined(album) && { album }),
+    ...(isDefined(trackNumber) && { trackNumber }),
+    ...(isDefined(genre) && { genre }),
+    ...(isDefined(mood) && { mood }),
+    ...(isDefined(subMoods) && { subMoods }),
+    ...(isDefined(producer) && { producer }),
+    ...(isDefined(composer) && { composer }),
+    ...(isDefined(label) && { label }),
+    ...(isDefined(releaseDate) && { releaseDate }),
+    ...(isDefined(lyrics) && { lyrics }),
+    ...(isDefined(artwork) && { artwork }),
+    updatedAt: new Date(),
+  },
+  { new: true }
+).populate({ path: 'artist', select: 'country' }); // POPULATE ARTIST FOR COUNTRY
 
-        // 1) Update MongoDB (source of truth)
-        const updatedSong = await Song.findByIdAndUpdate(
-          songId,
-          {
-            ...(isDefined(title) && { title }),
-            ...(isDefined(featuringArtist) && { featuringArtist }),
-            ...(isDefined(album) && { album }),
-            ...(isDefined(trackNumber) && { trackNumber }),
-            ...(isDefined(genre) && { genre }),
-            ...(isDefined(mood) && { mood }),
-            ...(isDefined(subMoods) && { subMoods }),
-            ...(isDefined(producer) && { producer }),
-            ...(isDefined(composer) && { composer }),
-            ...(isDefined(label) && { label }),
-            ...(isDefined(releaseDate) && { releaseDate }),
-            ...(isDefined(lyrics) && { lyrics }),
-            ...(isDefined(artwork) && { artwork }),
-            updatedAt: new Date(),
-          },
-          { new: true }
-        );
+if (!updatedSong) {
+  throw new Error('Song not found.');
+}
 
-        if (!updatedSong) {
-          throw new Error('Song not found.');
-        }
+console.log('✅ Updated song document:', updatedSong._id);
 
-        console.log('✅ Updated song document:', updatedSong._id);
+// 2) similarity set precomputation (ONLY AFTER ALL FIELDS ARE SET)
+try {
+  await generateSimilarSongs(updatedSong);
+  console.log('✅ Similarity precomputation completed for:', updatedSong._id);
+} catch (similarityError) {
+  console.warn('Similarity precomputation failed:', similarityError);
+}
 
-        // 2) Sync Redis (best-effort)
-        try {
-          const patch = buildRedisPatch({
-            title,
-            featuringArtist,
-            album,
-            trackNumber,
-            genre,
-            mood,
-            subMoods,
-            producer,
-            composer,
-            label,
-            releaseDate,
-            lyrics,
-            artwork,
-          });
-
-          // try to update; if missing in Redis, mirror fresh doc
-          await updateSongRedis(String(updatedSong._id), patch).catch(async (err) => {
-            if (/song not found/i.test(err.message)) {
-              // Not in cache yet → put a trimmed doc
-              await createSongRedis(shapeForRedis(updatedSong));
-            } else {
-              throw err;
-            }
-          });
-        } catch (redisErr) {
-          console.warn('[Redis] updateSongRedis failed (non-blocking):', redisErr.message);
-        }
-
-        return updatedSong;
+return updatedSong;
       } catch (error) {
         console.error('Error updating song:', error);
         throw new Error('Failed to update song.');
@@ -2224,6 +1407,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
       key,
       mode,
       duration,
+      trendingScore: INITIAL_RECENCY_SCORE,
       tempo: resultFromTempoDetect || tempo,
       beats: beats || [],
       releaseDate: new Date()
@@ -2236,14 +1420,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
 
 
 
-
-
-      await checkRedisHealth();
-  await createSongRedis({
-    ...songData.toObject(),
-    _id: songData._id
-  });
-  console.log('Cached in Redis successfully');
+await addSongToTrendingOnUpload(songData._id)
 } catch (redisError) {
   console.warn('Redis caching failed (continuing anyway):', redisError);
 }
@@ -2614,67 +1791,239 @@ nextSongAfterComplete: async (_p, { input }) => {
 
 
 
- handlePlayCount: async (_parent, { songId }, context) => {
-      // Load song first (we need artist id and to fail fast if missing)
-      const song = await Song.findById(songId).lean();
-      if (!song) throw new Error('Song not found');
+// handlePlayCount: async (_parent, { songId }, context) => {
+//   // Load song first (we need artist id and to fail fast if missing)
+//   const song = await Song.findById(songId).lean();
+//   if (!song) throw new Error('Song not found');
+//   console.log('is it being called? ...')
 
-      // Don’t count the artist’s own plays
-      if (context.artist && String(song.artist) === String(context.artist._id)) {
-        await Song.findByIdAndUpdate(songId, { $set: { lastPlayedAt: new Date() } });
-        // Optional: also reflect in Redis doc
-        try { await updateSongRedis(String(songId), { lastPlayedAt: new Date() }); } catch {}
-        return await Song.findById(songId).lean();
+//   // Don't count the artist's own plays
+//   if (context.artist && String(song.artist) === String(context.artist._id)) {
+//     await Song.findByIdAndUpdate(songId, { $set: { lastPlayedAt: new Date() } });
+//   }
+
+//   const viewerId = getViewerId(context);
+//   const r = await getRedis();
+
+//   const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
+//   const onCooldown = await r.exists(cooldownKey);
+
+//   let updatedSong;
+
+//   if (onCooldown) {
+//     console.log('🎵 On cooldown - no play count increment');
+//     // No increment; just keep lastPlayedAt fresh
+//     updatedSong = await Song.findByIdAndUpdate(
+//       songId,
+//       { $set: { lastPlayedAt: new Date() } },
+//       { new: true, runValidators: true }
+//     );
+//   } else {
+//     console.log('🎵 Not on cooldown - incrementing play count');
+//     // Count this as a play (Mongo = source of truth)
+//     updatedSong = await Song.findByIdAndUpdate(
+//       songId,
+//       { $inc: { playCount: 1 }, $set: { lastPlayedAt: new Date() } },
+//       { new: true, runValidators: true }
+//     );
+//     if (!updatedSong) throw new Error('Song not found');
+
+//     // Start cooldown window
+//     try {
+//       await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
+//     } catch {}
+//   }
+
+//   // ALWAYS update Redis cache (both cooldown and non-cooldown cases)
+//   try {
+//     const songCacheKey = songKey(songId);
+//     const songExists = await r.exists(songCacheKey);
+//     console.log(`🎵 Song ${songId} exists in Redis:`, songExists);
+
+//     if (songExists) {
+//       if (!onCooldown) {
+//         console.log(`🎵 Incrementing playCount for existing song: ${songId}`);
+//         // Only increment playCount if not on cooldown
+//         await r
+//           .multi()
+//           .hIncrBy(songCacheKey, 'playCount', 1)
+//           .expire(songCacheKey, songHashExpiration)
+//           .exec();
+//       } else {
+//         console.log(`🎵 Refreshing TTL only (cooldown): ${songId}`);
+//         // Just refresh TTL during cooldown
+//         await r.expire(songCacheKey, songHashExpiration);
+//       }
+//     } else {
+//       console.log(`🎵 Adding song to Redis: ${songId}`);
+//       // Song not in cache - add it with current data
+//       await addSongRedis(songId);
+//     }
+//   } catch (e) {
+//     console.warn('[Redis] playCount sync skipped:', e.message);
+//   }
+
+//   return updatedSong;
+// },
+
+
+handlePlayCount: async (_parent, { songId }, context) => {
+  // Load song first (we need artist id and to fail fast if missing)
+  const song = await Song.findById(songId).lean();
+  if (!song) throw new Error('Song not found');
+
+  // Don't count the artist's own plays
+  if (context.artist && String(song.artist) === String(context.artist._id)) {
+    await Song.findByIdAndUpdate(songId, { $set: { lastPlayedAt: new Date() } });
+    return await Song.findById(songId).lean();
+  }
+
+  const viewerId = getViewerId(context);
+  const r = await getRedis();
+
+  const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
+  const onCooldown = await r.exists(cooldownKey);
+
+  let updatedSong;
+
+  if (onCooldown) {
+    console.log('🎵 On cooldown - no play count increment');
+    // No increment; just keep lastPlayedAt fresh
+    updatedSong = await Song.findByIdAndUpdate(
+      songId,
+      { $set: { lastPlayedAt: new Date() } },
+      { new: true, runValidators: true }
+    );
+  } else {
+    console.log('🎵 Not on cooldown - incrementing play count AND trending score');
+    // Count this as a play (Mongo = source of truth)
+    updatedSong = await Song.findByIdAndUpdate(
+      songId,
+      { 
+        $inc: { 
+          playCount: 1, 
+          trendingScore: TRENDING_WEIGHTS.PLAY_WEIGHT 
+        }, 
+        $set: { lastPlayedAt: new Date() } 
+      },
+      { new: true, runValidators: true }
+    );
+    if (!updatedSong) throw new Error('Song not found');
+
+    // Start cooldown window
+    try {
+      await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
+    } catch (cooldownError) {
+      console.warn('Cooldown setting failed:', cooldownError);
+    }
+  }
+
+  // ✅ Handle ALL Redis operations
+  try {
+    const songCacheKey = songKey(songId);
+    const songExists = await r.exists(songCacheKey);
+
+    // 1. Handle song cache operations
+    if (songExists) {
+      if (!onCooldown) {
+        // Update playCount in cache
+        await r.hIncrBy(songCacheKey, 'playCount', 1);
+        console.log(`🎵 Updated song cache playCount for: ${songId}`);
       }
+      // Always refresh TTL
+      await r.expire(songCacheKey, songHashExpiration);
+    } else {
+      // Song not in cache - add it
+      await addSongRedis(songId);
+      console.log(`🎵 Added song to cache: ${songId}`);
+    }
 
-      const viewerId = getViewerId(context);
-      const r = await getRedis();
-
-      const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
-      const onCooldown = await r.exists(cooldownKey);
-
-      if (onCooldown) {
-        // No increment; just keep lastPlayedAt fresh
-        const fresh = await Song.findByIdAndUpdate(
-          songId,
-          { $set: { lastPlayedAt: new Date() } },
-          { new: true, runValidators: true }
-        );
-        try { await updateSongRedis(String(songId), { lastPlayedAt: new Date() }); } catch {}
-        return fresh;
-      }
-
-      // Count this as a play (Mongo = source of truth)
-      const updatedSong = await Song.findByIdAndUpdate(
-        songId,
-        { $inc: { playCount: 1 }, $set: { lastPlayedAt: new Date() } },
-        { new: true, runValidators: true }
-      );
-      if (!updatedSong) throw new Error('Song not found');
-
-      // Mirror to Redis (best-effort)
-      try {
-        let next = await incrementPlayCount(String(songId));
-        if (!next) {
-          const cached = await ensureSongCached(String(songId));
-          if (cached) next = await incrementPlayCount(String(songId));
+    // 2. Handle trending operations (only if not on cooldown)
+    if (!onCooldown) {
+      const currentScore = await r.zScore(trendIndexZSet, songId.toString());
+      
+      if (currentScore !== null) {
+        // Song is already in trending - increment score
+        const newScore = parseFloat(currentScore) + TRENDING_WEIGHTS.PLAY_WEIGHT;
+        await r.zAdd(trendIndexZSet, { 
+          score: newScore, 
+          value: songId.toString() 
+        });
+        console.log(`📈 Trending updated: ${songId}: ${currentScore} → ${newScore}`);
+      } else {
+        // Song is NOT in trending - check if it should enter
+        const songNewScore = updatedSong.trendingScore;
+        console.log(`📊 Song ${songId} not in trending, current score: ${songNewScore}`);
+        
+        const trendingCount = await r.zCard(trendIndexZSet);
+        console.log(`📊 Trending set has ${trendingCount}/20 songs`);
+        
+        if (trendingCount < 20) {
+          // Trending has space - add directly
+          await r.zAdd(trendIndexZSet, {
+            score: songNewScore,
+            value: songId.toString()
+          });
+          console.log(`🎉 Added ${songId} to trending (space available): ${songNewScore}`);
+        } else {
+          // Trending is full - check if this song deserves a spot
+          const lowestSongs = await r.zRange(trendIndexZSet, 0, 0, {
+            WITHSCORES: true
+          });
+          
+          const lowestScore = parseFloat(lowestSongs[1]);
+          console.log(`📊 Lowest score in trending: ${lowestScore}`);
+          
+          if (songNewScore >= lowestScore) {
+            // Song qualifies - replace the oldest song with the lowest score
+            const allLowestSongs = await r.zRangeByScore(trendIndexZSet, lowestScore, lowestScore, {
+              WITHSCORES: true
+            });
+            
+            console.log(`📊 Found ${allLowestSongs.length / 2} songs with score ${lowestScore}`);
+            
+            // Find the oldest song among those with lowest score
+            let oldestSongId = allLowestSongs[0];
+            
+            // If multiple songs have same score, find the oldest
+            if (allLowestSongs.length > 2) {
+              const songIds = [];
+              for (let i = 0; i < allLowestSongs.length; i += 2) {
+                songIds.push(allLowestSongs[i]);
+              }
+              
+              const oldestSong = await Song.findOne({ _id: { $in: songIds } })
+                .select('_id createdAt')
+                .sort({ createdAt: 1 })
+                .lean();
+              
+              if (oldestSong) {
+                oldestSongId = oldestSong._id.toString();
+              }
+            }
+            
+            // Replace the oldest lowest-scoring song
+            await r.zRem(trendIndexZSet, oldestSongId);
+            await r.zAdd(trendIndexZSet, {
+              score: songNewScore,
+              value: songId.toString()
+            });
+            console.log(`🔄 ${songId} replaced ${oldestSongId} in trending: ${songNewScore} >= ${lowestScore}`);
+          } else {
+            console.log(`📊 ${songId} not high enough for trending: ${songNewScore} < ${lowestScore}`);
+          }
         }
-        await updateSongRedis(String(songId), { lastPlayedAt: new Date() });
-      } catch (e) {
-        console.warn('[Redis] playCount sync skipped:', e.message);
       }
+    }
 
-      // Start cooldown window
-      try {
-        // NX to avoid overwriting a running TTL
-        await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
-      } catch {}
+    console.log(`✅ All Redis operations completed for: ${songId}`);
 
-      return updatedSong;
-    },
+  } catch (redisError) {
+    console.warn('[Redis] operations skipped:', redisError.message);
+  }
 
-
-
+  return updatedSong;
+},
 
 
 
@@ -2711,6 +2060,7 @@ nextSongAfterComplete: async (_p, { input }) => {
         throw new Error("Failed to delete user.");
       }
     },
+    savePlaybackSession,
 
 
 

@@ -13,7 +13,7 @@ import '../pages/CSS/CSS-HOME-FREE-PLAN/home.css';
 import PremiumCheckout from '../components/userComponents/Home/Premium/PremiumCheckout';
 import PremiumCheckoutPage from '../components/userComponents/Home/Premium/PremiumCheckoutPage';
 import PremiumPromoModal from '../components/userComponents/Home/Premium/PremiumPromoModal';
-
+import { SongsILike } from '../components/homeFreePlanComponents/SongsIlikeBlock';
 
 const Home = ({ upgradeToPremium }) => {
   const [activeTab, setActiveTab] = useState('home');
@@ -58,7 +58,10 @@ const Home = ({ upgradeToPremium }) => {
                 setCurrentSong={setCurrentSong}
                 setIsPlaying={setIsPlaying}
               />
+
               <MadeForYou />
+
+              <SongsILike />
               <EventsSection />
             </div>
 

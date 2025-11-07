@@ -2,6 +2,10 @@
 import { Advertizer } from "../../../models/Advertizer/index_advertizer.js";
 import { GraphQLError } from 'graphql';
 import { signAdvertizerToken,getAdvertizerFromToken, generateToken } from '../../../utils/advertizer_auth.js';
+
+import { signAdvertiserToken } from '../../../utils/AuthSystem/tokenUtils.js'
+import { USER_TYPES } from "../../../utils/AuthSystem/constant/systemRoles.js";
+
 // import { generateConfirmationTokenAndSendEmail } from '../../../utils/emailUtils.js';
 
 
@@ -30,7 +34,7 @@ const loginAdvertizer = async (_, { businessEmail, password }) => {
     });
   }
 
-  const advertizerToken = generateToken(advertizer); // should only encode necessary info
+  const advertizerToken = signAdvertiserToken(advertizer, USER_TYPES.ADVERTISER); 
 console.log('check the token:', advertizerToken);
 
 

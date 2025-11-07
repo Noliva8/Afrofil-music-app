@@ -2,19 +2,20 @@ import { jwtDecode } from "jwt-decode";
 import { sessionManager } from "./sessions/sessionGenerator";
 
 class UserAuth {
-  getProfile() {
-    try {
-      const userToken = this.getToken();
-      if (!userToken) {
-        console.error("No user token found");
-        return null;
-      }
-      return jwtDecode(userToken);
-    } catch (err) {
-      console.error("Invalid user token:", err.message);
+getProfile() {
+  try {
+    const userToken = this.getToken();
+    if (!userToken || this.isTokenExpired(userToken)) {
+    
       return null;
     }
+    return jwtDecode(userToken);
+  } catch (err) {
+    console.error("Invalid user token:", err.message);
+    return null;
   }
+}
+
 
   loggedIn() {
     const userToken = this.getToken();

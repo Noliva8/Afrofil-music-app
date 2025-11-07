@@ -4,6 +4,9 @@ const typeDefs = `
 scalar Upload
 scalar Date
 
+
+
+
 type Artist {
   _id: ID!
   fullName: String!
@@ -67,6 +70,12 @@ type Song {
  timeSignature: Float
 keyConfidence: Float
 createdAt: Date!
+
+
+
+ 
+  artworkPresignedUrl: String       
+  audioPresignedUrl: String          
 }
 
 
@@ -213,6 +222,85 @@ type PresignedUrlResponse {
     songId: ID        
   }
 
+type SongConnection {
+  songs: [Song!]!
+  totalCount: Int!
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+}
+
+type SimilarSongsResponse{
+  context: ID!
+  songs:[Song!]!
+  expireAt: String!
+}
+
+
+
+
+
+
+
+
+type PlaybackTrack {
+  id: ID!
+  title: String
+  url: String
+  audioUrl: String
+  fullUrl: String
+  fullUrlWithAds: String
+  teaserUrl: String
+  isTeaser: Boolean
+  artworkUrl: String
+  artworkPresignedUrl: String
+}
+
+
+input PlaybackTrackInput {
+  id: ID!
+  title: String
+  url: String
+  audioUrl: String
+  fullUrl: String
+  fullUrlWithAds: String
+  teaserUrl: String
+  isTeaser: Boolean
+  artworkUrl: String
+  artworkPresignedUrl: String
+}
+
+
+type PlaybackSession {
+  track: PlaybackTrack!
+  currentTime: Float!
+  queue: [PlaybackTrack!]!
+  wasPlaying: Boolean!
+  volume: Float
+  isMuted: Boolean
+  shuffle: Boolean
+  repeat: Boolean
+  updatedAt: String
+}
+
+
+
+
+input PlaybackSessionInput {
+  track: PlaybackTrackInput!
+  currentTime: Float!
+  queue: [PlaybackTrackInput!]!
+  wasPlaying: Boolean!
+  volume: Float
+  isMuted: Boolean
+  shuffle: Boolean
+  repeat: Boolean
+}
+
+
+
+
+
+
 
 
 
@@ -231,9 +319,14 @@ type Query {
   songById(songId: ID!): Song
  getSongMetadata(songId: ID!): SongMetadata
  trendingSongs: [Song!]!
- similarSongs(songId: ID!): [Song]
- 
+ similarSongs(songId: ID!): SimilarSongsResponse!
+
+  songsLikedByMe(
+    limit: Int = 20
+    offset: Int = 0
+  ): SongConnection!
   
+  playbackSession: PlaybackSession
 }
 
 
@@ -372,7 +465,9 @@ handlePlayCount(
   songId: String!
 ):Song
 
+toggleLikeSong(songId: ID!): Song
 
+ savePlaybackSession(data: PlaybackSessionInput!): Boolean!
 
 
 

@@ -23,7 +23,7 @@ import MainMenu from '../components/MainMenu';
 import { GoogleLogin } from '@react-oauth/google';
 
 import { useRef } from 'react';
-
+import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
 
 import { useOutletContext } from 'react-router-dom';
 
@@ -32,11 +32,22 @@ import { useOutletContext } from 'react-router-dom';
 
 
 const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
-  const { data, loading, error } = useQuery(TRENDING_SONGS_PUBLIC);
-  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
-  const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
 
-  const [songsWithArtwork, setSongsWithArtwork] = useState([]);
+
+
+ const { data, loading, error, refetch } = useQuery(TRENDING_SONGS_PUBLIC, {
+    pollInterval: 30000, // Refetch every 30 seconds
+    notifyOnNetworkStatusChange: true,
+  });
+
+
+  const { songsWithArtwork } = useSongsWithPresignedUrls(data?.trendingSongs);
+
+
+  // const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  // const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
+
+  // const [songsWithArtwork, setSongsWithArtwork] = useState([]);
 
 
 console.log('Loading:', loading);
@@ -47,69 +58,6 @@ console.log('Data:', data);
 
 
 
-
-
-
-// ----------------------------------
-
-  useEffect(() => {
-    const fetchArtworksAndAudio = async () => {
-      if (!data?.trendingSongs) return;
-
-      const updatedSongs = await Promise.all(
-        data.trendingSongs.map(async (song) => {
-          let artworkUrl = 'https://via.placeholder.com/300x300?text=No+Cover';
-          let audioUrl = null;
-
-          if (song.artwork) {
-            try {
-              const artworkKey = new URL(song.artwork).pathname.split('/').pop();
-              const { data: artworkData } = await getPresignedUrlDownload({
-                variables: {
-                  bucket: 'afrofeel-cover-images-for-songs',
-                  key: decodeURIComponent(artworkKey),
-                  region: 'us-east-2',
-                  expiresIn: 604800,
-                },
-              });
-              artworkUrl = artworkData.getPresignedUrlDownload.urlToDownload;
-            } catch (err) {
-              console.error('Error fetching artwork for', song.title, err);
-            }
-          }
-
-          if (song.streamAudioFileUrl) {
-            try {
-              const audioKey = new URL(song.streamAudioFileUrl).pathname.split('/').pop();
-              const { data: audioData } = await getPresignedUrlDownloadAudio({
-                variables: {
-                  bucket: 'afrofeel-songs-streaming',
-                  key: `for-streaming/${decodeURIComponent(audioKey)}`,
-                  region: 'us-west-2',
-                },
-              });
-              audioUrl = audioData.getPresignedUrlDownloadAudio.url;
-            } catch (err) {
-              console.error('Error fetching audio for', song.title, err);
-            }
-          }
-
-
-          return {
-            ...song,
-            artworkUrl,
-            audioUrl,
-          };
-        })
-      );
-
-      setSongsWithArtwork(updatedSongs);
-    };
-
-    fetchArtworksAndAudio();
-  }, [data, getPresignedUrlDownload, getPresignedUrlDownloadAudio]);
-
-console.log('the trending songs we are sending to children:', songsWithArtwork);
 
 
 
@@ -819,6 +767,7 @@ const renderSignup = () => (
 <MainMenu
   songsWithArtwork={songsWithArtwork}    
   onSwitchToLogin={onSwitchToLogin}
+   refetch={refetch}
 />
 
 )}

@@ -145,6 +145,7 @@ type Query {
 
 
 
+
   
 
   # Playlists
@@ -221,6 +222,10 @@ type Mutation {
  deleteComment(commentId: ID!): Comment
 
  createPlaylist(title: String!, description: String, songs: [ID], createdBy: ID!): Playlist
+
+
+
+
 
 
 

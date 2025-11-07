@@ -10,9 +10,13 @@
   --font-size: 16px;
   --border-color: #e4b120;
 
+
+
+
 /* user side */
  --bg-primary: #0F0F0F; 
   --bg-secondary: #1A1A1A; 
+  --card-bg: "rgba(255, 255, 255, 0.07)"
   
   /* Logo-inspired accent colors */
   --gold: #E4C421;
