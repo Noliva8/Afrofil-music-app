@@ -482,3 +482,44 @@ export const GET_PLAYBACK_SESSION = gql`
     }
   }
 `;
+
+
+
+export const GET_AUDIO_AD = gql`
+query GetAudioAd($userLocation: UserLocation) {
+  getAudioAd(userLocation: $userLocation) {
+    success
+    error
+    ads {
+      adTitle
+      adType
+      advertiser {
+        _id
+        brandType
+        companyName
+        companyWebsite
+        country
+      }
+      campaignId
+      description
+      duration
+      id
+      masterAudionAdUrl
+      schedule {
+        endDate
+        startDate
+      }
+      streamingAudioAdUrl
+      streamingFallBackAudioUrl
+      targeting {
+        city
+        countries
+        scope
+        state
+        wholeCountry
+      }
+      adArtWorkUrl
+    }
+  }
+}
+`

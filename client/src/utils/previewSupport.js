@@ -1,4 +1,5 @@
-import { getAudioSupport } from "./audioSupport";
+import {getAudioSupport} from './audioSupport.js'
+
 
 // Your buckets
 // previewSupport.js

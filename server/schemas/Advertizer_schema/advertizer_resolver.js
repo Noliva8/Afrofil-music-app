@@ -19,6 +19,7 @@ import { savePlaybackContextState } from "./resolvers/playbackContext/savePlayba
 import { getPlaybackContextState } from "./resolvers/playbackContext/getPlaybackContextState.js";
 
 import { clearPlaybackContextState } from "./resolvers/playbackContext/clearPlaybackContextState.js";
+import { getAudioAd } from "./resolvers/getAudioAd.js";
 
 
 
@@ -27,6 +28,7 @@ const resolvers = {
      Query: {
 myAds,
 getPlaybackContextState,
+getAudioAd
 
      },
 
