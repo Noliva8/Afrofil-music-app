@@ -43,6 +43,16 @@ enum PerformanceType {
   playthrough
 }
 
+enum PlatformType {
+  ios
+  android
+  all
+}
+
+
+
+
+
 type Advertizer {
   _id: ID!
   fullName: String!
@@ -257,6 +267,7 @@ type Targeting {
 type Schedule {
   startDate: Date!
   endDate: Date!
+ 
 }
 
 
@@ -475,6 +486,21 @@ type PlaybackContextOutput {
 }
 
 
+  type TelemetryAck {
+    ok: Boolean!
+    now: String!
+  }
+
+type AdResponse {
+  success: Boolean!
+  ads: [Ad!]!
+  error: String
+}
+
+
+
+
+
 # ----------------------------------------------
 
 
@@ -590,12 +616,6 @@ input TrackStartInput {
 }
 
 
-
-
-
-
-
-
 input TrackCompleteInput {
   eventId: ID
   userId: ID!
@@ -630,10 +650,6 @@ input TrackCompleteInput {
     clicked: Boolean
   }
 
-
-
-
-
   input TrackProgressInput {
     userId: ID!
     sessionId: ID!
@@ -654,10 +670,32 @@ input TrackCompleteInput {
 
 
 
-  type TelemetryAck {
-    ok: Boolean!
-    now: String!
-  }
+
+input UserLocation {
+  country: String!
+  state: String
+  city: String
+}
+
+
+input ScheduleInput {
+  startDate: String!
+  endDate: String!
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -678,6 +716,7 @@ type Query {
   myAds: [Ad!]!
    getPlaybackContextState(userId: ID, sessionId: ID): PlaybackContextState
 
+getAudioAd(userLocation: UserLocation): AdResponse!
    # -----------------------------------------------
 
 

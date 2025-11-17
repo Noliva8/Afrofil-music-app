@@ -31,6 +31,9 @@ import { LocationProvider  } from "./utils/Contexts/useLocationContext.jsx";
 
 import LocationGate from "./utils/Contexts/LocationGate.jsx";
 import { AudioPlayerProvider } from "./utils/Contexts/AudioPlayerContext.jsx";
+import { AdAudioProvider } from "./utils/Contexts/adPlayer/adPlayerProvider.jsx";
+import Orchestrator from "./utils/Contexts/adPlayer/orchestrator.jsx";
+
 import AuthModal from "./components/WelcomePage/AuthModal.jsx";
 import MediaPlayerContainer from "./components/MusicPlayer/MediaPlayerContainer.jsx";
 
@@ -41,20 +44,7 @@ import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
 const httpLink = createUploadLink({ uri: "/graphql" });
 
 
-// const authLink = setContext((_, { headers }) => {
-//   const userToken = localStorage.getItem("user_id_token");
-//   const artistToken = localStorage.getItem("artist_id_token");
-//   return {
-//     headers: {
-//       ...headers,
-//       authorization: artistToken
-//         ? `Bearer ${artistToken}`
-//         : userToken
-//           ? `Bearer ${userToken}`
-//           : "",
-//     },
-//   };
-// });
+
 
 const authLink = setContext((_, { headers }) => {
   const userToken = localStorage.getItem("user_id_token");
@@ -114,8 +104,7 @@ const splitLink = split(
 
 
 
-
-const client = new ApolloClient({
+ const client = new ApolloClient({
   link: splitLink,
   cache: new InMemoryCache(),
 });
@@ -178,7 +167,9 @@ function App() {
     <UserProvider>
       <LocationProvider>
       <LocationGate>
+        <AdAudioProvider>
       <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
+         <Orchestrator />
         <div
           className="app-container"
           style={{
@@ -259,6 +250,7 @@ function App() {
           <PauseOnLogin formDisplay={formDisplay} />
         </div>
       </AudioPlayerProvider>
+      </AdAudioProvider>
       </LocationGate>
       </LocationProvider>
     </UserProvider>

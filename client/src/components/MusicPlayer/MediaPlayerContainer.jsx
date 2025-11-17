@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
 import ModernMusicPlayer from './ModernMusicPlayer.jsx';
+import { AdMediaPlayer } from './ModernAdPlayer.jsx';
 
 const MediaPlayerContainer = () => {
   const {
@@ -82,6 +83,8 @@ const MediaPlayerContainer = () => {
 
   return (
     <div className="modern-player-wrapper">
+      <AdMediaPlayer />
+      
       <ModernMusicPlayer
         currentSong={currentTrack}
         isPlaying={isPlaying}
