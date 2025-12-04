@@ -279,7 +279,16 @@ type PlaybackSession {
   isMuted: Boolean
   shuffle: Boolean
   repeat: Boolean
+  adState: AdResumeState
   updatedAt: String
+}
+
+type AdResumeState {
+  songsPlayed: Int
+  songsSinceLastBreak: Int
+  totalAdBreaks: Int
+  adSequenceCounter: Int
+  lastAdPlayedAt: Float
 }
 
 
@@ -294,8 +303,16 @@ input PlaybackSessionInput {
   isMuted: Boolean
   shuffle: Boolean
   repeat: Boolean
+  adState: AdResumeStateInput
 }
 
+input AdResumeStateInput {
+  songsPlayed: Int
+  songsSinceLastBreak: Int
+  totalAdBreaks: Int
+  adSequenceCounter: Int
+  lastAdPlayedAt: Float
+}
 
 
 

@@ -63,7 +63,7 @@ export default function AuthModal({ open, onClose, currentSong, onSwitchToLogin,
           }
         }}>
           <img
-            src={currentSong?.artworkUrl || currentSong?.cover || 'https://via.placeholder.com/300x300/1a1a1a/ffffff?text=No+Cover'}
+            src={currentSong?.artworkUrl || currentSong?.cover || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="%231a1a1a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-size="24" font-family="Arial">No Cover</text></svg>'}
             alt="Song cover"
             style={{
               width: '100%',
@@ -75,7 +75,7 @@ export default function AuthModal({ open, onClose, currentSong, onSwitchToLogin,
               boxShadow: '0 8px 32px rgba(228, 196, 33, 0.2)'
             }}
             onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/300x300/1a1a1a/ffffff?text=No+Cover';
+              e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="%231a1a1a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-size="24" font-family="Arial">No Cover</text></svg>';
             }}
           />
         </Box>

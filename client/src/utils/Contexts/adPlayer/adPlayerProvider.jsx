@@ -323,45 +323,39 @@ import { createAdPlayerAdapter, eventBus } from "../playerAdapters";
 
 const AdAudioCtx = createContext(null);
 
-/**
- * AdAudioProvider
- *
- * Responsibilities:
- * - Create a single instance of the REAL ad adapter (createAdPlayerAdapter)
- *   with the Apollo Client injected.
- * - Subscribe to AD_* events via eventBus.
- * - Expose:
- *    - adapter: the object PlayerManager will call playAd() on
- *    - adState: UI-facing state for current ad + progress + error
- */
 export function AdAudioProvider({ children }) {
   const apolloClient = useApolloClient();
 
   const [adState, setAdState] = useState({
     isPlaying: false,
-    currentAd: null, // { id, title, artwork, duration, ... }
+    currentAd: null,
     error: null,
     progress: {
-      currentTime: 0, // ms
-      duration: 0,    // ms
+      currentTime: 0,
+      duration: 0,
       percent: 0,
     },
   });
 
-console.log('we are about to call createAdPlaer in AdAdioProvider....')
   // ---------- STABLE ADAPTER INSTANCE ----------
   const adapterRef = useRef(null);
+  const initializationRef = useRef(false); // ✅ Track initialization
 
-  if (!adapterRef.current) {
+  // ✅ FIX: Use useEffect to create adapter ONCE
+  useEffect(() => {
+    if (initializationRef.current) return;
+    
+    console.log("🎧 AdAudioProvider: Creating ad adapter");
     adapterRef.current = createAdPlayerAdapter({
-      apolloClient, // inject initial client
+      apolloClient,
     });
-
+    initializationRef.current = true;
+    
     console.log("🎧 AdAudioProvider: ad adapter created", {
       hasClient: !!apolloClient,
     });
-  }
-console.log('we have called createAdPlaer in AdAdioProvider....')
+  }, [apolloClient]); // Only recreate if apolloClient changes
+
   // Ensure the adapter always has the latest Apollo client
   useEffect(() => {
     if (!adapterRef.current) return;
@@ -370,7 +364,6 @@ console.log('we have called createAdPlaer in AdAdioProvider....')
       return;
     }
 
-    // This calls adapter.setApolloClient() from createAdPlayerAdapter
     adapterRef.current.setApolloClient(apolloClient);
     console.log("🔗 AdAudioProvider: Apollo Client synced to ad adapter");
   }, [apolloClient]);
@@ -405,41 +398,25 @@ console.log('we have called createAdPlaer in AdAdioProvider....')
       }));
     };
 
-
-    // const handleCompleted = (payload) => {
-    //   console.log("📡 UI: AD_COMPLETED", payload);
-    //   setAdState((s) => ({
-    //     ...s,
-    //     isPlaying: false,
-    //     progress: {
-    //       currentTime: 0,
-    //       duration: 0,
-    //       percent: 0,
-    //     },
-    //   }));
-    // };
-
-
     const handleCompleted = (payload) => {
-  console.log("📡 UI: AD_COMPLETED", payload);
-  
-  setAdState((s) => ({
-    ...s,
-    isPlaying: false,
-    progress: {
-      currentTime: 0,
-      duration: 0,
-      percent: 0,
-    },
-  }));
+      console.log("📡 UI: AD_COMPLETED", payload);
+      
+      setAdState((s) => ({
+        ...s,
+        isPlaying: false,
+        progress: {
+          currentTime: 0,
+          duration: 0,
+          percent: 0,
+        },
+      }));
 
-  // 🔥 CRITICAL: Notify main audio player that ad finished
-  // This should trigger your handleAdEnded in the main audio provider
-  eventBus.emit("AD_PLAYBACK_FINISHED", {
-    adIndex: payload?.adIndex,
-    timestamp: Date.now()
-  });
-};
+      // 🔥 CRITICAL: Notify main audio player that ad finished
+      eventBus.emit("AD_PLAYBACK_FINISHED", {
+        adIndex: payload?.adIndex,
+        timestamp: Date.now()
+      });
+    };
 
     const handleError = ({ error }) => {
       console.log("📡 UI: AD_ERROR", error);
@@ -489,4 +466,3 @@ export const useAdAudio = () => {
   if (!ctx) throw new Error("useAdAudio must be used within <AdAudioProvider>");
   return ctx;
 };
-

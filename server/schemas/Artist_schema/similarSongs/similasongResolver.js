@@ -537,9 +537,9 @@ const PRESIGN_TTL_SEC = Math.min(SEVEN_DAY_EXP, 604800);
 
 export const similarSongs = async (_parent, { songId }, _ctx) => {
   if (!songId) return { context: "", songs: [], expireAt: new Date().toISOString() };
+console.log('recieved song id from client in simila songs:', songId);
 
 const userId = String(_ctx.user._id);
-// console.log('user id to use in context:', userId);
 
   try {
     const client = await getRedis();

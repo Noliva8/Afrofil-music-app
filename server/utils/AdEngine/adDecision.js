@@ -11,6 +11,26 @@ function ttlToMidnightSec() {
   const end = new Date(); end.setHours(24,0,0,0);
   return Math.ceil((end - Date.now())/1000);
 }
+
+// Count how many times an ad has been served today so we can rotate fairly
+async function getAdServeCounts(redis, adIds) {
+  const day = dayStamp();
+  const keys = adIds.map(id => `ad:${id}:served:${day}`);
+  const rows = await redis.mGet(keys);
+  const counts = {};
+  rows.forEach((val, idx) => {
+    const id = adIds[idx];
+    counts[id] = Number(val || 0);
+  });
+  return counts;
+}
+
+async function incrementAdServe(redis, adId) {
+  const day = dayStamp();
+  const key = `ad:${adId}:served:${day}`;
+  const ttl = ttlToMidnightSec();
+  await redis.multi().incr(key).expire(key, ttl).exec();
+}
 async function canServeNow(redis, userId, cooldownSec = 60, dailyCap = 20) {
   const day = dayStamp();
   const [dailyStr, lastStr] = await redis.mGet([
@@ -71,11 +91,34 @@ export async function decideAdMVP(ctx) {
   const filtered = ads.filter(({ ad }) => eligible(ad) && matchesTargeting(ad, ctx.location));
   if (!filtered.length) return { decision: 'no_ad', reason: 'no_eligible', retryAfter: 120 };
 
-  filtered.sort((a, b) => scoreAd(b.ad) - scoreAd(a.ad));
+  // ─── Fair rotation: prefer lowest served today, then highest value ───
+  const counts = await getAdServeCounts(redis, filtered.map(a => a.id));
+  filtered.sort((a, b) => {
+    const countA = counts[a.id] ?? 0;
+    const countB = counts[b.id] ?? 0;
+    if (countA !== countB) return countA - countB; // fewer serves first
+    return scoreAd(b.ad) - scoreAd(a.ad); // tie-break by value
+  });
+
   const top = filtered[0];
+  await incrementAdServe(redis, top.id);
 
   const creative = pickCreativePointer(top.ad, { opus: true }); // refine with UA if you want
   if (!creative) return { decision: 'no_ad', reason: 'no_creative', retryAfter: 120 };
+
+  const metadata = {
+    decisionId: `d_${Date.now()}`,
+    expiresAt: Date.now() + 30000,
+    adTitle: top.ad.adTitle || 'Sponsored message',
+    campaignId: top.ad.campaignId || null,
+    description: top.ad.description || null,
+    artworkPointer: top.ad.adArtWorkUrl || null,
+    targeting: top.ad.targeting || null,
+    pricing: top.ad.pricing || null,
+    source: 'decision_engine',
+    serveToken: `sv_${top.id}_${Date.now()}`,
+    servedToday: (counts[top.id] ?? 0) + 1,
+  };
 
   // return pointer (client will presign & then call bumpServed when ad starts)
   return {
@@ -86,6 +129,6 @@ export async function decideAdMVP(ctx) {
       duration: Math.max(1, Math.round((top.ad.audioDurationMs || 30000) / 1000)),
       variants: [{ codec: creative.codec, pointer: creative.pointer }]
     },
-    metadata: { decisionId: `d_${Date.now()}`, expiresAt: Date.now() + 30000 }
+    metadata
   };
 }

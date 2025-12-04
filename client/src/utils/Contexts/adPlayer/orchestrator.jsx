@@ -868,6 +868,8 @@ import {
 import { useUser } from "../userContext";
 import UserAuth from "../../auth.js";
 
+
+
 export default function Orchestrator() {
   const audio = useAudioPlayer();
   const { adapter: adAdapter } = useAdAudio();
@@ -880,7 +882,7 @@ export default function Orchestrator() {
   const lastTrackIdRef = useRef(null);
   const playingRef = useRef(false);
 
-  // NEW: stable refs to avoid re-running effects endlessly
+  // Stable refs
   const audioRef = useRef(audio);
   const adAdapterRef = useRef(adAdapter);
 
@@ -953,7 +955,6 @@ export default function Orchestrator() {
       return;
     }
 
-    // Do NOT recreate PlayerManager if it already exists
     if (alreadyInit) {
       log("info", "PlayerManager already exists, skipping init");
       return;
@@ -962,21 +963,18 @@ export default function Orchestrator() {
     let pm = null;
 
     try {
-      // 1) Build music adapter from AudioPlayerContext
       const musicAdapter = createMusicPlayerAdapter(audioRef.current);
       if (!musicAdapter.isValid?.()) {
         throw new Error("Music adapter is invalid");
       }
 
-      // 2) Ad factory from context (may be null → ads disabled)
       const adFactory = createAdAdapterFactoryFromContext({
         adapter: adAdapterRef.current,
       });
 
-      // 3) Create PlayerManager with REAL policy (no test mode here)
       const config = {
         policy: { preroll: false, midroll: true, postroll: false },
-        midrollDelayMs: 10000, // 10s into the song for midroll check
+        midrollDelayMs: 10000,
         autoResume: true,
       };
 
@@ -984,7 +982,6 @@ export default function Orchestrator() {
       pm = new PlayerManager(musicAdapter, adFactory, config);
       pmRef.current = pm;
 
-      // 4) Identity + audio attach + prime with geo
       const identity = getUserIdentity();
       attachAudioProviderToManager(pm, identity, audioRef.current);
       if (geo) {
@@ -992,7 +989,6 @@ export default function Orchestrator() {
       }
       primeManagerFromAudioContext(pm, audioRef.current, geo);
 
-      // 5) Hand Apollo Client to ad adapter (once PM is created)
       try {
         adAdapterRef.current?.setApolloClient?.(apollo);
         log("info", "🔗 Apollo Client set on ad adapter");
@@ -1000,7 +996,7 @@ export default function Orchestrator() {
         log("error", "Failed to set Apollo Client on ad adapter", e);
       }
 
-      // 6) Hook PM events → logs only
+      // Event hooks...
       pm.events.onAdStart.add(({ adType, context }) => {
         log("info", `🎬 AD START → ${adType}`, {
           genre: context.genre,
@@ -1012,11 +1008,7 @@ export default function Orchestrator() {
       pm.events.onAdComplete.add(() => log("info", "✅ AD COMPLETE"));
 
       pm.events.onAdError.add(({ error, consecutiveErrors }) =>
-        log(
-          "error",
-          `❌ AD ERROR (${consecutiveErrors} consecutive)`,
-          error
-        )
+        log("error", `❌ AD ERROR (${consecutiveErrors} consecutive)`, error)
       );
 
       pm.events.onAdBlocked.add(({ reason }) =>
@@ -1024,10 +1016,7 @@ export default function Orchestrator() {
       );
 
       pm.events.onContentInterrupted.add(({ position, adType }) =>
-        log(
-          "info",
-          `⏸️ CONTENT PAUSED for ${adType} at ${position.toFixed(1)}s`
-        )
+        log("info", `⏸️ CONTENT PAUSED for ${adType} at ${position.toFixed(1)}s`)
       );
 
       pm.events.onContentResumed.add(({ position }) =>
@@ -1043,7 +1032,6 @@ export default function Orchestrator() {
         })
       );
 
-      // 7) Expose PM in dev for debugging
       if (process.env.NODE_ENV === "development") {
         window.__playerManager = pm;
         log("info", "🔧 PlayerManager exposed to window.__playerManager");
@@ -1062,7 +1050,6 @@ export default function Orchestrator() {
       }
     }
 
-    // Cleanup ONLY on unmount
     return () => {
       log("info", "🧹 ORCHESTRATOR CLEANUP STARTED");
       if (tickIntervalRef.current) {
@@ -1085,7 +1072,6 @@ export default function Orchestrator() {
       log("info", "✅ ORCHESTRATOR CLEANUP COMPLETED");
     };
   }, [apollo, geo, getUserIdentity, log]);
-  // ^ audio/adAdapter are read via refs so this runs once per mount
 
   // =====================================================
   // 2) RUNTIME: USER IDENTITY UPDATES
@@ -1116,97 +1102,146 @@ export default function Orchestrator() {
     }
   }, [geo, log]);
 
-
   // =====================================================
-  // 4) STABLE TICK BRIDGE (AUDIO → PLAYER MANAGER)
-  //    - runs once, uses refs to always see latest audio/PM
-  //    - detects track changes
-  //    - detects play/pause (robust)
-  //    - streams position/volume/buffering every 250ms
+  // 4) FIXED TICK BRIDGE - USING PROPER CLOSURE PATTERN
   // =====================================================
- // =====================================================
-// 4) STABLE TICK BRIDGE (AUDIO → PLAYER MANAGER) - DEBUG VERSION
-// =====================================================
-  // =====================================================
-  // 4) SIMPLE DEBUG TICK BRIDGE (AUDIO → PLAYER MANAGER)
-  //    - verifies the bridge is running
-  //    - detects track END and calls pm.onTrackEnd()
-  // =====================================================
-// =====================================================
-// 4) STABLE TICK BRIDGE (AUDIO → PLAYER MANAGER)
-// =====================================================
-useEffect(() => {
-  console.log("[ORCH] 🎚️ BRIDGE EFFECT MOUNTED");
+  useEffect(() => {
+    console.log("[ORCH] 🎚️ BRIDGE EFFECT MOUNTED");
 
-  let lastTrackId = null;
-  let lastEndedFlag = false;
-  let trackStartTimeout = null;
-  let tickCount = 0;
+    let lastTrackId = null;
+    let lastEndedFlag = false;
+    let trackStartTimeout = null;
+    let tickCount = 0;
+    let isMounted = true;
 
-  const intervalId = setInterval(() => {
-    tickCount++;
-    const pm = pmRef.current;
-    const audioCtx = audioRef.current;
+    // ✅ Use setTimeout recursion instead of setInterval to avoid closure issues
+    const tick = () => {
+      if (!isMounted) return;
 
-    // Log every 10 ticks to avoid spam
-    if (tickCount % 10 === 0) {
-      console.log("[ORCH] Tick bridge running - tick #" + tickCount);
-    }
-
-    // 1) Check PM + audioCtx presence
-    if (!pm || !audioCtx) {
-      if (tickCount % 20 === 0) {
-        console.log("[ORCH] Tick: missing pm or audioCtx", {
-          hasPm: !!pm,
-          hasAudioCtx: !!audioCtx,
-        });
-      }
-      return;
-    }
-
-    const st = audioCtx.playerState;
-
-    if (!st) {
-      if (tickCount % 20 === 0) {
-        console.log("[ORCH] Tick: audioCtx.playerState is null/undefined", {
-          audioKeys: Object.keys(audioCtx),
-        });
-      }
-      return;
-    }
-
-    const currentId = st.currentTrack?.id || st.currentTrack?._id || null;
-
-    // 2) Log a small snapshot so we see what shape playerState has
-    if (tickCount % 10 === 0) {
-      console.log("[ORCH] Tick snapshot", {
-        currentId,
-        title: st.currentTrack?.title,
-        isPlaying: st.isPlaying,
-        playing: st.playing,
-        paused: st.paused,
-        ended: st.ended,
-        currentTime: st.currentTime,
-        duration: st.duration,
-      });
-    }
-
-    // ========== TRACK START DETECTION ==========
-    if (currentId && currentId !== lastTrackId) {
-      console.log("[ORCH] 🎵 TRACK CHANGE DETECTED", {
-        from: lastTrackId,
-        to: currentId,
-        trackTitle: st.currentTrack?.title
-      });
+      tickCount++;
       
-      clearTimeout(trackStartTimeout);
-      trackStartTimeout = setTimeout(() => {
-        console.log("[ORCH] 🎵 CONFIRMED TRACK START → pm.onTrackStart()", {
+      // ✅ Always get fresh values from refs
+      const pm = pmRef.current;
+      const audioCtx = audioRef.current;
+
+      // Log every 10 ticks to avoid spam
+      if (tickCount % 10 === 0) {
+        console.log("[ORCH] Tick bridge running - tick #" + tickCount);
+      }
+
+      // 1) Check PM + audioCtx presence
+      if (!pm || !audioCtx) {
+        if (tickCount % 20 === 0) {
+          console.log("[ORCH] Tick: missing pm or audioCtx", {
+            hasPm: !!pm,
+            hasAudioCtx: !!audioCtx,
+          });
+        }
+        setTimeout(tick, 1000);
+        return;
+      }
+
+      const st = audioCtx.playerState;
+
+      if (!st) {
+        if (tickCount % 20 === 0) {
+          console.log("[ORCH] Tick: audioCtx.playerState is null/undefined", {
+            audioKeys: Object.keys(audioCtx),
+          });
+        }
+        setTimeout(tick, 1000);
+        return;
+      }
+
+      const currentId = st.currentTrack?.id || st.currentTrack?._id || null;
+
+      // 2) Log a small snapshot so we see what shape playerState has
+      if (tickCount % 10 === 0) {
+        console.log("[ORCH] Tick snapshot", {
+          currentId,
+          title: st.currentTrack?.title,
+          isPlaying: st.isPlaying,
+          wasManuallyPaused: st.wasManuallyPaused,
+          currentTime: st.currentTime,
+          duration: st.duration,
+        });
+      }
+
+      // ========== TRACK START DETECTION ==========
+      if (currentId && currentId !== lastTrackId) {
+        console.log("[ORCH] 🎵 TRACK CHANGE DETECTED", {
           from: lastTrackId,
-          to: currentId
+          to: currentId,
+          trackTitle: st.currentTrack?.title
         });
         
-        lastTrackId = currentId;
+        clearTimeout(trackStartTimeout);
+        trackStartTimeout = setTimeout(() => {
+          console.log("[ORCH] 🎵 CONFIRMED TRACK START → pm.onTrackStart()", {
+            from: lastTrackId,
+            to: currentId
+          });
+          
+          lastTrackId = currentId;
+
+          const meta = {
+            id: currentId,
+            title: st.currentTrack?.title,
+            genre: st.currentTrack?.genre,
+            duration: st.currentTrack?.duration,
+            artist: st.currentTrack?.artist,
+          };
+
+          console.log("[ORCH] 🎵 TRACK START - Metadata:", meta);
+
+          try {
+            pm.onTrackStart(meta);
+            console.log("[ORCH] 🎵 pm.onTrackStart() called successfully");
+          } catch (err) {
+            console.error("[ORCH] Error calling pm.onTrackStart:", err);
+          }
+        }, 100);
+      }
+
+      // ========== PLAY/PAUSE DETECTION ==========
+      // ✅ FIX: Use actual properties from your context
+      const isNowPlaying = Boolean(st.isPlaying);
+
+      if (tickCount % 10 === 0) {
+        console.log("[ORCH] Play state check:", {
+          isNowPlaying,
+          rawState: {
+            isPlaying: st.isPlaying,
+            wasManuallyPaused: st.wasManuallyPaused,
+            currentTime: st.currentTime,
+          }
+        });
+      }
+
+      // ========== TRACK END DETECTION ==========
+      // ✅ FIX: Use proper end detection for your context
+      const duration = st.duration || 0;
+      const currentTime = st.currentTime || 0;
+
+      // Track end conditions for your specific context:
+      const hasTrackEnded = 
+        // Reached end of track (with small buffer)
+        (duration > 0 && currentTime >= duration - 0.5 && !st.isPlaying) ||
+        // Track changed while not playing (handles edge cases)
+        (currentId !== lastTrackId && !st.isPlaying);
+
+      const endedNow = hasTrackEnded && currentId;
+
+      // If we've just transitioned into an ended state for THIS track:
+      if (endedNow && !lastEndedFlag && currentId) {
+        console.log("[ORCH] 🔚 TRACK END DETECTED", {
+          currentTime,
+          duration,
+          trackId: currentId,
+          isPlaying: st.isPlaying
+        });
+        
+        lastEndedFlag = true;
 
         const meta = {
           id: currentId,
@@ -1216,113 +1251,51 @@ useEffect(() => {
           artist: st.currentTrack?.artist,
         };
 
-        console.log("[ORCH] 🎵 TRACK START - Metadata:", meta);
+        console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
 
         try {
-          pm.onTrackStart(meta);
-          console.log("[ORCH] 🎵 pm.onTrackStart() called successfully");
+          pm.onTrackEnd(meta);
+          console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
         } catch (err) {
-          console.error("[ORCH] Error calling pm.onTrackStart:", err);
+          console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
         }
-      }, 100); // Small delay to confirm it's a real track change
-    }
-
-    // ========== PLAY/PAUSE DETECTION ==========
-    const inferredPlaying =
-      st?.isPlaying ??
-      st?.playing ??
-      (!st?.paused && st?.currentTime > 0 && !st?.ended);
-
-    const isNowPlaying = Boolean(inferredPlaying);
-
-    if (tickCount % 10 === 0) {
-      console.log("[ORCH] Play state check:", {
-        isNowPlaying,
-        rawState: {
-          isPlaying: st?.isPlaying,
-          playing: st?.playing,
-          paused: st?.paused,
-          currentTime: st?.currentTime,
-          ended: st?.ended
-        }
-      });
-    }
-
-    // ========== TRACK END DETECTION ==========
-    const endedFlag = !!st.ended;
-    const duration = st.duration || 0;
-    const currentTime = st.currentTime || 0;
-
-    // "Near end" heuristic, in case `ended` flag is unreliable
-    const nearEnd =
-      duration > 0 &&
-      currentTime >= duration - 0.5 && // last 0.5s
-      !st.isPlaying &&
-      !st.playing;
-
-    const endedNow = endedFlag || nearEnd;
-
-    // If we've just transitioned into an ended state for THIS track:
-    if (endedNow && !lastEndedFlag && currentId) {
-      console.log("[ORCH] 🔚 TRACK END DETECTED", {
-        endedFlag,
-        nearEnd,
-        currentTime,
-        duration,
-        trackId: currentId
-      });
-      
-      lastEndedFlag = true;
-
-      const meta = {
-        id: currentId,
-        title: st.currentTrack?.title,
-        genre: st.currentTrack?.genre,
-        duration: st.currentTrack?.duration,
-        artist: st.currentTrack?.artist,
-      };
-
-      console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
-
-      try {
-        pm.onTrackEnd(meta);
-        console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
-      } catch (err) {
-        console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
       }
-    }
 
-    // Reset the "ended" latch when playback is clearly NOT ended anymore
-    if (!endedNow && lastEndedFlag) {
-      console.log("[ORCH] Reset ended flag - playback resumed or new track");
-      lastEndedFlag = false;
-    }
+      // Reset the "ended" latch when playback is clearly NOT ended anymore
+      if (!endedNow && lastEndedFlag) {
+        console.log("[ORCH] Reset ended flag - playback resumed or new track");
+        lastEndedFlag = false;
+      }
 
-    // ========== TELEMETRY TICK ==========
-    try {
-      pm.updatePlaybackTick?.({
-        t: st.currentTime || 0,
-        d: st.duration || 0,
-        vol: st.volume ?? 1,
-        muted: !!st.muted,
-        buffering: !!st.buffering,
-        readyState: st.readyState || 0,
-        trackId: currentId,
-      });
-    } catch {
-      // ignore telemetry errors
-    }
-  }, 1000); // 1s interval
+      // ========== TELEMETRY TICK ==========
+      try {
+        pm.updatePlaybackTick?.({
+          t: st.currentTime || 0,
+          d: st.duration || 0,
+          vol: st.volume ?? 1,
+          muted: !!st.isMuted, // ✅ Use correct property name
+          buffering: !!st.buffering,
+          trackId: currentId,
+        });
+      } catch {
+        // ignore telemetry errors
+      }
 
-  return () => {
-    console.log("[ORCH] 🧹 BRIDGE EFFECT CLEANUP");
-    clearInterval(intervalId);
-    if (trackStartTimeout) {
-      clearTimeout(trackStartTimeout);
-    }
-  };
-}, []);
+      // ✅ Schedule next tick
+      setTimeout(tick, 1000);
+    };
 
- // Empty dependency array - runs once on mount
+    // Start the tick loop
+    tick();
+
+    return () => {
+      console.log("[ORCH] 🧹 BRIDGE EFFECT CLEANUP");
+      isMounted = false;
+      if (trackStartTimeout) {
+        clearTimeout(trackStartTimeout);
+      }
+    };
+  }, []); // Empty deps OK because we use refs
+
   return null;
 }

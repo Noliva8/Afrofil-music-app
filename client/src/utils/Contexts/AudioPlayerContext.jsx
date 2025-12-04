@@ -65,6 +65,45 @@ const normalizeTrackForResume = (t) => {
 
 const AudioPlayerContext = createContext();
 
+// Safe fallback so consumer components don't crash if provider fails to mount
+const noop = () => {};
+const defaultAudioContext = {
+  playerState: {
+    currentTrack: null,
+    queue: [],
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    volume: 0.7,
+    isMuted: false,
+    isTeaser: false,
+    isLoading: false,
+    error: null,
+    hasTeaserEnded: false,
+    isAdPlaying: false,
+  },
+  pause: noop,
+  handlePlaySong: noop,
+  handlePlayAlbum: noop,
+  handlePlayPlaylist: noop,
+  handlePlayArtistTopSongs: noop,
+  handlePlayGenrePlaylist: noop,
+  handlePlayMoodPlaylist: noop,
+  handlePlaySongDirect: noop,
+  handlePlayNext: noop,
+  handlePlayPrev: noop,
+  handleSeek: noop,
+  handleVolumeChange: noop,
+  handleMuteToggle: noop,
+  handlePause: noop,
+  resume: noop,
+  setQueue: noop,
+  setCurrentTrack: noop,
+  setIsPlaying: noop,
+  isPlayingAd: false,
+  currentAd: null,
+};
+
 export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const userContext = useUser();
   const { isUser, isPremium } = userContext;
@@ -143,6 +182,8 @@ const audioCtxSnapshot = () => ({
   play, pause, seek, audioRef, playerState,
   isUser, isPremium, profile, geo
 });
+
+const progressRafRef = useRef(null);
 
 useEffect(() => {
   if (!audioRef.current) return; // wait until <audio> is mounted
@@ -244,9 +285,9 @@ useEffect(() => {
 
     const checkTeaserEnd = () => {
       setPlayerState(prev => {
-        const shouldStop =
-          prev.isTeaser &&
+        const shouldStop = prev.isTeaser &&
           !prev.wasManuallyPaused &&
+          !prev.hasTeaserEnded && // avoid re-firing once handled
           audio.currentTime >= TEASER_DURATION;
 
         if (shouldStop) {
@@ -262,6 +303,8 @@ useEffect(() => {
     audio.addEventListener('timeupdate', checkTeaserEnd);
     return () => audio.removeEventListener('timeupdate', checkTeaserEnd);
   }, [onRequireAuth]);
+
+
 
   // progress sync into state (listeners only; no deps that change every render)
   useEffect(() => {
@@ -290,6 +333,44 @@ useEffect(() => {
       audio.removeEventListener('loadedmetadata', updateProgress);
     };
   }, []);
+
+  // smoother UI progress while playing (throttled to one rAF per frame)
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    let frameId = null;
+
+    const pushProgress = () => {
+      frameId = null;
+      setPlayerState(prev => {
+        const ct = audio.currentTime;
+        const dur = audio.duration || prev.duration;
+        if (Math.abs(prev.currentTime - ct) < 0.02 && prev.duration === dur) return prev;
+        return { ...prev, currentTime: ct, duration: dur };
+      });
+    };
+
+    const schedule = () => {
+      if (frameId || !playerState.isPlaying) return;
+      frameId = requestAnimationFrame(pushProgress);
+    };
+
+    if (playerState.isPlaying) {
+      schedule(); // prime once immediately
+      audio.addEventListener('timeupdate', schedule);
+    }
+
+    return () => {
+      audio.removeEventListener('timeupdate', schedule);
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+        frameId = null;
+      }
+    };
+  }, [playerState.isPlaying]);
+
+  
 
   const seek = useCallback((time) => {
     if (audioRef.current) {
@@ -328,6 +409,7 @@ useEffect(() => {
   }, [authState.isGuest, authState.isPremium]);
 
   // ---- Play: stable identity, uses ref fallback ----
+
   const play = useCallback(async (trackArg = null, playbackContext = null) => {
     const track = trackArg || currentTrackRef.current;
     if (!track) return;
@@ -478,6 +560,7 @@ useEffect(() => {
 
   // run resume exactly once per fetched payload
   const didResumeRef = useRef(false);
+  const pendingUserResumeRef = useRef(false);
   useEffect(() => {
     if (didResumeRef.current) return;
     const session = resumeData?.playbackSession;
@@ -493,6 +576,16 @@ useEffect(() => {
     canonicalQueueRef.current = fullQueue;
     currentIndexRef.current = 0;
 
+    // Hydrate ad scheduler state if available
+    const pm = playerManagerRef.current;
+    if (pm && session.adState) {
+      try {
+        pm.restoreAdResumeState(session.adState);
+      } catch (e) {
+        console.warn("[AUDIO] Failed to restore ad state", e);
+      }
+    }
+
     (async () => {
       const ok = await load(current, fullQueue.slice(1));
       if (!ok) return;
@@ -502,13 +595,35 @@ useEffect(() => {
         seek(session.currentTime);
       }
 
+      // Ensure ad flag is cleared on restore
+      setPlayerState(prev => ({ ...prev, isAdPlaying: false }));
+
       if (session.wasPlaying) {
-        await play(current);
+        try {
+          await play(current);
+        } catch (err) {
+          // Autoplay might be blocked; defer until user interacts
+          console.warn("[AUDIO] Autoplay blocked on resume; waiting for user interaction");
+          pendingUserResumeRef.current = true;
+        }
       } else {
         setPlayerState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
       }
     })();
   }, [resumeData, load, seek, play]);
+
+  // Fallback: if autoplay was blocked on resume, resume on first user interaction
+  useEffect(() => {
+    const resumeOnUser = async () => {
+      if (!pendingUserResumeRef.current) return;
+      pendingUserResumeRef.current = false;
+      const track = currentTrackRef.current;
+      if (!track) return;
+      await play(track);
+    };
+    window.addEventListener('pointerdown', resumeOnUser, { once: true });
+    return () => window.removeEventListener('pointerdown', resumeOnUser);
+  }, [play]);
 
   // Handle play song
   const handlePlaySong = useCallback(
@@ -825,34 +940,93 @@ const skipPrevious = useCallback(async () => {
 // ----------------------
 
 const handleAdEnded = useCallback(async (adIndex) => {
-  console.log(`[AUDIO] ✅ Ad ${adIndex} completed, resuming playback`);
+  console.log(`[AUDIO] ✅ Ad ${adIndex} completed, preparing to resume music`);
   
-  // Get current track state
   const currentTrack = currentTrackRef.current;
   const currentIndex = currentIndexRef.current;
-  const remainingQueue = buildRemainingFrom(currentIndex);
   
-  if (currentTrack) {
-    // Force UI to update and resume
-    setPlayerState(prev => ({
-      ...prev,
-      isPlaying: true,
-      isLoading: true, // brief loading state
-      isAdPlaying: false
-    }));
-    
-    // Resume the actual audio playback
-    await handlePlaySong(currentTrack, remainingQueue, playerState.playbackContext, {
-      prepared: { 
-        queue: canonicalQueueRef.current, 
-        currentIndex: currentIndex 
+  if (!currentTrack) {
+    console.log("[AUDIO] No current track to resume after ad");
+    return;
+  }
+
+  console.log(`[AUDIO] Resuming music after ad: ${currentTrack.title}`);
+
+  // Resume the existing audio element where it left off
+  if (audioRef.current) {
+    try {
+      if (typeof audioRef.current.playAsync === "function") {
+        await audioRef.current.playAsync();
+      } else {
+        await audioRef.current.play();
       }
+      setPlayerState((prev) => ({
+        ...prev,
+        isPlaying: true,
+        isLoading: false,
+        isAdPlaying: false,
+      }));
+      console.log("[AUDIO] ✅ Resumed main audio after ad");
+      return;
+    } catch (err) {
+      console.warn("[AUDIO] Fallback resume after ad failed, trying fresh play", err);
+    }
+  }
+
+  // If for some reason the element could not resume, try reloading the current track
+  try {
+    const remainingQueue = buildRemainingFrom(currentIndex);
+    await handlePlaySong(currentTrack, remainingQueue, playerState.playbackContext, {
+      prepared: {
+        queue: canonicalQueueRef.current,
+        currentIndex: currentIndex,
+      },
+      fromAd: true,
     });
-    
-    console.log(`[AUDIO] ▶️ Resumed playback after ad: ${currentTrack.title}`);
+    setPlayerState((prev) => ({
+      ...prev,
+      isAdPlaying: false,
+    }));
+    console.log(`[AUDIO] ✅ Started fresh playback after ad: ${currentTrack.title}`);
+  } catch (error) {
+    console.error("[AUDIO] ❌ Failed to restart after ad:", error);
   }
 }, [handlePlaySong, buildRemainingFrom, playerState.playbackContext]);
 
+
+// Persist a snapshot so refresh can resume even if an ad pauses playback
+  const saveSnapshotForAd = useCallback(
+    async (overrideWasPlaying = null) => {
+      if (!isUserLoggedIn) return;
+      const audio = audioRef.current;
+      if (!audio || !playerState.currentTrack) return;
+
+      const adState =
+        playerManagerRef.current?.getAdResumeSnapshot?.() || null;
+
+      const data = {
+        track: toPlaybackTrackInput(playerState.currentTrack),
+        currentTime: audio.currentTime,
+        queue: (playerState.queue || []).map(toPlaybackTrackInput),
+        wasPlaying:
+          typeof overrideWasPlaying === "boolean"
+            ? overrideWasPlaying
+            : playerState.isPlaying || playerState.isAdPlaying,
+        volume: playerState.volume,
+        isMuted: playerState.isMuted,
+        shuffle: playerState.shuffle,
+        repeat: playerState.repeat,
+        adState,
+      };
+
+    try {
+      await savePlaybackSession({ variables: { data } });
+    } catch (e) {
+      console.warn("[AUDIO] saveSnapshotForAd failed:", e?.message || e);
+    }
+  },
+  [isUserLoggedIn, playerState, savePlaybackSession]
+);
 
 // Listen for ad completion events
 useEffect(() => {
@@ -868,6 +1042,85 @@ useEffect(() => {
   };
 }, [handleAdEnded]);
 
+// Listen for ad start to hard-pause main audio and flag ad state
+useEffect(() => {
+  const handleAdStarted = async (payload) => {
+    console.log("[AUDIO] 🚦 AD_STARTED received, pausing main audio", payload);
+    if (audioRef.current) {
+      try {
+        if (typeof audioRef.current.pauseAsync === "function") {
+          await audioRef.current.pauseAsync();
+        } else {
+          audioRef.current.pause();
+        }
+      } catch (err) {
+        console.warn("[AUDIO] Failed to pause on AD_STARTED", err);
+      }
+    }
+    setPlayerState((prev) => ({
+      ...prev,
+      isPlaying: false,
+      isAdPlaying: true,
+    }));
+    // Save snapshot so refresh can resume where music paused for the ad
+    saveSnapshotForAd(true);
+  };
+
+  eventBus.on("AD_STARTED", handleAdStarted);
+  return () => eventBus.off("AD_STARTED", handleAdStarted);
+}, [saveSnapshotForAd]);
+
+
+// useEffect to your main audio provider
+useEffect(() => {
+  const handleAdPauseRequest = async (payload) => {
+    console.log("[AUDIO] Ad system requesting pause");
+    if (audioRef.current && playerState.isPlaying) {
+      try {
+        if (typeof audioRef.current.pauseAsync === "function") {
+          await audioRef.current.pauseAsync();
+        } else {
+          audioRef.current.pause();
+        }
+        setPlayerState((prev) => ({ ...prev, isPlaying: false }));
+        console.log("[AUDIO] Paused main audio for ad");
+      } catch (error) {
+        console.log("[AUDIO] Error pausing for ad:", error);
+      }
+    }
+  };
+
+  eventBus.on("AD_PAUSE_REQUESTED", handleAdPauseRequest);
+
+  return () => {
+    eventBus.off("AD_PAUSE_REQUESTED", handleAdPauseRequest);
+  };
+}, [playerState.isPlaying]);
+
+
+// useEffect to coordinate ad completion
+useEffect(() => {
+  const handleAdCompleted = async (payload) => {
+    console.log("[AUDIO] Received AD_COMPLETED, waiting before resuming...");
+    
+    // 🔥 Wait a bit to ensure ad system is fully cleaned up
+    await new Promise(resolve => setTimeout(resolve, 400));
+    
+    // 🔥 Only resume if we're actually in an ad state
+    if (playerState.isAdPlaying) {
+      console.log("[AUDIO] Triggering resume after ad completion");
+      handleAdEnded(payload.adIndex);
+    } else {
+      console.log("[AUDIO] Not in ad state, ignoring completion event");
+    }
+  };
+
+  eventBus.on("AD_COMPLETED", handleAdCompleted);
+
+  return () => {
+    eventBus.off("AD_COMPLETED", handleAdCompleted);
+  };
+}, [handleAdEnded, playerState.isAdPlaying]);
 
 
 
@@ -944,11 +1197,14 @@ useEffect(() => {
         track: toPlaybackTrackInput(playerState.currentTrack),
         currentTime: audio.currentTime,
         queue: (playerState.queue || []).map(toPlaybackTrackInput),
-        wasPlaying: playerState.isPlaying,
+        // If an ad temporarily paused content, still treat the session as "playing"
+        // so refresh resumes where music left off.
+        wasPlaying: playerState.isPlaying || playerState.isAdPlaying,
         volume: playerState.volume,
         isMuted: playerState.isMuted,
         shuffle: playerState.shuffle,
         repeat: playerState.repeat,
+        adState: playerManagerRef.current?.getAdResumeSnapshot?.() || null,
       };
 
       // dedupe by coarse signature to avoid chatty writes
@@ -1044,6 +1300,9 @@ AudioPlayerProvider.propTypes = {
 
 export const useAudioPlayer = () => {
   const context = useContext(AudioPlayerContext);
-  if (!context) throw new Error('useAudioPlayer must be used within an AudioPlayerProvider');
+  if (!context) {
+    console.warn('useAudioPlayer called without AudioPlayerProvider; returning no-op context');
+    return defaultAudioContext;
+  }
   return context;
 };

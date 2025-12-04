@@ -53,7 +53,7 @@ if (JWT_SECRET_USER) {
 // -----------------------------
 const JWT_CONFIG = {
   secret: JWT_SECRET_USER,
-  expiration: process.env.JWT_EXPIRATION || '2h',
+  expiration: process.env.JWT_EXPIRATION || '7d',
   issuer: process.env.JWT_ISSUER || 'Afrofeel',
   audience: process.env.JWT_AUDIENCE || 'African-music-app',
   algorithm: 'HS256'

@@ -33,5 +33,6 @@ export const SIMILARITY_TIERS = {
   MINIMAL: 'similar#minimal'
 };
 
-
+export const AVAILABLE_ADS_KEY = (userId) => `ads:user#${userId}#available`;
+export const CACHE_TTL_SECONDS = 24 * 60* 60; 
 
