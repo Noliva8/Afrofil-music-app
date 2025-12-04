@@ -1,9 +1,14 @@
 
 
 export function withinSchedule(ad, now = Date.now()) {
-  const s = ad?.schedule?.startDate ? new Date(ad.schedule.startDate).getTime() : 0;
-  const e = ad?.schedule?.endDate ? new Date(ad.schedule.endDate).getTime() : 0;
-  return now >= s && now <= e;
+  const startRaw = ad?.schedule?.startDate ? new Date(ad.schedule.startDate).getTime() : 0;
+  const endRaw = ad?.schedule?.endDate ? new Date(ad.schedule.endDate).getTime() : Number.MAX_SAFE_INTEGER;
+
+  const start = Number.isFinite(startRaw) ? startRaw : 0;
+  const end = Number.isFinite(endRaw) ? endRaw : Number.MAX_SAFE_INTEGER;
+
+  // Treat missing end dates as open-ended campaigns so we do not suppress ads unnecessarily.
+  return now >= start && now <= end;
 }
 
 export function eligible(ad) {

@@ -1,6 +1,92 @@
 import { Ad, Advertizer } from '../../../models/Advertizer/index_advertizer.js';
+import { getRedis } from '../../../utils/AdEngine/redis/redisClient.js';
+import { AVAILABLE_ADS_KEY, CACHE_TTL_SECONDS } from '../../Artist_schema/Redis/keys.js';
+
 
 const SUPPORTED_COUNTRIES = ["United States", "Rwanda", "Uganda"];
+
+
+const serializeAd = (ad) => JSON.stringify(ad);
+
+const deserializeAd = (adString) => {
+  try {
+    return JSON.parse(adString);
+  } catch (error) {
+    console.error('Failed to deserialize ad:', error);
+    return null;
+  }
+};
+
+const buildCacheKey = (userId, normalizedLocation) => {
+  const { country, state, city } = normalizedLocation || {};
+  const safeUser = userId || 'anonymous';
+  const safeCountry = country || 'unknown';
+  const safeState = state || 'none';
+  const safeCity = city || 'none';
+  return `${AVAILABLE_ADS_KEY(safeUser)}:${safeCountry}:${safeState}:${safeCity}`;
+};
+
+async function readCachedAds(client, cacheKey) {
+  if (!client || !cacheKey) return [];
+  const members = await client.sMembers(cacheKey);
+  return members.map(deserializeAd).filter(Boolean);
+}
+
+async function writeCachedAds(client, cacheKey, ads) {
+  if (!client || !cacheKey || !ads?.length) return;
+  const pipe = client.multi();
+  ads.forEach((ad) => pipe.sAdd(cacheKey, serializeAd(ad)));
+  pipe.expire(cacheKey, CACHE_TTL_SECONDS);
+  await pipe.exec();
+}
+
+// ===== PER-USER AD FREQUENCY CAP HELPERS =====
+const MAX_PER_DAY = 5;
+const SAME_AD_COOLDOWN_SEC = 2 * 60 * 60; // 2 hours
+
+const dayStamp = () => {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const ttlToMidnightSec = () => {
+  const end = new Date(); end.setHours(24, 0, 0, 0);
+  return Math.max(60, Math.ceil((end - Date.now()) / 1000));
+};
+
+const userAdCountKey = (userId, adId, day) => `user:${userId}:ad:${adId}:count:${day}`;
+const userAdLastTsKey = (userId, adId) => `user:${userId}:ad:${adId}:last_ts`;
+
+async function filterByFrequencyCaps(redisClient, ads, userId) {
+  if (!redisClient || !userId || !ads?.length) return ads;
+
+  const day = dayStamp();
+  const nowSec = Math.floor(Date.now() / 1000);
+
+  const countKeys = ads.map((ad) => userAdCountKey(userId, ad.id, day));
+  const lastKeys = ads.map((ad) => userAdLastTsKey(userId, ad.id));
+
+  const [countVals, lastVals] = await Promise.all([
+    redisClient.mGet(countKeys),
+    redisClient.mGet(lastKeys)
+  ]);
+
+  const allowedAds = [];
+
+  ads.forEach((ad, idx) => {
+    const count = Number(countVals[idx] || 0);
+    const lastTs = Number(lastVals[idx] || 0);
+
+    const withinCooldown = lastTs && (nowSec - lastTs < SAME_AD_COOLDOWN_SEC);
+    const atDailyCap = count >= MAX_PER_DAY;
+
+    if (!withinCooldown && !atDailyCap) {
+      allowedAds.push(ad);
+    }
+  });
+
+  return allowedAds;
+}
 
 // ===== LOCATION NORMALIZATION =====
 const normalizeCountry = (country) => {
@@ -125,7 +211,13 @@ function buildLocationConditions(normalizedLocation) {
 
 // ===== MAIN RESOLVER =====
 export const getAudioAd = async (_, { userLocation }, context) => {
+
   try {
+    const redisClient = await getRedis().catch((err) => {
+      console.warn('⚠️ Redis unavailable, skipping cache for getAudioAd:', err.message);
+      return null;
+    });
+
     // 1. Normalize all location inputs
     const normalizedLocation = normalizeLocation(userLocation);
     const { country, state, city } = normalizedLocation;
@@ -152,6 +244,25 @@ export const getAudioAd = async (_, { userLocation }, context) => {
       original: userLocation,
       normalized: normalizedLocation
     });
+
+    // 3.5. Try cache first – keyed by user + normalized location
+    const userId = context?.user?._id || context?.req?.user?._id || null;
+    const cacheKey = buildCacheKey(userId, normalizedLocation);
+
+    if (redisClient) {
+      try {
+        const cachedAds = await readCachedAds(redisClient, cacheKey);
+        if (cachedAds.length) {
+          return {
+            success: true,
+            ads: cachedAds,
+            error: null
+          };
+        }
+      } catch (cacheErr) {
+        console.warn('⚠️ Failed to read ads cache:', cacheErr.message);
+      }
+    }
 
     // 4. Build location matching conditions (world + country + state OR city tiers)
     const locationConditions = buildLocationConditions(normalizedLocation);
@@ -263,10 +374,22 @@ const validAds = ads.filter(ad => {
       }
     }));
 
+    // 10. Frequency caps temporarily disabled for testing; serve all formatted ads
+    const cappedAds = formattedAds;
+
+    // Cache the formatted ads for this user/location combo
+    if (redisClient && cappedAds.length) {
+      try {
+        await writeCachedAds(redisClient, cacheKey, cappedAds);
+      } catch (cacheErr) {
+        console.warn('⚠️ Failed to write ads cache:', cacheErr.message);
+      }
+    }
+
     return {
       success: true,
-      ads: formattedAds,
-      error: null
+      ads: cappedAds,
+      error: cappedAds.length ? null : 'Frequency capped for available ads'
     };
 
   } catch (error) {
@@ -278,6 +401,9 @@ const validAds = ads.filter(ad => {
     };
   }
 };
+
+
+
 
 // ===== HELPER: Normalize existing ads =====
 export const normalizeExistingAds = async () => {

@@ -4,16 +4,25 @@
 export function createAdScheduleController(options = {}) {
   const config = {
     // Progressive frequency: [songsPerBreak, adsPerBreak]
-    frequencySchedule: options.frequencySchedule ?? [
-      { songs: 3, ads: 1 },  // First break: after 3 songs, 1 ad
-      { songs: 4, ads: 1 },  // Second: after 4 songs, 1 ad  
-      { songs: 5, ads: 2 },  // Third: after 5 songs, 2 ads
-      { songs: 6, ads: 2 },  // Steady state: after 6 songs, 2 ads
-    ],
-    minSongsBeforeFirstBreak: options.minSongsBeforeFirstBreak ?? 2,
+    // frequencySchedule: options.frequencySchedule ?? [
+    //   { songs: 3, ads: 1 },  // First break: after 3 songs, 1 ad
+    //   { songs: 4, ads: 1 },  // Second: after 4 songs, 1 ad  
+    //   { songs: 5, ads: 2 },  // Third: after 5 songs, 2 ads
+    //   { songs: 6, ads: 2 },  // Steady state: after 6 songs, 2 ads
+    // ],
+
+    frequencySchedule: [
+  { songs: 3, ads: 1 },  // First break: 1 ad
+  { songs: 4, ads: 1 },  // Second break: 1 ad  
+  { songs: 5, ads: 1 },  // Third break: 1 ad
+  { songs: 6, ads: 1 },  // Fourth break: 1 ad
+],
+
+
+    minSongsBeforeFirstBreak: options.minSongsBeforeFirstBreak ?? 3,
     maxAdBreaksPerHour: options.maxAdBreaksPerHour ?? 6,
     minBreakCooldownMs: options.minBreakCooldownMs ?? 120000, // 2 minutes
-    enableProgressiveMode: options.enableProgressiveMode ?? true,
+    enableProgressiveMode: options.enableProgressiveMode ?? false,
   };
 
   const state = {
@@ -49,6 +58,15 @@ export function createAdScheduleController(options = {}) {
   return {
     getConfig() { return { ...config }; },
     getState() { return { ...state }; },
+    hydrateState(next = {}) {
+      if (typeof next.totalSongsPlayed === 'number') state.totalSongsPlayed = next.totalSongsPlayed;
+      if (typeof next.songsSinceLastBreak === 'number') state.songsSinceLastBreak = next.songsSinceLastBreak;
+      if (typeof next.totalAdBreaks === 'number') state.totalAdBreaks = next.totalAdBreaks;
+      if (typeof next.lastBreakTimestamp === 'number') state.lastBreakTimestamp = next.lastBreakTimestamp;
+      if (typeof next.breaksThisHour === 'number') state.breaksThisHour = next.breaksThisHour;
+      if (typeof next.adsRemainingInBreak === 'number') state.adsRemainingInBreak = next.adsRemainingInBreak;
+      if (typeof next.currentFrequencyTier === 'number') state.currentFrequencyTier = next.currentFrequencyTier;
+    },
 
     onSongStarted() {
       state.totalSongsPlayed += 1;

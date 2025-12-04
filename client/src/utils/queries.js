@@ -454,6 +454,13 @@ export const GET_PLAYBACK_SESSION = gql`
       isMuted
       shuffle
       repeat
+      adState {
+        songsPlayed
+        songsSinceLastBreak
+        totalAdBreaks
+        adSequenceCounter
+        lastAdPlayedAt
+      }
       updatedAt
       track {
         id

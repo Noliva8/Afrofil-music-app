@@ -5,6 +5,7 @@ import { SIMILAR_SONGS_TRENDINGS } from '../queries';
 
 export const similarSongsUtil = async (client, songId) => {
   if (!songId) return { songs: [], context: "", expireAt: "" };
+console.log('playing song id ...:', songId);
 
 const contextFromClient = localStorage.getItem('mklExpiresAt');
 console.log('available playback context:', contextFromClient);

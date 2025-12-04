@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Box, IconButton, Slider, Typography } from '@mui/material';
+import { PlayArrow, Pause } from '@mui/icons-material';
 import { eventBus } from '../../utils/Contexts/playerAdapters';
 
 export const AdMediaPlayer = () => {
@@ -37,6 +39,22 @@ export const AdMediaPlayer = () => {
       setAdState(prev => ({ ...prev, isPlaying: false }));
     };
 
+    const handleAdPaused = (payload) => {
+      setAdState(prev => ({
+        ...prev,
+        isPlaying: false,
+        progress: payload?.progress || prev.progress
+      }));
+    };
+
+    const handleAdResumed = (payload) => {
+      setAdState(prev => ({
+        ...prev,
+        isPlaying: true,
+        progress: payload?.progress || prev.progress
+      }));
+    };
+
     // Subscribe to events
     eventBus.on('AD_METADATA_LOADED', handleAdMetadata);
     eventBus.on('AD_STARTED', handleAdStart);
@@ -44,6 +62,8 @@ export const AdMediaPlayer = () => {
     eventBus.on('AD_COMPLETED', handleAdCompleted);
     eventBus.on('AD_STOPPED', handleAdCompleted);
     eventBus.on('AD_ERROR', handleAdError);
+    eventBus.on('AD_PAUSED', handleAdPaused);
+    eventBus.on('AD_RESUMED', handleAdResumed);
 
     console.log('📱 AdMediaPlayer: Subscribed to ad events');
 
@@ -55,6 +75,8 @@ export const AdMediaPlayer = () => {
       eventBus.off('AD_COMPLETED', handleAdCompleted);
       eventBus.off('AD_STOPPED', handleAdCompleted);
       eventBus.off('AD_ERROR', handleAdError);
+      eventBus.off('AD_PAUSED', handleAdPaused);
+      eventBus.off('AD_RESUMED', handleAdResumed);
       
       console.log('📱 AdMediaPlayer: Unsubscribed from ad events');
     };
@@ -71,105 +93,137 @@ export const AdMediaPlayer = () => {
 
   if (!currentAd) return null;
 
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      eventBus.emit('AD_UI_PAUSE');
+    } else {
+      eventBus.emit('AD_UI_PLAY');
+    }
+  };
+
   return (
-    <div className="ad-media-player" style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      background: '#1a1a1a',
-      color: 'white',
-      padding: '16px',
-      borderTop: '1px solid #333',
-      zIndex: 3000
-    }}>
-      {/* Ad Artwork */}
-      {currentAd.artwork && (
-        <img 
-          src={currentAd.artwork} 
-          alt={currentAd.title}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '8px',
-            marginRight: '16px',
-            float: 'left'
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(15,15,15,0.95)',
+        backdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(228,196,33,0.2)',
+        zIndex: 1100,
+        px: { xs: 1.5, sm: 2 },
+        py: 1.5,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: 1.5,
+            overflow: 'hidden',
+            flexShrink: 0,
+            position: 'relative',
+            background: 'linear-gradient(135deg, #2b2b2b 0%, #1a1a1a 100%)',
+            border: '1px solid rgba(255,255,255,0.05)'
+          }}
+        >
+          {currentAd.artwork ? (
+            <img
+              src={currentAd.artwork}
+              alt={currentAd.title}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>
+              Sponsored
+            </Box>
+          )}
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 4,
+              right: 4,
+              background: 'rgba(0,0,0,0.65)',
+              borderRadius: 1,
+              px: 0.6,
+              py: 0.2
+            }}
+          >
+            <Typography variant="caption" sx={{ color: '#E4C421', fontSize: '0.65rem', letterSpacing: 0.2 }}>
+              AD
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0, justifyContent: 'space-between' }}>
+          <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: 700,
+                color: '#fff',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {currentAd.title}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'rgba(255,255,255,0.75)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Sponsored by {currentAd.advertiser || 'Brand'}
+            </Typography>
+            {currentAd.description && (
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)', display: 'block', mt: 0.5, lineHeight: 1.4, maxHeight: 32, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {currentAd.description}
+              </Typography>
+            )}
+          </Box>
+
+          <IconButton
+            onClick={togglePlayPause}
+            aria-label={isPlaying ? 'Pause ad' : 'Play ad'}
+            sx={{
+              backgroundColor: '#E4C421',
+              color: '#0f0f0f',
+              '&:hover': { backgroundColor: '#F8D347' }
+            }}
+          >
+            {isPlaying ? <Pause /> : <PlayArrow />}
+          </IconButton>
+        </Box>
+      </Box>
+
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Slider
+          value={progress.duration ? progress.currentTime / 1000 : 0}
+          max={progress.duration ? progress.duration / 1000 : 0}
+          min={0}
+          disabled
+          sx={{
+            color: '#E4C421',
+            height: 4,
+            '& .MuiSlider-thumb': { display: 'none' },
+            '& .MuiSlider-rail': { opacity: 0.25 }
           }}
         />
-      )}
-      
-      {/* Ad Info */}
-      <div style={{ overflow: 'hidden' }}>
-        <h3 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: 'bold' }}>
-          {currentAd.title}
-        </h3>
-        <p style={{ margin: '0 0 4px 0', fontSize: '12px', opacity: 0.8 }}>
-          Sponsored by {currentAd.advertiser}
-        </p>
-        {currentAd.description && (
-          <p style={{ margin: '0 0 8px 0', fontSize: '11px', opacity: 0.6 }}>
-            {currentAd.description}
-          </p>
-        )}
-      </div>
-
-      {/* Progress Bar */}
-      <div style={{ marginTop: '12px' }}>
-        <div style={{
-          width: '100%',
-          height: '4px',
-          background: '#333',
-          borderRadius: '2px',
-          overflow: 'hidden'
-        }}>
-          <div 
-            style={{ 
-              height: '100%', 
-              background: '#1db954',
-              width: `${progress.percent}%`,
-              transition: 'width 0.25s ease'
-            }}
-          />
-        </div>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          fontSize: '11px',
-          marginTop: '4px',
-          opacity: 0.7
-        }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>
           <span>{formatTime(progress.currentTime)}</span>
           <span>{formatTime(progress.duration)}</span>
-        </div>
-      </div>
-
-      {/* Status and Controls */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: '12px'
-      }}>
-        <div style={{ fontSize: '12px', opacity: 0.8 }}>
-          {isPlaying ? '🔴 Now Playing' : '⏸️ Ready to Play'}
-        </div>
-
-        {/* Skip Button */}
-        <button 
-          style={{
-            background: 'transparent',
-            border: '1px solid #666',
-            color: '#666',
-            padding: '4px 12px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            cursor: 'not-allowed'
-          }}
-          disabled
-        >
-          Skip Ad ({Math.ceil((progress.duration - progress.currentTime) / 1000)}s)
-        </button>
-      </div>
-    </div>
+        </Box>
+      </Box>
+    </Box>
   );
 };

@@ -41,14 +41,14 @@ export function SongCard({ song, isPlayingThisSong, onPlayPause }) {
             onClick={onPlayPause}
             width="100%"
             height={{ xs: 160, sm: 180, md: 200, lg: 220 }}
-            src={song.cover || "https://placehold.co/300x300?text=No+Cover"}
+            src={song.cover || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"}
             alt={song.title}
             sx={{
               objectFit: "cover",
               objectPosition: "center",
             }}
             onError={(e) => {
-              e.target.src = "https://placehold.co/300x300?text=No+Cover";
+              e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>";
             }}
           />
 
@@ -195,14 +195,14 @@ export function CompactSongCard({
             component="img"
             width="100%"
             height={{ xs: 140, sm: 150, md: 160, lg: 170 }}
-            src={song.cover || 'https://placehold.co/300x300?text=No+Cover'}
+            src={song.cover || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"}
             alt={song.title}
             sx={{
               objectFit: 'cover',
               objectPosition: 'center',
             }}
             onError={(e) => {
-              e.target.src = 'https://placehold.co/300x300?text=No+Cover';
+              e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>";
             }}
           />
 

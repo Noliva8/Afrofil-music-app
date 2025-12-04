@@ -6,6 +6,9 @@ function adToCacheShape(adDoc) {
   // keep only what the decision needs (small & serializable)
   return {
     id: String(adDoc._id),
+    adTitle: adDoc.adTitle || null,
+    description: adDoc.description || null,
+    campaignId: adDoc.campaignId || null,
     adType: adDoc.adType,
     status: adDoc.status,
     isApproved: adDoc.isApproved,
@@ -33,6 +36,7 @@ function adToCacheShape(adDoc) {
     masterAudionAdUrl:      adDoc.masterAudionAdUrl,
     streamingAudioAdUrl:    adDoc.streamingAudioAdUrl,
     streamingFallBackAudioUrl: adDoc.streamingFallBackAudioUrl,
+    adArtWorkUrl:           adDoc.adArtWorkUrl || null,
     audioDurationMs: adDoc.audioDurationMs ?? 30000
   };
 }

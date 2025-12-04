@@ -25,7 +25,7 @@ export const useSongsWithPresignedUrls = (songsData) => {
       try {
         const updatedSongs = await Promise.all(
           songsData.map(async (song) => {
-            let artworkUrl = 'https://via.placeholder.com/300x300?text=No+Cover';
+            let artworkUrl = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="%231a1a1a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-size="24" font-family="Arial">No Cover</text></svg>';
             let audioUrl = null;
 
             // Fetch artwork URL

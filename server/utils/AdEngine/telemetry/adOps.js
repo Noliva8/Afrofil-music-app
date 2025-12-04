@@ -5,6 +5,7 @@ import {
   recordAdImpression,
 } from '../redis/redisSchema.js';
 import { getRedis } from '../redis/redisClient.js';
+import Ad from '../../../models/Advertizer/Ad.js';
 
 
 // Treat these as "sacred" contexts and strongly demote mismatches
@@ -190,5 +191,21 @@ export async function trackAdEvent({
   }
 
   await recordAdImpression({ userId, campaignId, adId, event, completed, clicked });
+
+  // Best-effort: also persist basic counters on the Ad document for reporting
+  if (adId) {
+    try {
+      const inc = {};
+      if (event === 'impression') inc['analytics.impressions'] = 1;
+      if (completed) inc['analytics.plays'] = 1;
+      if (clicked) inc['analytics.clicks'] = 1;
+      if (Object.keys(inc).length) {
+        await Ad.updateOne({ _id: adId }, { $inc: inc });
+      }
+    } catch (e) {
+      console.warn('[adOps] Failed to bump Ad analytics', { adId, event, completed, clicked, err: e?.message });
+    }
+  }
+
   return { ok: true };
 }

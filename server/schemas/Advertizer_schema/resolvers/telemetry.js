@@ -26,6 +26,39 @@ import {
 
 import { pickAdForPlayback } from '../../../utils/pickAdsForPlayback.js';
 
+// Per-user/ad frequency caps (shared with legacy getAudioAd)
+const MAX_PER_DAY = 5;
+const SAME_AD_COOLDOWN_SEC = 2 * 60 * 60; // 2 hours
+
+const dayStamp = () => {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const ttlToMidnightSec = () => {
+  const end = new Date(); end.setHours(24, 0, 0, 0);
+  return Math.max(60, Math.ceil((end - Date.now()) / 1000));
+};
+
+const userAdCountKey = (userId, adId, day) => `user:${userId}:ad:${adId}:count:${day}`;
+const userAdLastTsKey = (userId, adId) => `user:${userId}:ad:${adId}:last_ts`;
+
+async function markAdPlayCompleted({ userId, adId }) {
+  if (!userId || !adId) return;
+  const redisClient = await getRedis();
+  const day = dayStamp();
+  const ttl = ttlToMidnightSec();
+  const nowSec = Math.floor(Date.now() / 1000);
+  const countKey = userAdCountKey(userId, adId, day);
+  const lastKey = userAdLastTsKey(userId, adId);
+
+  const pipe = redisClient.multi();
+  pipe.incr(countKey);
+  pipe.expire(countKey, ttl);
+  pipe.set(lastKey, String(nowSec), { EX: ttl });
+  await pipe.exec();
+}
+
 
 
 // helper: top N genres from affinity zset
@@ -442,6 +475,22 @@ export const trackAdEvent = async (_p, { input }) => {
         completed: !!input.completed,
         clicked: !!input.clicked
       });
+
+      // Update per-user/ad frequency counters on real plays
+      const played =
+        input.event === 'impression' ||
+        input.event === 'completed' ||
+        input.event === 'complete' ||
+        !!input.completed;
+
+      if (played) {
+        try {
+          await markAdPlayCompleted({ userId: input.userId, adId: input.adId });
+        } catch (e) {
+          console.warn('[trackAdEvent] failed to bump ad play count', e?.message || e);
+        }
+      }
+
       // no ad to serve here; keep shape compatible
       return { ok: true, ad: null };
     };
