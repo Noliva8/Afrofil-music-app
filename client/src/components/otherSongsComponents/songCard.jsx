@@ -8,16 +8,44 @@ import {
 import { Pause, PlayArrow } from '@mui/icons-material';
 import { LikesComponent } from './like';
 import UserAuth from '../../utils/auth.js'
+import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
+import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 
 
-export function SongCard({ song, isPlayingThisSong, onPlayPause }) {
+export function SongCard({ song, isPlayingThisSong, onPlayPause, onOpenArtist }) {
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
+  const { isAdPlaying } = useAudioPlayer();
+
+  const handlePlayAttempt = (e) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    if (isAdPlaying) {
+      try {
+        eventBus.emit("AD_BLOCK_PLAY_ATTEMPT", {
+          message: "Playback will resume after the advertisement finishes."
+        });
+      } catch {}
+      return;
+    }
+    onPlayPause();
+  };
 //   console.log('check recieved song:', song)
+
+
+
+const artworkUrl = song.artworkUrl || song.artwork || song.cover;
+console.log('does card recieve artwork?', artworkUrl)
+
 
   return (
     <Box sx={{ position: 'relative', display: 'inline-block' }}>
       <Card
+        onClick={(e) => {
+          if (onOpenArtist) {
+            if (e?.stopPropagation) e.stopPropagation();
+            onOpenArtist(song);
+          }
+        }}
         sx={{
           width: { xs: 160, sm: 180, md: 200, lg: 220 },
           backgroundColor: "rgba(255, 255, 255, 0.07)",
@@ -38,10 +66,10 @@ export function SongCard({ song, isPlayingThisSong, onPlayPause }) {
         <Box sx={{ position: "relative" }}>
           <Box
             component="img"
-            onClick={onPlayPause}
+            onClick={handlePlayAttempt}
             width="100%"
             height={{ xs: 160, sm: 180, md: 200, lg: 220 }}
-            src={song.cover || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"}
+             src={artworkUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"}
             alt={song.title}
             sx={{
               objectFit: "cover",
@@ -76,8 +104,7 @@ export function SongCard({ song, isPlayingThisSong, onPlayPause }) {
           {/* Play/Pause Button */}
           <IconButton
             onClick={(e) => {
-              e.stopPropagation();
-              onPlayPause();
+              handlePlayAttempt(e);
             }}
             sx={{
               position: "absolute",
@@ -166,12 +193,36 @@ export function CompactSongCard({
   isPlayingThisSong = false,
   onPlayPause = () => {},
   currentUserId,
+  onOpenArtist,
 }) {
+  const { isAdPlaying } = useAudioPlayer();
+
+  const handlePlayAttempt = (e) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    if (isAdPlaying) {
+      try {
+        eventBus.emit("AD_BLOCK_PLAY_ATTEMPT", {
+          message: "Playback will resume after the advertisement finishes."
+        });
+      } catch {}
+      return;
+    }
+    onPlayPause();
+  };
+
+const artworkUrl = song.artworkUrl || song.artwork || song.cover;
   return (
     <Box sx={{ position: 'relative', display: 'inline-block' }}>
       {/* Card Container */}
       <Card
-        onClick={onPlayPause}
+        onClick={(e) => {
+          if (onOpenArtist) {
+            if (e?.stopPropagation) e.stopPropagation();
+            onOpenArtist(song);
+          } else {
+            handlePlayAttempt(e);
+          }
+        }}
         sx={{
           width: { xs: 140, sm: 150, md: 160, lg: 170 },
           backgroundColor: 'rgba(255, 255, 255, 0.07)',
@@ -195,7 +246,7 @@ export function CompactSongCard({
             component="img"
             width="100%"
             height={{ xs: 140, sm: 150, md: 160, lg: 170 }}
-            src={song.cover || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"}
+            src={artworkUrl  || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"}
             alt={song.title}
             sx={{
               objectFit: 'cover',
@@ -230,8 +281,7 @@ export function CompactSongCard({
           {/* Play / Pause Button */}
           <IconButton
             onClick={(e) => {
-              e.stopPropagation();
-              onPlayPause();
+              handlePlayAttempt(e);
             }}
             sx={{
               position: 'absolute',

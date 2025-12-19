@@ -6,7 +6,6 @@ import { useMutation } from '@apollo/client';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
-import CssBaseline from '@mui/material/CssBaseline';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Divider from '@mui/material/Divider';
 import FormLabel from '@mui/material/FormLabel';
@@ -18,8 +17,7 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import MuiCard from '@mui/material/Card';
 import { styled } from '@mui/material/styles';
-import { SitemarkIcon, FacebookIcon, GoogleIcon } from '../components/themeCustomization/customIcon';
-import AppTheme from '../components/theme';
+// Icons pulled from brand set if needed later; kept minimal for now.
 import ArtistAuth from '../utils/artist_auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,7 +38,7 @@ const Card = styled(MuiCard)(({ theme }) => ({
   },
   boxShadow:
     'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
-  ...theme.applyStyles('dark', {
+  ...(theme.palette.mode === 'dark' && {
     boxShadow:
       'hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px',
   }),
@@ -55,6 +53,8 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
   [theme.breakpoints.up('sm')]: {
     padding: theme.spacing(4),
   },
+  position: 'relative',
+  backgroundColor: theme.palette.background.default,
   '&::before': {
     content: '""',
     display: 'block',
@@ -62,12 +62,10 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
     zIndex: -1,
     inset: 0,
     backgroundImage:
-      'radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))',
+      theme.palette.mode === 'dark'
+        ? 'radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))'
+        : 'radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))',
     backgroundRepeat: 'no-repeat',
-    ...theme.applyStyles('dark', {
-      backgroundImage:
-        'radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))',
-    }),
   },
 }));
 
@@ -152,118 +150,123 @@ const handleFormSubmit = async (event) => {
 
 
   return (
-    <AppTheme>
-      <CssBaseline enableColorScheme />
-      <ArtistLoginContainer direction="column" justifyContent="space-between">
-        <Card variant="outlined">
-          <Typography
-            component="h1"
-            variant="h4"
-            sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
+    <ArtistLoginContainer direction="column" justifyContent="space-between">
+      <Card variant="outlined">
+        <Typography
+          component="h1"
+          variant="h4"
+          sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
+        >
+          Sign in
+        </Typography>
+
+        <Box
+          component="form"
+          onSubmit={handleFormSubmit} 
+          noValidate
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            gap: 2,
+          }}
+        >
+          {/* Email */}
+          <FormControl>
+            <FormLabel htmlFor="email">Email</FormLabel>
+            <TextField
+              onChange={handleChange}
+              id="email"
+              type="email"
+              name="email"
+              placeholder="your@email.com"
+              autoComplete="email"
+              autoFocus
+              required
+              fullWidth
+              variant="outlined"
+            />
+          </FormControl>
+
+          {/* Password */}
+          <FormControl>
+            <FormLabel htmlFor="password">Password</FormLabel>
+            <TextField
+              onChange={handleChange}
+              id="password"
+              type="password"
+              name="password"
+              placeholder="......"
+              autoComplete="current-password"
+              required
+              fullWidth
+              variant="outlined"
+            />
+          </FormControl>
+
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
           >
             Sign in
-          </Typography>
+          </Button>
 
-          <Box
-            component="form"
-            onSubmit={handleFormSubmit} 
-            noValidate
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              width: "100%",
-              gap: 2,
-            }}
-          >
-            {/* Email */}
-            <FormControl>
-              <FormLabel htmlFor="email">Email</FormLabel>
-              <TextField
-                onChange={handleChange}
-                id="email"
-                type="email"
-                name="email"
-                placeholder="your@email.com"
-                autoComplete="email"
-                autoFocus
-                required
-                fullWidth
-                variant="outlined"
-              />
-            </FormControl>
-
-            {/* Password */}
-            <FormControl>
-              <FormLabel htmlFor="password">Password</FormLabel>
-              <TextField
-                onChange={handleChange}
-                id="password"
-                type="password"
-                name="password"
-                placeholder="......"
-                autoComplete="current-password"
-                required
-                fullWidth
-                variant="outlined"
-              />
-            </FormControl>
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
+          {/* Error Message */}
+          {loginErrorMessage && (
+            <Typography
+              color="error"
+              variant="body2"
+              sx={{ marginTop: 1, textAlign: 'center' }}
             >
-              Sign in
-            </Button>
-
-            {/* Error Message */}
-            {loginErrorMessage && (
-              <Typography
-                color="error"
-                variant="body2"
-                sx={{ marginTop: 1, textAlign: 'center' }}
-              >
-                {loginErrorMessage}
-              </Typography>
-            )}
-          </Box>
-
-          <Divider>or</Divider>
-
-          {/* Other login options */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={() => alert('Sign in with Google')}
-            >
-              Sign in with Google
-            </Button>
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={() => alert('Sign in with Facebook')}
-            >
-              Sign in with Facebook
-            </Button>
-
-            
-                <Typography
-              component={Link}
-              to="/artist/register" 
-              variant="contained"
-              className='artistRegistAccount'
-              color="primary"
-              sx={{ textTransform: "none" }}
-            >
-              Don't have an account?
+              {loginErrorMessage}
             </Typography>
-           
-          </Box>
-        </Card>
-      </ArtistLoginContainer>
-    </AppTheme>
+          )}
+        </Box>
+
+        <Divider>or</Divider>
+
+        {/* Other login options */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={() => alert('Sign in with Google')}
+          >
+            Sign in with Google
+          </Button>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={() => alert('Sign in with Facebook')}
+          >
+            Sign in with Facebook
+          </Button>
+
+          
+              <Typography
+          component={Link}
+          to="/artist/register" 
+          variant="contained"
+          className='artistRegistAccount'
+          color="primary"
+          sx={{ textTransform: "none" }}
+        >
+          Don't have an account?
+        </Typography>
+       
+        <Button
+          component={Link}
+          to="/"
+          variant="text"
+          color="inherit"
+          sx={{ mt: 1, alignSelf: 'center' }}
+        >
+          ← Back to home
+        </Button>
+        </Box>
+      </Card>
+    </ArtistLoginContainer>
   );
 }
-

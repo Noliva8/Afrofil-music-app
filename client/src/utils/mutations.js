@@ -230,8 +230,8 @@ mutation getPresignedUrl($bucket: String!, $key: String!, $region: String!) {
 export const GET_PRESIGNED_URL_DOWNLOAD = gql`
 mutation getPresignedUrlDownload($bucket: String!, $key: String!, $region: String!) {
   getPresignedUrlDownload(bucket: $bucket, key: $key, region: $region) {
-    urlToDownload
     expiration
+    url
   }
 }
 `
@@ -623,3 +623,21 @@ export const SAVE_PLAYBACK_SESSION = gql`
   }
 `;
 
+
+export const HANDLE_FOLLOWERS = gql`
+mutation Mutation($artistId: ID!, $userId: ID!) {
+  handleFollowers(artistId: $artistId, userId: $userId) {
+    _id
+    followerCount
+  }
+}`
+
+
+export const HANDLE_ARTIST_DOWNLOAD = gql`
+  mutation HandleArtistDownloadCounts($artistId: ID!, $userId: ID!, $role: String!) {
+    handleArtistDownloadCounts(artistId: $artistId, userId: $userId, role: $role) {
+      _id
+      artistDownloadCounts
+    }
+  }
+`

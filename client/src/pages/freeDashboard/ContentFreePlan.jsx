@@ -143,14 +143,14 @@ console.log('the data produced from song image upload:', data);
       });
 
 
-      const imageUrlToDisplay = downloadData.getPresignedUrlDownload.urlToDownload;
+      const imageUrlToDisplay = downloadData.getPresignedUrlDownload.url;
 
       console.log('the link to display the image', imageUrlToDisplay)
 
       // 4. Update states
-      setSongCoverImage(downloadData.getPresignedUrlDownload.urlToDownload);
+      setSongCoverImage(downloadData.getPresignedUrlDownload.url);
       setKeyToDelete(file.name);
-      setDisplayUrl(downloadData.getPresignedUrlDownload.urlToDownload);
+      setDisplayUrl(downloadData.getPresignedUrlDownload.url);
       
       // 5. Clean up temporary preview
       URL.revokeObjectURL(previewUrl);
@@ -206,7 +206,7 @@ const handleSongCoverDisplay = async (fileName) => {
     });
 
     // 2. Return the URL directly (no need to fetch if it's just for display)
-    return data.getPresignedUrlDownload.urlToDownload;
+    return data.getPresignedUrlDownload.url;
     
   } catch (error) {
     console.error("Display error:", error);

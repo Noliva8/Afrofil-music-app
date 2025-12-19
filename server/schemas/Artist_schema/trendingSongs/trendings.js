@@ -4,6 +4,8 @@ import { trendIndexZSet } from "../Redis/keys.js";
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { similarSongsRepair } from "../similarSongs/similasongResolver.js";
 
+
+
 // export const trendingSongs = async () => {
 //   const limit = 20;
 //    let source = 'unknown';
@@ -113,7 +115,9 @@ import { similarSongsRepair } from "../similarSongs/similasongResolver.js";
 
 export const trendingSongs = async () => {
   const client = await getRedis();
-  
+
+
+
   try {
 
     // await similarSongsRepair(client)
@@ -130,20 +134,27 @@ export const trendingSongs = async () => {
     if (trendingSongIds.length === 20) {
       // Redis has exactly 20 songs - use it directly
       const songs = await Song.find({ _id: { $in: trendingSongIds } })
-        .populate({ path: 'artist', select: 'artistAka country' })
-        .populate({ path: 'album', select: 'title' })
+        .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts' })
+        .populate({ path: 'album', select: 'title releaseDate' })
         .lean();
+
+ console.log('[trendingSongs] mongo count', songs.length, 'redis count', trendingSongIds.length);
 
       const songMap = new Map(songs.map(song => [song._id.toString(), song]));
       
       return trendingSongIds.map(id => songMap.get(id)).filter(Boolean)
         .map(song => ({
           ...song,
+          artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
           mood: song.mood || [],
           subMoods: song.subMoods || [],
+          composer: Array.isArray(song.composer) ? song.composer : [],
+          producer: Array.isArray(song.producer) ? song.producer : [],
           likesCount: song.likedByUsers?.length || song.likesCount || 0,
           downloadCount: song.downloadCount || 0,
           playCount: song.playCount || 0,
+          shareCount: song.shareCount || 0,
+          artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
         }));
     }
 
@@ -151,8 +162,8 @@ export const trendingSongs = async () => {
     const songs = await Song.find({})
       .sort({ trendingScore: -1, createdAt: -1 })
       .limit(20)
-      .populate({ path: 'artist', select: 'artistAka country' })
-      .populate({ path: 'album', select: 'title' })
+      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts' })
+      .populate({ path: 'album', select: 'title releaseDate' })
       .lean();
 
     // Add missing songs to Redis (in background)
@@ -172,11 +183,16 @@ export const trendingSongs = async () => {
 
     return songs.map(song => ({
       ...song,
+      artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
       mood: song.mood || [],
       subMoods: song.subMoods || [],
+      composer: Array.isArray(song.composer) ? song.composer : [],
+      producer: Array.isArray(song.producer) ? song.producer : [],
       likesCount: song.likedByUsers?.length || song.likesCount || 0,
       downloadCount: song.downloadCount || 0,
       playCount: song.playCount || 0,
+      shareCount: song.shareCount || 0,
+      artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
     }));
 
   } catch (error) {

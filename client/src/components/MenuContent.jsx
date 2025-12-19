@@ -51,7 +51,7 @@ export default function MenuContent({handleShowMobileMenu}) {
   <span>
     <HomeRoundedIcon />
   </span>
-  <span className="nav-text" style={{ fontFamily: 'Roboto', fontSize: '18px', fontWeight: '400' }}>
+  <span className="nav-text" style={{ fontSize: '18px', fontWeight: '400' }}>
     Home
   </span>
 </Link>
@@ -60,7 +60,7 @@ export default function MenuContent({handleShowMobileMenu}) {
   <span>
     <SourceIcon />
   </span>
-  <span className="nav-text" style={{ fontFamily: 'Roboto', fontSize: '18px', fontWeight: '400' }}>
+  <span className="nav-text" style={{ fontSize: '18px', fontWeight: '400' }}>
     Content
   </span>
 </Link>
@@ -69,7 +69,7 @@ export default function MenuContent({handleShowMobileMenu}) {
   <span>
     <DashboardRounded />
   </span>
-  <span className="nav-text" style={{ fontFamily: 'Roboto', fontSize: '18px', fontWeight: '400' }}>
+  <span className="nav-text" style={{ fontSize: '18px', fontWeight: '400' }}>
     Dashboard
   </span>
 </Link>
@@ -81,7 +81,6 @@ export default function MenuContent({handleShowMobileMenu}) {
     </Stack>
   );
 };
-
 
 
 

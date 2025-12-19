@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
 import ArtistLogin from './pages/ArtistLogin.jsx';
 import App from './App.jsx';
 import Home from './pages/Home';
@@ -12,6 +13,7 @@ import ArtistRegister from './pages/ArtistRegister';
 import ArtistStudio from './pages/ArtistStudio'; 
 import ArtistVerificationPage from './components/ArtistVerficationPage.jsx';
 import LoginSignin from './pages/LoginSignin';
+import SharedTrack from './pages/SharedTrack.jsx';
 import ErrorPage from './pages/ErrorPage';
 import UserAuth from './utils/auth.js';
 import ArtistAuth from './utils/artist_auth.js';
@@ -23,12 +25,13 @@ import DashboardFreePlan from './pages/freeDashboard/DashboardFreePlan.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
 import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
 import PremiumCheckoutWrapper from './components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx';
-
+import ArtistPage from './components/ArtistPage.jsx';
 
 
 
 import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
 import CompletePageWrapper from './components/userComponents/Home/Premium/CompletePageWrapper.jsx';
+import { afrofeelTheme } from './pages/CSS/themeSettins.js';
 
 // Protected Route Component
 const ProtectedRoute = ({ element }) => {
@@ -107,6 +110,14 @@ const router = createBrowserRouter([
       {
         path: "loginSignin",
         element: <LoginSignin />, 
+      },
+      {
+        path: "track/:trackId",
+        element: <SharedTrack />,
+      },
+      {
+        path: "artist/:artistId",
+        element: <ProtectedRoute element={<ArtistPage />} />,
       },
       {
         path: "artist/register",
@@ -204,5 +215,8 @@ const router = createBrowserRouter([
 ]);
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <RouterProvider router={router} />
+  <ThemeProvider theme={afrofeelTheme}>
+    <CssBaseline />
+    <RouterProvider router={router} />
+  </ThemeProvider>
 );

@@ -9,10 +9,13 @@ import { addSongRedis} from "../Redis/addSongRedis.js";
 import { getSongRedis } from "../Redis/addSongRedis.js";
 import { songKey } from "../Redis/keys.js";
 import { deserializeFromRedisStorage, fieldTypes } from "../Redis/addSongRedis.js";
-import { CreatePresignedUrlDownload } from "../../../utils/awsS3.js";
-import { CreatePresignedUrlDownloadAudio } from "../../../utils/awsS3.js";
-import { CreatePresignedUrlDownloadAudioServerSide } from "../../../utils/awsS3.js";
-import { CreatePresignedUrlDownloadServerSide } from "../../../utils/awsS3.js";
+// import { CreatePresignedUrlDownload } from "../../../utils/awsS3.js";
+// import { CreatePresignedUrlDownloadAudio } from "../../../utils/awsS3.js";
+// import { CreatePresignedUrlDownloadAudioServerSide } from "../../../utils/awsS3.js";
+// import { CreatePresignedUrlDownloadServerSide } from "../../../utils/awsS3.js";
+
+
+import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from "../../../utils/cloudFrontUrl.js";
 
 import { SIMILAR_SONGS_PLAYBACK } from "../Redis/keys.js";
 
@@ -535,27 +538,30 @@ function extractS3KeyIfBucket(url, bucket) {
 const PRESIGN_TTL_SEC = Math.min(SEVEN_DAY_EXP, 604800);
 
 
+
+const coverSongsBusket = 'afrofeel-cover-images-for-songs';
+const fallBackBusket ='fallback-imagess';
+// Increase presign window to avoid raw URLs when skipping deep into the queue
+const AUDIO_PREFETCH = 40;
+const ARTWORK_PREFETCH = 40;
+
+
 export const similarSongs = async (_parent, { songId }, _ctx) => {
   if (!songId) return { context: "", songs: [], expireAt: new Date().toISOString() };
-console.log('recieved song id from client in simila songs:', songId);
 
-const userId = String(_ctx.user._id);
+  const userId = String(_ctx.user._id);
 
   try {
     const client = await getRedis();
     const context = generateContextId(); 
     const hashKey = SIMILAR_SONGS_PLAYBACK(userId);
-
-    // console.log('see the key from server:', hashKey)
     const expireAt = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString();
-
-
 
     // 1) Similar IDs
     const similarIds = await client.zRange(similarSongsMatches(songId), 0, -1, { REV: true });
     if (!similarIds.length) return { context, songs: [], expireAt };
 
-    // 2) Redis songs (keep your helper for now)
+    // 2) Redis songs
     const songs = await Promise.all(similarIds.map(id => getSongRedis(id, client)));
 
     // 3) Filter valid
@@ -563,8 +569,8 @@ const userId = String(_ctx.user._id);
     const missingIds = similarIds.filter((id, i) => !songs[i] || !songs[i]._id);
     if (missingIds.length) cacheMissingSongsInBackground(missingIds, client);
 
-    // 4) Presign and clean
-    const playbackSongs = await Promise.all(validSongs.map(async (song) => {
+    // 4) Presign and clean - FIXED!
+    const playbackSongs = await Promise.all(validSongs.map(async (song, idx) => {
       const clean = { ...song };
 
       if (Array.isArray(clean.featuringArtist)) {
@@ -577,44 +583,78 @@ const userId = String(_ctx.user._id);
         clean.composer = clean.composer.filter(x => x && x.name);
       }
 
-    // ARTWORK
-if (song.artwork) {
-  const key = extractS3KeyIfBucket(song.artwork, 'afrofeel-cover-images-for-songs');
-  if (key) {
-    clean.artworkPresignedUrl = await CreatePresignedUrlDownloadServerSide({
-      bucket: 'afrofeel-cover-images-for-songs',
-      key,
-      region: 'us-east-2',
-      expiresIn: PRESIGN_TTL_SEC, // seconds
-    });
-  } else {
-    clean.artworkPresignedUrl = song.artwork.startsWith('http')
-      ? song.artwork
-      : await getFallbackArtworkUrl();
-  }
-} else {
-  clean.artworkPresignedUrl = await getFallbackArtworkUrl();
-}
+   
+      // Normalize keys for later presign
+      clean.artworkKey = null;
+      clean.audioStreamKey = null;
 
-// AUDIO (don’t lose folders / avoid double 'for-streaming/')
-if (song.streamAudioFileUrl) {
-  const u = new URL(song.streamAudioFileUrl);
-  const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
-  const key = path.includes('for-streaming/')
-    ? path.slice(path.indexOf('for-streaming/'))
-    : `for-streaming/${path.split('/').pop()}`;
-  clean.audioPresignedUrl = await CreatePresignedUrlDownloadAudioServerSide({
-    bucket: 'afrofeel-songs-streaming',
-    key,
-    region: 'us-west-2',
-    expiresIn: PRESIGN_TTL_SEC,
-  });
-}
+      if (song.artwork) {
+        const key = extractS3KeyIfBucket(song.artwork, coverSongsBusket);
+        clean.artworkKey = key;
+        if (idx < ARTWORK_PREFETCH && key) {
+          try {
+            const { url } = await getPresignedUrlDownload(null, {
+              bucket: coverSongsBusket,
+              key,
+              region: 'us-east-2',
+            });
+            clean.artworkPresignedUrl = url;
+          } catch (error) {
+            console.error(`Error getting artwork URL for ${song._id}:`, error);
+            clean.artworkPresignedUrl = song.artwork.startsWith('http')
+              ? song.artwork
+              : await getFallbackArtworkUrl();
+          }
+        } else {
+          // not presigned now; use raw or fallback
+          clean.artworkPresignedUrl = song.artwork.startsWith('http')
+            ? song.artwork
+            : null;
+        }
+      } else {
+        clean.artworkPresignedUrl = idx < ARTWORK_PREFETCH
+          ? await getFallbackArtworkUrl()
+          : null;
+      }
+
+
+      if (song.streamAudioFileUrl) {
+        try {
+          const u = new URL(song.streamAudioFileUrl);
+          const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+          const key = path.includes('for-streaming/')
+            ? path.slice(path.indexOf('for-streaming/'))
+            : `for-streaming/${path.split('/').pop()}`;
+          clean.audioStreamKey = key;
+
+          if (idx < AUDIO_PREFETCH) {
+            const { url } = await getPresignedUrlDownloadAudio(null, {
+              bucket: 'afrofeel-songs-streaming',
+              key,
+              region: 'us-west-2',
+            });
+            clean.audioPresignedUrl = url;
+          } else {
+            clean.audioPresignedUrl = null; // defer signing to client when needed
+          }
+        } catch (error) {
+          console.error(`Error getting audio URL for ${song._id}:`, error);
+          clean.audioPresignedUrl = null;
+        }
+      }
+
+      // normalize counters/meta
+      clean.playCount = Number(song.playCount || 0);
+      clean.downloadCount = Number(song.downloadCount || 0);
+      clean.likesCount = Number(song.likesCount || (Array.isArray(song.likedByUsers) ? song.likedByUsers.length : 0) || 0);
+      clean.shareCount = Number(song.shareCount || 0);
+      clean.label = song.label || '';
+      clean.featuringArtist = Array.isArray(song.featuringArtist) ? song.featuringArtist : [];
+      clean.artistFollowers = Array.isArray(song.artist?.followers) ? song.artist.followers.length : Number(song.artistFollowers || 0);
+      clean.artistDownloadCounts = Number(song.artist?.artistDownloadCounts || song.artistDownloadCounts || 0);
 
       return clean;
     }));
-
-
 
     return { context, songs: playbackSongs, expireAt };
   } catch (error) {
@@ -624,6 +664,8 @@ if (song.streamAudioFileUrl) {
 };
 
 
+
+
 // Helper functions
 
 export const getFallbackArtworkUrl = async () => {
@@ -631,15 +673,25 @@ export const getFallbackArtworkUrl = async () => {
     const fallbackImages = ['Icon1.jpg', 'Singing.jpg'];
     const randomImage = fallbackImages[Math.floor(Math.random() * fallbackImages.length)];
     
-    return await CreatePresignedUrlDownload({
+    const { url } = await getPresignedUrlDownload(null, {
       bucket: 'fallback-imagess',
       key: randomImage,
       region: 'us-west-2'
     });
+    return url;
   } catch (error) {
+    console.error('Fallback artwork error:', error);
     return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7imYAgQWZyb2ZlZWw8L3RleHQ+PC9zdmc+';
   }
 };
+
+
+
+
+
+
+
+
 
 // Background caching function
 const cacheMissingSongsInBackground = async (missingIds, client) => {
@@ -647,7 +699,7 @@ const cacheMissingSongsInBackground = async (missingIds, client) => {
     const missingSongs = await Song.find({ 
       _id: { $in: missingIds } 
     })
-    .populate('artist', '_id artistAka bio country profileImage coverImage')
+    .populate('artist', '_id artistAka bio country profileImage coverImage followers artistDownloadCounts')
     .populate('album', '_id title albumCoverImage')
     .lean();
 
@@ -658,8 +710,3 @@ const cacheMissingSongsInBackground = async (missingIds, client) => {
     console.error('Background caching error:', error);
   }
 };
-
-
-
-
-

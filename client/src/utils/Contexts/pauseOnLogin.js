@@ -5,11 +5,11 @@ export default function PauseOnLogin({ formDisplay }) {
   const { pause, playerState } = useAudioPlayer();
 
   useEffect(() => {
-    // Only pause if song is currently playing
+    // Pause only when the auth modal is active
     if ((formDisplay === 'login' || formDisplay === 'signup') && playerState.isPlaying) {
       pause(true); // Mark as manually paused
     }
-  }, [formDisplay]);
+  }, [formDisplay, pause, playerState.isPlaying]);
 
   return null;
 }

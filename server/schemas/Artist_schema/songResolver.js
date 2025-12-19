@@ -1,8 +1,13 @@
 // resolvers/Song.js
-import {
-  CreatePresignedUrlDownload,
-  CreatePresignedUrlDownloadAudio
-} from "../../utils/awsS3.js";
+// import {
+//   CreatePresignedUrlDownload,
+//   CreatePresignedUrlDownloadAudio
+// } from "../../utils/awsS3.js";
+
+
+
+import { getPresignedUrlDownload } from "../../utils/cloudFrontUrl.js";
+
 
 import { getFallbackArtworkUrl } from "./similarSongs/similasongResolver.js";
 
@@ -64,7 +69,7 @@ export const Song = {
     }
 
     try {
-      return await CreatePresignedUrlDownload({
+      return getPresignedUrlDownload({
         bucket: "afrofeel-cover-images-for-songs",
         key,
         region: "us-east-2",
@@ -83,7 +88,7 @@ export const Song = {
     if (!key) return null;
 
     try {
-      return await CreatePresignedUrlDownloadAudio({
+      return getPresignedUrlDownload({
         bucket: "afrofeel-songs-streaming",
         key,                // already normalized to "for-streaming/<filename>.mp3"
         region: "us-west-2",

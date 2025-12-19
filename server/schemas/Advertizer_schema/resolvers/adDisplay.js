@@ -2,7 +2,7 @@
 import { GraphQLError } from 'graphql';
 import { Ad } from '../../../models/Advertizer/index_advertizer.js';
 import mongoose from 'mongoose';
-import { CreatePresignedUrlDownload } from '../../../utils/awsS3.js';
+
 
 const UNAUTH = new GraphQLError('Could not authenticate advertiser', {
   extensions: { code: 'UNAUTHENTICATED' }

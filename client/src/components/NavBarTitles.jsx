@@ -49,7 +49,7 @@ export default function NavbarTitles() {
     >
       {/* Start with 'Studio' breadcrumb, link to /artist/studio */}
       <Link to={basePath} style={{ textDecoration: 'none' }}>
-        <Typography variant="body1" sx={{ color: 'var(--primary-font-color)', fontFamily: 'Roboto', fontSize: '1.3rem', fontWeight: 400 }}>
+        <Typography variant="body1" sx={{ color: 'var(--primary-font-color)', fontSize: '1.3rem', fontWeight: 400 }}>
           Studio
         </Typography>
       </Link>
@@ -62,7 +62,7 @@ export default function NavbarTitles() {
 
         return (
           <Link to={to} key={to} style={{ textDecoration: 'none' }}>
-            <Typography variant="body1" sx={{ color: ' var(--primary-font-color)', fontFamily: 'Roboto', fontSize: '1rem', fontWeight: 600 }}>
+            <Typography variant="body1" sx={{ color: ' var(--primary-font-color)', fontSize: '1rem', fontWeight: 600 }}>
               {value.charAt(0).toUpperCase() + value.slice(1)} {/* Capitalize first letter */}
             </Typography>
           </Link>
