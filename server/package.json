@@ -17,11 +17,13 @@
   "dependencies": {
     "@apollo/server": "^4.11.2",
     "@aws-sdk/client-s3": "^3.721.0",
+    "@aws-sdk/cloudfront-signer": "^3.953.0",
     "@aws-sdk/lib-storage": "^3.696.0",
     "@aws-sdk/s3-request-presigner": "^3.721.0",
     "@graphql-tools/schema": "^10.0.23",
     "apollo-server-express": "^3.13.0",
     "audio-decode": "^2.2.2",
+    "aws-cloudfront-sign": "^3.0.2",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.3",
     "bpm-detector": "^1.0.6",

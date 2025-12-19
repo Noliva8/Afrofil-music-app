@@ -12,7 +12,6 @@ import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import CssBaseline from "@mui/material/CssBaseline";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
@@ -24,7 +23,6 @@ import Stack from "@mui/material/Stack";
 import MuiCard from "@mui/material/Card";
 import { styled } from "@mui/material/styles";
 import { Link } from "react-router-dom";
-import AppTheme from "../components/theme";
 import { SitemarkIcon } from "../components/themeCustomization/customIcon";
 
 const Card = styled(MuiCard)(({ theme }) => ({
@@ -52,7 +50,8 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
   [theme.breakpoints.up("sm")]: {
     padding: theme.spacing(4),
   },
-  backgroundColor: '#242424',
+  position: 'relative',
+  backgroundColor: theme.palette.background.default,
   
   "&::before": {
     content: '""',
@@ -61,12 +60,10 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
     zIndex: -1,
     inset: 0,
     backgroundImage:
-      "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
+      theme.palette.mode === 'dark'
+        ? "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))"
+        : "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
     backgroundRepeat: "no-repeat",
-    ...theme.applyStyles("dark", {
-      backgroundImage:
-        "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))",
-    }),
   },
 }));
 
@@ -139,126 +136,133 @@ export default function ArtistRegister() {
   };
 
   return (
-    <AppTheme>
-      <SignUpContainer className='signupage'
-        direction="column"
-        justifyContent="space-between"
-        bgcolor="#333"
-      >
-        <Card variant="outlined">
-          <SitemarkIcon />
+    <SignUpContainer className='signupage'
+      direction="column"
+      justifyContent="space-between"
+    >
+      <Card variant="outlined">
+        <SitemarkIcon />
+        <Typography
+          component="h1"
+          variant="h4"
+          sx={{ fontSize: "clamp(2rem, 10vw, 2.6rem)" }}
+          
+        >
+          Sign up
+        </Typography>
+
+        <Box
+          component="form"
+          onSubmit={handleSignupSubmit}
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
+          {/* Full Name */}
+          <FormControl>
+            <FormLabel htmlFor="fullName">Full name</FormLabel>
+            <TextField
+              name="fullName"
+              required
+              fullWidth
+              onChange={handleSignupChange}
+              value={signupFormState.fullName}
+              placeholder="Logan Keron"
+            />
+          </FormControl>
+
+          {/* Stage Name */}
+          <FormControl>
+            <FormLabel htmlFor="artistAka">Stage name</FormLabel>
+            <TextField
+              name="artistAka"
+              required
+              fullWidth
+              onChange={handleSignupChange}
+              value={signupFormState.artistAka}
+              placeholder="Loka"
+            />
+          </FormControl>
+
+          {/* Email */}
+          <FormControl>
+            <FormLabel htmlFor="email">Email</FormLabel>
+            <TextField
+              name="email"
+              required
+              fullWidth
+              onChange={handleSignupChange}
+              value={signupFormState.email}
+              placeholder="your@email.com"
+            />
+          </FormControl>
+
+          {/* Password */}
+          <FormControl>
+            <FormLabel htmlFor="password">Password</FormLabel>
+            <TextField
+              name="password"
+              required
+              fullWidth
+              type={showPasswordSignup ? "text" : "password"}
+              onChange={handleSignupChange}
+              value={signupFormState.password}
+              placeholder="••••••"
+              InputProps={{
+                endAdornment: (
+                  <FontAwesomeIcon
+                    icon={showPasswordSignup ? faEye : faEyeSlash}
+                    style={{ cursor: "pointer", marginRight: "10px" }}
+                    onClick={toggleSignupPasswordVisibility}
+                  />
+                ),
+              }}
+            />
+          </FormControl>
+
+          {/* Terms Checkbox */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={isTermsChecked}
+                onChange={handleTermsChange}
+                color="primary"
+              />
+            }
+            label="I have read terms and conditions of using Afrofeel."
+          />
+
+          <Button type="submit" fullWidth variant="contained">
+          Sign up
+        </Button>
+
+          {signupErrorMessage && (
+            <Typography color="error" sx={{ textAlign: "center", mt: 2 }}>
+              {signupErrorMessage}
+            </Typography>
+          )}
+
           <Typography
-            component="h1"
-            variant="h4"
-            sx={{ fontSize: "clamp(2rem, 10vw, 2.6rem)" }}
-            
+            component={Link}
+            to="/artist/login" 
+            variant="contained"
+            color="primary"
+            className='artistRegistAccount'
+            sx={{ textTransform: "none" }}
           >
-            Sign up
+            Already have an account?
           </Typography>
 
-          <Box
-            component="form"
-            onSubmit={handleSignupSubmit}
-            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          <Button
+            component={Link}
+            to="/"
+            variant="text"
+            color="inherit"
+            sx={{ mt: 1, alignSelf: 'center' }}
           >
-            {/* Full Name */}
-            <FormControl>
-              <FormLabel htmlFor="fullName">Full name</FormLabel>
-              <TextField
-                name="fullName"
-                required
-                fullWidth
-                onChange={handleSignupChange}
-                value={signupFormState.fullName}
-                placeholder="Logan Keron"
-              />
-            </FormControl>
+            ← Back to home
+          </Button>
 
-            {/* Stage Name */}
-            <FormControl>
-              <FormLabel htmlFor="artistAka">Stage name</FormLabel>
-              <TextField
-                name="artistAka"
-                required
-                fullWidth
-                onChange={handleSignupChange}
-                value={signupFormState.artistAka}
-                placeholder="Loka"
-              />
-            </FormControl>
-
-            {/* Email */}
-            <FormControl>
-              <FormLabel htmlFor="email">Email</FormLabel>
-              <TextField
-                name="email"
-                required
-                fullWidth
-                onChange={handleSignupChange}
-                value={signupFormState.email}
-                placeholder="your@email.com"
-              />
-            </FormControl>
-
-            {/* Password */}
-            <FormControl>
-              <FormLabel htmlFor="password">Password</FormLabel>
-              <TextField
-                name="password"
-                required
-                fullWidth
-                type={showPasswordSignup ? "text" : "password"}
-                onChange={handleSignupChange}
-                value={signupFormState.password}
-                placeholder="••••••"
-                InputProps={{
-                  endAdornment: (
-                    <FontAwesomeIcon
-                      icon={showPasswordSignup ? faEye : faEyeSlash}
-                      style={{ cursor: "pointer", marginRight: "10px" }}
-                      onClick={toggleSignupPasswordVisibility}
-                    />
-                  ),
-                }}
-              />
-            </FormControl>
-
-            {/* Terms Checkbox */}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={isTermsChecked}
-                  onChange={handleTermsChange}
-                  color="primary"
-                />
-              }
-              label="I have read terms and conditions of using Afrofeel."
-            />
-
-            <Button type="submit" fullWidth variant="contained">
-              Sign up
-            </Button>
-
-            {signupErrorMessage && (
-              <Typography color="error" sx={{ textAlign: "center", mt: 2 }}>
-                {signupErrorMessage}
-              </Typography>
-            )}
-
-            <Typography
-              component={Link}
-              to="/artist/login" 
-              variant="contained"
-              color="primary"
-              className='artistRegistAccount'
-              sx={{ textTransform: "none" }}
-            >
-              Already have an account?
-            </Typography>
-
-          </Box>
-        </Card>
-      </SignUpContainer>
-    </AppTheme>
+        </Box>
+      </Card>
+    </SignUpContainer>
   );
 }

@@ -40,7 +40,7 @@ export default function(){
       
       <Grid2 container spacing={2} sx={{ mb: 6 }}>
         {recommendedSongs.map((song) => (
-          <Grid2 key={song.id} xs={12} sm={6}>
+          <Grid2 key={song.id} size={{ xs: 12, sm: 6 }}>
             <Box sx={{
               display: 'flex',
               alignItems: 'center',

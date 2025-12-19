@@ -1,7 +1,8 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import dotenv from 'dotenv';
+;
 
+import { CLOUDFRONT_EXPIRATION } from '../schemas/Artist_schema/Redis/keys.js';
 /**
  * Generates a presigned URL for uploading objects to S3.
  * @param {Object} params - The input parameters.
@@ -30,67 +31,69 @@ function clampExpires(expiresIn) {
 }
 
 /** Artwork (generic) */
-export const CreatePresignedUrlDownloadServerSide = async ({
-  region,
-  bucket,
-  key,
-  expiresIn = 18000, // default 5h (backward compatible)
-}) => {
-  try {
-    const cfUrl = shouldUseCloudFront(bucket) ? mapToCloudFront(bucket, key) : null;
-    if (cfUrl) return cfUrl;
+// export const CreatePresignedUrlDownloadServerSide = async ({
+//   region,
+//   bucket,
+//   key,
+//   expiresIn = 18000, // default 5h (backward compatible)
+// }) => {
+//   try {
+//     const cfUrl = shouldUseCloudFront(bucket) ? mapToCloudFront(bucket, key) : null;
+//     if (cfUrl) return cfUrl;
 
-    const accessKeyId = process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM;
-    const secretAccessKey = process.env.JWT_SECRET_KEY_SONGS_TO_STREAM;
-    assertCreds({ accessKeyId, secretAccessKey }, `bucket ${bucket} (artwork)`);
+//     const accessKeyId = process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM;
+//     const secretAccessKey = process.env.JWT_SECRET_KEY_SONGS_TO_STREAM;
+//     assertCreds({ accessKeyId, secretAccessKey }, `bucket ${bucket} (artwork)`);
 
-    const client = new S3Client({
-      region,
-      credentials: { accessKeyId, secretAccessKey },
-    });
+//     const client = new S3Client({
+//       region,
+//       credentials: { accessKeyId, secretAccessKey },
+//     });
 
-    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-    return await getSignedUrl(client, command, { expiresIn: clampExpires(expiresIn) });
-  } catch (error) {
-    console.error("Error generating presigned URL for artwork download:", error);
-    throw new Error("Failed to generate presigned URL for artwork download");
-  }
-};
+//     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+//     return await getSignedUrl(client, command, { expiresIn: clampExpires(expiresIn) });
+//   } catch (error) {
+//     console.error("Error generating presigned URL for artwork download:", error);
+//     throw new Error("Failed to generate presigned URL for artwork download");
+//   }
+// };
+
+
+
+
 
 /** Audio (with ResponseContentType) */
-export const CreatePresignedUrlDownloadAudioServerSide = async ({
-  region,
-  bucket,
-  key,
-  expiresIn = 18000, // default 5h
-}) => {
-  try {
-    const cfUrl = shouldUseCloudFront(bucket) ? mapToCloudFront(bucket, key) : null;
-    if (cfUrl) return cfUrl;
+// export const CreatePresignedUrlDownloadAudioServerSide = async ({
+//   region,
+//   bucket,
+//   key,
+//   expiresIn = 18000, // default 5h
+// }) => {
+//   try {
+//     const cfUrl = shouldUseCloudFront(bucket) ? mapToCloudFront(bucket, key) : null;
+//     if (cfUrl) return cfUrl;
 
-    const accessKeyId = process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM;
-    const secretAccessKey = process.env.JWT_SECRET_KEY_SONGS_TO_STREAM;
-    assertCreds({ accessKeyId, secretAccessKey }, `bucket ${bucket} (audio)`);
+//     const accessKeyId = process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM;
+//     const secretAccessKey = process.env.JWT_SECRET_KEY_SONGS_TO_STREAM;
+//     assertCreds({ accessKeyId, secretAccessKey }, `bucket ${bucket} (audio)`);
 
-    const client = new S3Client({
-      region,
-      credentials: { accessKeyId, secretAccessKey },
-    });
+//     const client = new S3Client({
+//       region,
+//       credentials: { accessKeyId, secretAccessKey },
+//     });
 
-    const command = new GetObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      ResponseContentType: "audio/mpeg",
-    });
+//     const command = new GetObjectCommand({
+//       Bucket: bucket,
+//       Key: key,
+//       ResponseContentType: "audio/mpeg",
+//     });
 
-    return await getSignedUrl(client, command, { expiresIn: clampExpires(expiresIn) });
-  } catch (error) {
-    console.error("Error generating presigned URL for audio download:", error);
-    throw new Error("Failed to generate presigned URL for audio download");
-  }
-};
-
-
+//     return await getSignedUrl(client, command, { expiresIn: clampExpires(expiresIn) });
+//   } catch (error) {
+//     console.error("Error generating presigned URL for audio download:", error);
+//     throw new Error("Failed to generate presigned URL for audio download");
+//   }
+// };
 
 
 
@@ -99,21 +102,8 @@ export const CreatePresignedUrlDownloadAudioServerSide = async ({
 
 
 
-export const CreatePresignedUrl = async ({ region, bucket, key }) => {
-  try {
-    const client = new S3Client({ region,
 
-    credentials: {
-    accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
-    secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
-  } });
-    const command = new PutObjectCommand({ Bucket: bucket, Key: key });
-    return await getSignedUrl(client, command, { expiresIn: 3600 });
-  } catch (error) {
-    console.error('Error generating presigned URL for upload:', error);
-    throw new Error('Failed to generate presigned URL for upload');
-  }
-};
+
 
 /**
  * Generates a presigned URL for downloading objects from S3.
@@ -149,12 +139,26 @@ export const CreatePresignedUrl = async ({ region, bucket, key }) => {
 
 // CloudFront mapping: keep client contract unchanged; server maps S3 key → CF URL when possible
 const CF_DIST = process.env.CLOUDFRONT_DIST || 'https://d1is1eedem5lyc.cloudfront.net';
+
+
 const bucketMap = {
+  // Audio buckets (existing)
   'afrofeel-songs-streaming': { strip: 'for-streaming/', path: 'for-streaming' },
   'audio-ad-streaming': { strip: 'ads/', path: 'ads' },
   'audio-ad-artwork': { strip: 'artwork/', path: 'artwork' },
-  'afrofeel-original-songs': { strip: 'original_songs/', path: 'original-songs' }
+  'afrofeel-original-songs': { strip: 'original_songs/', path: 'original-songs' },
+  
+  // Image buckets (corrected)
+  'afrofeel-cover-images-for-songs': { strip: '', path: '' },
+  'afrofeel-album-covers': { strip: '', path: '' },
+  'afrofeel-profile-picture': { strip: '', path: '' },
+  'allback-imagess': { strip: '', path: '' },
+  'afrofeel-static-assets': { strip: '', path: '' }
 };
+
+
+
+
 
 function mapToCloudFront(bucket, key) {
   const mapping = bucketMap[bucket];
@@ -164,8 +168,20 @@ function mapToCloudFront(bucket, key) {
     ? key.slice(mapping.strip.length)
     : key;
 
-  const encodedKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/');
-  return `${CF_DIST.replace(/\/$/, '')}/${mapping.path}/${encodedKey}`;
+  // ✅ FIX: Decode first to handle already-encoded keys, then encode for CloudFront.
+  let finalKey;
+  try {
+    // If the key contains encoded characters like %20, decode them first.
+    const decodedKey = decodeURIComponent(cleanKey);
+    // Now encode it consistently for the final CloudFront URL.
+    finalKey = encodeURIComponent(decodedKey).replace(/%2F/g, '/');
+  } catch (e) {
+    // If decodeURIComponent fails (e.g., malformed % sequence), use the original.
+    finalKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/');
+  }
+
+  const prefix = mapping.path ? `/${mapping.path}` : '';
+  return `${CF_DIST.replace(/\/$/, '')}${prefix}/${finalKey}`.replace(/([^:]\/)\/+/g, '$1');
 }
 
 // Allow opting out of CF for artwork if behavior isn’t matching; set FORCE_CF_ARTWORK=1 to force
@@ -176,27 +192,40 @@ function shouldUseCloudFront(bucket) {
   return true;
 }
 
-export const CreatePresignedUrlDownload = async ({ region, bucket, key }) => {
-  try {
-    const cfUrl = shouldUseCloudFront(bucket) ? mapToCloudFront(bucket, key) : null;
-    if (cfUrl) return cfUrl;
 
-    // fallback to S3 presign (unmapped buckets like artwork)
-    const client = new S3Client({ 
-      region,
-      credentials: {
-        accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
-        secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
-      }
-    });
-    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-    return await getSignedUrl(client, command, { expiresIn: 18000 });
-  } catch (error) {
-    console.error('Error generating CloudFront/S3 URL:', error);
-    throw new Error('Failed to generate download URL');
-  }
-};
 
+// export const CreatePresignedUrlDownload = async ({ region, bucket, key }) => {
+//   try {
+//     const cfPath = shouldUseCloudFront(bucket) ? mapToCloudFront(bucket, key) : null;
+//     if (cfPath) {
+//       // Ensure we pass only the path to the signer (it appends the domain internally).
+//       let pathForSigning = cfPath;
+//       if (/^https?:\/\//i.test(cfPath)) {
+//         try {
+//           pathForSigning = new URL(cfPath).pathname;
+//         } catch {
+//           pathForSigning = cfPath;
+//         }
+//       }
+//       if (!pathForSigning.startsWith('/')) pathForSigning = `/${pathForSigning}`;
+//       return getSignedUrlCf(pathForSigning, CLOUDFRONT_EXPIRATION);
+//     }
+
+//     // fallback to S3 presign (unmapped buckets like artwork)
+//     const client = new S3Client({ 
+//       region,
+//       credentials: {
+//         accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
+//         secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
+//       }
+//     });
+//     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+//     return await getSignedUrlCf(client, command, { expiresIn: 18000 });
+//   } catch (error) {
+//     console.error('Error generating CloudFront/S3 URL:', error);
+//     throw new Error('Failed to generate download URL');
+//   }
+// };
 
 
 
@@ -236,74 +265,211 @@ export const CreatePresignedUrlDownload = async ({ region, bucket, key }) => {
 
 // migration
 // ---------
-export const CreatePresignedUrlDownloadAudio = async ({ region, bucket, key }) => {
-  console.log('🔍 AUDIO DEBUG - Received:', { bucket, key });
+// export const CreatePresignedUrlDownloadAudio = async ({ region, bucket, key }) => {
+ 
   
-  // Map ALL audio buckets to CloudFront
-  const bucketToPath = {
-    // Music
-    'afrofeel-songs-streaming': 'for-streaming',
+//   // Map ALL audio buckets to CloudFront
+//   const bucketToPath = {
+//     // Music
+//     'afrofeel-songs-streaming': 'for-streaming',
     
-    // Ads
-    'audio-ad-streaming': 'ads',
-    'audio-ad-streaming-fallback': 'ads',
-    'audio-ad-original': 'ads',
+//     // Ads
+//     'audio-ad-streaming': 'ads',
+//     'audio-ad-streaming-fallback': 'ads',
+//     'audio-ad-original': 'ads',
     
-    // Other audio buckets
-    'afrofeel-original-songs': 'original-songs',
-    'audio-ad-artwork': 'artwork',
-  };
-  
-  const cloudfrontPath = bucketToPath[bucket];
-  
-  if (cloudfrontPath) {
-    // Clean up key if it already contains the path
-    let cleanKey = key;
-    
-    // Remove path prefix if it matches the CloudFront path
-    if (key.startsWith(`${cloudfrontPath}/`)) {
-      cleanKey = key.replace(new RegExp(`^${cloudfrontPath}/`), '');
-      console.log(`🔄 Cleaned ${bucket} key: ${key} → ${cleanKey}`);
-    }
-    // Special case for music bucket
-    else if (bucket === 'afrofeel-songs-streaming' && key.startsWith('for-streaming/')) {
-      cleanKey = key.replace(/^for-streaming\//, '');
-      console.log(`🔄 Cleaned music key: ${key} → ${cleanKey}`);
-    }
-    // Special case for ad buckets
-    else if (bucket.includes('audio-ad') && key.startsWith('ads/')) {
-      cleanKey = key.replace(/^ads\//, '');
-      console.log(`🔄 Cleaned ad key: ${key} → ${cleanKey}`);
-    }
-    
-    const encodedKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/');
-    const cloudfrontUrl = `https://d1is1eedem5lyc.cloudfront.net/${cloudfrontPath}/${encodedKey}`;
-    
-    console.log(`✅ Generated CloudFront URL for ${bucket}:`, cloudfrontUrl);
-    return cloudfrontUrl;
-  }
-  
-  // Fallback for unmapped buckets
-  console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
-  const client = new S3Client({ 
-    region,
-    credentials: {
-      accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
-      secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
-    }
-  });
-  
-  const command = new GetObjectCommand({
-    Bucket: bucket,
-    Key: key,
-    ResponseContentType: 'audio/mpeg'
-  });
-  
-  return await getSignedUrl(client, command, { expiresIn: 18000 });
-};
+//     // Other audio buckets
+//     'afrofeel-original-songs': 'original-songs',
+//     'audio-ad-artwork': 'artwork',
 
 
 
+
+
+
+//   };
+  
+//   const cloudfrontPath = bucketToPath[bucket];
+  
+//   if (cloudfrontPath) {
+//     // Clean up key if it already contains the path
+//     let cleanKey = key;
+    
+//     // Remove path prefix if it matches the CloudFront path
+//     if (key.startsWith(`${cloudfrontPath}/`)) {
+//       cleanKey = key.replace(new RegExp(`^${cloudfrontPath}/`), '');
+     
+//     }
+//     // Special case for music bucket
+//     else if (bucket === 'afrofeel-songs-streaming' && key.startsWith('for-streaming/')) {
+//       cleanKey = key.replace(/^for-streaming\//, '');
+     
+//     }
+//     // Special case for ad buckets
+//     else if (bucket.includes('audio-ad') && key.startsWith('ads/')) {
+//       cleanKey = key.replace(/^ads\//, '');
+      
+//     }
+    
+//     const encodedKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/');
+//     const cloudfrontUrl = `https://d1is1eedem5lyc.cloudfront.net/${cloudfrontPath}/${encodedKey}`;
+    
+  
+//     return cloudfrontUrl;
+//   }
+  
+//   // Fallback for unmapped buckets
+//   console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
+//   const client = new S3Client({ 
+//     region,
+//     credentials: {
+//       accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
+//       secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
+//     }
+//   });
+  
+//   const command = new GetObjectCommand({
+//     Bucket: bucket,
+//     Key: key,
+//     ResponseContentType: 'audio/mpeg'
+//   });
+  
+//   return await getSignedUrl(client, command, { expiresIn: 18000 });
+// };
+
+// export const CreatePresignedUrlDownloadAudio = async ({ region, bucket, key }) => {
+//   // Map ALL audio buckets to CloudFront
+//   const bucketToPath = {
+//     'afrofeel-songs-streaming': 'for-streaming',
+//     'audio-ad-streaming': 'ads',
+//     'audio-ad-streaming-fallback': 'ads',
+//     'audio-ad-original': 'ads',
+//     'afrofeel-original-songs': 'original-songs',
+//     'audio-ad-artwork': 'artwork',
+//   };
+  
+//   const cloudfrontPath = bucketToPath[bucket];
+  
+//   if (cloudfrontPath) {
+//     // Clean up key if it already contains the path
+//     let cleanKey = key;
+    
+//     // Remove path prefix if it matches the CloudFront path
+//     if (key.startsWith(`${cloudfrontPath}/`)) {
+//       cleanKey = key.replace(new RegExp(`^${cloudfrontPath}/`), '');
+//     }
+//     // Special case for music bucket
+//     else if (bucket === 'afrofeel-songs-streaming' && key.startsWith('for-streaming/')) {
+//       cleanKey = key.replace(/^for-streaming\//, '');
+//     }
+//     // Special case for ad buckets
+//     else if (bucket.includes('audio-ad') && key.startsWith('ads/')) {
+//       cleanKey = key.replace(/^ads\//, '');
+//     }
+    
+//     // ✅ CRITICAL FIX: Handle already-encoded keys
+//     let encodedKey;
+//     try {
+//       // First decode (in case it's already URL-encoded)
+//       const decoded = decodeURIComponent(cleanKey);
+//       // Then encode properly for CloudFront
+//       encodedKey = encodeURIComponent(decoded).replace(/%2F/g, '/');
+//     } catch {
+//       // If decoding fails, it wasn't encoded
+//       encodedKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/');
+//     }
+    
+//     const cloudfrontUrl = `https://d1is1eedem5lyc.cloudfront.net/${cloudfrontPath}/${encodedKey}`;
+    
+//     return cloudfrontUrl;
+//   }
+  
+//   // Fallback for unmapped buckets
+//   console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
+//   const client = new S3Client({ 
+//     region,
+//     credentials: {
+//       accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
+//       secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
+//     }
+//   });
+  
+//   const command = new GetObjectCommand({
+//     Bucket: bucket,
+//     Key: key,
+//     ResponseContentType: 'audio/mpeg'
+//   });
+  
+//   return await getSignedUrl(client, command, { expiresIn: 18000 });
+// };
+
+
+
+// export const CreatePresignedUrlDownloadAudio = async ({ region, bucket, key }) => {
+//   // Map ALL audio buckets to CloudFront
+//   const bucketToPath = {
+//     'afrofeel-songs-streaming': 'for-streaming',
+//     'audio-ad-streaming': 'ads',
+//     'audio-ad-streaming-fallback': 'ads',
+//     'audio-ad-original': 'ads',
+//     'afrofeel-original-songs': 'original-songs',
+//     'audio-ad-artwork': 'artwork',
+//   };
+  
+//   const cloudfrontPath = bucketToPath[bucket];
+  
+//   if (cloudfrontPath) {
+//     // Clean up key if it already contains the path
+//     let cleanKey = key;
+    
+//     // Remove path prefix if it matches the CloudFront path
+//     if (key.startsWith(`${cloudfrontPath}/`)) {
+//       cleanKey = key.replace(new RegExp(`^${cloudfrontPath}/`), '');
+//     }
+//     // Special case for music bucket
+//     else if (bucket === 'afrofeel-songs-streaming' && key.startsWith('for-streaming/')) {
+//       cleanKey = key.replace(/^for-streaming\//, '');
+//     }
+//     // Special case for ad buckets
+//     else if (bucket.includes('audio-ad') && key.startsWith('ads/')) {
+//       cleanKey = key.replace(/^ads\//, '');
+//     }
+    
+//     // ✅ CRITICAL FIX: Handle already-encoded keys
+//     let encodedKey;
+//     try {
+//       // First decode (in case it's already URL-encoded)
+//       const decoded = decodeURIComponent(cleanKey);
+//       // Then encode properly for CloudFront
+//       encodedKey = encodeURIComponent(decoded).replace(/%2F/g, '/');
+//     } catch {
+//       // If decoding fails, it wasn't encoded
+//       encodedKey = encodeURIComponent(cleanKey).replace(/%2F/g, '/');
+//     }
+    
+//     const cloudfrontUrl = `/${cloudfrontPath}/${encodedKey}`;
+    
+//     return getSignedUrlCf(cloudfrontUrl, CLOUDFRONT_EXPIRATION);
+//   }
+  
+//   // Fallback for unmapped buckets
+//   console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
+//   const client = new S3Client({ 
+//     region,
+//     credentials: {
+//       accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
+//       secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
+//     }
+//   });
+  
+//   const command = new GetObjectCommand({
+//     Bucket: bucket,
+//     Key: key,
+//     ResponseContentType: 'audio/mpeg'
+//   });
+  
+//   return await getSignedUrl(client, command, { expiresIn: 18000 });
+// };
 
 
 
@@ -315,6 +481,35 @@ export const CreatePresignedUrlDownloadAudio = async ({ region, bucket, key }) =
  * @param {string} params.key - The object key.
  * @returns {Promise<string>} - The generated presigned URL.
  */
+
+// export default {
+//   CreatePresignedUrl,
+//   CreatePresignedUrlDownload,
+//   CreatePresignedUrlDelete,
+//   CreatePresignedUrlDownloadAudio
+// };
+
+
+
+
+
+export const CreatePresignedUrl = async ({ region, bucket, key }) => {
+  try {
+    const client = new S3Client({ region,
+
+    credentials: {
+    accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
+    secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
+  } });
+    const command = new PutObjectCommand({ Bucket: bucket, Key: key });
+    return await getSignedUrl(client, command, { expiresIn: 3600 });
+  } catch (error) {
+    console.error('Error generating presigned URL for upload:', error);
+    throw new Error('Failed to generate presigned URL for upload');
+  }
+};
+
+
 export const CreatePresignedUrlDelete = async ({ region, bucket, key }) => {
   try {
     const client = new S3Client({ region,
@@ -329,10 +524,3 @@ export const CreatePresignedUrlDelete = async ({ region, bucket, key }) => {
     throw new Error('Failed to generate presigned URL for delete');
   }
 };
-
-// export default {
-//   CreatePresignedUrl,
-//   CreatePresignedUrlDownload,
-//   CreatePresignedUrlDelete,
-//   CreatePresignedUrlDownloadAudio
-// };

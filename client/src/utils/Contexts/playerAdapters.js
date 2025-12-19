@@ -272,7 +272,9 @@ export const createAdPlayerAdapter = (initial = {}) => {
     if (!pointer) return null;
 
     const client = getClient();
-    const { bucket, key } = toBucketKey(pointer, defaultBucket);
+    const { bucket, key, passthrough } = toBucketKey(pointer, defaultBucket);
+
+    if (passthrough) return passthrough;
 
     if (!bucket || !key) {
       throw new Error("Invalid asset pointer for ad audio");
@@ -283,7 +285,7 @@ export const createAdPlayerAdapter = (initial = {}) => {
       variables: { bucket, key, region: REGION },
     });
 
-    return data?.getPresignedUrlDownload?.urlToDownload || null;
+    return data?.getPresignedUrlDownload?.url || null;
   };
 
   const presignArtwork = async (ad) => {
@@ -300,7 +302,7 @@ export const createAdPlayerAdapter = (initial = {}) => {
       },
     });
 
-    return data?.getPresignedUrlDownload?.urlToDownload || null;
+    return data?.getPresignedUrlDownload?.url || null;
   };
 
   const markAdServed = async (userId) => {

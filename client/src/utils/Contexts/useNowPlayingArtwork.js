@@ -75,7 +75,7 @@ export function useNowPlayingArtwork({ isPlayingAd, currentAd, currentTrack }) {
         const { data } = await getSigned({ variables: loc });
         if (abort) return;
 
-        const signed = data?.getPresignedUrlDownload?.urlToDownload;
+        const signed = data?.getPresignedUrlDownload?.url;
         if (signed) {
           cache.set(keyId, signed);
           setArtworkUrl(signed);

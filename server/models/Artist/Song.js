@@ -128,6 +128,11 @@ composer: [
     type: Number,
     default: 0
   },
+  shareCount: {
+     type: Number,
+    default: 0
+  },
+  
   likedByMe: {type: Boolean, default: false},
   
   trendingScore: {

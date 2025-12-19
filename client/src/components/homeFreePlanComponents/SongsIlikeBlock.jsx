@@ -492,6 +492,9 @@ export const SongsILike = () => {
   // 2️⃣ Get presigned URLs
   const { songsWithArtwork } = useSongsWithPresignedUrls(songs);
 
+console.log('check songs i like after useSongWithPresignUrl hook: ', songsWithArtwork);
+
+
   // 3️⃣ Process for playback util
   const likedSongs = processSongs(songsWithArtwork)
     .filter(song => song.audioUrl)

@@ -75,6 +75,7 @@ type: String,
   albums: [{ type: Schema.Types.ObjectId, ref: 'Album' }],
 
   followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  artistDownloadCounts: { type: Number, default: 0 },
 
   createdAt: {
     type: Date,

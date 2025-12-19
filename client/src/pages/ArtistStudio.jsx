@@ -105,22 +105,25 @@ export default function ArtistStudio() {
           },
         });
 
-        const presignedUrl = data.getPresignedUrlDownload.urlToDownload;
 
+        const presignedUrl = data.getPresignedUrlDownload.url;
+
+
+console.log('structure of url on artist side:', presignedUrl)
         // Fetch the image from S3 using the presigned URL
-        const imageResponse = await fetch(presignedUrl);
-        if (!imageResponse.ok) {
-          throw new Error("Failed to fetch image from presigned URL");
-        }
+        // const imageResponse = await fetch(presignedUrl);
+        // if (!imageResponse.ok) {
+        //   throw new Error("Failed to fetch image from presigned URL");
+        // }
 
-        // Convert the image response into a Blob (binary data)
-        const imageBlob = await imageResponse.blob();
+        // // Convert the image response into a Blob (binary data)
+        // const imageBlob = await imageResponse.blob();
 
-        // Create an Object URL for the image (for displaying in an <img> tag or as background)
-        const imageObjectURL = URL.createObjectURL(imageBlob);
+        // // Create an Object URL for the image (for displaying in an <img> tag or as background)
+        // const imageObjectURL = URL.createObjectURL(imageBlob);
 
         // Set the image URL
-        setProfileImage(imageObjectURL);
+        setProfileImage(presignedUrl);
         setIsLoadingImage(false); // Mark loading as false once image is fetched
       } catch (error) {
         console.error("Error during profile image fetch:", error);

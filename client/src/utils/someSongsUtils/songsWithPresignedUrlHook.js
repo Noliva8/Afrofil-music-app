@@ -30,6 +30,7 @@ export const useSongsWithPresignedUrls = (songsData) => {
 
             // Fetch artwork URL
             if (song.artwork) {
+              console.log('console.log :', song.artwork)
               try {
                 const artworkKey = new URL(song.artwork).pathname.split('/').pop();
                 const { data: artworkData } = await getPresignedUrlDownload({
@@ -40,7 +41,9 @@ export const useSongsWithPresignedUrls = (songsData) => {
                     expiresIn: 604800,
                   },
                 });
-                artworkUrl = artworkData.getPresignedUrlDownload.urlToDownload;
+console.log('ARTWORT IN useSongsWithPresignedUrls:', artworkData);
+
+                artworkUrl = artworkData.getPresignedUrlDownload.url;
               } catch (err) {
                 console.error('Error fetching artwork for', song.title, err);
               }
@@ -50,6 +53,8 @@ export const useSongsWithPresignedUrls = (songsData) => {
             if (song.streamAudioFileUrl) {
               try {
                 const audioKey = new URL(song.streamAudioFileUrl).pathname.split('/').pop();
+
+           
                 const { data: audioData } = await getPresignedUrlDownloadAudio({
                   variables: {
                     bucket: 'afrofeel-songs-streaming',

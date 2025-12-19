@@ -19,9 +19,7 @@ export default function Search() {
           borderRadius: '10px',
           border: '1px solid var(--primary-font-color)',
           color: 'white',
-          fontFamily: 'roboto'
-    
-
+          fontFamily: 'inherit'
         }}
         startAdornment={
           <InputAdornment position="start" sx={{ color: 'text.primary' }}>

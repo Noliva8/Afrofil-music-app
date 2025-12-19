@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
 import ModernMusicPlayer from './ModernMusicPlayer.jsx';
 import { AdMediaPlayer } from './ModernAdPlayer.jsx';
+import { useFullScreenPlayer } from './FullScreenMediaPlayer.jsx';
+import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 
 const MediaPlayerContainer = () => {
   const {
@@ -22,10 +24,18 @@ const MediaPlayerContainer = () => {
     queue,
     playerState // ✅ Add playerState to access playbackContext
   } = useAudioPlayer();
+  const { isAdPlaying } = useAudioPlayer();
 
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+
+  const {
+    isFullScreenOpen,
+    openFullScreen,
+    closeFullScreen,
+    FullScreenPlayer
+  } = useFullScreenPlayer();
 
   // Update slider value when currentTime changes (unless dragging)
   useEffect(() => {
@@ -36,8 +46,15 @@ const MediaPlayerContainer = () => {
 
   // Show player only when track is available
   useEffect(() => {
-    setIsVisible(!!currentTrack);
-  }, [currentTrack]);
+    setIsVisible(!!currentTrack || isAdPlaying);
+  }, [currentTrack, isAdPlaying]);
+
+  // Allow external triggers (e.g., shared track route) to open fullscreen player
+  useEffect(() => {
+    const openHandler = () => openFullScreen();
+    eventBus.on('OPEN_FULL_SCREEN_PLAYER', openHandler);
+    return () => eventBus.off('OPEN_FULL_SCREEN_PLAYER', openHandler);
+  }, [openFullScreen]);
 
 
   const handlePlayPause = () => {
@@ -45,7 +62,7 @@ const MediaPlayerContainer = () => {
     console.log('the current song is:', currentTrack);
     console.log('check if playback context works:', playerState )
     
-    if (!currentTrack) return;
+    if (!currentTrack || isAdPlaying) return;
     
     if (isPlaying) {
       pause(true); // ✅ manually triggered pause
@@ -83,26 +100,62 @@ const MediaPlayerContainer = () => {
 
   return (
     <div className="modern-player-wrapper">
-      <AdMediaPlayer />
-      
-      <ModernMusicPlayer
+      {isAdPlaying ? (
+        <AdMediaPlayer
+          isFullScreenOpen={isFullScreenOpen}
+          inlineMode={!isFullScreenOpen}
+          onOpenFullScreen={openFullScreen}
+          onCloseFullScreen={closeFullScreen}
+        />
+      ) : (
+        <ModernMusicPlayer
+          currentSong={currentTrack}
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          volume={volume}
+          isMuted={isMuted}
+          teaserMode={isTeaser}
+          onPlayPause={handlePlayPause}
+          onPrev={skipPrevious}
+          onNext={skipNext}
+          onSeek={seek}
+          onVolumeChange={handleVolumeChange}
+          onToggleMute={toggleMute}
+          onSliderChange={handleSliderChange}
+          onSliderCommit={handleSliderCommit}
+          isDragging={isDragging}
+          queueLength={queue.length}
+          onOpenFullScreen={openFullScreen}
+          isShuffled={playerState.shuffle}
+          repeatMode={playerState.repeat ? 'all' : 'none'}
+          isAdPlaying={isAdPlaying}
+        />
+      )}
+
+      <FullScreenPlayer
         currentSong={currentTrack}
+        isOpen={isFullScreenOpen}
+        onClose={closeFullScreen}
         isPlaying={isPlaying}
         currentTime={currentTime}
         duration={duration}
         volume={volume}
         isMuted={isMuted}
-        teaserMode={isTeaser}
         onPlayPause={handlePlayPause}
-        onPrev={skipPrevious} // ⚠️ Check if this should be skipPrevious
+        onPrev={skipPrevious}
         onNext={skipNext}
         onSeek={seek}
+        onSliderChange={handleSliderChange}
         onVolumeChange={handleVolumeChange}
         onToggleMute={toggleMute}
-        onSliderChange={handleSliderChange}
-        onSliderCommit={handleSliderCommit}
-        isDragging={isDragging}
+        teaserMode={isTeaser}
+        isTeaser={isTeaser}
+        teaserDuration={30}
+        queue={queue}
         queueLength={queue.length}
+        isAdPlaying={isAdPlaying}
+        onSliderCommit={handleSliderCommit}
       />
     </div>
   );

@@ -137,7 +137,7 @@ export const useAudioPersistence = ({
       const sessionId = !userIdFromCtx && owner.startsWith('sess:') ? owner.slice(5) : null;
 
       if (!userId && !sessionId) {
-        console.log('No user or session ID found for playback restoration');
+        
         restoredRef.current = true;
         setIsRestoring(false);
         return;
@@ -176,7 +176,7 @@ export const useAudioPersistence = ({
                 expiresIn: 60 * 60 * 24 * 7, // 7 days
               },
             });
-            artworkUrl = artworkData?.getPresignedUrlDownload?.urlToDownload;
+            artworkUrl = artworkData?.getPresignedUrlDownload?.url;
           }
         } catch (err) {
           console.error('Error signing artwork:', err);
@@ -190,7 +190,11 @@ export const useAudioPersistence = ({
 
       // 3) Sign audio - FIXED THE DUPLICATE "for-streaming" ISSUE
       let audioUrl = null;
-      const audioSourceUrl = song.streamAudioFileUrl || song.audioFileUrl;
+      const audioSourceUrl =
+        song.audioUrl ||
+        song.url ||
+        song.streamAudioFileUrl ||
+        song.audioFileUrl;
       
       if (audioSourceUrl) {
         try {
@@ -216,7 +220,7 @@ export const useAudioPersistence = ({
             });
             audioUrl = audioData?.getPresignedUrlDownloadAudio?.url;
             
-            console.log('Generated audio URL:', audioUrl);
+           
           }
         } catch (err) {
           console.error('Error signing audio:', err);
@@ -226,7 +230,7 @@ export const useAudioPersistence = ({
       // Fallback to original URL if signing failed
       if (!audioUrl && audioSourceUrl) {
         audioUrl = audioSourceUrl;
-        console.log('Using original audio URL as fallback:', audioUrl);
+       
       }
 
       // If we still don't have an audio URL, we can't proceed
@@ -241,6 +245,7 @@ export const useAudioPersistence = ({
         duration: song.duration ?? 0,
         artworkUrl: artworkUrl || 'https://placehold.co/300x300?text=No+Cover',
         audioUrl,
+        url: audioUrl,
         artist: song.artist || null,
         album: song.album || null,
       };
@@ -360,7 +365,5 @@ export const useAudioPersistence = ({
     retryRestoration,
   };
 };
-
-
 
 

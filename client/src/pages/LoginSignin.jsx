@@ -1,79 +1,29 @@
-import './CSS/loginSignin.css';
 import logo from '../images/logo.png';
-import react, { useState, useEffect, useCallback } from 'react';
-import {  useQuery, useMutation} from "@apollo/client";
+import React, { useState } from 'react';
+import { useQuery, useMutation} from "@apollo/client";
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
 import UserAuth from '../utils/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash, faMoon, faSun } from '@fortawesome/free-solid-svg-icons';
-import Grid2 from '@mui/material/Grid2';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import Box from '@mui/material/Box';
-import ForArtistOnly from '../components/ForArtistOnly';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
+import Divider from '@mui/material/Divider';
 import { TRENDING_SONGS_PUBLIC } from '../utils/queries';
-import { GET_PRESIGNED_URL_DOWNLOAD, GET_PRESIGNED_URL_DOWNLOAD_AUDIO } from '../utils/mutations';
-import PlayArrow from '@mui/icons-material/PlayArrow';
-import { CircularProgress } from '@mui/material';
-import { ChevronLeft } from '@mui/icons-material';
-import { ChevronRight } from '@mui/icons-material';
-import WelcomeAppNavBar from '../components/WelcomePage/WelcomAppNavBar';
 import MainMenu from '../components/MainMenu';
 import { GoogleLogin } from '@react-oauth/google';
-
-import { useRef } from 'react';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
+import { useTheme, alpha } from '@mui/material/styles';
+import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
-import { useOutletContext } from 'react-router-dom';
-
-
-
-
-
-const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
-
-
-
- const { data, loading, error, refetch } = useQuery(TRENDING_SONGS_PUBLIC, {
-    pollInterval: 30000, // Refetch every 30 seconds
-    notifyOnNetworkStatusChange: true,
-  });
-
-
-  const { songsWithArtwork } = useSongsWithPresignedUrls(data?.trendingSongs);
-
-
-  // const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
-  // const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
-
-  // const [songsWithArtwork, setSongsWithArtwork] = useState([]);
-
-
-console.log('Loading:', loading);
-console.log('Error:', error);
-console.log('Data:', data);
-
-
-
-
-
-
-
-
-
-// SIGNUP LOGIN
-// ------------
-
-
-// useToggle: toggles boolean state
+// simple helpers (matching the previously working version)
 const useToggle = (initialState = false) => {
   const [state, setState] = useState(initialState);
   const toggle = () => setState(prev => !prev);
   return [state, toggle];
 };
 
-// useFormState: handles form field updates and resets
 const useFormState = (initialState) => {
   const [state, setState] = useState(initialState);
   const handleChange = (e) => {
@@ -84,6 +34,47 @@ const useFormState = (initialState) => {
   return [state, handleChange, reset];
 };
 
+const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
+  const theme = useTheme();
+  const heroGradient = `
+    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
+    linear-gradient(to bottom, #0F0F0F, #1A1A1A)
+  `;
+
+
+
+  const { data, loading, error, refetch } = useQuery(TRENDING_SONGS_PUBLIC, {
+    pollInterval: 30000, // Refetch every 30 seconds
+    notifyOnNetworkStatusChange: true,
+  });
+
+
+  // Debug trendingSongs fetch to surface GraphQL errors and network state
+  React.useEffect(() => {
+    if (loading) {
+      console.log('[TrendingSongs] loading…');
+      return;
+    }
+    if (error) {
+      console.error('[TrendingSongs] error:', error);
+      if (error.graphQLErrors?.length) {
+        error.graphQLErrors.forEach((gqlErr, idx) =>
+          console.error(`[TrendingSongs] graphQLErrors[${idx}]`, gqlErr.message, gqlErr)
+        );
+      }
+      if (error.networkError) {
+        console.error('[TrendingSongs] networkError:', error.networkError);
+      }
+    } else {
+      console.log('[TrendingSongs] data:', data?.trendingSongs);
+    }
+  }, [loading, error, data]);
+
+  const { songsWithArtwork } = useSongsWithPresignedUrls(data?.trendingSongs);
+console.log('see the songs with preigned urls:', songsWithArtwork )
+
+  // const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  // const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
 
 // Signup & Login form states
 const [signupFormState, handleSignupChange, resetSignup] = useFormState({
@@ -215,50 +206,64 @@ const handleGoogleLogin = async () => {
 
 
 const renderLogin = () => (
-  <div className="auth-container" style={{
-    background: `
-      radial-gradient(circle at 20% 30%, 
-        rgba(228, 196, 33, 0.03) 0%, 
-        transparent 25%),
-      linear-gradient(to bottom, #0F0F0F, #1A1A1A)
-    `,
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px'
-  }}>
-    <div className="auth-form" style={{
-      background: 'rgba(30, 30, 30, 0.95)',
-      backdropFilter: 'blur(12px)',
-      borderRadius: '16px',
-      border: '1px solid rgba(228, 196, 33, 0.2)',
-      padding: '40px',
-      width: '100%',
-      maxWidth: '450px',
-      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
-    }}>
-      <div className="auth-header" style={{
-        textAlign: 'center',
-        marginBottom: '30px'
-      }}>
-        <img 
+  <Box
+    className="auth-container"
+    sx={{
+      background: heroGradient,
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      px: { xs: 2, sm: 3 },
+      py: { xs: 4, sm: 6 },
+      fontFamily: theme.typography.fontFamily,
+    }}
+  >
+    <Box
+      className="auth-form"
+      sx={{
+        background: alpha(theme.palette.background.paper || '#111119', 0.95),
+        backdropFilter: 'blur(12px)',
+        borderRadius: 2,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+        p: { xs: 3, sm: 4 },
+        width: '100%',
+        maxWidth: 480,
+        boxShadow: theme.shadows[2],
+        fontFamily: theme.typography.fontFamily,
+      }}
+    >
+      <Box
+        className="auth-header"
+        sx={{
+          textAlign: 'center',
+          mb: 3,
+          fontFamily: theme.typography.fontFamily,
+        }}
+      >
+        <Box 
+          component="img" 
           src={logo} 
           alt="Logo" 
           className="logo"
-          style={{
-            height: '60px',
-            marginBottom: '20px',
+          sx={{
+            height: 60,
+            mb: 2,
             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-          }} 
+          }}
         />
-        <h2 style={{
-          color: '#E4C421',
-          margin: '0',
-          fontSize: '28px',
-          fontWeight: '600'
-        }}>Log In</h2>
-      </div>
+        <Typography
+          component="h2"
+          variant="h4"
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: 700,
+            fontFamily: theme.typography.fontFamily,
+          }}
+        >
+          Log In
+        </Typography>
+      </Box>
 
       {/* Custom Google Login Button */}
       <button
@@ -267,11 +272,12 @@ const renderLogin = () => (
           width: '100%',
           padding: '12px',
           borderRadius: '8px',
-          background: '#4285F4',
-          color: 'white',
+          background: theme.palette.google?.main || '#4285F4',
+          color: theme.palette.google?.contrastText || '#fff',
           border: 'none',
           fontSize: '16px',
           fontWeight: '500',
+          fontFamily: theme.typography.fontFamily,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -293,21 +299,17 @@ const renderLogin = () => (
         Continue with Google
       </button>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        margin: '20px 0'
-      }}>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-        <span style={{ padding: '0 15px', color: 'rgba(255,255,255,0.5)', fontSize: '14px' }}>OR</span>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
-      </div>
+        <Divider sx={{ my: 2, borderColor: alpha(theme.palette.text.secondary, 0.2) }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontFamily: theme.typography.fontFamily }}>
+            OR
+          </Typography>
+        </Divider>
 
       <form className="form" onSubmit={handleLoginSubmit}>
         <div className="form-group" style={{ marginBottom: '20px' }}>
           <label htmlFor="email" style={{
             display: 'block',
-            color: 'rgba(255,255,255,0.8)',
+            color: theme.palette.text.secondary,
             marginBottom: '8px',
             fontSize: '14px'
           }}>Email:</label>
@@ -322,15 +324,11 @@ const renderLogin = () => (
               width: '100%',
               padding: '12px 15px',
               borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: 'rgba(255,255,255,0.05)',
-              color: 'white',
+              color: theme.palette.text.primary,
               fontSize: '16px',
-              ':focus': {
-                outline: 'none',
-                borderColor: '#E4C421',
-                boxShadow: '0 0 0 2px rgba(228, 196, 33, 0.2)'
-              }
+              fontFamily: theme.typography.fontFamily,
             }}
           />
         </div>
@@ -338,7 +336,7 @@ const renderLogin = () => (
         <div className="form-group" style={{ marginBottom: '25px' }}>
           <label htmlFor="password" style={{
             display: 'block',
-            color: 'rgba(255,255,255,0.8)',
+            color: theme.palette.text.secondary,
             marginBottom: '8px',
             fontSize: '14px'
           }}>Password:</label>
@@ -354,10 +352,11 @@ const renderLogin = () => (
                 width: '100%',
                 padding: '12px 15px',
                 borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                 background: 'rgba(255,255,255,0.05)',
-                color: 'white',
+                color: theme.palette.text.primary,
                 fontSize: '16px',
+                fontFamily: theme.typography.fontFamily,
                 paddingRight: '40px'
               }}
             />
@@ -405,6 +404,7 @@ const renderLogin = () => (
             border: 'none',
             fontSize: '16px',
             fontWeight: '600',
+            fontFamily: theme.typography.fontFamily,
             cursor: 'pointer',
             transition: 'all 0.3s ease',
             marginBottom: '20px',
@@ -421,7 +421,7 @@ const renderLogin = () => (
           textAlign: 'center',
           marginBottom: '20px'
         }}>
-          <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+          <p style={{ color: theme.palette.text.secondary, margin: 0 }}>
             Don't have an account?
           </p>
           <button
@@ -431,7 +431,7 @@ const renderLogin = () => (
             style={{
               background: 'none',
               border: 'none',
-              color: '#E4C421',
+              color: theme.palette.primary.main,
               cursor: 'pointer',
               fontSize: '14px',
               fontWeight: '600',
@@ -445,83 +445,99 @@ const renderLogin = () => (
           </button>
         </div>
 
-        <button
-          type="button"
-          className="back-button"
+        <Button
           onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'rgba(255,255,255,0.7)',
-            cursor: 'pointer',
+          variant="text"
+          color="inherit"
+          sx={{
             fontSize: '14px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '5px',
-            margin: '0 auto',
-            ':hover': {
-              color: '#E4C421'
-            }
+            mx: 'auto',
+            color: theme.palette.text.primary,
+            fontWeight: 600,
+            '&:hover': { color: theme.palette.primary.main, background: 'transparent' },
           }}
         >
           ← Back to home
-        </button>
+        </Button>
       </form>
-    </div>
-  </div>
+    </Box>
+  </Box>
 );
 
 
 const renderSignup = () => (
-  <div className="auth-container" style={{
-    background: `
-      radial-gradient(circle at 20% 30%, 
-        rgba(228, 196, 33, 0.03) 0%, 
-        transparent 25%),
-      linear-gradient(to bottom, #0F0F0F, #1A1A1A)
-    `,
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px'
-  }}>
-    <div className="auth-form" style={{
-      background: 'rgba(30, 30, 30, 0.95)',
-      backdropFilter: 'blur(12px)',
-      borderRadius: '16px',
-      border: '1px solid rgba(228, 196, 33, 0.2)',
-      padding: '40px',
-      width: '100%',
-      maxWidth: '450px',
-      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
-    }}>
-      <div className="auth-header" style={{
-        textAlign: 'center',
-        marginBottom: '30px'
-      }}>
-        <img 
+  <Box
+    className="auth-container"
+    sx={{
+      background: heroGradient,
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      px: { xs: 2, sm: 3 },
+      py: { xs: 4, sm: 6 },
+      fontFamily: theme.typography.fontFamily,
+    }}
+  >
+    <Box
+      className="auth-form"
+      sx={{
+        background: alpha(theme.palette.background.paper || '#111119', 0.95),
+        backdropFilter: 'blur(12px)',
+        borderRadius: 2,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+        p: { xs: 3, sm: 4 },
+        width: '100%',
+        maxWidth: 480,
+        boxShadow: theme.shadows[2],
+        fontFamily: theme.typography.fontFamily,
+      }}
+    >
+      <Box
+        className="auth-header"
+        sx={{
+          textAlign: 'center',
+          mb: 3,
+          fontFamily: theme.typography.fontFamily,
+        }}
+      >
+        <Box 
+          component="img" 
           src={logo} 
           alt="Logo" 
           className="logo"
-          style={{
-            height: '60px',
-            marginBottom: '20px',
+          sx={{
+            height: 60,
+            mb: 2,
             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
           }} 
         />
-        <h2 style={{
-          color: '#E4C421',
-          margin: '0',
-          fontSize: '28px',
-          fontWeight: '600'
-        }}>Create Account</h2>
-        <p style={{
-          color: 'rgba(255,255,255,0.7)',
-          marginTop: '8px'
-        }}>Join AfroFeel today</p>
-      </div>
+        <Typography
+          component="h2"
+          variant="h4"
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: 700,
+            fontFamily: theme.typography.fontFamily,
+          }}
+        >
+          Create Account
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            color: theme.palette.text.secondary,
+            mt: 1,
+            fontFamily: theme.typography.fontFamily,
+          }}
+        >
+          Join AfroFeel today
+        </Typography>
+      </Box>
 
       <form className="form" onSubmit={handleSignupSubmit}>
         <div className="form-group" style={{ marginBottom: '20px' }}>
@@ -542,15 +558,11 @@ const renderSignup = () => (
               width: '100%',
               padding: '12px 15px',
               borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: 'rgba(255,255,255,0.05)',
-              color: 'white',
+              color: theme.palette.text.primary,
               fontSize: '16px',
-              ':focus': {
-                outline: 'none',
-                borderColor: '#E4C421',
-                boxShadow: '0 0 0 2px rgba(228, 196, 33, 0.2)'
-              }
+              fontFamily: theme.typography.fontFamily,
             }}
           />
         </div>
@@ -558,7 +570,7 @@ const renderSignup = () => (
         <div className="form-group" style={{ marginBottom: '20px' }}>
           <label htmlFor="email" style={{
             display: 'block',
-            color: 'rgba(255,255,255,0.8)',
+            color: theme.palette.text.secondary,
             marginBottom: '8px',
             fontSize: '14px'
           }}>Email:</label>
@@ -573,15 +585,11 @@ const renderSignup = () => (
               width: '100%',
               padding: '12px 15px',
               borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: 'rgba(255,255,255,0.05)',
-              color: 'white',
+              color: theme.palette.text.primary,
               fontSize: '16px',
-              ':focus': {
-                outline: 'none',
-                borderColor: '#E4C421',
-                boxShadow: '0 0 0 2px rgba(228, 196, 33, 0.2)'
-              }
+              fontFamily: theme.typography.fontFamily,
             }}
           />
         </div>
@@ -589,7 +597,7 @@ const renderSignup = () => (
         <div className="form-group" style={{ marginBottom: '25px' }}>
           <label htmlFor="password" style={{
             display: 'block',
-            color: 'rgba(255,255,255,0.8)',
+            color: theme.palette.text.secondary,
             marginBottom: '8px',
             fontSize: '14px'
           }}>Password:</label>
@@ -601,20 +609,17 @@ const renderSignup = () => (
               onChange={handleSignupChange}
               value={signupFormState.password}
               required
-                 style={{
-              width: '100%',
-              padding: '12px 15px',
-              borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(255,255,255,0.05)',
-              color: 'white',
-              fontSize: '16px',
-              ':focus': {
-                outline: 'none',
-                borderColor: '#E4C421',
-                boxShadow: '0 0 0 2px rgba(228, 196, 33, 0.2)'
-              }
-            }}
+              style={{
+                width: '100%',
+                padding: '12px 15px',
+                borderRadius: '8px',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                background: 'rgba(255,255,255,0.05)',
+                color: theme.palette.text.primary,
+                fontSize: '16px',
+                fontFamily: theme.typography.fontFamily,
+                paddingRight: '40px'
+              }}
             />
             <button
               type="button"
@@ -698,7 +703,7 @@ const renderSignup = () => (
           textAlign: 'center',
           marginBottom: '20px'
         }}>
-          <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+          <p style={{ color: theme.palette.text.secondary, margin: 0 }}>
             Already have an account?
           </p>
 
@@ -711,7 +716,7 @@ const renderSignup = () => (
             style={{
               background: 'none',
               border: 'none',
-              color: '#E4C421',
+              color: theme.palette.primary.main,
               cursor: 'pointer',
               fontSize: '14px',
               fontWeight: '600',
@@ -733,7 +738,7 @@ const renderSignup = () => (
           style={{
             background: 'none',
             border: 'none',
-            color: 'rgba(255,255,255,0.7)',
+            color: theme.palette.text.primary,
             cursor: 'pointer',
             fontSize: '14px',
             display: 'flex',
@@ -749,8 +754,8 @@ const renderSignup = () => (
           ← Back to home
         </button>
       </form>
-    </div>
-  </div>
+    </Box>
+  </Box>
 );
 
 
@@ -778,4 +783,3 @@ const renderSignup = () => (
 };
 
 export default LoginSignin;
-

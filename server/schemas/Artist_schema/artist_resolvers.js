@@ -22,7 +22,7 @@ import stream from "stream";
 import path from 'path';
 import crypto from "crypto";
 import { createHash } from 'crypto';
-import { CreatePresignedUrl, CreatePresignedUrlDownload, CreatePresignedUrlDownloadAudio, CreatePresignedUrlDelete  } from '../../utils/awsS3.js';
+import { CreatePresignedUrl, CreatePresignedUrlDelete } from '../../utils/awsS3.js';
 
 
 import Fingerprinting from '../../utils/DuplicateAndCopyrights/fingerPrinting.js'
@@ -74,6 +74,15 @@ import { generateSimilarSongs} from './similarSongs/similasongResolver.js';
 import { savePlaybackSession } from './playbackRestore/savePlaybackSession.js';
 
 import { playbackSession } from './playbackRestore/getPlaybackSession.js';
+import { handleFollowers } from './followers/handleFollowers.js';
+
+import { handleArtistDownloadCounts } from './downloads/handleArtistDownloadCounts.js';
+import { getArtistSongs } from './getArtistSongs/getArtistSongs.js';
+import { CLOUDFRONT_EXPIRATION } from './Redis/keys.js';
+import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from '../../utils/cloudFrontUrl.js';
+
+
+
 
 
 
@@ -104,6 +113,65 @@ function analyzeFingerprints(fingerprint) {
 const SONG_UPLOAD_UPDATE = 'SONG_UPLOAD_UPDATE';
 dotenv.config();
 
+// Normalize any incoming audio path so the resolver can accept raw keys or full S3/CloudFront URLs.
+const normalizeAudioKey = ({ bucket, key }) => {
+  const stripLeadingSlash = (val = '') => String(val || '').replace(/^\/+/, '');
+  let derivedBucket = bucket;
+  let rawKey = stripLeadingSlash(key);
+
+  // If the client passed a full URL, extract just the path portion.
+  if (/^https?:\/\//i.test(rawKey)) {
+    try {
+      const urlObj = new URL(rawKey);
+      rawKey = stripLeadingSlash(urlObj.pathname);
+    } catch {
+      /* leave rawKey as-is */
+    }
+  }
+
+  // Infer bucket if it was omitted, based on the common prefixes we use.
+  if (!derivedBucket) {
+    if (rawKey.startsWith('for-streaming/')) derivedBucket = 'afrofeel-songs-streaming';
+    else if (rawKey.startsWith('ads/')) derivedBucket = 'audio-ad-streaming';
+    else if (rawKey.startsWith('artwork/')) derivedBucket = 'audio-ad-artwork';
+    else if (rawKey.startsWith('original-songs/')) derivedBucket = 'afrofeel-original-songs';
+  }
+
+  // Ensure the key has the correct prefix expected by the bucket.
+  const ensurePrefix = (prefix) => (rawKey.startsWith(prefix) ? rawKey : `${prefix}${rawKey}`);
+  let pathToSign = rawKey;
+  if (derivedBucket === 'afrofeel-songs-streaming') pathToSign = ensurePrefix('for-streaming/');
+  else if (derivedBucket === 'audio-ad-streaming') pathToSign = ensurePrefix('ads/');
+  else if (derivedBucket === 'audio-ad-streaming-fallback') pathToSign = ensurePrefix('ads/');
+  else if (derivedBucket === 'audio-ad-original') pathToSign = ensurePrefix('ads/');
+  else if (derivedBucket === 'audio-ad-artwork') pathToSign = ensurePrefix('artwork/');
+  else if (derivedBucket === 'afrofeel-original-songs') pathToSign = ensurePrefix('original-songs/');
+
+  return { derivedBucket, pathToSign };
+};
+
+// Generic normalizer for artwork/asset keys; accepts raw key or full URL.
+const normalizeDownloadKey = ({ bucket, key }) => {
+  const stripLeadingSlash = (val = '') => String(val || '').replace(/^\/+/, '');
+  let derivedBucket = bucket;
+  let rawKey = stripLeadingSlash(key);
+
+  if (/^https?:\/\//i.test(rawKey)) {
+    try {
+      const urlObj = new URL(rawKey);
+      rawKey = stripLeadingSlash(urlObj.pathname);
+      // If bucket not provided, try to infer from host (simple heuristic)
+      if (!derivedBucket && urlObj.hostname.includes('cloudfront')) {
+        // leave bucket null; mapping layer handles path
+        derivedBucket = bucket;
+      }
+    } catch {
+      /* leave rawKey as-is */
+    }
+  }
+
+  return { derivedBucket, pathToSign: rawKey };
+};
 
 
 
@@ -252,6 +320,25 @@ function getViewerId(context) {
 // -------------------------
 
 const resolvers = {
+  Artist: {
+    followerCount: (artist) => {
+      if (Array.isArray(artist.followers)) return artist.followers.length;
+      return 0;
+    },
+    artistDownloadCounts: async (artist) => {
+      try {
+        const client = await getRedis();
+        if (client) {
+          const key = ARTIST_DOWNLOADS(artist._id);
+          const redisVal = await client.get(key);
+          if (redisVal != null) return Number(redisVal) || 0;
+        }
+      } catch {
+        // fall back to DB value
+      }
+      return Number(artist.artistDownloadCounts || 0);
+    },
+  },
   Upload: GraphQLUpload,
 Query: {
 
@@ -321,6 +408,16 @@ songsOfArtist: async (parent, args, context) => {
 },
 
 
+
+
+
+
+
+
+
+
+
+
 songById : async (parent, { songId }, context) => {
   // Ensure that the user (artist) is logged in
   if (!context.artist) {
@@ -345,6 +442,20 @@ songById : async (parent, { songId }, context) => {
   } catch (error) {
     console.error('Error fetching song:', error);
     // Provide a generic error message for the client
+    throw new Error('Failed to fetch song.');
+  }
+},
+
+publicSong: async (_parent, { songId }) => {
+  try {
+    const song = await Song.findById(songId)
+      .populate({ path: 'artist', select: 'artistAka bio country' })
+      .populate({ path: 'album', select: 'title releaseDate' })
+      .lean();
+    if (!song) throw new Error('Song not found.');
+    return song;
+  } catch (error) {
+    console.error('Error fetching public song:', error);
     throw new Error('Failed to fetch song.');
   }
 },
@@ -428,6 +539,8 @@ trendingSongs,
     // similarSongsResolver,
     songsLikedByMe,
      playbackSession,
+     
+ getArtistSongs,
 
 },
 
@@ -654,39 +767,116 @@ getPresignedUrl: async (_, { bucket, key, region }) => {
       }
     },
 
-   getPresignedUrlDownload: async(_, {bucket, key, region}) =>{
-    try{
-       const urlToDownload = await CreatePresignedUrlDownload({ bucket, key, region });
 
-        // Return the URL and expiration time
-        return {
-          urlToDownload,
-          expiration: '18000', // Expiration time in seconds
-        };
 
-    }catch(error){
-console.error('Error in resolver:', error);
-        throw new Error('Failed to fetch presigned URL');
-    }
-   },
-
-getPresignedUrlDownloadAudio: async(_, {bucket, key, region}) => {
-  try {
-    const urlToDownloadAudio = await CreatePresignedUrlDownloadAudio({ bucket, key, region });
-
-    return {
-  url: urlToDownloadAudio,
-  expiration: '18000',
-};
-
-  } catch (error) {
-    console.error('Error in resolver:', error);
-    throw new Error('Failed to fetch presigned URL');
-  }
-},
+// getPresignedUrlDownload: async (_, { key, expiration }) => {
+//   try {
 
 
 
+
+//     if (!key || typeof key !== "string") {
+//       throw new Error("key must be a string CloudFront path");
+//     }
+
+    
+//     const pathOnly = key.startsWith("/") ? key : `/${key}`;
+
+//     console.log("key sent by client:", pathOnly);
+
+//     const { getSignedUrl } = await import("../../utils/cloudFrontUrl.js");
+//     const urlToDownload = getSignedUrl(key, expiration ?? 18000);
+
+//     console.log("check the returned url:", urlToDownload);
+
+//     return {
+//       urlToDownload,
+//       expiration: String(expiration ?? 18000),
+//     };
+//   } catch (error) {
+//     console.error("Error in resolver:", error);
+//     throw new Error(`Failed to fetch signed URL: ${error?.message || error}`);
+//   }
+// },
+
+
+
+
+
+
+
+// getPresignedUrlDownload: async (_, { bucket, key, region }) => {
+//   try {
+//     const { derivedBucket, pathToSign } = normalizeDownloadKey({ bucket, key });
+//     const bucketToUse = derivedBucket || bucket;
+
+//     if (!bucketToUse || !pathToSign) {
+//       throw new Error('bucket and key are required');
+//     }
+
+//     const resolvedRegion = region || process.env.JWT_REGION_SONGS_TO_STREAM;
+
+//     const urlToDownload = await CreatePresignedUrlDownload({
+//       bucket: bucketToUse,
+//       key: pathToSign,
+//       region: resolvedRegion,
+//     });
+
+//     const cleanedUrlToDownload = typeof urlToDownload === 'string'
+//       ? urlToDownload.replace(/([^:]\/)\/+/g, '$1')
+//       : urlToDownload;
+
+//     return {
+//       url: cleanedUrlToDownload,
+//       urlToDownload: cleanedUrlToDownload,
+//       expiration: '18000',
+//     };
+//   } catch (error) {
+//     console.error('Error in getPresignedUrlDownload resolver:', error);
+//     throw new Error(`Failed to fetch presigned URL: ${error?.message || error}`);
+//   }
+// },
+
+// getPresignedUrlDownloadAudio: async(_, {bucket, key, region}) => {
+//   try {
+//     // Allow the client to pass either a key or a full URL; we normalize to the expected bucket/key.
+//     const { derivedBucket, pathToSign } = normalizeAudioKey({ bucket, key });
+
+//     // Try CloudFront first; if it fails (bad key/path), fall back to direct S3 presign.
+//     let urlToDownloadAudio;
+//     try {
+//       urlToDownloadAudio = await CreatePresignedUrlDownloadAudio({
+//         region,
+//         bucket: derivedBucket,
+//         key: pathToSign,
+//         expiresInSeconds: 18000,
+//       });
+
+//     } catch (cfErr) {
+//       console.error('CloudFront signing failed, falling back to S3 presign:', cfErr?.message || cfErr);
+//       urlToDownloadAudio = await CreatePresignedUrlDownloadAudioServerSide({
+//         region,
+//         bucket: derivedBucket || bucket,
+//         key: pathToSign,
+//         expiresIn: 18000,
+//       });
+//     }
+
+
+//     return {
+//       url: urlToDownloadAudio,
+//       expiration: '18000',
+//     };
+
+//   } catch (error) {
+//     console.error('Error in resolver:', error);
+//     throw new Error(`Failed to fetch presigned URL: ${error?.message || error}`);
+//   }
+// },
+
+getPresignedUrlDownload,
+
+getPresignedUrlDownloadAudio,
 
  getPresignedUrlDelete: async(_, {bucket, key, region}) =>{
     try{
@@ -1867,7 +2057,7 @@ nextSongAfterComplete: async (_p, { input }) => {
 // },
 
 
-handlePlayCount: async (_parent, { songId }, context) => {
+  handlePlayCount: async (_parent, { songId }, context) => {
   // Load song first (we need artist id and to fail fast if missing)
   const song = await Song.findById(songId).lean();
   if (!song) throw new Error('Song not found');
@@ -2061,9 +2251,44 @@ handlePlayCount: async (_parent, { songId }, context) => {
       }
     },
     savePlaybackSession,
+    handleFollowers,
 
+    handleArtistDownloadCounts,
 
+    shareSong: async (_parent, { songId }) => {
+      const song = await Song.findById(songId);
+      if (!song) throw new Error('Song not found');
 
+      const updatedSong = await Song.findByIdAndUpdate(
+        songId,
+        { 
+          $inc: { 
+            shareCount: 1,
+            trendingScore: TRENDING_WEIGHTS?.SHARE_WEIGHT ?? 1
+          } 
+        },
+        { new: true, runValidators: true }
+      );
+
+      try {
+        const r = await getRedis();
+        const songCacheKey = songKey(songId);
+        if (await r.exists(songCacheKey)) {
+          await r.hIncrBy(songCacheKey, 'shareCount', 1);
+          await r.expire(songCacheKey, songHashExpiration);
+        }
+
+        const currentScore = await r.zScore(trendIndexZSet, songId.toString());
+        const inc = TRENDING_WEIGHTS?.SHARE_WEIGHT ?? 1;
+        if (currentScore !== null) {
+          await r.zAdd(trendIndexZSet, { score: parseFloat(currentScore) + inc, value: songId.toString() });
+        }
+      } catch (err) {
+        console.warn('[shareSong] Redis sync skipped:', err?.message || err);
+      }
+
+      return updatedSong;
+    },
 
 
   },

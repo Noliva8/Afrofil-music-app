@@ -296,7 +296,8 @@ export class PlayerManager {
     if (this._isDestroyed || !userType) return;
 
     this.identity = { userType, userId };
-    this.state.isAdBlocked = userType === "premium";
+    // Only regular users see ads; premium and guests are ad-blocked.
+    this.state.isAdBlocked = userType !== "regular";
 
     try {
       this.ads?.updateIdentity?.(this.identity);
@@ -491,6 +492,12 @@ async onTrackEnd(meta) {
 
   // 🔥 USE AD SCHEDULE CONTROLLER FOR DECISIONS
   if (this.adSchedule) {
+    // Guests/premium: skip ad breaks entirely
+    if (this.identity.userType !== "regular") {
+      console.log("[PM] Ads disabled for user type:", this.identity.userType);
+      return;
+    }
+
     // Notify that a song completed
     this.adSchedule.onSongStarted();
     
@@ -538,6 +545,13 @@ async onTrackEnd(meta) {
   } else {
     // 🔥 FALLBACK: Original logic if no ad schedule
     console.log("[PM] No ad schedule, using fallback logic");
+
+    // Guests/premium: skip ad cadence
+    if (this.identity.userType !== "regular" || this.state.isAdBlocked) {
+      this._songsSinceLastBreak = 0;
+      console.log("[PM] Ads disabled for user type in fallback:", this.identity.userType);
+      return;
+    }
     
     const now = Date.now();
     const lastAdTime = this.state.userBehavior.lastAdPlayedAt || 0;
@@ -629,7 +643,7 @@ async onTrackEnd(meta) {
       songsPlayed: this.state.userBehavior.songsPlayed,
     });
 
-    if (this.identity.userType === "premium" || this.state.isAdBlocked) {
+    if (this.identity.userType !== "regular" || this.state.isAdBlocked) {
       console.log("[PM] shouldPlayAd: 🔕 Ads blocked for user");
       return false;
     }

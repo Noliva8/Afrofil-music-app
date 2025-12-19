@@ -11,8 +11,12 @@ export const PLAY_COOLDOWN_SECONDS = 60;
 export const SIMILAR_SONGS_PLAYBACK=(userId)=>`s:cmve${userId}`
 // keys.js
 export const PLAYBACK_SONGS = (userId) => `s:cmve${userId}`;
-
-
+export const ARTIST_FOLLOWERS = (artistId) => `followere${artistId}`
+export const ARTIST_DOWNLOADS = (artistId) => `downloads${artistId}`
+export const ARTIST_SHARE = (artistId) => `shares${artistId}`
+export const ARTIST_SONGS = (artistId) => `artistSongs${artistId}`
+export const ARTIST_SONGS_EXPIRY = 24 * 60 * 60; 
+export const CLOUDFRONT_EXPIRATION = 3600
 
 export const TRENDING_WEIGHTS = {
   PLAY_WEIGHT: 1,      
@@ -34,5 +38,6 @@ export const SIMILARITY_TIERS = {
 };
 
 export const AVAILABLE_ADS_KEY = (userId) => `ads:user#${userId}#available`;
-export const CACHE_TTL_SECONDS = 24 * 60* 60; 
-
+export const CACHE_TTL_SECONDS = 24 * 60 * 60; 
+// One year TTL for long-lived sets (e.g., artist followers)
+export const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;

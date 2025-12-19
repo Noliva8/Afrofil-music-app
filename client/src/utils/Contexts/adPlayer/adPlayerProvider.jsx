@@ -398,6 +398,30 @@ export function AdAudioProvider({ children }) {
       }));
     };
 
+    const handleAdPaused = (payload) => {
+      setAdState((s) => ({
+        ...s,
+        isPlaying: false,
+        progress: {
+          currentTime: payload?.progress?.currentTime ?? s.progress.currentTime,
+          duration: payload?.progress?.duration ?? s.progress.duration,
+          percent: payload?.progress?.percent ?? s.progress.percent,
+        },
+      }));
+    };
+
+    const handleAdResumed = (payload) => {
+      setAdState((s) => ({
+        ...s,
+        isPlaying: true,
+        progress: {
+          currentTime: payload?.progress?.currentTime ?? s.progress.currentTime,
+          duration: payload?.progress?.duration ?? s.progress.duration,
+          percent: payload?.progress?.percent ?? s.progress.percent,
+        },
+      }));
+    };
+
     const handleCompleted = (payload) => {
       console.log("📡 UI: AD_COMPLETED", payload);
       
@@ -430,6 +454,8 @@ export function AdAudioProvider({ children }) {
     eventBus.on("AD_METADATA_LOADED", handleMetadataLoaded);
     eventBus.on("AD_STARTED", handleAdStarted);
     eventBus.on("AD_PROGRESS", handleProgress);
+    eventBus.on("AD_PAUSED", handleAdPaused);
+    eventBus.on("AD_RESUMED", handleAdResumed);
     eventBus.on("AD_COMPLETED", handleCompleted);
     eventBus.on("AD_ERROR", handleError);
 
@@ -437,6 +463,8 @@ export function AdAudioProvider({ children }) {
       eventBus.off("AD_METADATA_LOADED", handleMetadataLoaded);
       eventBus.off("AD_STARTED", handleAdStarted);
       eventBus.off("AD_PROGRESS", handleProgress);
+      eventBus.off("AD_PAUSED", handleAdPaused);
+      eventBus.off("AD_RESUMED", handleAdResumed);
       eventBus.off("AD_COMPLETED", handleCompleted);
       eventBus.off("AD_ERROR", handleError);
     };

@@ -9,7 +9,7 @@
 
 
 // AudioPlayerProvider.jsx
-import React, { createContext, useContext, useRef, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useMutation, useLazyQuery } from '@apollo/client';
 
@@ -31,34 +31,114 @@ createAdPlayerAdapter,
   primeManagerFromAudioContext } from './playerAdapters.js';
 import { eventBus } from './playerAdapters.js';
 
+const sanitizeArtworkUrl = (url) => {
+  if (!url) return null;
+  const lower = String(url).toLowerCase();
+  if (lower.includes('placehold.co')) return null;
+  return url;
+};
+
+const normalizeArtworkTrack = (track) => {
+  if (!track) return null;
+  const artwork = sanitizeArtworkUrl(track.artworkUrl || track.artworkPresignedUrl || track.cover);
+  return {
+    ...track,
+    artworkUrl: artwork || null,
+    artworkPresignedUrl: artwork || null,
+  };
+};
 
 
 
+// Trim GraphQL meta fields and blank rows from credits before saving to server
+const normalizeCredits = (credits) => {
+  if (!Array.isArray(credits)) return null;
+  const cleaned = credits
+    .map((c) => {
+      if (!c) return null;
+      const name = c.name ?? null;
+      const role = c.role ?? null;
+      const type = c.type ?? null;
+      if (!name && !role && !type) return null;
+      return { name, role, type };
+    })
+    .filter(Boolean);
+  return cleaned.length ? cleaned : null;
+};
 
 // Only fields allowed by PlaybackTrackInput (strip __typename and extras)
 const toPlaybackTrackInput = (t) => {
   if (!t) return null;
+  const artwork = sanitizeArtworkUrl(t.artworkUrl ?? t.artworkPresignedUrl ?? t.cover);
+  const looksUnsignedCloudFront = (u) =>
+    typeof u === 'string' &&
+    u.includes('.cloudfront.net/') &&
+    !u.includes('Signature=') &&
+    !u.includes('Key-Pair-Id=');
+  const looksSignedCloudFront = (u) =>
+    typeof u === 'string' &&
+    u.includes('.cloudfront.net/') &&
+    (u.includes('Signature=') || u.includes('Key-Pair-Id='));
+
+  let effectiveUrl = t.url ?? null;
+  if (t.audioUrl && effectiveUrl && effectiveUrl !== t.audioUrl) {
+    // If we have a signed audioUrl but a stale/unsigned url, prefer the signed one.
+    if (looksUnsignedCloudFront(effectiveUrl) && looksSignedCloudFront(t.audioUrl)) {
+      effectiveUrl = t.audioUrl;
+    }
+  }
+  if (!effectiveUrl) {
+    // Prefer the latest resolved playback URL if url isn't set.
+    effectiveUrl = t.audioUrl ?? t.fullUrl ?? t.fullUrlWithAds ?? null;
+  }
   return {
     id: String(t.id || t._id || ''),
     title: t.title ?? null,
-    url: t.url ?? t.fullUrl ?? t.audioUrl ?? t.fullUrlWithAds ?? null,
+    url: effectiveUrl,
     audioUrl: t.audioUrl ?? null,
     fullUrl: t.fullUrl ?? null,
     fullUrlWithAds: t.fullUrlWithAds ?? null,
     teaserUrl: t.teaserUrl ?? null,
     isTeaser: typeof t.isTeaser === 'boolean' ? t.isTeaser : false,
-    artworkUrl: t.artworkUrl ?? t.artworkPresignedUrl ?? null,
-    artworkPresignedUrl: t.artworkPresignedUrl ?? t.artworkUrl ?? null,
+    artworkUrl: artwork ?? null,
+    artworkPresignedUrl: artwork ?? null,
+    // Preserve rich metadata so resume/currentSong stays complete
+    artist: t.artist ?? t.artistName ?? null,
+    artistName: t.artistName ?? t.artist ?? null,
+    artistId: t.artistId ?? (t.artist && t.artist._id) ?? null,
+    artistBio: t.artistBio ?? t.artist?.bio ?? null,
+    artistFollowers: typeof t.artistFollowers === 'number' ? t.artistFollowers : null,
+    artistDownloadCounts: typeof t.artistDownloadCounts === 'number' ? t.artistDownloadCounts : null,
+    isFollowing: t.isFollowing ?? t.artist?.isFollowing ?? null,
+    albumId: t.albumId ?? t.album?._id ?? null,
+    albumName: t.albumName ?? t.album?.title ?? null,
+    releaseYear: t.releaseYear ?? (t.album?.releaseDate ? new Date(t.album.releaseDate).getFullYear() : null),
+    label: t.label ?? null,
+    featuringArtist: Array.isArray(t.featuringArtist) ? t.featuringArtist : [],
+    duration: typeof t.duration === 'number' ? t.duration : null,
+    durationSeconds: typeof t.durationSeconds === 'number' ? t.durationSeconds : null,
+    country: t.country ?? t.artist?.country ?? null,
+    mood: t.mood ?? [],
+    subMood: t.subMood ?? t.subMoods ?? [],
+    tempo: t.tempo ?? null,
+    playCount: t.playCount ?? null,
+    likesCount: t.likesCount ?? null,
+    likedByMe: t.likedByMe ?? null,
+    shareCount: t.shareCount ?? null,
+    downloadCount: t.downloadCount ?? null,
+    credits: normalizeCredits(t.credits),
+    lyrics: t.lyrics ?? null,
   };
 };
 
 const normalizeTrackForResume = (t) => {
   if (!t) return null;
+  const artwork = sanitizeArtworkUrl(t.artworkUrl || t.artworkPresignedUrl || t.cover);
   return {
     ...t,
     url: t.url || t.fullUrl || t.audioUrl || t.fullUrlWithAds || null,
-    artworkPresignedUrl: t.artworkPresignedUrl || t.artworkUrl || null,
-    artworkUrl: t.artworkUrl || t.artworkPresignedUrl || null,
+    artworkPresignedUrl: artwork || null,
+    artworkUrl: artwork || null,
     isTeaser: !!t.isTeaser,
   };
 };
@@ -106,14 +186,22 @@ const defaultAudioContext = {
 
 export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const userContext = useUser();
-  const { isUser, isPremium } = userContext;
-  const isUserLoggedIn = isUser || isPremium;
+  const { isGuest, isPremium, isRegular } = userContext;
+  const isUserLoggedIn = !isGuest;
 
   const audioRef = useRef(null);
   const canonicalQueueRef = useRef([]);        // full canonical queue
   const suppressAutoAdvanceRef = useRef(false);
   const currentIndexRef = useRef(0);
   const currentSongIdRef = useRef(null);
+  const lastArtworkRef = useRef(null);
+
+  const setCanonicalQueue = (tracks = []) => {
+    canonicalQueueRef.current = (tracks || [])
+      .map(normalizeArtworkTrack)
+      .filter(Boolean);
+    return canonicalQueueRef.current;
+  };
 
   // keep the currentTrack outside of state for stable access inside callbacks
   const currentTrackRef = useRef(null);
@@ -134,15 +222,18 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
 
   const { geo } = useLocationContext();
 
-  const [authState] = useState({
+  const authState = useMemo(() => ({
     isGuest: !isUserLoggedIn,
-    isPremium: isPremium
-  });
+    isPremium
+  }), [isUserLoggedIn, isPremium]);
 
   const buildRemainingFrom = (idx) => {
     if (!Array.isArray(canonicalQueueRef.current)) return [];
     if (idx >= canonicalQueueRef.current.length - 1) return [];
-    return canonicalQueueRef.current.slice(idx + 1);
+    return canonicalQueueRef.current
+      .slice(idx + 1)
+      .map(normalizeArtworkTrack)
+      .filter(Boolean);
   };
 
   const [playerState, setPlayerState] = useState({
@@ -165,7 +256,9 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
     initialAuthLevel: null,
     playbackContext: null,
     playbackSource: null,
-    playbackSourceId: null
+    playbackSourceId: null,
+    isAdPlaying: false,
+    currentAd: null
   });
 
   const TEASER_DURATION = 30;
@@ -180,7 +273,11 @@ const detachBridgeRef = useRef(null);
 
 const audioCtxSnapshot = () => ({
   play, pause, seek, audioRef, playerState,
-  isUser, isPremium, profile, geo
+  isPremium,
+  isRegular,
+  isGuest,
+  profile,
+  geo
 });
 
 const progressRafRef = useRef(null);
@@ -222,11 +319,11 @@ useEffect(() => {
   const mgr = playerManagerRef.current;
   if (!mgr) return;
   mgr.setIdentity({
-    userType: isPremium ? 'premium' : (isUser ? 'regular' : 'guest'),
+    userType: isPremium ? 'premium' : (isRegular ? 'regular' : 'guest'),
     userId
   });
   if (geo) mgr.setLocation(geo);
-}, [isUser, isPremium, userId, geo]);
+}, [isRegular, isPremium, userId, geo]);
 
 // --------------------------------------------------------------
 
@@ -382,8 +479,11 @@ useEffect(() => {
   const getAudioConfig = useCallback((track) => {
     if (!track) return null;
 
-    // If resuming with a saved URL, trust it (don’t recompute).
-    if (track.url) return { url: track.url, isTeaser: !!track.isTeaser };
+    // If resuming with a saved URL, respect explicit isTeaser flag; guests default to teaser.
+    if (track.url) {
+      const guestTeaser = authState.isGuest ? track.isTeaser !== false : !!track.isTeaser;
+      return { url: track.url, isTeaser: guestTeaser };
+    }
 
     if (authState.isGuest) {
       if (track.teaserUrl) {
@@ -411,8 +511,21 @@ useEffect(() => {
   // ---- Play: stable identity, uses ref fallback ----
 
   const play = useCallback(async (trackArg = null, playbackContext = null) => {
+    if (playerState.isAdPlaying) {
+      try {
+        eventBus.emit("AD_BLOCK_PLAY_ATTEMPT", {
+          message: "Playback will resume after the advertisement finishes."
+        });
+      } catch {}
+      return;
+    }
     const track = trackArg || currentTrackRef.current;
     if (!track) return;
+
+    if (shouldBlockPlayback()) {
+      onRequireAuth('teaser-end');
+      return;
+    }
 
     try {
       const audio = audioRef.current;
@@ -492,10 +605,23 @@ useEffect(() => {
 
   const load = useCallback(async (track, newQueue = []) => {
     try {
-      const config = getAudioConfig(track);
+      const normalizedTrack = normalizeArtworkTrack(track);
+      const config = getAudioConfig(normalizedTrack);
       if (!config) {
         setPlayerState(prev => ({ ...prev, error: 'No valid audio config' }));
         return false;
+      }
+
+      const artwork = normalizedTrack.artworkUrl || normalizedTrack.artworkPresignedUrl || null;
+      const hydratedTrack = {
+        ...normalizedTrack,
+        artworkUrl: artwork,
+        artworkPresignedUrl: artwork || normalizedTrack.artworkPresignedUrl || null
+      };
+      if (artwork) {
+        lastArtworkRef.current = artwork;
+      } else {
+        lastArtworkRef.current = null;
       }
 
       const audio = audioRef.current;
@@ -504,14 +630,14 @@ useEffect(() => {
       audio.load();
       audio.currentTime = 0;
 
-      currentSongIdRef.current = track.id;
+      currentSongIdRef.current = hydratedTrack.id;
 
       // keep the ref in sync with the next currentTrack
-      currentTrackRef.current = { ...track, ...config };
+      currentTrackRef.current = { ...hydratedTrack, ...config };
 
       setPlayerState(prev => ({
         ...prev,
-        currentTrack: { ...track, ...config },
+        currentTrack: { ...hydratedTrack, ...config },
         isTeaser: config.isTeaser,
         currentTime: 0,
         isPlaying: false,
@@ -519,7 +645,7 @@ useEffect(() => {
         hasTeaserEnded: false,
         wasManuallyPaused: false,
         error: null,
-        queue: newQueue
+        queue: (newQueue || []).map(normalizeArtworkTrack)
       }));
 
       const canPlayPromise = new Promise((resolve, reject) => {
@@ -572,8 +698,7 @@ useEffect(() => {
     const rest = Array.isArray(session.queue) ? session.queue.map(normalizeTrackForResume) : [];
 
     // reconstruct canonical queue: currentTrack + remaining
-    const fullQueue = [current, ...rest];
-    canonicalQueueRef.current = fullQueue;
+    const fullQueue = setCanonicalQueue([current, ...rest]);
     currentIndexRef.current = 0;
 
     // Hydrate ad scheduler state if available
@@ -628,19 +753,43 @@ useEffect(() => {
   // Handle play song
   const handlePlaySong = useCallback(
     async (track, _newQueue = [], incomingContext = null, extras = {}) => {
+      if (playerState.isAdPlaying) {
+        // Block starting another track while an ad is running
+        try {
+          eventBus.emit("AD_BLOCK_PLAY_ATTEMPT", {
+            message: "Playback will resume after the advertisement finishes."
+          });
+        } catch {}
+        return false;
+      }
+      const trackToPlay = normalizeArtworkTrack(track);
+      if (!trackToPlay) return false;
       let targetIndex = currentIndexRef.current;
 
+      // If caller provided an explicit queue, seed canonical queue with it (track + remainder).
+      const incomingQueue = Array.isArray(_newQueue)
+        ? _newQueue.map(normalizeArtworkTrack).filter(Boolean)
+        : [];
+      if (incomingQueue.length) {
+        setCanonicalQueue([trackToPlay, ...incomingQueue]);
+        targetIndex = 0;
+      }
+
+      const preparedQueue = extras?.prepared?.queue
+        ? extras.prepared.queue.map(normalizeArtworkTrack).filter(Boolean)
+        : null;
+
       if (extras?.prepared?.queue && Array.isArray(extras.prepared.queue)) {
-        const newQ = extras.prepared.queue;
+        const newQ = preparedQueue || [];
         const newQueueIds = newQ.map(t => t.id).join(',');
         const currentQueueIds = canonicalQueueRef.current.map(t => t.id).join(',');
-        if (newQueueIds !== currentQueueIds) canonicalQueueRef.current = newQ;
+        if (newQueueIds !== currentQueueIds) setCanonicalQueue(newQ);
 
         if (typeof extras.prepared.currentIndex === 'number') {
           targetIndex = extras.prepared.currentIndex;
         }
       } else {
-        const foundIndex = canonicalQueueRef.current.findIndex(t => t?.id === track?.id);
+        const foundIndex = canonicalQueueRef.current.findIndex(t => t?.id === trackToPlay?.id);
         if (foundIndex >= 0) targetIndex = foundIndex;
       }
 
@@ -654,20 +803,20 @@ useEffect(() => {
       } : null;
 
       // keep ref in sync *before* attempting load/play
-      currentTrackRef.current = track;
+      currentTrackRef.current = trackToPlay;
 
       // 🔌 AD INTEGRATION — let manager know about the upcoming track
 try {
   playerManagerRef.current?.onTrackLoaded?.({
-    id: track?.id || track?._id,
-    title: track?.title,
-    genre: track?.genre,
-    duration: track?.duration ?? 0
+    id: trackToPlay?.id || trackToPlay?._id,
+    title: trackToPlay?.title,
+    genre: trackToPlay?.genre,
+    duration: trackToPlay?.duration ?? 0
   });
   playerManagerRef.current?.recordSongPlay?.({
-    id: track?.id || track?._id,
-    genre: track?.genre,
-    duration: track?.duration ?? 0
+    id: trackToPlay?.id || trackToPlay?._id,
+    genre: trackToPlay?.genre,
+    duration: trackToPlay?.duration ?? 0
   });
 } catch {}
 
@@ -675,7 +824,7 @@ try {
 
       setPlayerState(prev => ({
         ...prev,
-        currentTrack: track,
+        currentTrack: trackToPlay,
         queue: remainingQueue,
         playbackSource: contextToUse?.source ?? null,
         playbackSourceId: contextToUse?.sourceId ?? null,
@@ -684,14 +833,14 @@ try {
         error: null
       }));
 
-      const loaded = await load(track, remainingQueue);
+      const loaded = await load(trackToPlay, remainingQueue);
       if (!loaded) {
         setPlayerState(prev => ({ ...prev, isLoading: false, error: 'Failed to load track', isPlaying: false }));
         return false;
       }
 
       try {
-        await play(track, contextToUse);
+        await play(trackToPlay, contextToUse);
         setPlayerState(prev => ({ ...prev, isPlaying: true, isLoading: false, playedOnce: true }));
         return true;
       } catch (err) {
@@ -740,11 +889,11 @@ try {
 // notifies player manager if song skipped
 // -------------------------------------
 
-const skipNext = useCallback(async () => {
-  startManualNav();
-  
-  // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
-  const currentTrack = currentTrackRef.current;
+  const skipNext = useCallback(async () => {
+    startManualNav();
+    
+    // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
+    const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
     console.log("[AUDIO] ⏭️ Manual skip, notifying track end");
     try {
@@ -771,7 +920,7 @@ const skipNext = useCallback(async () => {
   }
 
   currentIndexRef.current = nextIndex;
-  const nextTrack = canonicalQueueRef.current[nextIndex];
+  const nextTrack = normalizeArtworkTrack(canonicalQueueRef.current[nextIndex]);
   const remainingQueue = buildRemainingFrom(nextIndex);
 
   const updatedContext = playerState.playbackContext ? {
@@ -879,11 +1028,11 @@ const handleEnded = async () => {
 
 // notifies player manger if song is previous
 // -----------------------------------------
-const skipPrevious = useCallback(async () => {
-  startManualNav();
-  
-  // 🔥 NOTIFY PlayerManager that current track ended (manual previous)
-  const currentTrack = currentTrackRef.current;
+  const skipPrevious = useCallback(async () => {
+    startManualNav();
+    
+    // 🔥 NOTIFY PlayerManager that current track ended (manual previous)
+    const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
     console.log("[AUDIO] ⏮️ Manual previous, notifying track end");
     try {
@@ -916,7 +1065,7 @@ const skipPrevious = useCallback(async () => {
   }
 
   const prevIndex = currentIndex - 1;
-  const prevTrack = canonicalQueueRef.current[prevIndex];
+  const prevTrack = normalizeArtworkTrack(canonicalQueueRef.current[prevIndex]);
   const remainingQueue = buildRemainingFrom(prevIndex);
 
   currentIndexRef.current = prevIndex;
@@ -986,6 +1135,7 @@ const handleAdEnded = useCallback(async (adIndex) => {
     setPlayerState((prev) => ({
       ...prev,
       isAdPlaying: false,
+      currentAd: null,
     }));
     console.log(`[AUDIO] ✅ Started fresh playback after ad: ${currentTrack.title}`);
   } catch (error) {
@@ -1008,10 +1158,11 @@ const handleAdEnded = useCallback(async (adIndex) => {
         track: toPlaybackTrackInput(playerState.currentTrack),
         currentTime: audio.currentTime,
         queue: (playerState.queue || []).map(toPlaybackTrackInput),
-        wasPlaying:
+        wasPlaying: Boolean(
           typeof overrideWasPlaying === "boolean"
             ? overrideWasPlaying
-            : playerState.isPlaying || playerState.isAdPlaying,
+            : playerState.isPlaying || playerState.isAdPlaying
+        ),
         volume: playerState.volume,
         isMuted: playerState.isMuted,
         shuffle: playerState.shuffle,
@@ -1061,6 +1212,8 @@ useEffect(() => {
       ...prev,
       isPlaying: false,
       isAdPlaying: true,
+      currentAd:
+        (payload && (payload.title || payload.advertiser || payload.artwork) ? payload : prev.currentAd),
     }));
     // Save snapshot so refresh can resume where music paused for the ad
     saveSnapshotForAd(true);
@@ -1122,6 +1275,15 @@ useEffect(() => {
   };
 }, [handleAdEnded, playerState.isAdPlaying]);
 
+// Sync ad metadata into playerState so UI can read it
+useEffect(() => {
+  const handleAdMetadata = (payload) => {
+    setPlayerState(prev => ({ ...prev, currentAd: payload }));
+  };
+  eventBus.on("AD_METADATA_LOADED", handleAdMetadata);
+  return () => eventBus.off("AD_METADATA_LOADED", handleAdMetadata);
+}, []);
+
 
 
   const setVolume = useCallback((newVolume) => {
@@ -1142,8 +1304,9 @@ useEffect(() => {
 
   const addToQueue = useCallback((tracks) => {
     const validTracks = tracks.map(track => {
-      const config = getAudioConfig(track);
-      return config ? { ...track, ...config } : null;
+      const normalized = normalizeArtworkTrack(track);
+      const config = getAudioConfig(normalized);
+      return config ? { ...normalized, ...config } : null;
     }).filter(Boolean);
     setPlayerState(prev => ({ ...prev, queue: [...prev.queue, ...validTracks] }));
   }, [getAudioConfig]);
@@ -1199,7 +1362,7 @@ useEffect(() => {
         queue: (playerState.queue || []).map(toPlaybackTrackInput),
         // If an ad temporarily paused content, still treat the session as "playing"
         // so refresh resumes where music left off.
-        wasPlaying: playerState.isPlaying || playerState.isAdPlaying,
+        wasPlaying: Boolean(playerState.isPlaying || playerState.isAdPlaying),
         volume: playerState.volume,
         isMuted: playerState.isMuted,
         shuffle: playerState.shuffle,

@@ -154,6 +154,9 @@ const ArtistRegistrationForm = () => {
 
         <button type="submit">Register</button>
       </form>
+      <button type="button" onClick={() => window.location.assign('/')} style={{ marginTop: '16px' }}>
+        ← Back to home
+      </button>
     </div>
   );
 };

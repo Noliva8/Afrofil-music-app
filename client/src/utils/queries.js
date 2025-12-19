@@ -169,6 +169,7 @@ export const SONG_OF_ARTIST = gql`
       artwork
       audioFileUrl
       downloadCount
+      artistFollowers
       featuringArtist
       genre
       lyrics
@@ -198,14 +199,41 @@ export const SONG_OF_ARTIST = gql`
 
 export const SONG_BY_ID = gql`
 query songById($songId: ID!) {
-  songById(songId: $songId) {
+  publicSong(songId: $songId) {
     _id
-    artist {
-      artistAka
-      _id
-    }
-    duration
     title
+    mood
+    tempo
+    subMoods
+    artist {
+      _id
+      artistAka
+      bio
+      country
+    }
+    album {
+      _id
+      title
+      releaseDate
+    }
+    artwork
+    artworkPresignedUrl
+    streamAudioFileUrl
+    audioFileUrl
+    createdAt
+    downloadCount
+    duration
+    featuringArtist
+    genre
+    lyrics
+    composer { name contribution }
+    producer { name role }
+    label
+    likesCount
+    likedByMe
+    playCount
+    shareCount
+    trendingScore
   }
 }
 `
@@ -222,25 +250,36 @@ export const TRENDING_SONGS_PUBLIC = gql`
         _id
         artistAka
         country
+        bio
       }
       album {
         _id
         title
+        releaseDate
       }
       artwork
       streamAudioFileUrl
       audioFileUrl
       createdAt
       downloadCount
+      artistFollowers
+      artistDownloadCounts
       duration
       featuringArtist
       genre
 
-      # ✅ Only these two are needed for likes UI
+      # engagement
       likesCount
       likedByMe
       playCount
+      shareCount
       trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
     }
   }
 `;
@@ -359,6 +398,8 @@ export const SIMILAR_SONGS_TRENDINGS = gql`
         streamAudioFileUrl
          audioFileUrl
          artwork
+         artworkKey
+         audioStreamKey
 
         composer { name contribution }
         featuringArtist
@@ -371,6 +412,11 @@ export const SIMILAR_SONGS_TRENDINGS = gql`
         subMoods
         tempo
         trackNumber
+        playCount
+        downloadCount
+        shareCount
+        artistFollowers
+        artistDownloadCounts
 
         # for direct playback  
          artworkPresignedUrl
@@ -417,20 +463,30 @@ export const SONGS_I_LIKE = gql`
         audioFileUrl
         playCount
         downloadCount
+        shareCount
 
         artist {
           _id
           artistAka
+          bio
           country
+          followers { _id }
         }
         album {
           _id
           title
+          releaseDate
         }
 
         # ✅ Required for likes UI
         likesCount
         likedByMe
+        lyrics
+        composer { name contribution }
+        producer { name role }
+        label
+        artistFollowers
+        artistDownloadCounts
 
         trendingScore
       }
@@ -473,6 +529,31 @@ export const GET_PLAYBACK_SESSION = gql`
         isTeaser
         artworkUrl
         artworkPresignedUrl
+        artist
+        artistName
+        artistId
+        artistBio
+        artistFollowers
+        artistDownloadCounts
+        isFollowing
+        albumId
+        albumName
+        releaseYear
+        label
+        featuringArtist
+        duration
+        durationSeconds
+        country
+        mood
+        subMood
+        tempo
+        playCount
+        likesCount
+        likedByMe
+        shareCount
+        downloadCount
+        credits { name role type }
+        lyrics
       }
       queue {
         id
@@ -485,7 +566,41 @@ export const GET_PLAYBACK_SESSION = gql`
         isTeaser
         artworkUrl
         artworkPresignedUrl
+        artist
+        artistName
+        artistId
+        artistBio
+        artistFollowers
+        artistDownloadCounts
+        isFollowing
+        albumId
+        albumName
+        releaseYear
+        label
+        featuringArtist
+        duration
+        durationSeconds
+        country
+        mood
+        subMood
+        tempo
+        playCount
+        likesCount
+        likedByMe
+        shareCount
+        downloadCount
+        credits { name role type }
+        lyrics
       }
+    }
+  }
+`;
+
+export const SHARE_SONG = gql`
+  mutation ShareSong($songId: ID!) {
+    shareSong(songId: $songId) {
+      _id
+      shareCount
     }
   }
 `;
@@ -529,4 +644,52 @@ query GetAudioAd($userLocation: UserLocation) {
     }
   }
 }
+`
+
+export const GET_SONGS_ARTIST =gql`
+query getArtistSongs($artistId: ID!) {
+  getArtistSongs(artistId: $artistId) {
+    _id
+    album {
+      _id
+      albumCoverImage
+      releaseDate
+      title
+    }
+    artist {
+      _id
+      artistAka
+      bio
+      country
+      coverImage
+      followerCount
+      fullName
+      profileImage
+    }
+    artistDownloadCounts
+    artistFollowers
+    artwork
+    composer {
+      contribution
+      name
+    }
+    downloadCount
+    duration
+    featuringArtist
+    label
+    likedByMe
+    likesCount
+    lyrics
+    playCount
+    producer {
+      name
+      role
+    }
+    releaseDate
+    shareCount
+    streamAudioFileUrl
+    title
+  }
+}
+
 `
