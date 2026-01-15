@@ -127,6 +127,20 @@ const [showReadMore, setShowReadMore] = useState(false);
     sanitizeCover(currentSong?.artworkUrl) ||
     sanitizeCover(currentSong?.cover) ||
     DEFAULT_COVER;
+
+  const resolveArtistText = (artist) => {
+    if (!artist) return '';
+    if (typeof artist === 'string') return artist;
+    if (Array.isArray(artist)) return artist.filter(Boolean).join(', ');
+    return (
+      artist.artistAka ||
+      artist.fullName ||
+      artist.artistName ||
+      artist.name ||
+      ''
+    );
+  };
+
   const currentTrackId = currentSong?.id || currentSong?._id;
   const recommendations = Array.isArray(queue)
     ? queue
@@ -134,7 +148,7 @@ const [showReadMore, setShowReadMore] = useState(false);
         .slice(0, 4)
     : [];
   const displayTitle = currentSong?.title || currentSong?.name || 'No song playing';
-  const displayArtist = currentSong?.artist || 'Unknown Artist';
+  const displayArtist = resolveArtistText(currentSong?.artist) || currentSong?.artistName || 'Unknown Artist';
   const displayAlbum = currentSong?.albumName || 'Single';
   const download = currentSong.artistDownloadCounts || 0
   const artistBio = currentSong?.artistBio || `${displayArtist} is an acclaimed artist blending traditional African rhythms with contemporary sounds.`;
@@ -1672,7 +1686,7 @@ const [showReadMore, setShowReadMore] = useState(false);
                     {recommendations.map((rec, idx) => {
                       const recCover = sanitizeCover(rec?.artworkUrl || rec?.cover || rec?.artworkPresignedUrl) || DEFAULT_COVER;
                       const recTitle = rec?.title || 'Untitled';
-                      const recArtist = rec?.artist || rec?.artistName || 'Unknown Artist';
+                      const recArtist = resolveArtistText(rec?.artist) || rec?.artistName || 'Unknown Artist';
                       return (
                         <Paper
                           key={`${rec?.id || rec?._id || idx}`}

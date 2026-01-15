@@ -22,7 +22,8 @@ const MediaPlayerContainer = () => {
     setVolume,
     toggleMute,
     queue,
-    playerState // ✅ Add playerState to access playbackContext
+    playerState, // ✅ Add playerState to access playbackContext
+    cycleRepeatMode,
   } = useAudioPlayer();
   const { isAdPlaying } = useAudioPlayer();
 
@@ -122,13 +123,20 @@ const MediaPlayerContainer = () => {
           onSeek={seek}
           onVolumeChange={handleVolumeChange}
           onToggleMute={toggleMute}
+          onToggleRepeat={cycleRepeatMode}
           onSliderChange={handleSliderChange}
           onSliderCommit={handleSliderCommit}
           isDragging={isDragging}
           queueLength={queue.length}
           onOpenFullScreen={openFullScreen}
           isShuffled={playerState.shuffle}
-          repeatMode={playerState.repeat ? 'all' : 'none'}
+          repeatMode={
+            playerState.repeatMode === 'one'
+              ? 'one'
+              : playerState.repeatMode === 'all'
+              ? 'all'
+              : 'none'
+          }
           isAdPlaying={isAdPlaying}
         />
       )}
@@ -149,6 +157,7 @@ const MediaPlayerContainer = () => {
         onSliderChange={handleSliderChange}
         onVolumeChange={handleVolumeChange}
         onToggleMute={toggleMute}
+        onToggleRepeat={cycleRepeatMode}
         teaserMode={isTeaser}
         isTeaser={isTeaser}
         teaserDuration={30}
@@ -156,6 +165,13 @@ const MediaPlayerContainer = () => {
         queueLength={queue.length}
         isAdPlaying={isAdPlaying}
         onSliderCommit={handleSliderCommit}
+        repeatMode={
+          playerState.repeatMode === 'one'
+            ? 'one'
+            : playerState.repeatMode === 'all'
+            ? 'all'
+            : 'none'
+        }
       />
     </div>
   );

@@ -19,6 +19,17 @@ import Box from '@mui/material/Box';
 import ArtistAuth from '../../utils/artist_auth';
 import Divider from '@mui/material/Divider';
 
+// Keep folder path when extracting keys from URLs/keys
+const deriveKeyFromUrl = (url) => {
+  if (!url) return "";
+  if (!/^https?:\/\//i.test(url)) return String(url).replace(/^\/+/, '');
+  try {
+    const u = new URL(url);
+    return decodeURIComponent((u.pathname || '').replace(/^\/+/, ''));
+  } catch {
+    return "";
+  }
+};
 
 
 
@@ -58,12 +69,9 @@ const handleProfileImageUpload = async (e) => {
   const profileImageUrl = artistData.artistProfile.profileImage;
   console.log("Profile Image URL:", profileImageUrl);
 
+  // Helper: derive full key (keeps folder path) from URL or key
   // If there is an existing image, prepare to delete it later
-  let keyToDelete = "";
-  if (profileImageUrl) {
-    const lastSlashIndex = profileImageUrl.lastIndexOf('/');
-    keyToDelete = profileImageUrl.substring(lastSlashIndex + 1);
-  }
+  let keyToDelete = deriveKeyFromUrl(profileImageUrl);
 
   // Step 1: Upload new image only if it's provided
   const file = e.target.files[0];
@@ -86,15 +94,18 @@ const handleProfileImageUpload = async (e) => {
 
 
   let uploadedFileUrl = ""; 
+  const uploadPrefix = "profile-picture/";
 
   try {
     // Step 2: Get the presigned URL for uploading the new image to S3
     setIsLoadingImage(true);
-    
+
+
+
     const { data } = await getPresignedUrl({
       variables: {
         bucket: "afrofeel-profile-picture",
-        key: file.name,
+        key: `${uploadPrefix}${file.name}`,
         region: "us-west-2",
       },
     });
@@ -113,7 +124,7 @@ const handleProfileImageUpload = async (e) => {
 
     if (response.ok) {
       console.log("File uploaded successfully to S3");
-      uploadedFileUrl = `https://afrofeel-profile-picture.s3.us-west-2.amazonaws.com/${file.name}`;
+      uploadedFileUrl = `https://afrofeel-profile-picture.s3.us-west-2.amazonaws.com/${uploadPrefix}${file.name}`;
     } else {
       console.error("File upload failed:", response.statusText, await response.text());
       toast.error("File upload failed.");
@@ -155,7 +166,7 @@ const handleProfileImageUpload = async (e) => {
       const { data: dataToDelete } = await getPresignedUrlDelete({
         variables: {
           bucket: "afrofeel-profile-picture",
-          key: keyToDelete,
+          key: keyToDelete.startsWith(uploadPrefix) ? keyToDelete : `${uploadPrefix}${keyToDelete}`,
           region: "us-west-2",
         },
       });
@@ -183,17 +194,21 @@ const handleProfileImageUpload = async (e) => {
     }
   }
 
+
+
   // Step 6: Optionally, grant access to the new image for display (optional step)
   try {
     const { data: readData } = await getPresignedUrlDownload({
       variables: {
         bucket: "afrofeel-profile-picture",
-        key: file.name,
+        key: `${uploadPrefix}${file.name}`,
         region: "us-west-2",
       },
     });
 
-    const presignedUrlReadData = readData.getPresignedUrlDownload.urlToDownload;
+
+
+    const presignedUrlReadData = readData.getPresignedUrlDownload.url;
 
     // Read the file from S3
     const response = await fetch(presignedUrlReadData, {
@@ -231,10 +246,7 @@ const handleProfileImageUpload = async (e) => {
 
   let key = null;
   if (artistData && artistData.artistProfile && artistData.artistProfile.profileImage) {
-    const profileImageUrl = artistData.artistProfile.profileImage;
-    const lastSlashIndex = profileImageUrl.lastIndexOf('/');
-    key = profileImageUrl.substring(lastSlashIndex + 1);
-   
+    key = deriveKeyFromUrl(artistData.artistProfile.profileImage);
   }
 
 

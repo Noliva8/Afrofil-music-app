@@ -17,7 +17,7 @@ import { deserializeFromRedisStorage, fieldTypes } from "../Redis/addSongRedis.j
 
 import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from "../../../utils/cloudFrontUrl.js";
 
-import { SIMILAR_SONGS_PLAYBACK } from "../Redis/keys.js";
+// import { SIMILAR_SONGS_PLAYBACK } from "../Redis/keys.js";
 
 
 const asArr = v => Array.isArray(v) ? v : (v ? [v] : []);
@@ -513,6 +513,7 @@ const generateContextId = () => {
 
 // not ms!
 const SEVEN_DAY_EXP = 6 * 24 * 60 * 60; // 518400
+
 function extractS3KeyIfBucket(url, bucket) {
   try {
     const u = new URL(url);
@@ -537,131 +538,99 @@ function extractS3KeyIfBucket(url, bucket) {
 
 const PRESIGN_TTL_SEC = Math.min(SEVEN_DAY_EXP, 604800);
 
+// Generic key extractor: works for S3 or CloudFront URLs
+const s3KeyFromUrlGeneric = (urlOrKey) => {
+  if (!urlOrKey) return null;
+  if (typeof urlOrKey === 'string' && !urlOrKey.includes('://')) {
+    return urlOrKey.startsWith('/') ? urlOrKey.slice(1) : urlOrKey;
+  }
+  try {
+    const u = new URL(urlOrKey);
+    const path = decodeURIComponent(u.pathname || '');
+    return path.startsWith('/') ? path.slice(1) : path;
+  } catch {
+    return null;
+  }
+};
 
 
 const coverSongsBusket = 'afrofeel-cover-images-for-songs';
 const fallBackBusket ='fallback-imagess';
-// Increase presign window to avoid raw URLs when skipping deep into the queue
-const AUDIO_PREFETCH = 40;
-const ARTWORK_PREFETCH = 40;
+// We no longer presign in the resolver; client will presign on-demand.
+const AUDIO_PREFETCH = 0;
 
 
-export const similarSongs = async (_parent, { songId }, _ctx) => {
-  if (!songId) return { context: "", songs: [], expireAt: new Date().toISOString() };
+// export const similarSongs = async (_parent, { songId }, _ctx) => {
+//   if (!songId) return { context: "", songs: [], expireAt: new Date().toISOString() };
 
-  const userId = String(_ctx.user._id);
+//   const userId = String(_ctx.user._id);
 
-  try {
-    const client = await getRedis();
-    const context = generateContextId(); 
-    const hashKey = SIMILAR_SONGS_PLAYBACK(userId);
-    const expireAt = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString();
-
-    // 1) Similar IDs
-    const similarIds = await client.zRange(similarSongsMatches(songId), 0, -1, { REV: true });
-    if (!similarIds.length) return { context, songs: [], expireAt };
-
-    // 2) Redis songs
-    const songs = await Promise.all(similarIds.map(id => getSongRedis(id, client)));
-
-    // 3) Filter valid
-    const validSongs = songs.filter(s => s && s._id && s.title && s.artist && Object.keys(s).length > 1);
-    const missingIds = similarIds.filter((id, i) => !songs[i] || !songs[i]._id);
-    if (missingIds.length) cacheMissingSongsInBackground(missingIds, client);
-
-    // 4) Presign and clean - FIXED!
-    const playbackSongs = await Promise.all(validSongs.map(async (song, idx) => {
-      const clean = { ...song };
-
-      if (Array.isArray(clean.featuringArtist)) {
-        clean.featuringArtist = clean.featuringArtist.filter(x => x && (x.name || x._id));
-      }
-      if (Array.isArray(clean.producer)) {
-        clean.producer = clean.producer.filter(x => x && x.name);
-      }
-      if (Array.isArray(clean.composer)) {
-        clean.composer = clean.composer.filter(x => x && x.name);
-      }
-
-   
-      // Normalize keys for later presign
-      clean.artworkKey = null;
-      clean.audioStreamKey = null;
-
-      if (song.artwork) {
-        const key = extractS3KeyIfBucket(song.artwork, coverSongsBusket);
-        clean.artworkKey = key;
-        if (idx < ARTWORK_PREFETCH && key) {
-          try {
-            const { url } = await getPresignedUrlDownload(null, {
-              bucket: coverSongsBusket,
-              key,
-              region: 'us-east-2',
-            });
-            clean.artworkPresignedUrl = url;
-          } catch (error) {
-            console.error(`Error getting artwork URL for ${song._id}:`, error);
-            clean.artworkPresignedUrl = song.artwork.startsWith('http')
-              ? song.artwork
-              : await getFallbackArtworkUrl();
-          }
-        } else {
-          // not presigned now; use raw or fallback
-          clean.artworkPresignedUrl = song.artwork.startsWith('http')
-            ? song.artwork
-            : null;
-        }
-      } else {
-        clean.artworkPresignedUrl = idx < ARTWORK_PREFETCH
-          ? await getFallbackArtworkUrl()
-          : null;
-      }
+//   try {
+//     const client = await getRedis();
+//     const context = generateContextId(); 
+//     const expireAt = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString();
 
 
-      if (song.streamAudioFileUrl) {
-        try {
-          const u = new URL(song.streamAudioFileUrl);
-          const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
-          const key = path.includes('for-streaming/')
-            ? path.slice(path.indexOf('for-streaming/'))
-            : `for-streaming/${path.split('/').pop()}`;
-          clean.audioStreamKey = key;
 
-          if (idx < AUDIO_PREFETCH) {
-            const { url } = await getPresignedUrlDownloadAudio(null, {
-              bucket: 'afrofeel-songs-streaming',
-              key,
-              region: 'us-west-2',
-            });
-            clean.audioPresignedUrl = url;
-          } else {
-            clean.audioPresignedUrl = null; // defer signing to client when needed
-          }
-        } catch (error) {
-          console.error(`Error getting audio URL for ${song._id}:`, error);
-          clean.audioPresignedUrl = null;
-        }
-      }
+//     // 1) Similar IDs
+//     const similarIds = await client.zRange(similarSongsMatches(songId), 0, -1, { REV: true });
 
-      // normalize counters/meta
-      clean.playCount = Number(song.playCount || 0);
-      clean.downloadCount = Number(song.downloadCount || 0);
-      clean.likesCount = Number(song.likesCount || (Array.isArray(song.likedByUsers) ? song.likedByUsers.length : 0) || 0);
-      clean.shareCount = Number(song.shareCount || 0);
-      clean.label = song.label || '';
-      clean.featuringArtist = Array.isArray(song.featuringArtist) ? song.featuringArtist : [];
-      clean.artistFollowers = Array.isArray(song.artist?.followers) ? song.artist.followers.length : Number(song.artistFollowers || 0);
-      clean.artistDownloadCounts = Number(song.artist?.artistDownloadCounts || song.artistDownloadCounts || 0);
+//  console.log('CHECK SONGS FROM REDIS IN SIMILAR IDS:', similarIds.length)
 
-      return clean;
-    }));
 
-    return { context, songs: playbackSongs, expireAt };
-  } catch (error) {
-    console.error("Similar songs error:", error);
-    return { context: "", songs: [], expireAt: new Date().toISOString() };
-  }
-};
+//     if (!similarIds.length) return { context, songs: [], expireAt };
+//     // we need to fallback to mongodb if redis does not have songs
+
+
+
+//     // 2) Redis songs
+//     const songs = await Promise.all(similarIds.map(id => getSongRedis(id, client)));
+
+//     console.log('CHECK SONGS FROM REDIS IN SIMILAR SONGS:', songs.length)
+
+//     // 3) Filter valid
+//     const validSongs = songs.filter(s => s && s._id && s.title && s.artist && Object.keys(s).length > 1);
+
+//     const missingIds = similarIds.filter((id, i) => !songs[i] || !songs[i]._id);
+//     if (missingIds.length) cacheMissingSongsInBackground(missingIds, client);
+
+//     // 4) Minimal clean: keep stored fields only; presigning handled by field resolvers/client
+//     const playbackSongs = validSongs.map((song) => {
+//       const clean = { ...song };
+
+//       if (Array.isArray(clean.featuringArtist)) {
+//         clean.featuringArtist = clean.featuringArtist.filter(x => x && (x.name || x._id));
+//       }
+//       if (Array.isArray(clean.producer)) {
+//         clean.producer = clean.producer.filter(x => x && x.name);
+//       }
+//       if (Array.isArray(clean.composer)) {
+//         clean.composer = clean.composer.filter(x => x && x.name);
+//       }
+
+//       clean.playCount = Number(song.playCount || 0);
+//       clean.downloadCount = Number(song.downloadCount || 0);
+//       clean.likesCount = Number(song.likesCount || (Array.isArray(song.likedByUsers) ? song.likedByUsers.length : 0) || 0);
+//       clean.shareCount = Number(song.shareCount || 0);
+//       clean.label = song.label || '';
+//       clean.featuringArtist = Array.isArray(song.featuringArtist) ? song.featuringArtist : [];
+//       clean.artistFollowers = Array.isArray(song.artist?.followers) ? song.artist.followers.length : Number(song.artistFollowers || 0);
+//       clean.artistDownloadCounts = Number(song.artist?.artistDownloadCounts || song.artistDownloadCounts || 0);
+
+//       // remove any presign placeholders/keys to keep payload lean
+//       delete clean.artworkKey;
+//       delete clean.artworkPresignedUrl;
+//       delete clean.audioStreamKey;
+//       delete clean.audioPresignedUrl;
+
+//       return clean;
+//     });
+//     return { context, songs: playbackSongs, expireAt };
+//   } catch (error) {
+//     console.error("Similar songs error:", error);
+//     return { context: "", songs: [], expireAt: new Date().toISOString() };
+//   }
+// };
 
 
 
@@ -670,7 +639,8 @@ export const similarSongs = async (_parent, { songId }, _ctx) => {
 
 export const getFallbackArtworkUrl = async () => {
   try {
-    const fallbackImages = ['Icon1.jpg', 'Singing.jpg'];
+    const fallbackImages = ['fallback-imagess/Icon1.jpg', 'fallback-imagess/Singing.jpg'];
+
     const randomImage = fallbackImages[Math.floor(Math.random() * fallbackImages.length)];
     
     const { url } = await getPresignedUrlDownload(null, {
@@ -708,5 +678,187 @@ const cacheMissingSongsInBackground = async (missingIds, client) => {
     );
   } catch (error) {
     console.error('Background caching error:', error);
+  }
+};
+
+
+
+
+
+// new resolver 
+
+
+// Put these helpers near the resolver (same file) or in a utils module.
+const getKeyFromUrlOrKey = (value) => {
+  if (!value) return null;
+
+  // already a key (no scheme)
+  if (!/^https?:\/\//i.test(value)) return value;
+
+  try {
+    const u = new URL(value);
+    // keep full folder path; remove leading "/"
+    return decodeURIComponent(u.pathname.replace(/^\/+/, ""));
+  } catch {
+    return null;
+  }
+};
+
+// Ensure audio key is always prefixed correctly and never double-prefixed.
+const normalizeAudioKey = (rawKey) => {
+  if (!rawKey) return null;
+  const k = rawKey.replace(/^\/+/, "");
+  if (k.startsWith("for-streaming/")) return k;
+  // if the key includes folders already, keep them, but guarantee for-streaming is present if your bucket requires it
+  const filename = k.split("/").pop();
+  return filename ? `for-streaming/${filename}` : null;
+};
+
+const normalizeArtworkKey = (rawKey) => {
+  if (!rawKey) return null;
+  return rawKey.replace(/^\/+/, ""); // keep folders as-is
+};
+
+export const similarSongs = async (_parent, { songId }, _ctx) => {
+  const empty = { context: "", songs: [], expireAt: new Date().toISOString() };
+  if (!songId) return empty;
+
+  // Harden: user may be missing for guest flows
+  const userId = String(_ctx?.user?._id || "guest");
+
+  try {
+    const client = await getRedis();
+
+    const context = generateContextId();
+    const ttlSeconds = 6 * 24 * 60 * 60;
+    const expireAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+
+    // 1) Similar IDs (cap, do NOT use -1 in production)
+    const similarIds = await client.zRange(
+      similarSongsMatches(songId),
+      0,
+      39,                 // ✅ cap to 40
+      { REV: true }
+    );
+
+    console.log("CHECK SONGS FROM REDIS IN SIMILAR IDS:", similarIds.length);
+
+    if (!similarIds.length) return { context, songs: [], expireAt };
+
+    // 2) Redis songs
+    const songs = await Promise.all(similarIds.map((id) => getSongRedis(id, client)));
+    console.log("CHECK SONGS FROM REDIS IN SIMILAR SONGS:", songs.length);
+
+    // 3) Filter valid
+    const validSongs = songs.filter(
+      (s) => s && s._id && s.title && s.artist && Object.keys(s).length > 1
+    );
+
+    const missingIds = similarIds.filter((id, i) => !songs[i] || !songs[i]._id);
+    if (missingIds.length) cacheMissingSongsInBackground(missingIds, client);
+
+    // 4) Clean payload but KEEP keys (NO presigned urls)
+    const playbackSongs = validSongs.map((song) => {
+      const clean = { ...song };
+
+      // normalize arrays
+      if (Array.isArray(clean.featuringArtist)) {
+        clean.featuringArtist = clean.featuringArtist.filter((x) => x && (x.name || x._id));
+      } else {
+        clean.featuringArtist = [];
+      }
+
+      if (Array.isArray(clean.producer)) {
+        clean.producer = clean.producer.filter((x) => x && x.name);
+      } else {
+        clean.producer = [];
+      }
+
+      if (Array.isArray(clean.composer)) {
+        clean.composer = clean.composer.filter((x) => x && x.name);
+      } else {
+        clean.composer = [];
+      }
+
+      // normalize numeric stats
+      clean.playCount = Number(song.playCount || 0);
+      clean.downloadCount = Number(song.downloadCount || 0);
+      clean.likesCount = Number(
+        song.likesCount ||
+          (Array.isArray(song.likedByUsers) ? song.likedByUsers.length : 0) ||
+          0
+      );
+      clean.shareCount = Number(song.shareCount || 0);
+
+      clean.label = song.label || "";
+      clean.artistFollowers = Array.isArray(song.artist?.followers)
+        ? song.artist.followers.length
+        : Number(song.artistFollowers || 0);
+
+      clean.artistDownloadCounts = Number(
+        song.artist?.artistDownloadCounts || song.artistDownloadCounts || 0
+      );
+
+      // ✅ KEEP KEYS: derive if missing
+      // Artwork key can come from:
+      // - clean.artworkKey (preferred)
+      // - clean.artwork / clean.artworkUrl / artist/album images (fallback)
+      const rawArtwork =
+        clean.artworkKey ||
+        getKeyFromUrlOrKey(clean.artwork) ||
+        getKeyFromUrlOrKey(clean.artworkUrl) ||
+        getKeyFromUrlOrKey(clean.album?.albumCoverImage) ||
+        getKeyFromUrlOrKey(clean.artist?.profileImage) ||
+        getKeyFromUrlOrKey(clean.artist?.coverImage) ||
+        null;
+
+      clean.artworkKey = normalizeArtworkKey(rawArtwork);
+
+      // Audio key can come from:
+      // - clean.audioStreamKey (preferred)
+      // - clean.streamAudioFileUrl / audioUrl / url (fallback)
+      const rawAudio =
+        clean.audioStreamKey ||
+        getKeyFromUrlOrKey(clean.streamAudioFileUrl) ||
+        getKeyFromUrlOrKey(clean.audioUrl) ||
+        getKeyFromUrlOrKey(clean.url) ||
+        null;
+
+      clean.audioStreamKey = normalizeAudioKey(rawAudio);
+
+      // ✅ REMOVE presigned url fields only (keep keys)
+      delete clean.artworkPresignedUrl;
+      delete clean.audioPresignedUrl;
+      delete clean.audioUrl;            // optional: prevents accidental heavy urls leaking
+      delete clean.artworkUrl;          // optional: prevents accidental heavy urls leaking
+      delete clean.url;                 // optional: keep queue lean
+
+      return clean;
+    });
+
+    // If you truly already persist context elsewhere, you can omit this.
+    // But it's a strong practice to persist minimal pointers for restore.
+    // const ctxKey = `similar:ctx:${userId}:${context}`;
+    // await client
+    //   .multi()
+    //   .hSet(ctxKey, {
+    //     baseSongId: String(songId),
+    //     createdAt: new Date().toISOString(),
+    //     expireAt,
+    //     songs: JSON.stringify(
+    //       playbackSongs.map((s) => ({
+    //         _id: String(s._id),
+    //         artworkKey: s.artworkKey,
+    //         audioStreamKey: s.audioStreamKey,
+    //       }))
+    //     ),
+    //   })
+    //   .expire(ctxKey, ttlSeconds)
+    //   .exec();
+console.log('structure of returned song:', playbackSongs)
+    return { context, songs: playbackSongs, expireAt };
+  } catch (error) {
+    console.error("Similar songs error:", error);
+    return empty;
   }
 };

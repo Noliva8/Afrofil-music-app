@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { useForm } from "react-hook-form";
@@ -24,6 +24,18 @@ import {
 } from "../../../../../utils/mutations";
 import { SONG_OF_ARTIST } from "../../../../../utils/queries";
 
+// Helper to keep folder paths when deriving keys from stored URLs
+const deriveKeyFromUrl = (url) => {
+  if (!url) return "";
+  if (!/^https?:\/\//i.test(url)) return String(url).replace(/^\/+/, "");
+  try {
+    const u = new URL(url);
+    return decodeURIComponent((u.pathname || "").replace(/^\/+/, ""));
+  } catch {
+    return "";
+  }
+};
+
 export default function SongCoverSongEdit({ song, onClose, songId }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -41,6 +53,36 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
     refetchQueries: [{ query: SONG_OF_ARTIST }],
   });
 
+  // Presign existing artwork so it displays even if stored URL is private
+  useEffect(() => {
+    const presignExisting = async () => {
+      if (!song?.artwork) return;
+      try {
+        const key = deriveKeyFromUrl(song.artwork);
+        if (!key) return;
+        const { data } = await getDownloadUrl({
+          variables: {
+            bucket: "afrofeel-cover-images-for-songs",
+            key,
+            region: "us-east-2",
+            expiresIn: 60 * 60 * 24 * 7,
+          },
+        });
+        const presigned =
+          data?.getPresignedUrlDownload?.urlToDownload ||
+          data?.getPresignedUrlDownload?.url ||
+          null;
+        if (presigned) {
+          setDisplayUrl(presigned);
+          setFileKey(key);
+        }
+      } catch (err) {
+        // keep existing displayUrl
+      }
+    };
+    presignExisting();
+  }, [song?.artwork, getDownloadUrl]);
+
   const handleFileChange = async (e) => {
     const rawFile = e.target.files?.[0];
     if (!rawFile) return;
@@ -54,7 +96,7 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
       console.warn('Image resize failed, using original', resizeErr);
     }
 
-    const key = `${Date.now()}_${file.name}`;
+    const key = `cover-images/${Date.now()}_${file.name}`;
 
     try {
       const { data: up } = await getUploadUrl({
@@ -76,7 +118,9 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
         },
       });
 
-      setDisplayUrl(down.getPresignedUrlDownload.urlToDownload);
+      const s3ObjectUrl = `https://afrofeel-cover-images-for-songs.s3.us-east-2.amazonaws.com/${key}`;
+
+      setDisplayUrl(down.getPresignedUrlDownload.urlToDownload || s3ObjectUrl);
       setFileKey(key);
     } catch (err) {
       console.error("Upload error:", err);
@@ -91,10 +135,14 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
     if (song.artwork) {
       try {
         const oldKey = decodeURIComponent(
-          new URL(song.artwork).pathname.split("/").pop()
+          (new URL(song.artwork).pathname || "").replace(/^\/+/, "")
         );
         const { data: del } = await getDeleteUrl({
-          variables: { bucket: "afrofeel-cover-images-for-songs", key: oldKey, region: "us-east-2" },
+          variables: {
+            bucket: "afrofeel-cover-images-for-songs",
+            key: oldKey.startsWith("cover-images/") ? oldKey : `cover-images/${oldKey}`,
+            region: "us-east-2"
+          },
         });
         await fetch(del.getPresignedUrlDelete.urlToDelete, { method: "DELETE" });
       } catch (err) {
@@ -103,8 +151,12 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
     }
 
     try {
+      // Save canonical S3 URL (not presigned)
+      const artworkUrlToSave = fileKey
+        ? `https://afrofeel-cover-images-for-songs.s3.us-east-2.amazonaws.com/${fileKey}`
+        : displayUrl;
       await addArtwork({
-        variables: { songId, artwork: displayUrl },
+        variables: { songId, artwork: artworkUrlToSave },
       });
       onClose();
       await Swal.fire("Done!", "Your new cover is live.", "success");

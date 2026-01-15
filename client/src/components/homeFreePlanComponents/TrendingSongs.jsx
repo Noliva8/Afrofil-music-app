@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext';
-import { Box, Typography, Card, IconButton } from '@mui/material';
+import { Box, Typography, Card, IconButton, useTheme } from '@mui/material';
 import { useApolloClient, useMutation } from '@apollo/client';
 import { PlayArrow, Pause, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { SONG_OF_ARTIST } from '../../utils/queries';
@@ -30,6 +30,7 @@ import { handleTrendingSongPlay } from '../../utils/plabackUtls/handleSongPlayBa
 export default function TrendingSongs({ songsWithArtwork, refetch, onCardClick }) {
   const containerRef = useRef(null);
    const client = useApolloClient();
+  const theme = useTheme();
  
 
 
@@ -73,14 +74,20 @@ const trendingSongs = processSongs(songsWithArtwork)
         mb: 3,
         px: { xs: 1, sm: 2 }
       }}>
-        <Typography variant="h5" component="h2" sx={{ 
-          fontWeight: 'bold', 
-          background: 'linear-gradient(45deg, #FFD700 30%, #FFA500 90%)',
-          backgroundClip: 'text',
-          WebkitBackgroundClip: 'text',
-          color: 'transparent',
-          fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' }
-        }}>
+        <Typography
+          variant="h6"
+          component="h2"
+          sx={{
+            fontWeight: 700,
+            fontFamily: theme.typography.fontFamily,
+            background: 'linear-gradient(45deg, #FFD700 30%, #FFA500 90%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            color: 'transparent',
+            fontSize: theme.typography.pxToRem(20),
+            letterSpacing: 0.2,
+          }}
+        >
           🔥 Trending Now
         </Typography>
         
@@ -105,7 +112,12 @@ const trendingSongs = processSongs(songsWithArtwork)
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: { xs: 'center', sm: 'flex-start' },
-          gap: { xs: '1rem', sm: '1.5rem', md: '2rem' },
+          gap: {
+            xs: theme.spacing(theme.customSpacing?.cardGap?.xs ?? 1.5),
+            sm: theme.spacing(theme.customSpacing?.cardGap?.sm ?? 1.75),
+            md: theme.spacing(theme.customSpacing?.cardGap?.md ?? 2),
+            lg: theme.spacing(theme.customSpacing?.cardGap?.lg ?? 2.25),
+          },
           px: { xs: 0.5, sm: 1 }
         }}>
           {trendingSongs.map((song) => {
@@ -117,12 +129,15 @@ const trendingSongs = processSongs(songsWithArtwork)
                 <CompactSongCard 
                   song={song} 
                   isPlayingThisSong={isPlayingThisSong}
+                  
                   onOpenArtist={onCardClick ? () => onCardClick(song) : undefined}
                   onPlayPause={() => {
                     if (isCurrent) {
                       isPlaying ? pause() : handleTrendingSongPlay({
                         song, incrementPlayCount, handlePlaySong,  trendingSongs , client
                     });
+
+
                     } else {
                       handleTrendingSongPlay({
                         song, incrementPlayCount, handlePlaySong,  trendingSongs , client
@@ -206,7 +221,12 @@ const trendingSongs = processSongs(songsWithArtwork)
             sx={{
               display: 'flex',
               overflowX: 'auto',
-              gap: { xs: '1rem', sm: '1.5rem', md: '2rem' },
+              gap: {
+                xs: theme.spacing(theme.customSpacing?.cardGap?.xs ?? 1.5),
+                sm: theme.spacing(theme.customSpacing?.cardGap?.sm ?? 1.75),
+                md: theme.spacing(theme.customSpacing?.cardGap?.md ?? 2),
+                lg: theme.spacing(theme.customSpacing?.cardGap?.lg ?? 2.25),
+              },
               pb: 2,
               px: { xs: 1, sm: 2 },
               scrollbarWidth: 'none',
@@ -247,7 +267,4 @@ const trendingSongs = processSongs(songsWithArtwork)
     </Box>
   );
 }
-
-
-
 

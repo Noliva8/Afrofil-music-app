@@ -39,12 +39,12 @@ const PlaylistSection = ({ currentSong, setCurrentSong, setIsPlaying }) => {
               className="playlist-track"
               onClick={() => setCurrentSong(song)}
             >
-              <div 
-                className="track-cover"
-                style={{ backgroundColor: song.coverColor }}
-              >
-                <FiMusic />
-                <button 
+            <div 
+              className="track-cover"
+              style={{ backgroundColor: song.coverColor }}
+            >
+              <FiMusic />
+              <button 
                   className="play-btn"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -57,7 +57,14 @@ const PlaylistSection = ({ currentSong, setCurrentSong, setIsPlaying }) => {
               </div>
               <div className="track-info">
                 <h3>{song.title}</h3>
-                <p>{song.artist}</p>
+                <p>
+                  {typeof song.artist === "string"
+                    ? song.artist
+                    : (song.artist?.artistAka ||
+                       song.artist?.fullName ||
+                       song.artistName ||
+                       "")}
+                </p>
               </div>
               <span className="track-duration">{song.duration}</span>
               <button className="more-options">

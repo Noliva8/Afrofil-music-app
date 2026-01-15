@@ -1,5 +1,5 @@
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
-import { SIMILAR_SONGS_PLAYBACK } from "../Redis/keys.js";
+import { PLAYBACK_SONGS } from "../Redis/keys.js";
 
 
 
@@ -9,7 +9,7 @@ export const playbackSession = async (_parent, _args, context) => {
   if (!userId) return null;
 
   const client = await getRedis();
-  const key = SIMILAR_SONGS_PLAYBACK(userId);
+  const key = PLAYBACK_SONGS(userId);
 
   // If key doesn’t exist or expired → null
   const exists = await client.exists(key);

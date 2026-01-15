@@ -75,15 +75,17 @@ const CompactMusicPlayer = ({
   const isLgUp = useMediaQuery(theme.breakpoints.up('lg')); // ≥ 1200px
 
 
-  console.log('see the song recievede if it has all fields:', currentSong)
+
 
   const accent = theme.palette.primary.main ?? '#E4C421';
   const text = theme.palette.text.primary ?? '#fff';
   const textMuted = theme.palette.text.secondary ?? 'rgba(255,255,255,0.6)';
 
-  const { isPlayingAd, currentAd, playerState } = useAudioPlayer();
+  const { isPlayingAd, currentAd, playerState, toggleShuffle,
+  cycleRepeatMode } = useAudioPlayer();
+
   const {
-    artworkUrl: adArtworkUrl,
+    artworkUrl: hookArtworkUrl,
     title: adTitle,
     subtitle: adSubtitle,
     isAd,
@@ -95,23 +97,50 @@ const CompactMusicPlayer = ({
     currentTrack: playerState?.currentTrack
   });
 
+
+
+const effectiveIsShuffled = Boolean(playerState?.shuffle);
+
+const effectiveRepeatMode =
+  playerState?.repeatMode === 'one'
+    ? 'one'
+    : playerState?.repeatMode === 'all'
+    ? 'all'
+    : 'none';
+
+
+
+
+
   const sanitizeCover = (src) => {
     if (!src) return null;
     if (/placehold\.co/i.test(src)) return null;
     return src;
   };
 
+  const musicArtwork =
+    sanitizeCover(hookArtworkUrl) ||
+    sanitizeCover(currentSong?.artworkUrl) ||
+    sanitizeCover(currentSong?.cover);
+
   const displayImageSrc = isAd
-    ? (sanitizeCover(adArtworkUrl) || DEFAULT_COVER)
-    : (sanitizeCover(currentSong?.artworkUrl) || sanitizeCover(currentSong?.cover) || DEFAULT_COVER);
+    ? (sanitizeCover(hookArtworkUrl) || DEFAULT_COVER)
+    : (musicArtwork || DEFAULT_COVER);
 
   const displayTitle = isAd
     ? (adTitle || 'Advertisement')
     : (currentSong?.title || 'No song');
 
+  const resolveArtistText = (artist) => {
+    if (!artist) return '';
+    if (typeof artist === 'string') return artist;
+    if (Array.isArray(artist)) return artist.filter(Boolean).join(', ');
+    return artist.artistAka || artist.fullName || artist.artistName || artist.name || '';
+  };
+
   const displaySubtitle = isAd
     ? (adSubtitle || 'Sponsored')
-    : (currentSong?.artist || currentSong?.artistName || '');
+    : (resolveArtistText(currentSong?.artist) || currentSong?.artistName || '');
   const safeSubtitle = displaySubtitle || '';
 
   const formatTime = (seconds) => {
@@ -387,24 +416,33 @@ const CompactMusicPlayer = ({
           minWidth: 0,
           gap: config.controlsGap
         }}>
+
+
           {/* Shuffle */}
+
           {config.showShuffleRepeat && (
-            <Tooltip title={isShuffled ? "Disable shuffle (S)" : "Enable shuffle (S)"}>
-              <IconButton 
-                size="small" 
-                onClick={onToggleShuffle}
-                sx={{ 
-                  color: isShuffled ? accent : textMuted,
-                  p: 0.5,
-                  '&:hover': { color: accent },
-                  '&.Mui-disabled': { opacity: 0.3 }
-                }}
-                disabled={!currentSong && !isAd}
-              >
-                <Shuffle sx={{ fontSize: config.iconSize }} />
-              </IconButton>
-            </Tooltip>
+
+           <Tooltip title={effectiveIsShuffled ? "Disable shuffle (S)" : "Enable shuffle (S)"}>
+ <IconButton
+  size="small"
+  onClick={toggleShuffle}
+  sx={{
+    color: effectiveIsShuffled ? accent : textMuted,
+    p: 0.5,
+    '&:hover': { color: accent }
+  }}
+  disabled={!currentSong && !isAd}
+>
+  <Shuffle sx={{ fontSize: config.iconSize }} />
+</IconButton>
+
+
+</Tooltip>
+
           )}
+
+
+
 
           {/* Previous */}
           <Tooltip title="Previous">
@@ -478,27 +516,29 @@ const CompactMusicPlayer = ({
 
           {/* Repeat */}
           {config.showShuffleRepeat && (
-            <Tooltip title={
-              repeatMode === 'none' ? "Enable repeat (R)" :
-              repeatMode === 'one' ? "Repeat one" : "Repeat all"
-            }>
-              <IconButton 
-                size="small" 
-                onClick={onToggleRepeat}
-                sx={{ 
-                  color: repeatMode !== 'none' ? accent : textMuted,
-                  p: 0.5,
-                  '&:hover': { color: accent },
-                  '&.Mui-disabled': { opacity: 0.3 }
-                }}
-                disabled={isAdPlaying || (!currentSong && !isAd)}
-              >
-                {repeatMode === 'one' ? 
-                  <RepeatOne sx={{ fontSize: config.iconSize }} /> : 
-                  <Repeat sx={{ fontSize: config.iconSize }} />
-                }
-              </IconButton>
-            </Tooltip>
+          <Tooltip title={
+  effectiveRepeatMode === "none" ? "Enable repeat (R)" :
+  effectiveRepeatMode === "one" ? "Repeat one" : "Repeat all"
+}>
+ <IconButton
+  size="small"
+  onClick={cycleRepeatMode}
+  sx={{
+    color: effectiveRepeatMode !== 'none' ? accent : textMuted,
+    p: 0.5,
+    '&:hover': { color: accent }
+  }}
+  disabled={isAdPlaying || (!currentSong && !isAd)}
+>
+  {effectiveRepeatMode === 'one'
+    ? <RepeatOne sx={{ fontSize: config.iconSize }} />
+    : <Repeat sx={{ fontSize: config.iconSize }} />
+  }
+</IconButton>
+
+
+</Tooltip>
+
           )}
         </Box>
 

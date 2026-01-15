@@ -448,7 +448,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import { useQuery, useApolloClient } from '@apollo/client';
-import { Box, Typography, IconButton } from '@mui/material';
+import { Box, Typography, IconButton, useTheme } from '@mui/material';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { FiChevronRight } from 'react-icons/fi';
 
@@ -466,6 +466,7 @@ import { SongCard, CompactSongCard } from "../otherSongsComponents/songCard";
 export const SongsILike = () => {
   const containerRef = useRef(null);
   const client = useApolloClient();
+  const theme = useTheme();
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
 
@@ -540,7 +541,12 @@ console.log('check songs i like after useSongWithPresignUrl hook: ', songsWithAr
           display: 'flex',
           flexWrap: 'wrap',
           justifyContent: { xs: 'center', sm: 'flex-start' },
-          gap: { xs: '1rem', sm: '1.5rem', md: '2rem' },
+          gap: {
+            xs: theme.spacing(theme.customSpacing?.cardGap?.xs ?? 1.5),
+            sm: theme.spacing(theme.customSpacing?.cardGap?.sm ?? 1.75),
+            md: theme.spacing(theme.customSpacing?.cardGap?.md ?? 2),
+            lg: theme.spacing(theme.customSpacing?.cardGap?.lg ?? 2.25),
+          },
           px: { xs: 0.5, sm: 1 }
         }}>
           {likedSongs.map((song) => {
@@ -627,7 +633,12 @@ console.log('check songs i like after useSongWithPresignUrl hook: ', songsWithAr
             sx={{
               display: 'flex',
               overflowX: 'auto',
-              gap: { xs: '1rem', sm: '1.5rem', md: '2rem' },
+              gap: {
+                xs: theme.spacing(theme.customSpacing?.cardGap?.xs ?? 1.5),
+                sm: theme.spacing(theme.customSpacing?.cardGap?.sm ?? 1.75),
+                md: theme.spacing(theme.customSpacing?.cardGap?.md ?? 2),
+                lg: theme.spacing(theme.customSpacing?.cardGap?.lg ?? 2.25),
+              },
               pb: 2,
               px: { xs: 1, sm: 2 },
               scrollbarWidth: 'none',

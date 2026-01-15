@@ -43,6 +43,15 @@ export const afrofeelTheme = createTheme({
     },
   },
 
+  customSpacing: {
+    cardGap: { xs: 1.5, sm: 1.75, md: 2, lg: 2.25 },
+    albumCardGap: { xs: 1.5, sm: 1.75, md: 2, lg: 2.25 },
+  },
+
+  customSizes: {
+    musicCard: { xs: 140, sm: 160, md: 180, lg: 200 },
+  },
+
   typography: {
     fontFamily: `'Sora', 'Manrope', 'Inter', system-ui, sans-serif`,
     h1: { fontFamily: `'Clash Display', 'Space Grotesk', 'Sora', sans-serif` },

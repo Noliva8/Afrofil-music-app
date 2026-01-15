@@ -78,8 +78,10 @@ import { handleFollowers } from './followers/handleFollowers.js';
 
 import { handleArtistDownloadCounts } from './downloads/handleArtistDownloadCounts.js';
 import { getArtistSongs } from './getArtistSongs/getArtistSongs.js';
+import{getAlbum, otherAlbumsByArtist} from '../Artist_schema/songsOfAlbum.js'
 import { CLOUDFRONT_EXPIRATION } from './Redis/keys.js';
 import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from '../../utils/cloudFrontUrl.js';
+import { getFallbackArtworkUrl } from './similarSongs/similasongResolver.js';
 
 
 
@@ -90,6 +92,33 @@ const pipe = util.promisify(pipeline);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** Safely derive an S3 object key from a URL or key string. */
+const s3KeyFromUrl = (urlOrKey) => {
+  if (!urlOrKey) return null;
+  if (typeof urlOrKey === 'string' && !urlOrKey.includes('://')) {
+    return urlOrKey.startsWith('/') ? urlOrKey.slice(1) : urlOrKey;
+  }
+  try {
+    const u = new URL(urlOrKey);
+    const path = decodeURIComponent(u.pathname || '');
+    return path.startsWith('/') ? path.slice(1) : path;
+  } catch {
+    return null;
+  }
+};
+
+/** Build streaming key from stream/original URLs. */
+const buildStreamingKey = (streamAudioFileUrl, audioFileUrl) => {
+  let key = s3KeyFromUrl(streamAudioFileUrl);
+  if (!key) {
+    const raw = s3KeyFromUrl(audioFileUrl);
+    if (raw) {
+      const filename = raw.split('/').pop();
+      key = filename ? `for-streaming/${filename}` : null;
+    }
+  }
+  return key || null;
+};
 const s3 = new S3Client({
   region: process.env.JWT_REGION_SONGS_TO_STREAM,
   credentials: {
@@ -406,6 +435,9 @@ songsOfArtist: async (parent, args, context) => {
         throw new Error("Failed to fetch songs.");
     }
 },
+
+getAlbum,
+otherAlbumsByArtist,
 
 
 
@@ -2345,6 +2377,42 @@ Subscription: {
   Song: {
     likesCount: (parent) => {
       return parent.likedByUsers?.length || 0;
+    },
+
+    // Always return CloudFront-signed artwork URL (or fallback)
+    artworkPresignedUrl: async (song) => {
+      if (song?.artworkPresignedUrl) return song.artworkPresignedUrl;
+      const key = s3KeyFromUrl(song?.artwork);
+      if (!key) return await getFallbackArtworkUrl();
+      try {
+        const { url } = await getPresignedUrlDownload(null, {
+          bucket: 'afrofeel-cover-images-for-songs',
+          key,
+          region: 'us-east-2',
+        });
+        return url;
+      } catch (err) {
+        console.error(`🎨 Artwork presign failed for ${song?._id}:`, err);
+        return await getFallbackArtworkUrl();
+      }
+    },
+
+    // Always return CloudFront-signed audio URL (or null if not available)
+    audioPresignedUrl: async (song) => {
+      if (song?.audioPresignedUrl) return song.audioPresignedUrl;
+      const key = buildStreamingKey(song?.streamAudioFileUrl, song?.audioFileUrl);
+      if (!key) return null;
+      try {
+        const { url } = await getPresignedUrlDownload(null, {
+          bucket: 'afrofeel-songs-streaming',
+          key,
+          region: 'us-west-2',
+        });
+        return url;
+      } catch (err) {
+        console.error(`🎵 Audio presign failed for ${song?._id}:`, err);
+        return null;
+      }
     },
   },
 

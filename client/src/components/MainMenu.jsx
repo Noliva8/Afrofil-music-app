@@ -22,9 +22,15 @@ const MainMenu = ({
   const navigate = useNavigate();
 
   const handleCardClick = (song) => {
-    const artistId = song?.artistId || song?.artist?._id;
-    if (!artistId) return;
-    navigate(`/artist/${artistId}`, { state: { song } });
+    const albumId = song?.albumId || song?.album?._id || song?.album;
+    const songId = song?.id || song?._id;
+    if (albumId && songId) {
+      navigate(`/album/${albumId}/${songId}`, { state: { song } });
+      return;
+    }
+    if (songId) {
+      navigate(`/song/${songId}`, { state: { song } });
+    }
   };
 
 

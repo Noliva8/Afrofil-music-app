@@ -102,14 +102,19 @@ export default function Mood({ control, watch }) {
                   />
                 )}
                 renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      label={option}
-                      size="small"
-                      {...getTagProps({ index })}
-                      sx={{ mr: 0.5 }}
-                    />
-                  ))
+                  value.map((option, index) => {
+                    const tagProps = getTagProps({ index });
+                    const { key: tagKey, ...rest } = tagProps || {};
+                    return (
+                      <Chip
+                        key={tagKey ?? `${option}-${index}`}
+                        label={option}
+                        size="small"
+                        {...rest}
+                        sx={{ mr: 0.5 }}
+                      />
+                    );
+                  })
                 }
               />
             )}

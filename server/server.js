@@ -263,10 +263,10 @@ app.options('*', cors({
 // Body parsing middleware
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // File upload middleware
-app.use(graphqlUploadExpress({ maxFileSize: 100000000, maxFiles: 10 }));
+app.use(graphqlUploadExpress({ maxFileSize: 1000000000, maxFiles: 10 }));
 
 // Combining typeDefs and resolvers
 const typeDefs = [artist_typeDefs, user_typeDefs, advertizer_typeDefs];

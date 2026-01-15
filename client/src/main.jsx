@@ -26,8 +26,9 @@ import CheckoutPage from './pages/CheckoutPage.jsx';
 import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
 import PremiumCheckoutWrapper from './components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx';
 import ArtistPage from './components/ArtistPage.jsx';
-
-
+import { SongPage } from './components/SongPage.jsx';
+import { AlbumPage } from './pages/freeDashboard/AlbumPage.jsx';
+import { SingleSongPage } from './components/SingleSongPage.jsx';
 
 import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
 import CompletePageWrapper from './components/userComponents/Home/Premium/CompletePageWrapper.jsx';
@@ -117,8 +118,22 @@ const router = createBrowserRouter([
       },
       {
         path: "artist/:artistId",
-        element: <ProtectedRoute element={<ArtistPage />} />,
+        element: <ArtistPage />,
       },
+      {path: "album/:albumId/:songId",
+        element: <SongPage />
+      },
+      {
+        path: "song/:songId",
+        element: < SingleSongPage />
+      },
+
+      {
+
+        path: "album/:albumId",
+        element: <AlbumPage />
+      },
+      
       {
         path: "artist/register",
         element: <ArtistRegister />,
