@@ -1610,8 +1610,13 @@ const menuItems = [
                 })
               }
               onOpenArtist={() => {
-                const artistId = song.artistId || song.artist?._id || resolvedArtistId;
-                if (artistId) navigate(`/artist/${artistId}`);
+                const songId = song?._id || song?.songId || song?.id;
+                const albumId = song?.albumId || song?.album?._id || song?.album;
+                if (albumId && songId) {
+                  navigate(`/album/${albumId}/${songId}`);
+                  return;
+                }
+                if (songId) navigate(`/song/${songId}`);
               }}
             />
           </Box>

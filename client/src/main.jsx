@@ -9,6 +9,7 @@ import Search from './pages/Search';
 import Playlist from './pages/Playlist';
 import Libraly from './pages/Libraly';
 import More from './pages/More';
+import Explore from './pages/Explore';
 import ArtistRegister from './pages/ArtistRegister'; 
 import ArtistStudio from './pages/ArtistStudio'; 
 import ArtistVerificationPage from './components/ArtistVerficationPage.jsx';
@@ -107,6 +108,10 @@ const router = createBrowserRouter([
       {
         path: "more",
         element: <ProtectedRoute element={<More />} />, // Protect more route
+      },
+      {
+        path: "explore",
+        element: <Explore />,
       },
       {
         path: "loginSignin",

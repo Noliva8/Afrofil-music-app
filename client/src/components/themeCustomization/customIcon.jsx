@@ -4,28 +4,23 @@ import SvgIcon from '@mui/material/SvgIcon';
 
 
 
-export function SitemarkIcon() {
+export function SitemarkIcon(props) {
+  const { sx, ...rest } = props || {};
   return (
-    
-    <SvgIcon sx={{ height: 21, width: 100, mr: 2 }}>
-    
- <svg
-
-  id="Layer_1"
-  x="0px"
-  y="0px"
-  viewBox="0 0 2000 2000"
-  style={{ enableBackground: "new 0 0 2000 2000", height: '86px',  }}
->
-  <style type="text/css">
-    {`
+    <SvgIcon
+      {...rest}
+      viewBox="0 0 2000 2000"
+      sx={{ width: 24, height: 24, mr: 1, flexShrink: 0, display: 'block', ...sx }}
+    >
+      <style type="text/css">
+        {`
      .st0{display:none;fill:#FFFFFF;}
 	.st1{fill:#050302;}
 	.st2{fill:#D99D31;}
 	.st3{display:none;fill:#050302;}
 	.st4{fill:#FFFFFF;}
     `}
-  </style>
+      </style>
 <path className="st0" d="M2013.5,1961.4c-677.5,0-1355,0-2032.6,0c0-677.5,0-1355,0-2032.6c677.5,0,1355,0,2032.6,0
 	C2013.5,606.4,2013.5,1283.9,2013.5,1961.4z M620.7,523.8l0.1-0.1c-1.3,0.8-2.6,1.7-3.3,3.2l0.1-0.1c-2.4,2.1-4.7,4.2-7.1,6.4
 	c-2.7,1.1-4.4,3.5-6.4,5.5c-23.8,23.4-45.7,48.3-65,75.5c-7.9,11.1-16.1,22-22.1,34.3c-1.1,1.1-2,2.3-1.7,4l0.1-0.2
@@ -171,7 +166,6 @@ export function SitemarkIcon() {
 	C1203.4,1227.4,1203.4,1227.3,1203.4,1227.3z"/>
 <path className="st1" d="M975.6,1237.9c0.2,4.2-0.3,8.3-1.9,12.2c-3,7.2-8.4,10.9-16.1,10.9c-7.8,0.1-13.3-3.3-16.2-10.7
 	c-3.3-8.5-3.1-17.1,0.5-25.5c2.8-6.7,8.5-9.5,15.4-9.5c6.9,0,12.4,2.7,15.6,9.3C975,1228.8,975.9,1233.3,975.6,1237.9z"/>
-</svg>
     </SvgIcon>
   );
 }
