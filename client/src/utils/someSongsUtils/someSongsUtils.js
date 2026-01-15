@@ -8,19 +8,58 @@
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+const deriveArtworkKey = (artwork) => {
+  if (!artwork) return null;
+  if (!/^https?:\/\//i.test(String(artwork))) {
+    return String(artwork).replace(/^\/+/, "");
+  }
+  try {
+    const url = new URL(artwork);
+    // Keep full path (no query), drop leading slash
+    return decodeURIComponent((url.pathname || "").replace(/^\/+/, ""));
+  } catch {
+    return null;
+  }
+};
+
+const deriveAudioStreamKey = (streamUrl) => {
+  if (!streamUrl) return null;
+  if (!/^https?:\/\//i.test(String(streamUrl))) {
+    const cleaned = String(streamUrl).replace(/^\/+/, "");
+    return cleaned.startsWith("for-streaming/") ? cleaned : `for-streaming/${cleaned}`;
+  }
+  try {
+    const url = new URL(streamUrl);
+    const filename = decodeURIComponent((url.pathname || "").split("/").pop() || "");
+    return filename ? `for-streaming/${filename}` : null;
+  } catch {
+    return null;
+  }
+};
+
 
 
 // Process songs data
 export const processSongs = (songs) => {
+
+  console.log('song from with artwork:', songs)
   return (songs || []).map((song) => {
       const artworkUrl =
-        song.artworkPresignedUrl ||
         song.artworkUrl ||
+        song.artworkPresignedUrl ||
         song.artwork ||
         song.cover ||
         song.image ||
         null;
-    const audioUrl = song.audioPresignedUrl || song.audioUrl || song.streamAudioFileUrl;
+
+
+    const audioUrl = song.audioUrl || song.streamAudioFileUrl;
+    const streamAudioFileUrl = song.streamAudioFileUrl || null;
+    const audioStreamKey = song.audioStreamKey || deriveAudioStreamKey(streamAudioFileUrl);
+    const artworkKey = song.artworkKey || deriveArtworkKey(song.artwork || artworkUrl || song.cover || song.image);
+    const profilePictureUrl = song.profilePictureUrl || song.artist?.profileImage || null;
+    const coverImageUrl = song.coverImageUrl || song.artist?.coverImage || null;
+    const albumCoverImageUrl = song.albumCoverImageUrl || song.album?.albumCoverImage || null;
     const releaseYear = song.album?.releaseDate
       ? new Date(song.album.releaseDate).getFullYear()
       : (song.releaseYear || null);
@@ -52,7 +91,7 @@ export const processSongs = (songs) => {
       subMood: Array.isArray(song.subMoods) && song.subMoods.length > 0
         ? song.subMoods.join(", ")
         : "Unknown Sub Mood",
-      tempo: Number(song.tempo) || 120, // default to 120 BPM
+
       plays: Number(song.playCount) || 0,
       downloadCount: Number(song.downloadCount) || 0,
       artistFollowers: Number(song.artistFollowers ?? song.fullOriginal?.artistFollowers ?? (song.artist?.followers?.length || 0)) || 0,
@@ -76,11 +115,16 @@ export const processSongs = (songs) => {
       durationSeconds: Number(song.duration) || 0,
       duration: formatDuration(Number(song.duration) || 0),
 
-      // artworkUrl (do not inject placeholder; let UI handle fallback)
-      cover: artworkUrl || null,
-      artworkUrl: artworkUrl || null,
-      artworkPresignedUrl: song.artworkPresignedUrl || null,
+      // artwork + related images (keep presigned/fallback from hook)
+      artworkUrl,
+      profilePictureUrl,
+      coverImageUrl,
+      albumCoverImageUrl,
+
       audioUrl: audioUrl || null,
+      streamAudioFileUrl,
+      audioStreamKey,
+      artworkKey,
       lyrics: song.lyrics || song.fullOriginal?.lyrics || "",
       credits,
       label: song.label || song.fullOriginal?.label || '',

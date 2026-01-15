@@ -86,6 +86,10 @@ export async function initializeRedis() {
         } catch (error) {
             console.error('💥 Failed to connect to Redis:', error.message);
             
+
+
+
+            
             // // Provide detailed error information
             // if (error.message.includes('NOAUTH')) {
             //     console.log('\n🔐 AUTHENTICATION TROUBLESHOOTING:');

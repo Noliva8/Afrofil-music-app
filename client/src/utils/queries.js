@@ -523,12 +523,14 @@ export const GET_PLAYBACK_SESSION = gql`
         title
         url
         audioUrl
+        audioKey
         fullUrl
         fullUrlWithAds
         teaserUrl
         isTeaser
         artworkUrl
         artworkPresignedUrl
+        artworkKey
         artist
         artistName
         artistId
@@ -560,12 +562,14 @@ export const GET_PLAYBACK_SESSION = gql`
         title
         url
         audioUrl
+        audioKey
         fullUrl
         fullUrlWithAds
         teaserUrl
         isTeaser
         artworkUrl
         artworkPresignedUrl
+        artworkKey
         artist
         artistName
         artistId
@@ -692,4 +696,95 @@ query getArtistSongs($artistId: ID!) {
   }
 }
 
+`
+
+
+export const SONGS_OF_ALBUM = gql`
+  query GetAlbum($albumId: ID!) {
+  getAlbum(albumId: $albumId) {
+    title
+    albumCoverImage
+    artist {
+      _id
+      artistAka
+      artistDownloadCounts
+      bio
+      followerCount
+      country
+    }
+    createdAt
+    releaseDate
+    songs {
+      _id
+      artistFollowers
+      artwork
+      artworkKey
+      audioFileUrl
+      audioStreamKey
+      composer {
+        contribution
+        name
+      }
+      duration
+      downloadCount
+      likesCount
+      playCount
+      producer {
+        name
+        role
+      }
+      streamAudioFileUrl
+      shareCount
+      releaseDate
+      trackNumber
+      title
+    }
+  }
+}
+`;
+
+
+
+
+export const OTHER_ALBUMS_ARTIST = gql`
+query OtherAlbumsByArtist($albumId: ID!, $artistId: ID!) {
+  otherAlbumsByArtist(albumId: $albumId, artistId: $artistId) {
+    _id
+    title
+    releaseDate
+    albumCoverImage
+    createdAt
+    artist {
+      _id
+      artistAka
+      artistDownloadCounts
+      bio
+      country
+      coverImage
+    }
+    songs {
+      _id
+      title
+      trackNumber
+      featuringArtist
+      composer {
+        contribution
+        name
+      }
+      producer {
+        name
+        role
+      }
+      artwork
+      duration
+      label
+      streamAudioFileUrl
+      downloadCount
+      likesCount
+      shareCount
+      playCount
+      lyrics
+    }
+  }
+}
 `

@@ -1,13 +1,4 @@
 
-
-
-
-
-
-
-
-
-
 // AudioPlayerProvider.jsx
 import React, { createContext, useContext, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
@@ -18,7 +9,7 @@ import { useLocationContext } from './useLocationContext.jsx';
 import { ensureSessionId } from '../sessions/sessionGenerator.js';
 import UserAuth from "../auth.js";
 
-import { SAVE_PLAYBACK_SESSION } from '../mutations.js';
+import { SAVE_PLAYBACK_SESSION, GET_PRESIGNED_URL_DOWNLOAD_AUDIO, GET_PRESIGNED_URL_DOWNLOAD } from '../mutations.js';
 import { GET_PLAYBACK_SESSION } from '../queries.js';
 import { getClientDeviceInfo } from '../detectDevice/getClientDeviceInfo.js';
 
@@ -50,6 +41,36 @@ const normalizeArtworkTrack = (track) => {
 
 
 
+// Derive an audio stream key from any known locator (URL or key).
+const deriveAudioStreamKey = (item = {}) => {
+  const raw = item.audioKey || item.audioStreamKey || item.streamAudioFileUrl || item.audioUrl || item.url || item.fullUrl || item.fullUrlWithAds || null;
+  if (!raw) return null;
+
+  // If it's already a key (no scheme), normalize leading slash and ensure for-streaming prefix.
+  if (!/^https?:\/\//i.test(raw)) {
+    const cleaned = raw.replace(/^\/+/, '');
+    return cleaned.startsWith('for-streaming/') ? cleaned : `for-streaming/${cleaned}`;
+  }
+
+  try {
+    const u = new URL(raw);
+    const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+    if (path.startsWith('for-streaming/')) return path;
+    const filename = path.split('/').pop();
+    return filename ? `for-streaming/${filename}` : null;
+  } catch {
+    return null;
+  }
+};
+
+const RepeatMode = {
+  OFF: "none",
+  ALL: "all",
+  ONE: "one",
+};
+
+
+
 // Trim GraphQL meta fields and blank rows from credits before saving to server
 const normalizeCredits = (credits) => {
   if (!Array.isArray(credits)) return null;
@@ -66,42 +87,44 @@ const normalizeCredits = (credits) => {
   return cleaned.length ? cleaned : null;
 };
 
+
+
+
 // Only fields allowed by PlaybackTrackInput (strip __typename and extras)
 const toPlaybackTrackInput = (t) => {
   if (!t) return null;
   const artwork = sanitizeArtworkUrl(t.artworkUrl ?? t.artworkPresignedUrl ?? t.cover);
-  const looksUnsignedCloudFront = (u) =>
-    typeof u === 'string' &&
-    u.includes('.cloudfront.net/') &&
-    !u.includes('Signature=') &&
-    !u.includes('Key-Pair-Id=');
-  const looksSignedCloudFront = (u) =>
-    typeof u === 'string' &&
-    u.includes('.cloudfront.net/') &&
-    (u.includes('Signature=') || u.includes('Key-Pair-Id='));
 
-  let effectiveUrl = t.url ?? null;
-  if (t.audioUrl && effectiveUrl && effectiveUrl !== t.audioUrl) {
-    // If we have a signed audioUrl but a stale/unsigned url, prefer the signed one.
-    if (looksUnsignedCloudFront(effectiveUrl) && looksSignedCloudFront(t.audioUrl)) {
-      effectiveUrl = t.audioUrl;
+  // Prefer explicit keys, then derive from any locator (URL or path)
+  const audioKey =
+    t.audioKey ||
+    t.audioStreamKey ||
+    deriveAudioStreamKey(t);
+
+  const artworkKey = (() => {
+    const src = t.artworkKey || artwork || t.artwork;
+    if (!src) return null;
+    if (!/^https?:\/\//i.test(src)) return src.replace(/^\/+/, '');
+    try {
+      const u = new URL(src);
+      return decodeURIComponent((u.pathname || '').replace(/^\/+/, ''));
+    } catch {
+      return null;
     }
-  }
-  if (!effectiveUrl) {
-    // Prefer the latest resolved playback URL if url isn't set.
-    effectiveUrl = t.audioUrl ?? t.fullUrl ?? t.fullUrlWithAds ?? null;
-  }
+  })();
+
   return {
     id: String(t.id || t._id || ''),
     title: t.title ?? null,
-    url: effectiveUrl,
-    audioUrl: t.audioUrl ?? null,
-    fullUrl: t.fullUrl ?? null,
-    fullUrlWithAds: t.fullUrlWithAds ?? null,
-    teaserUrl: t.teaserUrl ?? null,
+    // Avoid saving presigned URLs; keep only keys so resume can re-sign.
+    url: null,
+    audioUrl: null,
+    audioKey,
     isTeaser: typeof t.isTeaser === 'boolean' ? t.isTeaser : false,
-    artworkUrl: artwork ?? null,
-    artworkPresignedUrl: artwork ?? null,
+    // Do not persist potentially expired artwork URLs; rely on key for presign
+    artworkUrl: null,
+    artworkPresignedUrl: null,
+    artworkKey,
     // Preserve rich metadata so resume/currentSong stays complete
     artist: t.artist ?? t.artistName ?? null,
     artistName: t.artistName ?? t.artist ?? null,
@@ -131,17 +154,40 @@ const toPlaybackTrackInput = (t) => {
   };
 };
 
+
+
+
 const normalizeTrackForResume = (t) => {
   if (!t) return null;
+  
+  const audioKey = t.audioKey || deriveAudioStreamKey(t);
   const artwork = sanitizeArtworkUrl(t.artworkUrl || t.artworkPresignedUrl || t.cover);
-  return {
+  const artworkKey = t.artworkKey || (artwork ? (() => {
+    try {
+      const u = new URL(artwork);
+      return decodeURIComponent((u.pathname || '').replace(/^\/+/, ''));
+    } catch {
+      return null;
+    }
+  })() : null);
+
+  const result = {
     ...t,
-    url: t.url || t.fullUrl || t.audioUrl || t.fullUrlWithAds || null,
+    // Drop presigned URLs; rely on key so we can re-sign on demand
+    url: null,
+    audioUrl: null,
+    audioKey: audioKey || null,
+    audioStreamKey: t.audioStreamKey || audioKey || null,
+    artworkKey,
     artworkPresignedUrl: artwork || null,
     artworkUrl: artwork || null,
     isTeaser: !!t.isTeaser,
   };
+
+  return result;
 };
+
+
 
 const AudioPlayerContext = createContext();
 
@@ -216,6 +262,13 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const [fetchPlaybackSession, { data: resumeData }] =
     useLazyQuery(GET_PLAYBACK_SESSION, { fetchPolicy: 'network-only' });
 
+  const [presignAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO, {
+    onError: (err) => console.warn('[AUDIO] presign on resume failed:', err?.message || err),
+  });
+  const [presignArtwork] = useMutation(GET_PRESIGNED_URL_DOWNLOAD, {
+    onError: (err) => console.warn('[AUDIO] presign artwork on resume failed:', err?.message || err),
+  });
+
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
   const sessionId = ensureSessionId(); // optional for analytics if you need
@@ -226,6 +279,9 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
     isGuest: !isUserLoggedIn,
     isPremium
   }), [isUserLoggedIn, isPremium]);
+
+
+
 
   const buildRemainingFrom = (idx) => {
     if (!Array.isArray(canonicalQueueRef.current)) return [];
@@ -250,7 +306,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
     hasTeaserEnded: false,
     wasManuallyPaused: false,
     buffering: false,
-    repeat: false,
+    repeatMode: RepeatMode.OFF,
     shuffle: false,
     playedOnce: false,
     initialAuthLevel: null,
@@ -329,8 +385,149 @@ useEffect(() => {
 
 
 
+const toggleShuffle = useCallback(() => {
+  setPlayerState(prev => ({ ...prev, shuffle: !prev.shuffle }));
+}, []);
 
 
+
+
+
+
+
+const cycleRepeatMode = useCallback(() => {
+  console.log('cycleRepeatMode called, current mode:', playerState.repeatMode);
+  setPlayerState(prev => {
+    const next =
+      prev.repeatMode === RepeatMode.OFF ? RepeatMode.ALL :
+      prev.repeatMode === RepeatMode.ALL ? RepeatMode.ONE :
+      RepeatMode.OFF;
+    console.log('Changing repeat mode from', prev.repeatMode, 'to', next);
+    return { ...prev, repeatMode: next };
+  });
+}, [playerState.repeatMode]);
+
+
+
+
+
+
+
+// ---------------
+
+// const pickNextIndex = useCallback((reason = "auto") => {
+//   const total = canonicalQueueRef.current.length;
+//   if (!total) return -1;
+
+//   const cur = currentIndexRef.current;
+
+//   // Repeat ONE: stay on current track when auto-ended
+//   if (playerState.repeatMode === RepeatMode.ONE && reason === "ended") {
+//     return cur;
+//   }
+
+//   // Shuffle: pick a random different index if possible
+//   if (playerState.shuffle && total > 1) {
+//     let idx = cur;
+//     let guard = 0;
+//     while (idx === cur && guard < 12) {
+//       idx = Math.floor(Math.random() * total);
+//       guard++;
+//     }
+//     return idx;
+//   }
+
+//   // Normal next
+//   const next = cur + 1;
+
+//   // End reached
+//   if (next >= total) {
+//     return playerState.repeatMode === RepeatMode.ALL ? 0 : cur; // cur means "no move"
+//   }
+
+//   return next;
+// }, [playerState.shuffle, playerState.repeatMode]);
+
+
+// -------------
+const pickNextIndex = useCallback((reason = "auto") => {
+
+
+ console.log('=== pickNextIndex ===');
+  console.log('Reason:', reason);
+  console.log('Current repeatMode:', playerState.repeatMode);
+  console.log('Current shuffle:', playerState.shuffle);
+  console.log('Queue length:', canonicalQueueRef.current.length);
+  console.log('Current index:', currentIndexRef.current);
+
+    console.log('pickNextIndex called:', {
+    reason,
+    total: canonicalQueueRef.current.length,
+    current: currentIndexRef.current,
+    repeatMode: playerState.repeatMode,
+    shuffle: playerState.shuffle
+  });
+
+
+  const total = canonicalQueueRef.current.length;
+    if (!total) {
+    console.log('No tracks in queue');
+    return -1;
+  }
+
+
+
+  const cur = currentIndexRef.current;
+   console.log('Current index:', cur, 'of', total);
+
+  // Repeat ONE: stay on current track when auto-ended
+  if (playerState.repeatMode === RepeatMode.ONE && reason === "ended") {
+    return cur; // Loop the same track
+  }
+
+  // Shuffle mode
+  if (playerState.shuffle && total > 1) {
+    let idx = cur;
+    let guard = 0;
+    
+    // Try to pick a different random track
+    while (idx === cur && guard < 12) {
+      idx = Math.floor(Math.random() * total);
+      guard++;
+    }
+    
+    // If we got a different track, return it
+    if (idx !== cur) {
+      return idx;
+    }
+    
+    // If all random picks failed (unlikely), fall through to normal logic
+  }
+
+  // Calculate next index
+  const next = cur + 1;
+
+  // Check if we reached the end
+  if (next >= total) {
+    // END OF QUEUE REACHED
+    
+    // Repeat ALL: start from beginning
+    if (playerState.repeatMode === RepeatMode.ALL) {
+      return 0;
+    }
+    
+    // Repeat ONE: should have been caught above, but just in case
+    if (playerState.repeatMode === RepeatMode.ONE) {
+      return cur;
+    }
+    
+    // Repeat OFF: stop playback (return -1)
+    return -1;
+  }
+
+  // Normal case: play next track
+  return next;
+}, [playerState.shuffle, playerState.repeatMode]);
 
 
 
@@ -508,6 +705,42 @@ useEffect(() => {
     return url ? { url, isTeaser: false } : null;
   }, [authState.isGuest, authState.isPremium]);
 
+  // Prefetch a small window of upcoming tracks so "Next" stays warm without signing the whole queue.
+  const prefetchUpcomingAudio = useCallback(async () => {
+    const queue = canonicalQueueRef.current;
+    if (!queue?.length) return;
+
+    const start = (currentIndexRef.current ?? 0) + 1;
+    const end = Math.min(start + 4, queue.length); // 4 ahead keeps network light
+    const slice = queue.slice(start, end);
+    if (!slice.length) return;
+
+    await Promise.all(
+      slice.map(async (item, offset) => {
+        if (!item || item.audioUrl || item.url) return;
+        const key = deriveAudioStreamKey(item);
+        if (!key) return;
+        try {
+          const { data } = await presignAudio({
+            variables: {
+              bucket: 'afrofeel-songs-streaming',
+              key,
+              region: 'us-west-2',
+            },
+          });
+          const signed = data?.getPresignedUrlDownloadAudio?.url || null;
+
+
+          if (!signed) return;
+          const idx = start + offset;
+          canonicalQueueRef.current[idx] = { ...item, audioUrl: signed, url: signed };
+        } catch (err) {
+          console.warn('[AUDIO] prefetch presign failed', err?.message || err);
+        }
+      })
+    );
+  }, [presignAudio]);
+
   // ---- Play: stable identity, uses ref fallback ----
 
   const play = useCallback(async (trackArg = null, playbackContext = null) => {
@@ -606,17 +839,80 @@ useEffect(() => {
   const load = useCallback(async (track, newQueue = []) => {
     try {
       const normalizedTrack = normalizeArtworkTrack(track);
-      const config = getAudioConfig(normalizedTrack);
+console.log('see normalize track:', normalizedTrack)
+
+      let config = getAudioConfig(normalizedTrack);
+
+      // If we don't have a playable URL yet, try to presign on demand.
+      if (!config?.url) {
+        const key = deriveAudioStreamKey(normalizedTrack);
+        if (key) {
+          try {
+            const { data } = await presignAudio({
+              variables: {
+                bucket: 'afrofeel-songs-streaming',
+                key,
+                region: 'us-west-2',
+              },
+            });
+            const signed = data?.getPresignedUrlDownloadAudio?.url || null;
+            if (signed) {
+              normalizedTrack.url = signed;
+              normalizedTrack.audioUrl = signed;
+              config = getAudioConfig(normalizedTrack);
+            }
+          } catch (err) {
+            console.warn('[AUDIO] on-demand presign failed', err?.message || err);
+          }
+        }
+      }
+
       if (!config) {
         setPlayerState(prev => ({ ...prev, error: 'No valid audio config' }));
         return false;
       }
 
-      const artwork = normalizedTrack.artworkUrl || normalizedTrack.artworkPresignedUrl || null;
+      let artwork = normalizedTrack.artworkUrl || normalizedTrack.artworkPresignedUrl || null;
+
+      if (!normalizedTrack.artworkKey) {
+        const keyFromUrl = (() => {
+          const raw = normalizedTrack.artworkUrl || normalizedTrack.artworkPresignedUrl || normalizedTrack.cover || null;
+          if (!raw) return null;
+          if (!/^https?:\/\//i.test(String(raw))) return String(raw).replace(/^\/+/, '');
+          try {
+            const u = new URL(raw);
+            return decodeURIComponent((u.pathname || '').replace(/^\/+/, ''));
+          } catch {
+            return null;
+          }
+        })();
+        if (keyFromUrl) normalizedTrack.artworkKey = keyFromUrl;
+      }
+
+      // If artwork is missing/expired but we have a key, presign on-demand.
+      if (!artwork && normalizedTrack.artworkKey) {
+        try {
+          const { data } = await presignArtwork({
+            variables: {
+              bucket: 'afrofeel-cover-images-for-songs',
+              key: normalizedTrack.artworkKey,
+              region: 'us-east-2',
+             
+            },
+          });
+          const signed = data?.getPresignedUrlDownload?.url || null;
+          if (signed) {
+            artwork = signed;
+          }
+        } catch (err) {
+          // non-fatal: fall back to whatever we had
+        }
+      }
+
       const hydratedTrack = {
         ...normalizedTrack,
-        artworkUrl: artwork,
-        artworkPresignedUrl: artwork || normalizedTrack.artworkPresignedUrl || null
+        artworkUrl: artwork || normalizedTrack.artworkUrl || normalizedTrack.artworkPresignedUrl || null,
+        artworkPresignedUrl: artwork || normalizedTrack.artworkPresignedUrl || normalizedTrack.artworkUrl || null
       };
       if (artwork) {
         lastArtworkRef.current = artwork;
@@ -678,28 +974,89 @@ useEffect(() => {
   }, [getAudioConfig]);
 
 
+
+
+
+
+
+// Keep refs in sync with state
+useEffect(() => {
+  if (playerState.currentTrack) {
+    currentTrackRef.current = playerState.currentTrack;
+    currentSongIdRef.current = playerState.currentTrack.id;
+  }
+
+  // Warm up the next few tracks whenever the current track changes.
+  prefetchUpcomingAudio();
+}, [playerState.currentTrack]);
+
+useEffect(() => {
+  if (playerState.queue && canonicalQueueRef.current) {
+    // Find current index based on track ID
+    const currentTrack = currentTrackRef.current;
+    if (currentTrack) {
+      const idx = canonicalQueueRef.current.findIndex(
+        t => t?.id === currentTrack.id
+      );
+      if (idx >= 0) {
+        currentIndexRef.current = idx;
+      }
+    }
+  }
+}, [playerState.queue, playerState.currentTrack]);
+
+
+
+
+
   // ======== RESUME: fetch saved session on mount (only for logged-in users) ========
   useEffect(() => {
     if (!isUserLoggedIn) return;
     fetchPlaybackSession().catch(() => {});
   }, [isUserLoggedIn, fetchPlaybackSession]);
 
-  // run resume exactly once per fetched payload
-  const didResumeRef = useRef(false);
-  const pendingUserResumeRef = useRef(false);
-  useEffect(() => {
-    if (didResumeRef.current) return;
-    const session = resumeData?.playbackSession;
-    if (!session || !session.track) return;
 
-    didResumeRef.current = true;
 
-    const current = normalizeTrackForResume(session.track);
-    const rest = Array.isArray(session.queue) ? session.queue.map(normalizeTrackForResume) : [];
+
+// run resume exactly once per fetched payload
+const didResumeRef = useRef(false);
+const pendingUserResumeRef = useRef(false);
+useEffect(() => {
+  if (didResumeRef.current) return;
+  const session = resumeData?.playbackSession;
+  console.log('check resumed data:', session);
+  if (!session || !session.track) return;
+
+  didResumeRef.current = true;
+
+  // On resume, keep keys only; presign on-demand during load/play.
+  const normalizeForResume = (raw) => ({
+    ...normalizeTrackForResume(raw),
+    url: null,
+    audioUrl: null,
+    isTeaser: raw.isTeaser || false,
+  });
+
+
+  (async () => {
+    const current = normalizeForResume(session.track);
+    console.log('the song to play:', current);
+    console.log('URL signed?', current.url?.includes('Signature=') ? 'YES' : 'NO');
+
+    const restRaw = Array.isArray(session.queue) ? session.queue : [];
+    console.log('see queue length:', restRaw.length);
+    const rest = restRaw.map(normalizeForResume);
 
     // reconstruct canonical queue: currentTrack + remaining
     const fullQueue = setCanonicalQueue([current, ...rest]);
     currentIndexRef.current = 0;
+
+    // Restore shuffle/repeat flags from session
+    setPlayerState(prev => ({
+      ...prev,
+      shuffle: !!session.shuffle,
+      repeatMode: session.repeat ? RepeatMode.ALL : RepeatMode.OFF,
+    }));
 
     // Hydrate ad scheduler state if available
     const pm = playerManagerRef.current;
@@ -711,31 +1068,32 @@ useEffect(() => {
       }
     }
 
-    (async () => {
-      const ok = await load(current, fullQueue.slice(1));
-      if (!ok) return;
+    const ok = await load(current, fullQueue.slice(1));
+    if (!ok) return;
 
-      if (typeof session.currentTime === 'number' && session.currentTime > 0) {
-        // seek after load so metadata is ready
-        seek(session.currentTime);
+    if (typeof session.currentTime === 'number' && session.currentTime > 0) {
+      // seek after load so metadata is ready
+      seek(session.currentTime);
+    }
+
+    // Ensure ad flag is cleared on restore
+    setPlayerState(prev => ({ ...prev, isAdPlaying: false }));
+
+    if (session.wasPlaying) {
+      try {
+        await play(current);
+      } catch (err) {
+        // Autoplay might be blocked; defer until user interacts
+        console.warn("[AUDIO] Autoplay blocked on resume; waiting for user interaction");
+        pendingUserResumeRef.current = true;
       }
+    } else {
+      setPlayerState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+    }
+  })();
+}, [resumeData, load, seek, play]); 
 
-      // Ensure ad flag is cleared on restore
-      setPlayerState(prev => ({ ...prev, isAdPlaying: false }));
 
-      if (session.wasPlaying) {
-        try {
-          await play(current);
-        } catch (err) {
-          // Autoplay might be blocked; defer until user interacts
-          console.warn("[AUDIO] Autoplay blocked on resume; waiting for user interaction");
-          pendingUserResumeRef.current = true;
-        }
-      } else {
-        setPlayerState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
-      }
-    })();
-  }, [resumeData, load, seek, play]);
 
   // Fallback: if autoplay was blocked on resume, resume on first user interaction
   useEffect(() => {
@@ -889,11 +1247,62 @@ try {
 // notifies player manager if song skipped
 // -------------------------------------
 
-  const skipNext = useCallback(async () => {
-    startManualNav();
+//   const skipNext = useCallback(async () => {
+//     startManualNav();
     
-    // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
-    const currentTrack = currentTrackRef.current;
+//     // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
+//     const currentTrack = currentTrackRef.current;
+//   if (currentTrack && playerManagerRef.current) {
+//     console.log("[AUDIO] ⏭️ Manual skip, notifying track end");
+//     try {
+//       await playerManagerRef.current.onTrackEnd({
+//         id: currentTrack.id || currentTrack._id,
+//         title: currentTrack.title,
+//         genre: currentTrack.genre,
+//         duration: currentTrack.duration,
+//         artist: currentTrack.artist,
+//       });
+//       console.log("[AUDIO] ✅ Track end notified to PlayerManager");
+//     } catch (error) {
+//       console.error("[AUDIO] Error notifying track end on skip:", error);
+//     }
+//   }
+
+//   const total = canonicalQueueRef.current.length;
+//   if (!total) return;
+
+//   const nextIndex = Math.min(currentIndexRef.current + 1, total - 1);
+//   if (nextIndex === currentIndexRef.current) {
+//     seek(0);
+//     return;
+//   }
+
+//   currentIndexRef.current = nextIndex;
+//   const nextTrack = normalizeArtworkTrack(canonicalQueueRef.current[nextIndex]);
+//   const remainingQueue = buildRemainingFrom(nextIndex);
+
+//   const updatedContext = playerState.playbackContext ? {
+//     ...playerState.playbackContext,
+//     queuePosition: nextIndex,
+//     queueLength: total
+//   } : null;
+
+//   // sync currentTrackRef before play
+//   currentTrackRef.current = nextTrack;
+
+//   await handlePlaySong(nextTrack, remainingQueue, updatedContext, {
+//     prepared: { queue: canonicalQueueRef.current, currentIndex: nextIndex }
+//   });
+// }, [handlePlaySong, playerState.playbackContext, seek]);
+
+// new one with shuffle and reapet
+
+
+const skipNext = useCallback(async () => {
+  startManualNav();
+
+  // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
+  const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
     console.log("[AUDIO] ⏭️ Manual skip, notifying track end");
     try {
@@ -913,29 +1322,39 @@ try {
   const total = canonicalQueueRef.current.length;
   if (!total) return;
 
-  const nextIndex = Math.min(currentIndexRef.current + 1, total - 1);
+  // ✅ shuffle / repeat-aware next index
+  const nextIndex = pickNextIndex({ reason: "manual" });
+  if (nextIndex < 0) return;
+
+  // If repeat OFF and at end, just restart current
   if (nextIndex === currentIndexRef.current) {
     seek(0);
     return;
   }
 
   currentIndexRef.current = nextIndex;
+
   const nextTrack = normalizeArtworkTrack(canonicalQueueRef.current[nextIndex]);
   const remainingQueue = buildRemainingFrom(nextIndex);
 
-  const updatedContext = playerState.playbackContext ? {
-    ...playerState.playbackContext,
-    queuePosition: nextIndex,
-    queueLength: total
-  } : null;
+  const updatedContext = playerState.playbackContext
+    ? {
+        ...playerState.playbackContext,
+        queuePosition: nextIndex,
+        queueLength: total,
+      }
+    : null;
 
   // sync currentTrackRef before play
   currentTrackRef.current = nextTrack;
 
   await handlePlaySong(nextTrack, remainingQueue, updatedContext, {
-    prepared: { queue: canonicalQueueRef.current, currentIndex: nextIndex }
+    prepared: { queue: canonicalQueueRef.current, currentIndex: nextIndex },
   });
-}, [handlePlaySong, playerState.playbackContext, seek]);
+}, [handlePlaySong, playerState.playbackContext, seek, pickNextIndex]);
+
+
+
 
 
   useEffect(() => {
@@ -949,10 +1368,35 @@ try {
     //   await skipNext();
     // };
 
+// const handleEnded = async () => {
+//   if (suppressAutoAdvanceRef.current) return;
+  
+//   // 🔥 ADD THIS: Notify PlayerManager that the current track ended
+//   const currentTrack = currentTrackRef.current;
+//   if (currentTrack && playerManagerRef.current) {
+//     console.log("[AUDIO] 🎵 Track ended naturally, notifying PlayerManager");
+//     try {
+//       await playerManagerRef.current.onTrackEnd({
+//         id: currentTrack.id || currentTrack._id,
+//         title: currentTrack.title,
+//         genre: currentTrack.genre,
+//         duration: currentTrack.duration,
+//         artist: currentTrack.artist,
+//       });
+//     } catch (error) {
+//       console.error("[AUDIO] Error notifying track end:", error);
+//     }
+//   }
+  
+//   await skipNext();
+// };
+
+// with shuffle and reapet
+
 const handleEnded = async () => {
   if (suppressAutoAdvanceRef.current) return;
-  
-  // 🔥 ADD THIS: Notify PlayerManager that the current track ended
+
+  // 🔥 Notify PlayerManager that the current track ended
   const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
     console.log("[AUDIO] 🎵 Track ended naturally, notifying PlayerManager");
@@ -968,12 +1412,67 @@ const handleEnded = async () => {
       console.error("[AUDIO] Error notifying track end:", error);
     }
   }
+
+  const total = canonicalQueueRef.current.length;
+  if (!total) return;
+
+  console.log('PICK INDEX IS CALLED IN HANDLEENDED ...');
   
-  await skipNext();
+  // ✅ Decide next index based on shuffle/repeat
+  const nextIndex = pickNextIndex("ended");
+
+  console.log('Next index determined:', nextIndex);
+  
+  if (nextIndex < 0) {
+    // Repeat OFF at end - stop playback
+    setPlayerState(prev => ({ ...prev, isPlaying: false }));
+    return;
+  }
+
+  // Special handling for repeat ONE
+  if (playerState.repeatMode === RepeatMode.ONE && nextIndex === currentIndexRef.current) {
+    console.log('Repeat ONE mode: restarting current track');
+    
+    // Option 1: Seek to beginning and play again
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      try {
+        await audioRef.current.play();
+        setPlayerState(prev => ({ ...prev, isPlaying: true }));
+      } catch (error) {
+        console.error('Failed to restart track:', error);
+      }
+    }
+    return;
+  }
+
+  // For all other cases (including shuffle)
+  if (nextIndex === currentIndexRef.current) {
+    // This shouldn't happen for non-ONE repeat modes, but handle gracefully
+    seek(0);
+    await play(currentTrackRef.current, playerState.playbackContext);
+    return;
+  }
+
+  currentIndexRef.current = nextIndex;
+
+  const nextTrack = normalizeArtworkTrack(canonicalQueueRef.current[nextIndex]);
+  const remainingQueue = buildRemainingFrom(nextIndex);
+
+  const updatedContext = playerState.playbackContext
+    ? {
+        ...playerState.playbackContext,
+        queuePosition: nextIndex,
+        queueLength: total,
+      }
+    : null;
+
+  currentTrackRef.current = nextTrack;
+
+  await handlePlaySong(nextTrack, remainingQueue, updatedContext, {
+    prepared: { queue: canonicalQueueRef.current, currentIndex: nextIndex },
+  });
 };
-
-
-
 
 
 
@@ -1144,20 +1643,42 @@ const handleAdEnded = useCallback(async (adIndex) => {
 }, [handlePlaySong, buildRemainingFrom, playerState.playbackContext]);
 
 
+
+
+
+
 // Persist a snapshot so refresh can resume even if an ad pauses playback
   const saveSnapshotForAd = useCallback(
+  
     async (overrideWasPlaying = null) => {
+       console.log('hello 1 ..')
       if (!isUserLoggedIn) return;
       const audio = audioRef.current;
+
+     console.log('hello 2 ..')
       if (!audio || !playerState.currentTrack) return;
 
       const adState =
         playerManagerRef.current?.getAdResumeSnapshot?.() || null;
 
+
+     console.log('hello 3..')
+
+      const trackInput = toPlaybackTrackInput(playerState.currentTrack);
+      if (!trackInput?.id) {
+        console.warn("[AUDIO] saveSnapshotForAd: missing track id, skipping snapshot");
+        return;
+      }
+
+      const queueInput = (playerState.queue || [])
+        .map(toPlaybackTrackInput)
+        .filter(Boolean);
+
       const data = {
-        track: toPlaybackTrackInput(playerState.currentTrack),
+
+        track: trackInput,
         currentTime: audio.currentTime,
-        queue: (playerState.queue || []).map(toPlaybackTrackInput),
+        queue: queueInput,
         wasPlaying: Boolean(
           typeof overrideWasPlaying === "boolean"
             ? overrideWasPlaying
@@ -1166,9 +1687,10 @@ const handleAdEnded = useCallback(async (adIndex) => {
         volume: playerState.volume,
         isMuted: playerState.isMuted,
         shuffle: playerState.shuffle,
-        repeat: playerState.repeat,
+        repeat: playerState.repeatMode,
         adState,
       };
+
 
     try {
       await savePlaybackSession({ variables: { data } });
@@ -1178,6 +1700,13 @@ const handleAdEnded = useCallback(async (adIndex) => {
   },
   [isUserLoggedIn, playerState, savePlaybackSession]
 );
+
+
+
+
+
+
+
 
 // Listen for ad completion events
 useEffect(() => {
@@ -1192,6 +1721,9 @@ useEffect(() => {
     eventBus.off("AD_PLAYBACK_FINISHED", handleAdPlaybackFinished);
   };
 }, [handleAdEnded]);
+
+
+
 
 // Listen for ad start to hard-pause main audio and flag ad state
 useEffect(() => {
@@ -1355,23 +1887,40 @@ useEffect(() => {
     const persist = async (force = false) => {
       const now = Date.now();
       if (!force && now - lastSaveRef.current < SAVE_EVERY_MS) return;
+console.log('VERIFY CURRENT TRACK', playerState.queue)
 
-      const data = {
-        track: toPlaybackTrackInput(playerState.currentTrack),
+        const trackInput = toPlaybackTrackInput(playerState.currentTrack);
+        if (!trackInput?.id) {
+          console.warn("[AUDIO] persist: missing track id, skipping snapshot");
+          return;
+        }
+
+        const queueInput = (playerState.queue || [])
+          .map(toPlaybackTrackInput)
+          .filter(Boolean);
+
+        const data = {
+        track: trackInput,
         currentTime: audio.currentTime,
-        queue: (playerState.queue || []).map(toPlaybackTrackInput),
+        queue: queueInput,
         // If an ad temporarily paused content, still treat the session as "playing"
         // so refresh resumes where music left off.
         wasPlaying: Boolean(playerState.isPlaying || playerState.isAdPlaying),
         volume: playerState.volume,
         isMuted: playerState.isMuted,
         shuffle: playerState.shuffle,
-        repeat: playerState.repeat,
+        repeat: playerState.repeatMode && playerState.repeatMode !== RepeatMode.OFF,
         adState: playerManagerRef.current?.getAdResumeSnapshot?.() || null,
       };
+      
+
+console.log('check data to resume', data)
+
+
+
 
       // dedupe by coarse signature to avoid chatty writes
-      const sig = [
+        const sig = [
         data.track?.id,
         Math.floor(data.currentTime),
         data.queue?.map(q => q.id).join(','),
@@ -1392,6 +1941,9 @@ useEffect(() => {
         console.warn('savePlaybackSession failed:', e?.message || e);
       }
     };
+
+
+
 
     const onTime = () => persist(false);
     const onSeeked = () => persist(true);
@@ -1447,7 +1999,10 @@ useEffect(() => {
         clearQueue,
         clearError,
         getAudioConfig,
-        shouldBlockPlayback
+        shouldBlockPlayback,
+         toggleShuffle,
+      cycleRepeatMode,
+       RepeatMode, 
       }}
     >
       {children}

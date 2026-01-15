@@ -78,16 +78,25 @@ export default function ArtistStudio() {
     console.log("biteeee");
   };
 
-  // Show profile image anytime this profile loads.
+  // Show profile image anytime this profile loads (keep folder path)
+  const deriveKeyFromUrl = (url) => {
+    if (!url) return "";
+    if (!/^https?:\/\//i.test(url)) return String(url).replace(/^\/+/, "");
+    try {
+      const u = new URL(url);
+      return decodeURIComponent((u.pathname || "").replace(/^\/+/, ""));
+    } catch {
+      return "";
+    }
+  };
+
   let key = null;
   if (
     artistData &&
     artistData.artistProfile &&
     artistData.artistProfile.profileImage
   ) {
-    const profileImageUrl = artistData.artistProfile.profileImage;
-    const lastSlashIndex = profileImageUrl.lastIndexOf("/");
-    key = profileImageUrl.substring(lastSlashIndex + 1);
+    key = deriveKeyFromUrl(artistData.artistProfile.profileImage);
   }
 
   // Fetch the presigned URL for the profile image

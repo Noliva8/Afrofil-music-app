@@ -254,6 +254,8 @@ type PlaybackTrack {
   title: String
   url: String
   audioUrl: String
+  audioKey: String
+  artworkKey: String
   fullUrl: String
   fullUrlWithAds: String
   teaserUrl: String
@@ -305,11 +307,16 @@ input PlaybackTrackInput {
   title: String
   url: String
   audioUrl: String
+
   fullUrl: String
   fullUrlWithAds: String
   teaserUrl: String
   isTeaser: Boolean
   artworkUrl: String
+
+  artworkKey: String
+  audioKey: String
+
   artworkPresignedUrl: String
   artist: String
   artistName: String
@@ -415,6 +422,8 @@ type Query {
   ): SongConnection!
   
   playbackSession: PlaybackSession
+   getAlbum(albumId: ID!): Album
+   otherAlbumsByArtist(albumId: ID!, artistId: ID!): [Album]
 }
 
 

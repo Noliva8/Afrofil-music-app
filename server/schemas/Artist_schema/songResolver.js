@@ -62,18 +62,19 @@ export const Song = {
     if (song?.artworkPresignedUrl) return song.artworkPresignedUrl;
 
     // Try to presign from provided artwork
-    const key = s3KeyFromUrl(song?.artwork);
+    const key = song?.artworkKey || s3KeyFromUrl(song?.artwork);
     if (!key) {
       // No artwork → fallback image (presigned or public URL depending on your implementation)
       return await getFallbackArtworkUrl();
     }
 
     try {
-      return getPresignedUrlDownload({
+      const { url } = await getPresignedUrlDownload(null, {
         bucket: "afrofeel-cover-images-for-songs",
         key,
         region: "us-east-2",
       });
+      return url;
     } catch (err) {
       console.error(`🎨 Artwork presign failed for ${song?._id}:`, err);
       return await getFallbackArtworkUrl();
@@ -84,15 +85,17 @@ export const Song = {
   audioPresignedUrl: async (song) => {
     if (song?.audioPresignedUrl) return song.audioPresignedUrl;
 
-    const key = buildStreamingKey(song?.streamAudioFileUrl, song?.audioFileUrl);
+    const keyFromStream = song?.audioStreamKey || buildStreamingKey(song?.streamAudioFileUrl, song?.audioFileUrl);
+    const key = keyFromStream;
     if (!key) return null;
 
     try {
-      return getPresignedUrlDownload({
+      const { url } = await getPresignedUrlDownload(null, {
         bucket: "afrofeel-songs-streaming",
         key,                // already normalized to "for-streaming/<filename>.mp3"
         region: "us-west-2",
       });
+      return url;
     } catch (err) {
       console.error(`🎵 Audio presign failed for ${song?._id}:`, err);
       return null;

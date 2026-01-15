@@ -110,16 +110,19 @@ export default function ContentFreePlan() {
   const handleSongImageUpload = async (file) => {
     try {
       setIsCoverUploading(true);
-      
+
       // 1. Create temporary preview
       const previewUrl = URL.createObjectURL(file);
       setDisplayUrl(previewUrl);
+
+      // Object key (with folder)
+      const objectKey = `cover-images/${file.name}`;
 
       // 2. Get presigned URL and upload
       const { data } = await getPresignedUrl({
         variables: {
           bucket: "afrofeel-cover-images-for-songs",
-          key: file.name,
+          key: objectKey,
           region: "us-east-2",
         },
       });
@@ -136,21 +139,21 @@ console.log('the data produced from song image upload:', data);
       const { data: downloadData } = await getPresignedUrlDownload({
         variables: {
           bucket: "afrofeel-cover-images-for-songs",
-          key: file.name,
+          key: objectKey,
           region: "us-east-2",
-          expiresIn: 604800 // 7 days
+          expiresIn: 604800 // 7 days (preview only)
         },
       });
 
-
       const imageUrlToDisplay = downloadData.getPresignedUrlDownload.url;
+      const s3ObjectUrl = `https://afrofeel-cover-images-for-songs.s3.us-east-2.amazonaws.com/${objectKey}`;
 
-      console.log('the link to display the image', imageUrlToDisplay)
+      console.log('the link to display the image', imageUrlToDisplay);
 
-      // 4. Update states
-      setSongCoverImage(downloadData.getPresignedUrlDownload.url);
-      setKeyToDelete(file.name);
-      setDisplayUrl(downloadData.getPresignedUrlDownload.url);
+      // 4. Update states: store canonical S3 URL (not presigned) for artwork
+      setSongCoverImage(s3ObjectUrl);
+      setKeyToDelete(objectKey);
+      setDisplayUrl(imageUrlToDisplay || s3ObjectUrl);
       
       // 5. Clean up temporary preview
       URL.revokeObjectURL(previewUrl);
@@ -740,7 +743,7 @@ try {
               setActiveStep={setActiveStep}
               songId={songId}
               watch={watch}
-              currentImageUrl={songCoverImage}
+              currentImageUrl={displayUrl || songCoverImage}
               onUpload={handleSongImageUpload}
               onDelete={deleteSongCoverImage}
               isLoading={isCoverUploading}

@@ -1113,6 +1113,9 @@ export default function Orchestrator() {
     let trackStartTimeout = null;
     let tickCount = 0;
     let isMounted = true;
+    let lastReadyTrackId = null;
+let trackReady = false;
+
 
     // ✅ Use setTimeout recursion instead of setInterval to avoid closure issues
     const tick = () => {
@@ -1218,54 +1221,130 @@ export default function Orchestrator() {
         });
       }
 
+
+
       // ========== TRACK END DETECTION ==========
       // ✅ FIX: Use proper end detection for your context
-      const duration = st.duration || 0;
-      const currentTime = st.currentTime || 0;
+      // const duration = st.duration || 0;
+      // const currentTime = st.currentTime || 0;
 
-      // Track end conditions for your specific context:
-      const hasTrackEnded = 
-        // Reached end of track (with small buffer)
-        (duration > 0 && currentTime >= duration - 0.5 && !st.isPlaying) ||
-        // Track changed while not playing (handles edge cases)
-        (currentId !== lastTrackId && !st.isPlaying);
+      // // Track end conditions for your specific context:
+      // const hasTrackEnded = 
+      //   // Reached end of track (with small buffer)
+      //   (duration > 0 && currentTime >= duration - 0.5 && !st.isPlaying) ||
+      //   // Track changed while not playing (handles edge cases)
+      //   (currentId !== lastTrackId && !st.isPlaying);
 
-      const endedNow = hasTrackEnded && currentId;
+      // const endedNow = hasTrackEnded && currentId;
 
-      // If we've just transitioned into an ended state for THIS track:
-      if (endedNow && !lastEndedFlag && currentId) {
-        console.log("[ORCH] 🔚 TRACK END DETECTED", {
-          currentTime,
-          duration,
-          trackId: currentId,
-          isPlaying: st.isPlaying
-        });
+      // // If we've just transitioned into an ended state for THIS track:
+      // if (endedNow && !lastEndedFlag && currentId) {
+      //   console.log("[ORCH] 🔚 TRACK END DETECTED", {
+      //     currentTime,
+      //     duration,
+      //     trackId: currentId,
+      //     isPlaying: st.isPlaying
+      //   });
         
-        lastEndedFlag = true;
+      //   lastEndedFlag = true;
 
-        const meta = {
-          id: currentId,
-          title: st.currentTrack?.title,
-          genre: st.currentTrack?.genre,
-          duration: st.currentTrack?.duration,
-          artist: st.currentTrack?.artist,
-        };
+      //   const meta = {
+      //     id: currentId,
+      //     title: st.currentTrack?.title,
+      //     genre: st.currentTrack?.genre,
+      //     duration: st.currentTrack?.duration,
+      //     artist: st.currentTrack?.artist,
+      //   };
 
-        console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
+      //   console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
 
-        try {
-          pm.onTrackEnd(meta);
-          console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
-        } catch (err) {
-          console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
-        }
-      }
+      //   try {
+      //     pm.onTrackEnd(meta);
+      //     console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
+      //   } catch (err) {
+      //     console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
+      //   }
+      // }
 
-      // Reset the "ended" latch when playback is clearly NOT ended anymore
-      if (!endedNow && lastEndedFlag) {
-        console.log("[ORCH] Reset ended flag - playback resumed or new track");
-        lastEndedFlag = false;
-      }
+      // // Reset the "ended" latch when playback is clearly NOT ended anymore
+      // if (!endedNow && lastEndedFlag) {
+      //   console.log("[ORCH] Reset ended flag - playback resumed or new track");
+      //   lastEndedFlag = false;
+      // }
+
+// new
+
+// ========== TRACK END DETECTION ==========
+const duration = Number(st.duration) || 0;
+const currentTime = Number(st.currentTime) || 0;
+
+// Guard: ignore end detection until we have a real duration.
+// (Prevents "ended" firing immediately when duration is 0 / metadata not loaded / failed src)
+const durationIsValid = Number.isFinite(duration) && duration > 1;
+
+// Track "ready" latch per track id (local var outside tick scope)
+// Add these near your other latches at module scope:
+// let lastReadyTrackId = null;
+// let trackReady = false;
+
+if (currentId && currentId !== lastReadyTrackId) {
+  // new track, reset readiness
+  lastReadyTrackId = currentId;
+  trackReady = false;
+}
+
+if (!trackReady && durationIsValid) {
+  // we now have enough info to trust end detection for this track
+  trackReady = true;
+}
+
+let endedNow = false;
+
+// Only detect "ended" for the CURRENT track after it's ready
+if (currentId && trackReady) {
+  // End condition: reached end with buffer AND not playing
+  endedNow =
+    currentTime >= Math.max(0, duration - 0.5) &&
+    !st.isPlaying;
+}
+
+// If we've just transitioned into an ended state for THIS track:
+if (endedNow && !lastEndedFlag && currentId) {
+  console.log("[ORCH] 🔚 TRACK END DETECTED", {
+    currentTime,
+    duration,
+    trackId: currentId,
+    isPlaying: st.isPlaying,
+  });
+
+  lastEndedFlag = true;
+
+  const meta = {
+    id: currentId,
+    title: st.currentTrack?.title,
+    genre: st.currentTrack?.genre,
+    duration: st.currentTrack?.duration,
+    artist: st.currentTrack?.artist,
+  };
+
+  console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
+
+  try {
+    pm.onTrackEnd(meta);
+    console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
+  } catch (err) {
+    console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
+  }
+}
+
+// Reset the "ended" latch when playback is clearly NOT ended anymore
+if (!endedNow && lastEndedFlag) {
+  console.log("[ORCH] Reset ended flag - playback resumed or new track");
+  lastEndedFlag = false;
+}
+
+
+
 
       // ========== TELEMETRY TICK ==========
       try {

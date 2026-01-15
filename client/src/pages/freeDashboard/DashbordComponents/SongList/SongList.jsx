@@ -9,6 +9,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MusicVideoIcon from '@mui/icons-material/MusicVideo';
 import { GET_PRESIGNED_URL_DOWNLOAD, GET_PRESIGNED_URL_DELETE, GET_PRESIGNED_URL_DOWNLOAD_AUDIO } from '../../../../utils/mutations';
+import { fetchPresignedUrls } from '../../../../utils/someSongsUtils/songsWithPresignedUrlHook';
 import AudioPlayer from './TogglePlay';
 import AudioControls from './AudioControls';
 import EditModal from './EditSong/EditSongModal';
@@ -66,84 +67,63 @@ useEffect(() => {
 
 
 useEffect(() => {
-  async function fetchPresignedUrls() {
+  async function runPresign() {
     const artUrls = {};
     const audUrls = {};
 
-    for (const song of songs) {
-      const getArtworkKey = (url) => {
-        try {
-          const parsed = new URL(url);
-          return decodeURIComponent(parsed.pathname.split('/').pop());
-        } catch {
-          return url;
+    // Manually presign each song (artwork + audio) for this list
+    await Promise.all(
+      (songs || []).map(async (song) => {
+        const id = song._id || song.id;
+        if (!id) return;
+
+        // Artwork presign
+        let artUrl = null;
+        if (song.artwork) {
+          try {
+            const { data } = await getPresignedUrlDownload({
+              variables: {
+                bucket: 'afrofeel-cover-images-for-songs',
+                key: typeof song.artwork === 'string'
+                  ? decodeURIComponent(new URL(song.artwork).pathname.replace(/^\/+/, ''))
+                  : song.artwork,
+                region: 'us-east-2',
+              },
+            });
+            artUrl = data?.getPresignedUrlDownload?.url || data?.getPresignedUrlDownload?.url || null;
+          } catch (err) {
+            artUrl = null;
+          }
         }
-      };
 
-      const getAudioKey = (url) => {
-        try {
-          const parsed = new URL(url);
-          return decodeURIComponent(parsed.pathname.split('/').pop());
-        } catch {
-          return url;
+        // Audio presign
+        let audUrl = null;
+        if (song.streamAudioFileUrl) {
+          try {
+            const { data } = await getPresignedUrlDownloadAudio({
+              variables: {
+                bucket: 'afrofeel-songs-streaming',
+                key: `for-streaming/${decodeURIComponent(new URL(song.streamAudioFileUrl).pathname.split('/').pop())}`,
+                region: 'us-west-2',
+              },
+            });
+            audUrl = data?.getPresignedUrlDownloadAudio?.url || null;
+          } catch (err) {
+            audUrl = null;
+          }
         }
-      };
 
-      // 🎨 Fetch artwork presigned URL
-      if (song.artwork) {
-        const artworkKey = getArtworkKey(song.artwork);
-        try {
-          const { data: artworkData } = await getPresignedUrlDownload({
-            variables: {
-              bucket: 'afrofeel-cover-images-for-songs',
-              key: artworkKey,
-              region: 'us-east-2',
-              expiresIn: 604800,
-            },
-          });
-
-          artUrls[song._id] = artworkData.getPresignedUrlDownload;
-        } catch (error) {
-          console.error('❌ Error fetching artwork URL for', song.title, error);
-          artUrls[song._id] = null;
-        }
-      } else {
-        artUrls[song._id] = null;
-      }
-
-      // 🎵 Fetch audio presigned URL using new function
-      if (song.streamAudioFileUrl) {
-        const audioKey = getAudioKey(song.streamAudioFileUrl);
-        try {
-          const { data: audioData } = await getPresignedUrlDownloadAudio({
-            variables: {
-              bucket: 'afrofeel-songs-streaming',
-              key: `for-streaming/${audioKey}`,  // <-- add prefix here
-              region: 'us-west-2',
-            },
-          });
-
-          console.log(audioData.getPresignedUrlDownloadAudio.url);
-
-          audUrls[song._id] = audioData.getPresignedUrlDownloadAudio.url;
-        } catch (error) {
-          console.error('❌ Error fetching audio URL for', song.title, error);
-          audUrls[song._id] = null;
-        }
-      } else {
-        audUrls[song._id] = null;
-      }
-    }
+        artUrls[id] = artUrl;
+        audUrls[id] = audUrl;
+      })
+    );
 
     setArtworkUrls(artUrls);
     setAudioUrls(audUrls);
-
-    console.log('🎨 Artwork URLs:', artUrls);
-    console.log('🎵 Audio URLs:', audUrls);
   }
 
   if (songs.length) {
-    fetchPresignedUrls();
+    runPresign();
   }
 }, [songs, getPresignedUrlDownload, getPresignedUrlDownloadAudio]);
 
@@ -264,9 +244,9 @@ const handleDelete = async (songId) => {
                         },
                       }}
                     >
-                      {artworkUrls[song._id]?.urlToDownload ? (
+                      {artworkUrls[song._id || song.id] ? (
                         <img
-                          src={artworkUrls[song._id].urlToDownload}
+                          src={artworkUrls[song._id || song.id]}
                           alt={song.title || "Artwork"}
                           style={{
                             width: "100%",
@@ -323,12 +303,13 @@ const handleDelete = async (songId) => {
                   >
                     <AudioPlayer
                       song={song}
-                      audioUrl={audioUrls[song._id]}
+                      audioUrl={audioUrls[song._id || song.id]}
                       playingSongId={playingSongId}
                       setPlayingSongId={setPlayingSongId}
                       setVolumeRef={(ref) => {
                         if (ref?.current) {
-                          audioRefs.current[song._id] = ref.current;
+                          const songId = song._id || song.id;
+                          audioRefs.current[songId] = ref.current;
                           ref.current.volume = volume;
                         }
                       }}

@@ -134,7 +134,7 @@ const response = await addArtwork({ variables });
   return (
     <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Album Artwork
+        Song artwork
       </Typography>
       
       <form onSubmit={handleSubmit((onSubmit))} >

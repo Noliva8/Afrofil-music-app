@@ -93,10 +93,12 @@ export default function AlbumCoverUpload({
       setIsLoadingImage(true);
       setProgress(0); // Reset progress before starting
 
+      const objectKey = `album-covers/${file.name}`;
+
       const { data } = await getPresignedUrl({
         variables: {
           bucket: "afrofeel-album-covers",
-          key: file.name,
+          key: objectKey,
           region: "us-west-2",
         },
       });
@@ -118,13 +120,14 @@ export default function AlbumCoverUpload({
       xhr.onload = async () => {
         if (xhr.status === 200) {
           const imageUrl = uploadedUrl.split("?")[0];
-          setUploadedImageUrl(imageUrl); // Set the uploaded image URL
+          const canonicalUrl = `https://afrofeel-album-covers.s3.us-west-2.amazonaws.com/${objectKey}`;
+          setUploadedImageUrl(canonicalUrl); // Set the uploaded image URL
 
           // Update the album with the uploaded image URL
           await UpdateAlbum({
             variables: {
               albumId: albumId,
-              albumCoverImage: imageUrl,
+              albumCoverImage: canonicalUrl,
             },
           });
 

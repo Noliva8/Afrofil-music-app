@@ -214,41 +214,47 @@ export const deserializeFromRedisStorage = (hash, typeMap) => {
 
 
 
-
 export const addSongRedis = async (id, client) => {
-  
   console.log('id sent to redis:', id);
 
   try {
-  
+    const key = songKey(id);
+
+    // 1️⃣ Check existence via canonical field
+    const exists = await client.hExists(key, '_id');
+
+    // 2️⃣ If exists → refresh TTL only
+    if (exists) {
+      await client.expire(key, songHashExpiration);
+      console.log(`♻️ Refreshed TTL for song ${id}`);
+      return false;
+    }
+
+    // 3️⃣ Fetch from Mongo only if missing
     const songDoc = await Song.findById(id)
-      .populate('artist', '_id artistAka bio country profileImage coverImage') 
+      .populate('artist', '_id artistAka bio country profileImage coverImage')
       .populate('album', '_id title albumCoverImage')
-      .lean();  
+      .lean();
 
     if (!songDoc) {
       console.error('❌ Song not found in MongoDB:', id);
       return false;
     }
 
-    const shaped = shapeForRedis(songDoc);
-    console.log("🔷 Shaped data:", JSON.stringify(shaped, null, 2));
-    
-    const redisSafe = serialize(shaped);
-    console.log("🔶 Serialized for Redis:", Object.keys(redisSafe).length, "fields");
+    const redisSafe = serialize(shapeForRedis(songDoc));
 
-    // Set the song data AND expiration in one operation
+    // 4️⃣ Write hash + TTL
     await client
       .multi()
-      .hSet(songKey(id), redisSafe)
-      .expire(songKey(id), songHashExpiration)
+      .hSet(key, redisSafe)
+      .expire(key, songHashExpiration)
       .exec();
-    
-    console.log(`✅ Song ${id} saved to Redis with ${songHashExpiration} second TTL.`);
+
+    console.log(`✅ Song ${id} saved to Redis with TTL refreshed.`);
     return true;
-    
+
   } catch (error) {
-    console.error("❌ Error saving to Redis:", error);
+    console.error('❌ Error saving to Redis:', error);
     return false;
   }
 };

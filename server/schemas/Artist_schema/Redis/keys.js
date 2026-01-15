@@ -8,9 +8,8 @@ export const trendIndexZSet = `trend:songs:zset`;
 export const INITIAL_RECENCY_SCORE = 1000;
 export const TRENDING_SLOTS = 20;
 export const PLAY_COOLDOWN_SECONDS = 60;
-export const SIMILAR_SONGS_PLAYBACK=(userId)=>`s:cmve${userId}`
-// keys.js
-export const PLAYBACK_SONGS = (userId) => `s:cmve${userId}`;
+export const SIMILAR_SONGS_PLAYBACK = (userId) => `sim:songs:${userId}`; 
+export const PLAYBACK_SONGS = (userId) => `playback:${userId}`; // playback session storage
 export const ARTIST_FOLLOWERS = (artistId) => `followere${artistId}`
 export const ARTIST_DOWNLOADS = (artistId) => `downloads${artistId}`
 export const ARTIST_SHARE = (artistId) => `shares${artistId}`
