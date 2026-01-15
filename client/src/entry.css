@@ -80,6 +80,23 @@ html, body, #root {
   min-height: 100vh;
 }
 
+/* Guest header offset for fixed navbar (mobile only) */
+.guest-view .main-content {
+  padding-top: 0;
+}
+
+@media (max-width: 768px) {
+  .guest-view .main-content {
+    padding-top: 72px;
+  }
+}
+
+@media (max-width: 600px) {
+  .guest-view .main-content {
+    padding-top: 80px;
+  }
+}
+
 /* Desktop styles */
 @media (min-width: 768px) {
   .bottom-nav {
@@ -101,4 +118,3 @@ html, body, #root {
     height: stretch;
   }
 }
-

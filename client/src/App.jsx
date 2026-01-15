@@ -22,10 +22,11 @@ import UserAuth from "./utils/auth";
 import ArtistAuth from "./utils/artist_auth";
 
 import WelcomeAppNavBar from "./components/WelcomePage/WelcomAppNavBar";
+import { WelcomeSideNavbar } from "./components/WelcomePage/WelcomeSideNavBar.jsx";
 import Footer from "./pages/Footer";
 import ForArtistOnly from "./components/ForArtistOnly";
 import { Box } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, alpha } from "@mui/material/styles";
 import LoginSignin from "./pages/LoginSignin";
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import { UserProvider } from "./utils/Contexts/userContext.jsx";
@@ -269,23 +270,32 @@ function AppUI({
   setAdNoticeOpen
 }) {
   const { currentTrack } = useAudioPlayer();
+  const location = useLocation();
+  const pathname = location.pathname;
 
   const lastLogin = localStorage.getItem('lastLogin');
   const showArtist = isArtistLoggedIn && lastLogin === 'artist';
   const showUser = isUserLoggedIn && lastLogin === 'user';
+  const isGuestView =
+    !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '';
+
+  const showGuestNav = !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage;
+  const showGuestSearch = showGuestNav && !pathname.startsWith('/artist/');
 
   return (
     <div
-      className="app-container"
+      className={`app-container${showGuestNav ? ' guest-view' : ''}`}
       style={{
         background: `
-          radial-gradient(circle at 20% 30%, rgba(228, 196, 33, 0.03) 0%, transparent 25%),
-          linear-gradient(to bottom, #0F0F0F, #1A1A1A)
+          radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
+          linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.paper})
         `,
         '--safe-top': 'env(safe-area-inset-top, 0px)',
         '--safe-bottom': 'env(safe-area-inset-bottom, 0px)',
         '--player-height': '68px',
         '--bottom-nav-height': `${bottomNavHeight}px`,
+        '--guest-sidebar-width': 'clamp(280px, 30vw, 400px)',
+        '--guest-sidebar-gap': theme.spacing(3),
         paddingBottom: `calc(${bottomNavHeight}px + env(safe-area-inset-bottom, 0px))`,
         display: 'flex',
         flexDirection: 'column',
@@ -294,13 +304,13 @@ function AppUI({
       }}
     >
       {/* Guest NavBar */}
-      {!isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '' && (
+      {showGuestNav && (
         <WelcomeAppNavBar
           handleLoginFormDisplay={handleLoginFormDisplay}
           handleSignupFormDisplay={handleSignupFormDisplay}
           handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
-          onSwitchToLogin={() => setFormDisplay('login')}
-          onSwitchToSignup={() => setFormDisplay('signup')}
+          showSearch={showGuestSearch}
+          sidebarOffset={isGuestView ? 'var(--guest-sidebar-width)' : 0}
         />
       )}
 
@@ -308,6 +318,7 @@ function AppUI({
       {isUserLoggedIn && !isPublicArtistPage && !isNotMediaPlayerAllowed && !isMobile && (
         <UserNavBar/>
       )}
+
       {isUserLoggedIn && !isPublicArtistPage && !isNotMediaPlayerAllowed &&  isMobile && (
         <UserTopMobileNavbar
           title={mobileTop.title}
@@ -316,8 +327,50 @@ function AppUI({
       )}
 
       {/* Main content with flex: 1 to push everything down */}
-      <Box sx={{ flex: 1, position: 'relative' }}>
-        <main className="main-content">
+      <Box
+        sx={{
+          flex: 1,
+          position: 'relative',
+          display: 'flex',
+        }}
+      >
+        {!isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '' && (
+          <Box
+            sx={{
+              position: 'fixed',
+              top: { xs: 72, md: 96 }, // header height
+              left: 0,
+              width: 'var(--guest-sidebar-width)',
+              height: { xs: 'calc(100vh - 72px)', md: 'calc(100vh - 96px)' },
+              zIndex: 10,
+              display: { xs: 'none', md: 'block' },
+            }}
+          >
+            <WelcomeSideNavbar
+              handleLoginFormDisplay={handleLoginFormDisplay}
+              handleSignupFormDisplay={handleSignupFormDisplay}
+            />
+          </Box>
+        )}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            ml:
+              !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === ''
+                ? { xs: 0, md: 'calc(var(--guest-sidebar-width) + var(--guest-sidebar-gap))' }
+                : 0,
+            borderLeft:
+              !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === ''
+                ? `1px solid ${theme.palette.divider}`
+                : 'none',
+            pl:
+              !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === ''
+                ? { xs: 0, md: 3 }
+                : 0,
+          }}
+        >
+          <main className="main-content">
           {formDisplay === '' && (
             <Outlet
               context={{
@@ -347,16 +400,20 @@ function AppUI({
               isUserLoggedIn={isUserLoggedIn}
             />
           )}
-        </main>
+          </main>
 
-        {/* Guest Footer */}
-        {!isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '' && (
-          <Footer
-            handleLoginFormDisplay={handleLoginFormDisplay}
-            handleSignupFormDisplay={handleSignupFormDisplay}
-          />
-        )}
+          {/* Guest Footer */}
+          {!isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '' && (
+            <Footer
+              handleLoginFormDisplay={handleLoginFormDisplay}
+              handleSignupFormDisplay={handleSignupFormDisplay}
+            />
+          )}
+        </Box>
       </Box>
+
+
+      
 
       {/* Global Auth Modal */}
       <AuthModal
