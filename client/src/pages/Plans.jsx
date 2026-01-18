@@ -90,15 +90,14 @@ try {
   // Check if the artist already has an album by using client.query
   const { data: albumData } = await client.query({
     query: GET_ALBUM,
-    variables: { artistId },
   });
 
-  if (!albumData || !albumData.albums || albumData.albums.length === 0) {
+  const existingAlbums = albumData?.albumOfArtist || [];
+  if (existingAlbums.length === 0) {
     // If no album is found, create a default album
     await createAlbum({
       variables: {
-        artistId,
-        title: "Uknown",       
+        title: "Single",
       }
     });
     console.log('Default album created');

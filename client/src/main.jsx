@@ -10,6 +10,7 @@ import Playlist from './pages/Playlist';
 import Libraly from './pages/Libraly';
 import More from './pages/More';
 import Explore from './pages/Explore';
+import ExploreDetail from './pages/ExploreDetail.jsx';
 import ArtistRegister from './pages/ArtistRegister'; 
 import ArtistStudio from './pages/ArtistStudio'; 
 import ArtistVerificationPage from './components/ArtistVerficationPage.jsx';
@@ -24,12 +25,18 @@ import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
 import ContentFreePlan from './pages/freeDashboard/ContentFreePlan.jsx';
 import DashboardFreePlan from './pages/freeDashboard/DashboardFreePlan.jsx';
 import CheckoutPage from './pages/CheckoutPage.jsx';
+import Terms from './pages/Terms.jsx';
+import CollectionPage from './pages/CollectionPage.jsx';
+import CollectionLanding from './pages/CollectionLanding.jsx';
 import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
 import PremiumCheckoutWrapper from './components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx';
 import ArtistPage from './components/ArtistPage.jsx';
 import { SongPage } from './components/SongPage.jsx';
 import { AlbumPage } from './pages/freeDashboard/AlbumPage.jsx';
 import { SingleSongPage } from './components/SingleSongPage.jsx';
+import { RadioStationPage } from './components/RadioStationPage.jsx';
+import Feed from './pages/Feed.jsx';
+import PasswordReset from './pages/PasswordReset.jsx';
 
 import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
 import CompletePageWrapper from './components/userComponents/Home/Premium/CompletePageWrapper.jsx';
@@ -38,7 +45,7 @@ import { afrofeelTheme } from './pages/CSS/themeSettins.js';
 // Protected Route Component
 const ProtectedRoute = ({ element }) => {
   const isLoggedIn = UserAuth.loggedIn(); // Check if the user is authenticated
-  return isLoggedIn ? element : <Navigate to="/loginSignin" replace />;
+  return isLoggedIn ? element : <Navigate to="/loginSignin?login=1" replace />;
 };
 
 
@@ -95,11 +102,35 @@ const router = createBrowserRouter([
 
       {
         path: "search",
-        element: <ProtectedRoute element={<Search />} />, // Protect search route
+        element: <Search />, 
+      },
+      {
+        path: "search/:query?",
+        element: <Search />,
+      },
+      {
+        path: "password-reset",
+        element: <PasswordReset />,
       },
       {
         path: "createPlaylist",
         element: <ProtectedRoute element={<Playlist />} />, // Protect playlist route
+      },
+      {
+        path: "collection/:section",
+        element: <ProtectedRoute element={<CollectionPage />} />,
+      },
+      {
+        path: "collection/playlist/:playlistId",
+        element: <ProtectedRoute element={<CollectionPage />} />,
+      },
+      {
+        path: "collection/:section/:subsection",
+        element: <ProtectedRoute element={<CollectionPage />} />,
+      },
+      {
+        path: "collection",
+        element: <CollectionLanding />,
       },
       {
         path: "library",
@@ -114,8 +145,20 @@ const router = createBrowserRouter([
         element: <Explore />,
       },
       {
+        path: "feed",
+        element: <Feed />,
+      },
+      {
+        path: "explore/:type/:name",
+        element: <ExploreDetail />,
+      },
+      {
         path: "loginSignin",
         element: <LoginSignin />, 
+      },
+      {
+        path: "terms",
+        element: <Terms />,
       },
       {
         path: "track/:trackId",
@@ -132,12 +175,22 @@ const router = createBrowserRouter([
         path: "song/:songId",
         element: < SingleSongPage />
       },
+      {
+        path: "radio/:stationId",
+        element: <RadioStationPage />
+      },
+      {
+        path: "radio/:stationId/:songId",
+        element: <RadioStationPage />
+      },
 
       {
 
         path: "album/:albumId",
         element: <AlbumPage />
       },
+
+     
       
       {
         path: "artist/register",

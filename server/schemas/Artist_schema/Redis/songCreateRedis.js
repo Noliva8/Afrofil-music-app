@@ -212,7 +212,7 @@ export function normalizeId(v) {
 
 
 
-export function buildDocForRedisJSON(baseDoc, { artistCountry } = {}) {
+export function buildDocForRedisJSON(baseDoc, { artistCountry, artistAka } = {}) {
   const out = { ...baseDoc };
 
   for (const k of EXCLUDE_FROM_DOC) delete out[k];
@@ -241,6 +241,7 @@ export function buildDocForRedisJSON(baseDoc, { artistCountry } = {}) {
 
   // ⬅️ denormalize country to top-level
   out.country = normToken(artistCountry || out.country || '');
+  out.artistAka = artistAka || out.artistAka || '';
 
   // counters
   out.playCount     = Number(out.playCount || 0);
@@ -333,19 +334,25 @@ export async function createSongRedis(songDoc) {
   if (!("createdAt" in baseDoc)) baseDoc.createdAt = new Date();
   if (!("updatedAt" in baseDoc)) baseDoc.updatedAt = new Date();
 
-  // fetch artist.country once and denormalize
+  // fetch artist.country + artistAka once and denormalize
   let artistCountry = '';
+  let artistAka = '';
   try {
     if (baseDoc?.artist?.country) {
       artistCountry = baseDoc.artist.country;
-    } else if (baseDoc.artist) {
-      const a = await Artist.findById(baseDoc.artist).select('country').lean();
-      artistCountry = a?.country || '';
+    }
+    if (baseDoc?.artist?.artistAka || baseDoc?.artist?.fullName) {
+      artistAka = baseDoc.artist.artistAka || baseDoc.artist.fullName || '';
+    }
+    if (baseDoc.artist && (!artistCountry || !artistAka)) {
+      const a = await Artist.findById(baseDoc.artist).select('country artistAka fullName').lean();
+      artistCountry = artistCountry || a?.country || '';
+      artistAka = artistAka || a?.artistAka || a?.fullName || '';
     }
   } catch { /* ignore */ }
 
   // build lean JSON doc for Redis
-  const leanDoc = buildDocForRedisJSON(baseDoc, { artistCountry });
+  const leanDoc = buildDocForRedisJSON(baseDoc, { artistCountry, artistAka });
 
   // ensure IDs are strings for TAG indexing
   leanDoc.artist = baseDoc.artist ? String(baseDoc.artist) : '';
@@ -475,9 +482,11 @@ export async function createSongIndex() {
 
         // Full-text
         '$.title':              { type: 'TEXT',    AS: 'title' },
+        '$.artistAka':          { type: 'TEXT',    AS: 'artistAka' },
         '$.producer[*].name':   { type: 'TEXT',    AS: 'producer' },
         '$.composer[*].name':   { type: 'TEXT',    AS: 'composer' },
         '$.featuringArtist[*]': { type: 'TEXT',    AS: 'featuringArtist' },
+        '$.label':              { type: 'TEXT',    AS: 'label' },
 
         // Facets (arrays)
         '$.mood[*]':            { type: 'TAG',     AS: 'mood' },
@@ -514,6 +523,51 @@ export async function createSongIndex() {
     console.error('Failed to create idx:songs:', e);
     throw e;
   }
+}
+
+function escapeFt(s='') {
+  return String(s).replace(/([-+|{}[\]()^~*:\\"@])/g, '\\$1');
+}
+
+const buildSongSearchQuery = (q) => {
+  const tokens = String(q || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => `${escapeFt(t)}*`);
+  if (!tokens.length) return '';
+
+  const fields = ['title', 'artistAka', 'producer', 'composer', 'featuringArtist', 'label'];
+  const groups = tokens.map((token) => {
+    const fieldQuery = fields.map((field) => `@${field}:(${token})`).join(' | ');
+    return `(${fieldQuery})`;
+  });
+
+  return groups.join(' ');
+};
+
+export async function searchSongsRedis(query, limit = 20) {
+  const q = (query || '').trim();
+  if (!q) return [];
+
+  let redis;
+  try { redis = await getRedis(); } catch { return []; }
+
+  const searchQuery = buildSongSearchQuery(q);
+  if (!searchQuery) return [];
+
+  try {
+    const rs = await redis.ft.search(
+      'idx:songs',
+      searchQuery,
+      { LIMIT: { from: 0, size: limit } }
+    );
+    if (rs?.documents?.length) return rs.documents.map((d) => d.value);
+  } catch {
+    return [];
+  }
+
+  return [];
 }
 
 // ---------- ARTISTS ----------
@@ -772,21 +826,23 @@ export async function updateSongRedis(songId, patch) {
     String(patch.artist || '') !== String(beforeRaw.artist || '');
 
   let artistCountry = beforeRaw.artistCountry || '';
+  let artistAka = beforeRaw.artistAka || '';
   if (artistChanged && patch.artist) {
     try {
-      const a = await Artist.findById(patch.artist).select('country').lean();
+      const a = await Artist.findById(patch.artist).select('country artistAka fullName').lean();
       artistCountry = a?.country || '';
+      artistAka = a?.artistAka || a?.fullName || '';
     } catch { /* ignore */ }
   }
 
   // ---- normalize BEFORE/AFTER ----
   const before = buildDocForRedisJSON(
     { ...beforeRaw, createdAt: beforeRaw.createdAt, releaseDate: beforeRaw.releaseDate },
-    { artistCountry: beforeRaw.artistCountry || beforeRaw.country || '' }
+    { artistCountry: beforeRaw.artistCountry || beforeRaw.country || '', artistAka: beforeRaw.artistAka || '' }
   );
 
   const afterBase = { ...beforeRaw, ...patch, updatedAt: new Date() };
-  const after     = buildDocForRedisJSON(afterBase, { artistCountry });
+  const after     = buildDocForRedisJSON(afterBase, { artistCountry, artistAka });
 
   // ensure IDs are strings for TAG indexing
   after.artist = after.artist ? String(after.artist) : '';
@@ -2144,4 +2200,3 @@ export async function getMultipleSongsRedis(
 
 
 // ----------------------
-

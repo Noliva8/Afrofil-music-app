@@ -24,6 +24,15 @@ const userSchema = new Schema({
     required: true,
     select: false
   },
+  resetPasswordToken: {
+    type: String,
+    select: false,
+    index: true
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
+  },
 
   // Monetization
  role: {

@@ -3,6 +3,7 @@
 import mongoose from 'mongoose';
 import { GraphQLError } from 'graphql';
 import { Song } from '../../../models/Artist/index_artist.js';
+import { LikedSongs } from '../../../models/User/user_index.js';
 import { getRedis } from '../../../utils/AdEngine/redis/redisClient.js';
 import { userLikesKey, songKey } from '../../Artist_schema/Redis/keys.js';
 import {addSongRedis, getSongRedis} from "../../Artist_schema/Redis/addSongRedis.js"
@@ -101,6 +102,17 @@ export const toggleLikeSong = async (_, { songId }, context) => {
       redis.expire(redisSongKey, songHashExpiration),
       redis.expire(redisKey, likesSetExpiration)
     ]);
+
+    // 2b. Persist liked songs for user library
+    if (isNowLiked) {
+      await LikedSongs.findOneAndUpdate(
+        { user: userObjectId, liked_songs: songObjectId },
+        { $set: { user: userObjectId, liked_songs: songObjectId, createdAt: new Date() } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } else {
+      await LikedSongs.findOneAndDelete({ user: userObjectId, liked_songs: songObjectId });
+    }
 
     // 3. Update trending set
     try {

@@ -1,7 +1,7 @@
 
 import { useMutation } from '@apollo/client';
 import { GET_PRESIGNED_URL_DOWNLOAD } from '../mutations';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const FALLBACK_IMAGES = [
   'fallback-images/Icon1.jpg',
@@ -36,15 +36,27 @@ export const useSongsWithPresignedUrls = (songsData) => {
 
   const [songsWithArtwork, setSongsWithArtwork] = useState([]);
   const [loading, setLoading] = useState(false);
+  const lastSignatureRef = useRef('');
 
   useEffect(() => {
     const fetchArtworksAndAudio = async () => {
       if (!songsData || !Array.isArray(songsData)) {
         console.log('No songs data available or not an array:', songsData);
         setSongsWithArtwork([]);
+        setLoading(false);
+        lastSignatureRef.current = '';
         return;
       }
 
+      const signature = songsData
+        .map((song) => song?._id ?? song?.id ?? song?.songId ?? '')
+        .join('|');
+
+      if (signature === lastSignatureRef.current) {
+        return;
+      }
+
+      lastSignatureRef.current = signature;
       setLoading(true);
 
       try {
@@ -104,17 +116,18 @@ export const useSongsWithPresignedUrls = (songsData) => {
             // -----------------------------
             // 3) Artist profile image (full key)
             // -----------------------------
-            const artistProfileKey = song?.artist?.profileImage
-              ? getFullKeyFromUrlOrKey(song.artist.profileImage)
+            const rawProfileImage = song?.artist?.profileImage || null;
+            const artistProfileKey = rawProfileImage
+              ? getFullKeyFromUrlOrKey(rawProfileImage)
               : null;
 
             if (artistProfileKey) {
               try {
                 const { data } = await getPresignedUrlDownload({
                   variables: {
-                    bucket: 'afrofeel-cover-images-for-songs',
+                    bucket: 'afrofeel-profile-picture',
                     key: artistProfileKey, // ✅ keep folders
-                    region: 'us-east-2',
+                    region: 'us-west-2',
                     expiresIn: 604800,
                   },
                 });
@@ -188,6 +201,7 @@ export const useSongsWithPresignedUrls = (songsData) => {
       } catch (error) {
         console.error('Error in useSongsWithPresignedUrls:', error);
         setSongsWithArtwork([]);
+        lastSignatureRef.current = '';
       } finally {
         setLoading(false);
       }

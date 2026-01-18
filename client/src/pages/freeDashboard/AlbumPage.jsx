@@ -38,6 +38,7 @@ import { usePlayCount } from "../../utils/handlePlayCount";
 import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
 import { PlayButton } from "../../components/PlayButton.jsx";
 import { ShuffleButton } from "../../components/ShuffleButton.jsx";
+import AddToPlaylistModal from "../../components/AddToPlaylistModal.jsx";
 
 export const AlbumPage = () => {
   const { albumId } = useParams();
@@ -53,6 +54,8 @@ export const AlbumPage = () => {
   const [trackMenuAnchor, setTrackMenuAnchor] = useState(null);
   const [trackDrawerOpen, setTrackDrawerOpen] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState(null);
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
+  const [playlistTrack, setPlaylistTrack] = useState(null);
   const [touchTimer, setTouchTimer] = useState(null);
   const [longPressTrack, setLongPressTrack] = useState(null);
   const isMobile = useMediaQuery("(max-width:900px)");
@@ -200,7 +203,8 @@ console.log('does album has songs?', data);
 
   const handleAddToPlaylist = useCallback((track) => {
     if (!track) return;
-    console.log("Add to playlist:", track.title);
+    setPlaylistTrack(track);
+    setPlaylistDialogOpen(true);
   }, []);
 
   const handlePlayNext = useCallback((track) => {
@@ -1299,6 +1303,14 @@ console.log('does album has songs?', data);
           </Box>
         </Drawer>
       )}
+      <AddToPlaylistModal
+        open={playlistDialogOpen}
+        onClose={() => {
+          setPlaylistDialogOpen(false);
+          setPlaylistTrack(null);
+        }}
+        track={playlistTrack}
+      />
     </>
   );
 };

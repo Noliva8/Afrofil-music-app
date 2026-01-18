@@ -134,8 +134,8 @@ export const trendingSongs = async () => {
     if (trendingSongIds.length === 20) {
       // Redis has exactly 20 songs - use it directly
       const songs = await Song.find({ _id: { $in: trendingSongIds } })
-        .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts' })
-        .populate({ path: 'album', select: 'title releaseDate' })
+        .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' })
+        .populate({ path: 'album', select: 'title releaseDate albumCoverImage' })
         .lean();
 
  console.log('[trendingSongs] mongo count', songs.length, 'redis count', trendingSongIds.length);
@@ -162,8 +162,8 @@ export const trendingSongs = async () => {
     const songs = await Song.find({})
       .sort({ trendingScore: -1, createdAt: -1 })
       .limit(20)
-      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts' })
-      .populate({ path: 'album', select: 'title releaseDate' })
+      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' })
+      .populate({ path: 'album', select: 'title releaseDate albumCoverImage' })
       .lean();
 
     // Add missing songs to Redis (in background)

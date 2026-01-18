@@ -3,24 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   IconButton,
-  Drawer,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   Typography,
-  Button,
-  InputBase,
   useMediaQuery,
+  Avatar,
+  Drawer,
+  Stack,
+  Divider,
+  Button,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
-import MenuIcon from '@mui/icons-material/Menu';
-import MusicNoteIcon from '@mui/icons-material/MusicNote';
-import LockIcon from '@mui/icons-material/Lock';
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import { SitemarkIcon } from '../themeCustomization/customIcon';
-
+import { SearchBar } from '../../pages/SearchBar.jsx';
 
 
 
@@ -32,7 +27,6 @@ const WelcomeAppNavBar = ({
   showSearch = false,
   sidebarOffset = 0,
 }) => {
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
@@ -43,6 +37,7 @@ const WelcomeAppNavBar = ({
   const historyIndex = hasHistoryIndex ? historyState.idx : 0;
   const [maxHistoryIndex, setMaxHistoryIndex] = useState(historyIndex);
   const historyLength = typeof window !== 'undefined' ? window.history.length : 0;
+  const [authDrawerOpen, setAuthDrawerOpen] = useState(false);
   const sidebarGap = sidebarOffset
     ? `calc(${sidebarOffset} * 0.08)`
     : theme.spacing(2);
@@ -62,159 +57,14 @@ const WelcomeAppNavBar = ({
     if (!canGoForward) return;
     navigate(1);
   };
+  const handleOpenAuthDrawer = () => setAuthDrawerOpen(true);
+  const handleCloseAuthDrawer = () => setAuthDrawerOpen(false);
 
-  const toggleDrawer = (open) => (event) => {
-    if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) return;
-    setDrawerOpen(open);
-  };
-
-  const drawerToggle = isMobile && (
-    <IconButton
-      onClick={toggleDrawer(true)}
-      sx={{ mr: 2, color: theme.palette.text.primary }}
-      aria-label="Open menu"
-    >
-      <MenuIcon />
-    </IconButton>
-  );
-
-  const drawerContent = (
-    <Box
-      sx={{
-        width: 280,
-        background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
-        color: theme.palette.text.primary,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        pt: 0,
-        fontFamily: theme.typography.fontFamily,
-      }}
-    >
-      {/* Logo in Drawer Header */}
-      <Box
-        sx={{
-          height: { xs: 72, sm: 80, md: 96 },
-          display: 'flex',
-          alignItems: 'center',
-          px: 3,
-          borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.12)}`,
-        }}
-      >
-        <SitemarkIcon sx={{ color: theme.palette.primary.main, width: 20, height: 20 }} />
-                <SitemarkIcon
-                  sx={{
-                    fontSize: 32,
-                    color: theme.palette.primary.main,
-                    mr: 1,
-                    width: 32,
-                    height: 32,
-                  }}
-                />
-        <Typography
-          variant="h6"
-          sx={{
-            fontWeight: 800,
-            letterSpacing: '-0.5px',
-            color: theme.palette.text.primary,
-            fontFamily: theme.typography.fontFamily,
-            transition: 'all 0.3s ease',
-            fontSize: '0.95rem',
-            lineHeight: 1.1,
-          }}
-        >
-          AfroFeel
-        </Typography>
-      </Box>
-
-      {/* Trending Section */}
-      <Box sx={{ px: 3, pt: 3, pb: 3, borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.12)}` }}>
-        <Typography
-          variant="h6"
-          sx={{
-            mb: 2,
-            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          Trending Now
-        </Typography>
-        {['Afrobeat Essentials', 'Global Vibes', 'New Releases'].map((playlist) => (
-          <ListItem
-            button
-            key={playlist}
-            sx={{
-            px: 0,
-            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.08) },
-            transition: 'background 0.2s',
-          }}
-        >
-            <ListItemIcon sx={{ minWidth: 36, color: theme.palette.primary.main }}>
-              <MusicNoteIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary={playlist} primaryTypographyProps={{ fontSize: '0.95rem' }} />
-            <LockIcon fontSize="small" sx={{ color: alpha(theme.palette.text.primary, 0.3) }} />
-          </ListItem>
-        ))}
-      </Box>
-
-      {/* CTA Section */}
-      <Box sx={{ p: 3, mt: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
-          Unlock full access to millions of songs
-        </Typography>
-        <Button
-          fullWidth
-          size="large"
-          onClick={handleSignupFormDisplay}
-          variant="contained"
-          sx={{
-            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            color: theme.palette.primary.contrastText,
-            fontWeight: 'bold',
-            py: 1.5,
-            fontSize: '1rem',
-            fontFamily: theme.typography.fontFamily,
-            '&:hover': {
-              background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})`,
-            },
-          }}
-        >
-          Sign Up Free
-        </Button>
-        <Button
-          fullWidth
-          size="large"
-          variant="outlined"
-          onClick={handleLoginFormDisplay}
-          sx={{
-            borderColor: alpha(theme.palette.text.primary, 0.2),
-            color: theme.palette.text.primary,
-            fontWeight: 600,
-            fontFamily: theme.typography.fontFamily,
-            textTransform: 'none',
-          }}
-        >
-          Login
-        </Button>
-        <Button
-          fullWidth
-          size="large"
-          variant="text"
-          onClick={handleArtistSignupFormDisplay}
-          sx={{
-            color: theme.palette.primary.main,
-            fontWeight: 600,
-            textTransform: 'none',
-            fontFamily: theme.typography.fontFamily,
-          }}
-        >
-          Artist
-        </Button>
-      </Box>
-    </Box>
-  );
+  const searchParams = new URLSearchParams(location.search);
+  const showMobileSearchBar =
+    showSearch &&
+    isMobile &&
+    (location.pathname.startsWith('/search') || searchParams.get('search') === '1');
 
   return (
     <>
@@ -260,7 +110,6 @@ const WelcomeAppNavBar = ({
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-              {drawerToggle}
               <Box
                 sx={{
                   display: 'flex',
@@ -335,123 +184,206 @@ const WelcomeAppNavBar = ({
               whiteSpace: 'nowrap',
             }}
           >
-            {showSearch && !isMobile && (
-              <Box
-                onClick={() => navigate('/search')}
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 999,
-                  border: `1px solid ${alpha(theme.palette.text.primary, 0.16)}`,
-                  backgroundColor: alpha(theme.palette.background.default, 0.6),
-                  minWidth: 220,
-                  maxWidth: 520,
-                  width: '100%',
-                  flex: '1 1 320px',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    borderColor: theme.palette.primary.main,
-                  },
-                }}
-              >
-                <SearchRoundedIcon sx={{ color: alpha(theme.palette.text.primary, 0.7) }} />
-                <InputBase
-                  placeholder="Search artists, albums, songs"
-                  readOnly
-                  sx={{
-                    flex: 1,
-                    color: theme.palette.text.primary,
-                    fontSize: '0.95rem',
-                  }}
-                />
-              </Box>
-            )}
 
-            {isMobile && showSearch && (
+            
+
+            {showSearch && !isMobile && <SearchBar />}
+
+            {isMobile ? (
               <IconButton
-                onClick={() => navigate('/search')}
-                sx={{ color: theme.palette.text.primary }}
-                aria-label="Search"
+                onClick={handleOpenAuthDrawer}
+                sx={{
+                  border: `1px solid ${alpha(theme.palette.text.primary, 0.15)}`,
+                  p: 0.4,
+                }}
+                aria-label="Open account drawer"
               >
-                <SearchRoundedIcon />
+                <Avatar
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    bgcolor: alpha(theme.palette.primary.main, 0.15),
+                    color: theme.palette.primary.main,
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  AF
+                </Avatar>
               </IconButton>
+            ) : (
+              <>
+                <Button
+                  size="small"
+                  onClick={handleArtistSignupFormDisplay}
+                  sx={{
+                    textTransform: 'none',
+                    fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.85rem', lg: '0.95rem' },
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    px: { xs: 1.25, sm: 2, md: 2, lg: 3 },
+                    py: { xs: 0.55, sm: 0.7, md: 0.7, lg: 1.1 },
+                    minWidth: 0,
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                >
+                  Artist
+                </Button>
+                <Button
+                  size="small"
+                  onClick={handleLoginFormDisplay}
+                  sx={{
+                    textTransform: 'none',
+                    fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.85rem', lg: '0.95rem' },
+                    fontWeight: 600,
+                    color: theme.palette.text.primary,
+                    px: { xs: 1.25, sm: 2, md: 2, lg: 3 },
+                    py: { xs: 0.55, sm: 0.7, md: 0.7, lg: 1.1 },
+                    minWidth: 0,
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      color: theme.palette.primary.main,
+                    },
+                  }}
+                >
+                  Login
+                </Button>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleSignupFormDisplay}
+                  sx={{
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    color: theme.palette.primary.contrastText,
+                    fontWeight: 'bold',
+                    fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.85rem', lg: '0.95rem' },
+                    px: { xs: 1.25, sm: 2, md: 2, lg: 3 },
+                    py: { xs: 0.55, sm: 0.7, md: 0.7, lg: 1.1 },
+                    minWidth: 0,
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})`,
+                    },
+                  }}
+                >
+                  Sign Up
+                </Button>
+              </>
             )}
 
-            <Button
-              size="small"
-              onClick={handleArtistSignupFormDisplay}
-              sx={{
-                display: { xs: 'none', sm: 'none', md: 'inline-flex' },
-                textTransform: 'none',
-                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '0.95rem' },
-                fontWeight: 600,
-                color: theme.palette.text.primary,
-                px: { xs: 1.5, sm: 2.5, md: 3 },
-                py: { xs: 0.6, sm: 0.8, md: 1.1 },
-                minWidth: 0,
-                '&:hover': {
-                  color: theme.palette.primary.main,
+            <Drawer
+              anchor="right"
+              open={authDrawerOpen}
+              onClose={handleCloseAuthDrawer}
+              PaperProps={{
+                sx: {
+                  width: 280,
+                  background: alpha(theme.palette.background.paper, 0.98),
+                  borderRight: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                  px: 2.5,
+                  py: 3,
                 },
               }}
             >
-              Artist
-            </Button>
-            <Button
-              size="small"
-              onClick={handleLoginFormDisplay}
-              sx={{
-                textTransform: 'none',
-                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '0.95rem' },
-                fontWeight: 600,
-                color: theme.palette.text.primary,
-                px: { xs: 1.5, sm: 2.5, md: 3 },
-                py: { xs: 0.6, sm: 0.8, md: 1.1 },
-                minWidth: 0,
-                '&:hover': {
-                  color: theme.palette.primary.main,
-                },
-              }}
-            >
-              Login
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={handleSignupFormDisplay}
-              sx={{
-                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                color: theme.palette.primary.contrastText,
-                fontWeight: 'bold',
-                fontSize: { xs: '0.8rem', sm: '0.9rem', md: '0.95rem' },
-                px: { xs: 1.5, sm: 2.5, md: 3 },
-                py: { xs: 0.6, sm: 0.8, md: 1.1 },
-                minWidth: 0,
-                '&:hover': {
-                  background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})`,
-                },
-              }}
-            >
-              Sign Up
-            </Button>
+              <Stack spacing={2}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <Avatar
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: alpha(theme.palette.primary.main, 0.15),
+                      color: theme.palette.primary.main,
+                      fontWeight: 700,
+                    }}
+                  >
+                    AF
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                      Afrofeel
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                      Guest access
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Divider sx={{ borderColor: alpha(theme.palette.text.primary, 0.08) }} />
+
+                <Stack spacing={1.2}>
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      handleCloseAuthDrawer();
+                      handleLoginFormDisplay?.();
+                    }}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    }}
+                  >
+                    Login
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      handleCloseAuthDrawer();
+                      handleSignupFormDisplay?.();
+                    }}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      borderColor: alpha(theme.palette.text.primary, 0.2),
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    Sign Up
+                  </Button>
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      handleCloseAuthDrawer();
+                      handleArtistSignupFormDisplay?.();
+                    }}
+                    sx={{
+                      textTransform: "none",
+                      fontWeight: 700,
+                      color: theme.palette.primary.main,
+                    }}
+                  >
+                    Artist
+                  </Button>
+                </Stack>
+              </Stack>
+            </Drawer>
+
           </Box>
         </Box>
       </Box>
 
-      <Drawer
-        anchor="left"
-        open={drawerOpen}
-        onClose={toggleDrawer(false)}
-        sx={{
-          '& .MuiDrawer-paper': {
-            borderRight: 'none',
-          },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
+      {showMobileSearchBar && (
+        <Box
+          sx={{
+            px: { xs: 2, sm: 3 },
+            pb: 2,
+            pt: 1,
+            background: `linear-gradient(180deg, ${alpha(theme.palette.background.default, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.92)} 100%)`,
+            position: 'sticky',
+            top: { xs: 72, sm: 80, md: 80 },
+            zIndex: 1000,
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+        >
+          <Box sx={{ width: '100%', maxWidth: 420 }}>
+            <SearchBar autoFocus variant="full" />
+          </Box>
+        </Box>
+      )}
 
       <Box sx={{ height: { xs: 72, sm: 80, md: 80 } }} />
     </>

@@ -1,7 +1,7 @@
 
 
 
-import { FiUser, FiSearch } from 'react-icons/fi';
+import { FiUser } from 'react-icons/fi';
 
 const UserMobileHeader = () => {
   return (
@@ -10,9 +10,6 @@ const UserMobileHeader = () => {
         <FiUser />
       </button>
       <h1>Browse</h1>
-      <button className="search-btn">
-        <FiSearch />
-      </button>
     </header>
   );
 };

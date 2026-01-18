@@ -67,31 +67,53 @@ const trendingSongs = processSongs(songsWithArtwork)
   return (
     <Box sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 } }}>
       {/* Header */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 3,
-        px: { xs: 1, sm: 2 }
-      }}>
-        <Typography
-          variant="h6"
-          component="h2"
-          sx={{
-            fontWeight: 700,
-            fontFamily: theme.typography.fontFamily,
-            background: 'linear-gradient(45deg, #FFD700 30%, #FFA500 90%)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            color: 'transparent',
-            fontSize: theme.typography.pxToRem(20),
-            letterSpacing: 0.2,
-          }}
-        >
-          🔥 Trending Now
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 4,
+          px: { xs: 1, sm: 2 },
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            sx={{
+              width: 4,
+              height: 32,
+              background: "linear-gradient(180deg, #FFD700 0%, #FFA500 100%)",
+              borderRadius: 2,
+            }}
+          />
+          <Box>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 900,
+                fontFamily: "'Inter', sans-serif",
+                background: "linear-gradient(45deg, #FFD700 30%, #FFA500 90%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                color: "transparent",
+                fontSize: { xs: "1.5rem", sm: "1.75rem" },
+                letterSpacing: "-0.5px",
+              }}
+            >
+              TRENDING NOW
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "rgba(255,255,255,0.6)",
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}
+            >
+              The hottest tracks across Afrofeel right now
+            </Typography>
+          </Box>
+        </Box>
         
-
         <IconButton 
           onClick={handleShowAll}
           sx={{ 
@@ -267,4 +289,3 @@ const trendingSongs = processSongs(songsWithArtwork)
     </Box>
   );
 }
-

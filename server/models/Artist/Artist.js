@@ -57,6 +57,13 @@ type: String,
   },
   country: { type: String }, 
 
+
+  region: {
+    type: String,
+    enum: ['West Africa', 'East Africa', 'Southern Africa', 'North Africa', 'Central Africa', 'Diaspora' ]
+  },
+
+
   languages: { type: [String]},
 
   mood: { type: [String] },

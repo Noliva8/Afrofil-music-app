@@ -29,10 +29,10 @@ export default function UserTopMobileNavbar({ title = 'Home' }) {
       position="sticky"
       elevation={0}
       sx={{
-        bgcolor: 'rgba(8,8,8,0.92)',
-        backgroundImage: 'linear-gradient(180deg, rgba(228,196,33,0.08) 0%, rgba(8,8,8,0.92) 30%)',
+        bgcolor: alpha(theme.palette.background.default, 0.92),
+        backgroundImage: 'none',
         backdropFilter: 'blur(14px)',
-        borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.08)}`
+        borderBottom: 'none'
       }}
     >
       <Toolbar sx={{ px: 2, py: 1 }}>

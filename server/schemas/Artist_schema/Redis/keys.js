@@ -5,6 +5,9 @@ export const userLikesKey =(id) =>`users:likes#${id}`
 
 
 export const trendIndexZSet = `trend:songs:zset`;
+export const NEW_UPLOADS_CACHE_KEY = "afrofeel:newUploads:v1";
+export const SUGGESTED_SONGS_CACHE_KEY = "afrofeel:suggestedSongs:v1";
+export const SONG_OF_MONTH_KEY = (year, month) => `afrofeel:songOfMonth:${year}-${month}`;
 export const INITIAL_RECENCY_SCORE = 1000;
 export const TRENDING_SLOTS = 20;
 export const PLAY_COOLDOWN_SECONDS = 60;

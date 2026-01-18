@@ -18,8 +18,7 @@ import ArtistAccountProfile from "./ArtistAccountProfile";
 import { useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
-import { ToastContainer, toast } from "react-toastify"; 
-import "react-toastify/dist/ReactToastify.css";  
+import { toast } from "react-toastify"; 
 
 const Bio = () => {
   const [fieldValue, setFieldValue] = useState("");
@@ -147,12 +146,13 @@ const Bio = () => {
               >
                 Biography
               </Typography>
+
+              <Box sx={{ mb: 2 }}>
+                <ArtistAccountProfile />
+              </Box>
               
               {data?.artistProfile?.bio ? (
                 <Box sx={bioContainerStyle}>
-                  <Box>
-                    <ArtistAccountProfile />
-                  </Box>
                   <Typography 
                     variant="body2" 
                     sx={{ 
@@ -280,17 +280,6 @@ const Bio = () => {
         </Box>
       </Modal>
 
-      <ToastContainer 
-        position={isMobile ? "top-center" : "top-right"}
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
     </>
   );
 };

@@ -1,9 +1,10 @@
 
-import {  Album, Artist, } from '../../models/Artist/index_artist.js'
-import { User,  Playlist, Comment,} from '../../models/User/user_index.js'
+import {  Album, Artist } from '../../models/Artist/index_artist.js'
+import { User, Playlist, Comment, LikedSongs, PlayCount, Song, Recommended } from '../../models/User/user_index.js'
 import {   AuthenticationError} from '../../utils/user_auth.js';
 import { GraphQLError } from 'graphql';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { detectUserLocation } from './OtherResorvers/detectUserLocation.js';
 import { createSongRedis, redisTrending } from '../Artist_schema/Redis/songCreateRedis.js';
 import { toggleLikeSong } from './OtherResorvers/toggleLikeSong.js';
@@ -13,7 +14,7 @@ import {signUserToken } from '../../utils/AuthSystem/tokenUtils.js';
 import { addSongRedis } from '../Artist_schema/Redis/addSongRedis.js';
 import { songKey } from '../Artist_schema/Redis/keys.js';
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
-import { Song  } from '../Artist_schema/songResolver.js';
+import sendEmail from '../../utils/emailTransportation.js';
 
 
 
@@ -109,6 +110,113 @@ userById: async (parent, { userId }) => {
   } catch (error) {
     throw new Error(error.message);
   }
+},
+
+recentPlayedSongs: async (_, { limit = 5 }, { user }) => {
+  if (!user?._id) {
+    throw new AuthenticationError('You must be logged in!');
+  }
+
+  const plays = await PlayCount.find({ user: user._id })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate({
+      path: 'played_songs',
+      populate: [
+        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        { path: 'album', select: 'title releaseDate albumCoverImage' },
+      ],
+    })
+    .lean();
+
+  return plays
+    .map((play) => play.played_songs)
+    .filter(Boolean)
+    .map((song) => ({
+      ...song,
+      artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+      mood: song.mood || [],
+      subMoods: song.subMoods || [],
+      composer: Array.isArray(song.composer) ? song.composer : [],
+      producer: Array.isArray(song.producer) ? song.producer : [],
+      likesCount: song.likedByUsers?.length || song.likesCount || 0,
+      downloadCount: song.downloadCount || 0,
+      playCount: song.playCount || 0,
+      shareCount: song.shareCount || 0,
+      artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+    }));
+},
+
+likedSongs: async (_, { limit = 5 }, { user }) => {
+  if (!user?._id) {
+    throw new AuthenticationError('You must be logged in!');
+  }
+
+  const likes = await LikedSongs.find({ user: user._id })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate({
+      path: 'liked_songs',
+      populate: [
+        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        { path: 'album', select: 'title releaseDate albumCoverImage' },
+      ],
+    })
+    .lean();
+
+  return likes
+    .map((like) => like.liked_songs)
+    .filter(Boolean)
+    .map((song) => ({
+      ...song,
+      artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+      mood: song.mood || [],
+      subMoods: song.subMoods || [],
+      composer: Array.isArray(song.composer) ? song.composer : [],
+      producer: Array.isArray(song.producer) ? song.producer : [],
+      likesCount: song.likedByUsers?.length || song.likesCount || 0,
+      downloadCount: song.downloadCount || 0,
+      playCount: song.playCount || 0,
+      shareCount: song.shareCount || 0,
+      artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+    }));
+},
+
+userPlaylists: async (_, { limit = 5 }, { user }) => {
+  if (!user?._id) {
+    throw new AuthenticationError('You must be logged in!');
+  }
+
+  return Playlist.find({ createdBy: user._id })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate({
+      path: 'songs',
+      options: { limit: 50 },
+      populate: [
+        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        { path: 'album', select: 'title releaseDate albumCoverImage' },
+      ],
+    })
+    .lean()
+    .then((playlists) =>
+      playlists.map((playlist) => ({
+        ...playlist,
+        songs: (playlist.songs || []).map((song) => ({
+          ...song,
+          artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+          mood: song.mood || [],
+          subMoods: song.subMoods || [],
+          composer: Array.isArray(song.composer) ? song.composer : [],
+          producer: Array.isArray(song.producer) ? song.producer : [],
+          likesCount: song.likedByUsers?.length || song.likesCount || 0,
+          downloadCount: song.downloadCount || 0,
+          playCount: song.playCount || 0,
+          shareCount: song.shareCount || 0,
+          artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+        })),
+      }))
+    );
 },
 
 // -----------------------------------------------------------------------------------
@@ -512,6 +620,110 @@ if (!isMatch) {
         });
       }
     },
+
+    requestPasswordReset: async (_, { email }) => {
+      try {
+        const normalizedEmail = email?.trim().toLowerCase();
+        if (!normalizedEmail) {
+          throw new GraphQLError('Email is required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const user = await User.findOne({ email: normalizedEmail });
+        if (!user) {
+          return {
+            success: true,
+            message: 'If an account exists, a reset link has been sent.'
+          };
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto
+          .createHash('sha256')
+          .update(resetToken)
+          .digest('hex');
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
+        await user.save({ validateBeforeSave: false });
+
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const resetLink = `${baseUrl}/password-reset?token=${resetToken}`;
+
+        await sendEmail(
+          user.email,
+          'Reset Your Password',
+          `
+            <p>We received a request to reset your password.</p>
+            <p>This link is valid for 60 minutes.</p>
+            <p><a href="${resetLink}">Reset Password</a></p>
+            <p>If you did not request this, you can ignore this email.</p>
+          `
+        );
+
+        return {
+          success: true,
+          message: 'Reset link sent. Check your email.'
+        };
+      } catch (error) {
+        console.error('Password reset request error:', error);
+        throw new GraphQLError('Failed to send reset link', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    resetPassword: async (_, { token, newPassword }) => {
+      try {
+        if (!token?.trim()) {
+          throw new GraphQLError('Reset token is required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        if (!newPassword || newPassword.length < 8) {
+          throw new GraphQLError('Password must be at least 8 characters', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const hashedToken = crypto
+          .createHash('sha256')
+          .update(token)
+          .digest('hex');
+
+        const user = await User.findOne({
+          resetPasswordToken: hashedToken,
+          resetPasswordExpires: { $gt: new Date() }
+        }).select('+password');
+
+        if (!user) {
+          return {
+            success: false,
+            message: 'Reset link expired or invalid. Please request a new one.'
+          };
+        }
+
+        user.password = newPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
+        await user.save();
+
+        return {
+          success: true,
+          message: 'Password updated. You can log in now.'
+        };
+      } catch (error) {
+        console.error('Password reset error:', error);
+        if (error.extensions?.code) {
+          throw error;
+        }
+        throw new GraphQLError('Failed to reset password', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
   
 
 
@@ -603,7 +815,7 @@ addDownload: async (parent, { songId }, { user, Download }) => {
 
   try {
     // Check if the download record already exists
-    const existingDownload = await Download.findOne({ userId: user.id, songId });
+    const existingDownload = await Download.findOne({ user: user.id, downloaded_songs: songId });
 
     if (existingDownload) {
       throw new Error('This song has already been downloaded by the user.');
@@ -611,8 +823,8 @@ addDownload: async (parent, { songId }, { user, Download }) => {
 
     // Create a new download record
     const download = new Download({
-      userId: user.id,
-      songId,
+      user: user.id,
+      downloaded_songs: songId,
     });
 
     await download.save();
@@ -628,7 +840,7 @@ addDownload: async (parent, { songId }, { user, Download }) => {
 addLikedSong: async (parent, { userId, songId }, { LikedSongs }) => {
   try {
     // Check if the song is already liked by the user
-    const existingLikedSong = await LikedSongs.findOne({ userId, songId });
+    const existingLikedSong = await LikedSongs.findOne({ user: userId, liked_songs: songId });
 
     if (existingLikedSong) {
       throw new Error('This song is already liked by the user.');
@@ -636,8 +848,8 @@ addLikedSong: async (parent, { userId, songId }, { LikedSongs }) => {
 
     // Add the liked song
     const likedSong = new LikedSongs({
-      userId,
-      songId,
+      user: userId,
+      liked_songs: songId,
     });
 
     await likedSong.save();
@@ -673,7 +885,7 @@ searched_Songs: async (parent, { songId }, { user, SearchHistory }) => {
 },
 
 
-recommended_songs: async (parent, { userId, algorithm }, { User, Song, Recommended }) => {
+recommended_songs: async (parent, { userId, algorithm }) => {
   try {
     // Step 1: Validate the algorithm input
     const validAlgorithms = ['basedOnLikes', 'basedOnPlayCounts', 'trending', 'newReleases'];
@@ -731,31 +943,24 @@ recommended_songs: async (parent, { userId, algorithm }, { User, Song, Recommend
 },
 
 
-  createPlaylist : async (parent, { title, description, songs }, { Playlist, User, Song, currentUser }) => {
+  createPlaylist : async (parent, { title, description, songs }, { user }) => {
   try {
+    const MAX_PLAYLIST_SONGS = 50;
    
-    if (!currentUser) {
+    if (!user?._id) {
       throw new Error('Authentication required. Please log in to create a playlist.');
     }
 
-    
-    const user = await User.findById(currentUser._id);
-    if (!user) {
-      throw new Error('User not found.');
-    }
-
-    // Validate that all songs exist
-    const validSongs = await Song.find({ '_id': { $in: songs } });
-    if (validSongs.length !== songs.length) {
-      throw new Error('One or more songs do not exist.');
+    if (Array.isArray(songs) && songs.length > MAX_PLAYLIST_SONGS) {
+      throw new Error('Playlist maximum reached. Remove some in your collection.');
     }
 
     // Create the playlist
     const playlist = new Playlist({
       title,
       description,
-      songs,
-      createdBy: currentUser._id  // Use the authenticated user's ID
+      songs: Array.isArray(songs) ? songs : [],
+      createdBy: user._id  // Use the authenticated user's ID
     });
 
     // Save the playlist to the database
@@ -768,6 +973,103 @@ recommended_songs: async (parent, { userId, algorithm }, { User, Song, Recommend
   }
 },
 
+  addSongToPlaylist: async (_parent, { playlistId, songId }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+
+    const MAX_PLAYLIST_SONGS = 50;
+    const existing = await Playlist.findOne({ _id: playlistId, createdBy: user._id }).select('songs');
+
+    if (!existing) {
+      throw new Error('Playlist not found.');
+    }
+
+    if (Array.isArray(existing.songs) && existing.songs.length >= MAX_PLAYLIST_SONGS) {
+      throw new Error('Playlist maximum reached. Remove some in your collection.');
+    }
+
+    const playlist = await Playlist.findOneAndUpdate(
+      { _id: playlistId, createdBy: user._id },
+      { $addToSet: { songs: songId } },
+      { new: true }
+    ).populate({
+      path: 'songs',
+      populate: [
+        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        { path: 'album', select: 'title releaseDate albumCoverImage' },
+      ],
+    });
+
+    if (!playlist) {
+      throw new Error('Playlist not found.');
+    }
+
+    return playlist;
+  },
+
+  removeSongFromPlaylist: async (_parent, { playlistId, songId }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+
+    const playlist = await Playlist.findOneAndUpdate(
+      { _id: playlistId, createdBy: user._id },
+      { $pull: { songs: songId } },
+      { new: true }
+    ).populate({
+      path: 'songs',
+      populate: [
+        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        { path: 'album', select: 'title releaseDate albumCoverImage' },
+      ],
+    });
+
+    if (!playlist) {
+      throw new Error('Playlist not found.');
+    }
+
+    return playlist;
+  },
+
+  reorderPlaylistSongs: async (_parent, { playlistId, songIds }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+
+    const playlist = await Playlist.findOneAndUpdate(
+      { _id: playlistId, createdBy: user._id },
+      { $set: { songs: songIds } },
+      { new: true }
+    ).populate({
+      path: 'songs',
+      populate: [
+        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        { path: 'album', select: 'title releaseDate albumCoverImage' },
+      ],
+    });
+
+    if (!playlist) {
+      throw new Error('Playlist not found.');
+    }
+
+    return playlist;
+  },
+
+  deletePlaylist: async (_parent, { playlistId }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+
+    const playlist = await Playlist.findOneAndDelete({ _id: playlistId, createdBy: user._id });
+
+    if (!playlist) {
+      throw new Error('Playlist not found.');
+    }
+
+    return true;
+  },
+
 
 // other resolvers
 
@@ -775,7 +1077,7 @@ detectUserLocation,
 toggleLikeSong,
 
   },
-  Song
+  // Note: Song field resolvers are owned by Artist schema
 
   };
 

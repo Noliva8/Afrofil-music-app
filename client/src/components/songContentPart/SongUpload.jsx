@@ -16,7 +16,10 @@ export default function SongUpload({
   isSongLoading,
   activeStep,
   setValue,
-  setActiveStep
+  setActiveStep,
+  isProfileComplete,
+  missingProfileFields,
+  onBlockedUpload
 }) {
   const songRef = useRef(null);
 
@@ -27,6 +30,13 @@ const handleDragOver = (e) => {
 
 const handleDrop = (e) => {
   e.preventDefault();
+
+  if (!isProfileComplete) {
+    if (onBlockedUpload) {
+      onBlockedUpload();
+    }
+    return;
+  }
 
   const file = e.dataTransfer.files[0];
   if (file) {
@@ -107,6 +117,22 @@ const handleDrop = (e) => {
           >
             Supported formats: MP3, WAV, FLAC (Max 100MB)
           </Typography>
+          {!isProfileComplete && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#ffcf70",
+                backgroundColor: "rgba(0,0,0,0.35)",
+                border: "1px dashed rgba(255, 207, 112, 0.6)",
+                padding: "0.6rem 0.9rem",
+                borderRadius: "10px",
+                maxWidth: 520
+              }}
+            >
+              Complete your profile to upload. Missing:{" "}
+              {missingProfileFields?.length ? missingProfileFields.join(", ") : "profile details"}.
+            </Typography>
+          )}
           <Button
             component="label"
             variant="contained"
@@ -129,7 +155,7 @@ const handleDrop = (e) => {
                 transform: "translateY(0)"
               }
             }}
-            disabled={isSongLoading}
+            disabled={isSongLoading || !isProfileComplete}
           >
             Select File
             <input

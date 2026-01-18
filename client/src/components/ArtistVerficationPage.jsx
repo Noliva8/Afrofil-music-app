@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { Box, Typography } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { Box, Typography, Button } from "@mui/material";
+import { useNavigate, useLocation } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
 import axios from "axios";
 import ArtistAuth from '../utils/artist_auth';
 
 const ArtistVerificationPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(""); // Define status state
+  const [resendCooldown, setResendCooldown] = useState(30);
+  const [isResending, setIsResending] = useState(false);
+  const [showSentTick, setShowSentTick] = useState(false);
 
   const profile = ArtistAuth.getProfile();
 
@@ -38,6 +42,19 @@ const ArtistVerificationPage = () => {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const statusParam = params.get("status");
+    if (statusParam === "expired") {
+      setStatus("This verification link has expired. Please request a new one.");
+      setLoading(false);
+      return;
+    }
+    if (statusParam === "invalid") {
+      setStatus("This verification link is invalid. Please request a new one.");
+      setLoading(false);
+      return;
+    }
+
     const verifyConfirmation = async () => {
       try {
         if (email) {
@@ -99,7 +116,45 @@ const ArtistVerificationPage = () => {
     };
 
     verifyConfirmation(); // Call the verification function
-  }, [email, navigate]);
+  }, [email, navigate, location.search]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const intervalId = setInterval(() => {
+      setResendCooldown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [resendCooldown]);
+
+  const handleResendEmail = async () => {
+    if (!email || resendCooldown > 0) return;
+    try {
+      setIsResending(true);
+      await axios.post("http://localhost:3001/graphql", {
+        query: `
+          mutation ResendVerificationEmail($email: String!) {
+            resendVerificationEmail(email: $email) {
+              success
+              message
+            }
+          }
+        `,
+        variables: { email }
+      });
+      setStatus("Verification email resent. Please check your inbox.");
+      setShowSentTick(true);
+      setResendCooldown(10);
+      setTimeout(() => {
+        setShowSentTick(false);
+        setResendCooldown(0);
+      }, 10000);
+    } catch (error) {
+      console.error("Error resending verification email:", error);
+      setStatus("Failed to resend verification email. Please try again.");
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   return (
     <Box sx={{ textAlign: "center", padding: "20px" }}>
@@ -121,6 +176,25 @@ const ArtistVerificationPage = () => {
               <Typography variant="body2" color="textSecondary">
                 Don't see our email? Check your spam/junk folder.
               </Typography>
+              <Box sx={{ mt: 3 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleResendEmail}
+                  disabled={resendCooldown > 0 || isResending}
+                  sx={{ textTransform: "none" }}
+                >
+                  {showSentTick
+                    ? "✓ Sent"
+                    : isResending
+                    ? "Resending..."
+                    : "Resend verification email"}
+                </Button>
+                {resendCooldown > 0 && !showSentTick && (
+                  <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                    Please wait a moment before resending.
+                  </Typography>
+                )}
+              </Box>
             </div>
           ) : (
             <Typography variant="body1" color="error">

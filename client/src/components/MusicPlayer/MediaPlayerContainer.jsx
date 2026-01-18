@@ -4,6 +4,7 @@ import ModernMusicPlayer from './ModernMusicPlayer.jsx';
 import { AdMediaPlayer } from './ModernAdPlayer.jsx';
 import { useFullScreenPlayer } from './FullScreenMediaPlayer.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
+import { Box } from '@mui/material';
 
 const MediaPlayerContainer = () => {
   const {
@@ -100,7 +101,7 @@ const MediaPlayerContainer = () => {
   if (!isVisible) return null;
 
   return (
-    <div className="modern-player-wrapper">
+    <Box sx={{mb: 4}}>
       {isAdPlaying ? (
         <AdMediaPlayer
           isFullScreenOpen={isFullScreenOpen}
@@ -173,7 +174,7 @@ const MediaPlayerContainer = () => {
             : 'none'
         }
       />
-    </div>
+    </Box>
   );
 };
 

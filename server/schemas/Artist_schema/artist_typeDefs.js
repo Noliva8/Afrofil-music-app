@@ -19,6 +19,7 @@ type Artist {
   genre: [String]
   bio: String
   country: String
+  region: String
   languages: [String]
   mood: [String]
   category: String
@@ -125,6 +126,42 @@ type Composer {
   contribution: String
 }
 
+enum RadioStationType {
+  ARTIST_RADIO
+  GENRE_RADIO
+  MOOD_RADIO
+  ERA_RADIO
+  DISCOVER_RADIO
+  USER_RADIO
+  MIX_RADIO
+}
+
+enum RadioSeedType {
+  ARTIST
+  GENRE
+  MOOD
+  TRACK
+  ERA
+}
+
+type RadioSeed {
+  seedType: RadioSeedType!
+  seedId: String!
+}
+
+type RadioStation {
+  _id: ID!
+  name: String!
+  description: String
+  type: RadioStationType!
+  seeds: [RadioSeed!]!
+  coverImage: String
+  createdBy: Artist
+  visibility: String
+  createdAt: Date!
+  updatedAt: Date!
+}
+
 input ProducerInput {
   name: String!
   role: String
@@ -134,6 +171,20 @@ input ProducerInput {
 input ComposerInput{
   name: String!
   contribution: String
+}
+
+input RadioSeedInput {
+  seedType: RadioSeedType!
+  seedId: String!
+}
+
+input CreateRadioStationInput {
+  name: String!
+  description: String
+  type: RadioStationType!
+  seeds: [RadioSeedInput!]!
+  coverImage: String
+  visibility: String
 }
 
 enum UploadStatus {
@@ -414,7 +465,15 @@ type Query {
   publicSong(songId: ID!): Song
  getSongMetadata(songId: ID!): SongMetadata
  trendingSongs: [Song!]!
+ newUploads: [Song!]!
+ suggestedSongs: [Song!]!
+ songOfMonth: Song
  similarSongs(songId: ID!): SimilarSongsResponse!
+ radioStations(type: RadioStationType, visibility: String = "public"): [RadioStation!]!
+ radioStation(stationId: ID!): RadioStation
+ radioStationSongs(stationId: ID!): [Song!]!
+ exploreSongs(type: String!, value: String!): [Song!]!
+ searchCatalog(query: String!, limit: Int = 12): SearchResults!
 
   songsLikedByMe(
     limit: Int = 20
@@ -426,6 +485,12 @@ type Query {
    otherAlbumsByArtist(albumId: ID!, artistId: ID!): [Album]
 }
 
+type SearchResults {
+  songs: [Song!]!
+  artists: [Artist!]!
+  albums: [Album!]!
+}
+
 
 type Mutation {
   createArtist(
@@ -433,6 +498,8 @@ type Mutation {
     artistAka: String!
     email: String!
     password: String!
+    country: String!
+    region: String!
     role: String
     confirmed: Boolean
     selectedPlan: Boolean
@@ -441,6 +508,7 @@ type Mutation {
   sendVerificationEmail(email: String!): Boolean
   verifyEmail(token: String!): Boolean
   resendVerificationEmail(email: String!): ResendVerificationResponse!
+  createRadioStation(input: CreateRadioStationInput!): RadioStation!
 
   selectPlan(artistId: ID!, plan: String!): Artist
   getPresignedUrl(bucket: String!, key: String!, region: String!): PresignedUrlResponse
@@ -458,6 +526,7 @@ type Mutation {
     artistId: ID!
     bio: String
     country: String
+    region: String
     languages: [String]
     genre: [String]
     mood: [String]
@@ -468,6 +537,7 @@ type Mutation {
 
   addBio(bio: String): Artist
   addCountry(country: String): Artist
+  addRegion(region: String): Artist
   addLanguages(languages: [String]): Artist
   addGenre(genre: [String]): Artist
   addCategory(category: String): Artist

@@ -6,22 +6,14 @@ import { useApolloClient, useQuery } from "@apollo/client";
 import { SongCard } from "./otherSongsComponents/songCard.jsx";
 import { AlbumCard, CompactAlbumCard } from "./otherSongsComponents/AlbumCard.jsx";
 import { AddButton } from "./AddButton.jsx";
+import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
 
 
 import {
   Box,
   Typography,
   IconButton,
-  Menu,
-  MenuItem,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Button,
   useMediaQuery,
-  Divider,
   useTheme,
 } from "@mui/material";
 
@@ -32,7 +24,6 @@ import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ShareIcon from "@mui/icons-material/Share";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import FavoriteIcon from "@mui/icons-material/Favorite";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
@@ -56,8 +47,9 @@ import { useScrollNavigation } from "../utils/someSongsUtils/scrollHooks.js";
 
 // Components
 import { ShuffleButton } from "./ShuffleButton.jsx";
-import { ShareButton } from "./ShareButton.jsx";
 import { PlayButton } from "./PlayButton";
+import { ActionButtonsGroup } from "./ActionButtonsGroup.jsx";
+import { ActionMenu } from "./ActionMenu.jsx";
 
 export const SongPage = () => {
   // Audio player context
@@ -78,6 +70,8 @@ export const SongPage = () => {
   const [isSubtitleHovered, setIsSubtitleHovered] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
+  const [playlistTrack, setPlaylistTrack] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [trackMenuAnchor, setTrackMenuAnchor] = useState(null);
   const [trackDrawerOpen, setTrackDrawerOpen] = useState(false);
@@ -592,10 +586,16 @@ console.log('see albums:',  albumCovers);
     console.log("Add to favorites", getId(song));
   }, [song, getId, isFavorite]);
 
+
+
   const handleAddToPlaylist = useCallback((track) => {
-    console.log('Add to playlist:', track.title);
-    // Implement playlist addition logic
+    if (!track) return;
+    setPlaylistTrack(track);
+    setPlaylistDialogOpen(true);
   }, []);
+
+
+
 
   const handlePlayNext = useCallback((track) => {
     console.log('Play next:', track.title);
@@ -664,15 +664,89 @@ console.log('see albums:',  albumCovers);
     setSelectedTrack(null);
   };
 
-  const menuItems = useMemo(
+  const handleOpenTrackMenu = useCallback(
+    (track, event) => {
+      event?.stopPropagation();
+      if (!track) return;
+      setSelectedTrack(track);
+      if (isMobile) {
+        setTrackDrawerOpen(true);
+        setTrackMenuAnchor(null);
+      } else {
+        setTrackMenuAnchor(event?.currentTarget || null);
+      }
+    },
+    [isMobile]
+  );
+
+  const mainMenuItems = useMemo(
     () => [
-      { icon: <Description />, text: "Play now", action: handlePrimaryPlay },
-      { icon: <Shuffle />, text: "Shuffle", action: () => console.log("Shuffle clicked") },
-      { icon: <SkipNextIcon />, text: "Play next", action: () => console.log("Play next clicked") },
-      { icon: <ShareIcon />, text: "Share", action: handleShare },
+      { icon: <Description />, label: "Play now", onClick: handlePrimaryPlay, fontWeight: 400 },
+      { icon: <Shuffle />, label: "Shuffle", onClick: () => console.log("Shuffle clicked"), fontWeight: 400 },
+      { icon: <SkipNextIcon />, label: "Play next", onClick: () => console.log("Play next clicked"), fontWeight: 400 },
+      { icon: <ShareIcon />, label: "Share", onClick: handleShare, fontWeight: 400 },
     ],
     [handlePrimaryPlay, handleShare]
   );
+
+  const trackMenuItems = useMemo(() => {
+    const isPlayingSelected = isSelectedTrackCurrent && playerIsPlaying;
+    return [
+      {
+        icon: isPlayingSelected ? <PauseIcon sx={{ color: "rgba(255,255,255,0.7)" }} /> : <PlayArrowIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: isPlayingSelected ? "Pause" : "Play",
+        onClick: () => selectedTrack && handlePlayAlbumSong(selectedTrack),
+      },
+      {
+        icon: <FavoriteBorderIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Add to Favorites",
+        onClick: () => selectedTrack && handleAddToFavorites(selectedTrack),
+      },
+      {
+        icon: <PlaylistAddIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Add to Playlist",
+        onClick: () => selectedTrack && handleAddToPlaylist(selectedTrack),
+      },
+      {
+        icon: <SkipNextIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Play Next",
+        onClick: () => selectedTrack && handlePlayNext(selectedTrack),
+      },
+      { type: "divider" },
+      {
+        icon: <ShareIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Share",
+        onClick: () => selectedTrack && handleShareTrack(selectedTrack),
+      },
+      {
+        icon: <PersonIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Go to Artist",
+        onClick: () => {
+          const artistId = selectedTrack?.artistId || selectedTrack?.artist?._id;
+          if (artistId) navigate(`/artist/${artistId}`);
+        },
+      },
+      { type: "divider" },
+      {
+        icon: <ReportIcon sx={{ color: "#ff6b6b" }} />,
+        label: "Report Track",
+        onClick: () => selectedTrack && handleReportTrack(selectedTrack),
+        color: "#ff6b6b",
+        hoverBg: "rgba(255,107,107,0.1)",
+      },
+    ];
+  }, [
+    handleAddToFavorites,
+    handleAddToPlaylist,
+    handlePlayAlbumSong,
+    handlePlayNext,
+    handleReportTrack,
+    handleShareTrack,
+    isSelectedTrackCurrent,
+    navigate,
+    playerIsPlaying,
+    selectedTrack,
+  ]);
 
   // Marquee Text Component
   const MarqueeText = ({ text, hovered, variant = "subtitle2", sx = {}, duration = "10s" }) => (
@@ -1035,142 +1109,23 @@ console.log('see albums:',  albumCovers);
           />
         </Box>
 
-        <Box
-          sx={{
-            display: "flex",
-            gap: { xs: 0.5, sm: 1, md: 2 },
-            justifyContent: { xs: "space-between", sm: "flex-start" },
-            mt: { xs: 2, md: 0 },
-            width: { xs: "100%", md: "auto" },
-          }}
-        >
-          <IconButton
-            onClick={handleAddToFavorites}
-            aria-label="Add to Favorites"
-            sx={{
-              color: isFavorite ? "#E4C421" : "rgba(255,255,255,0.85)",
-              backgroundColor: "rgba(255,255,255,0.1)",
-              borderRadius: 2,
-              p: { xs: 1.2, sm: 1.5 },
-              "&:hover": {
-                backgroundColor: "rgba(255,255,255,0.15)",
-                transform: "scale(1.05)",
-              },
-              transition: "all 0.2s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0.5,
-              minWidth: { xs: 70, sm: 80 },
-            }}
-          >
-            {isFavorite ? (
-              <FavoriteIcon sx={{ fontSize: { xs: "1.3rem", sm: "1.5rem" } }} />
-            ) : (
-              <FavoriteBorderIcon sx={{ fontSize: { xs: "1.3rem", sm: "1.5rem" } }} />
-            )}
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: isFavorite ? "#E4C421" : "inherit",
-              }}
-            >
-              {isFavorite ? "Added" : "Add"}
-            </Typography>
-          </IconButton>
-
-          <ShareButton handleShare={handleShare} />
-
-          <IconButton
-            aria-label="More options"
-            onClick={handleOpenMenu}
-            sx={{
-              color: "rgba(255,255,255,0.85)",
-              backgroundColor: "rgba(255,255,255,0.1)",
-              borderRadius: 2,
-              p: { xs: 1.2, sm: 1.5 },
-              "&:hover": {
-                backgroundColor: "rgba(255,255,255,0.15)",
-                transform: "scale(1.05)",
-              },
-              transition: "all 0.2s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0.5,
-              minWidth: { xs: 70, sm: 80 },
-            }}
-          >
-            <MoreHorizIcon sx={{ fontSize: { xs: "1.3rem", sm: "1.5rem" } }} />
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              More
-            </Typography>
-          </IconButton>
-        </Box>
+        <ActionButtonsGroup
+          isFavorite={isFavorite}
+          onToggleFavorite={handleAddToFavorites}
+          onShare={handleShare}
+          onMore={handleOpenMenu}
+        />
       </Box>
 
-      {/* Main Menu */}
-      <Menu
+      <ActionMenu
+        isMobile={isMobile}
         anchorEl={menuAnchor}
         open={Boolean(menuAnchor)}
         onClose={handleCloseMenu}
-        PaperProps={{
-          sx: {
-            backgroundColor: "#181818",
-            color: "#fff",
-            minWidth: 220,
-            borderRadius: 2,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          },
-        }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        {menuItems.map((item, index) => (
-          <MenuItem
-            key={index}
-            onClick={() => {
-              item.action?.();
-              handleCloseMenu();
-            }}
-            sx={{
-              py: 1.5,
-              px: 2,
-              fontSize: "0.95rem",
-              fontWeight: 400,
-              color: item.color || "#fff",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.05)" },
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
-              <Box
-                sx={{
-                  color: item.color || "rgba(255,255,255,0.7)",
-                  display: "flex",
-                  alignItems: "center",
-                  minWidth: 30,
-                }}
-              >
-                {item.icon}
-              </Box>
-              {item.text}
-            </Box>
-          </MenuItem>
-        ))}
-      </Menu>
+        drawerOpen={drawerOpen}
+        onCloseDrawer={handleCloseDrawer}
+        items={mainMenuItems}
+      />
 
       {/* Album Songs Section - Mobile Optimized */}
       {processedAlbumSongs.length > 0 && (
@@ -1542,16 +1497,7 @@ console.log('see albums:',  albumCovers);
                   }}>
                     <IconButton
                       size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTrack(track);
-                        if (isMobile) {
-                          setTrackDrawerOpen(true);
-                          setTrackMenuAnchor(null);
-                        } else {
-                          setTrackMenuAnchor(e.currentTarget);
-                        }
-                      }}
+                      onClick={(e) => handleOpenTrackMenu(track, e)}
                       sx={{
                         width: 40,
                         height: 40,
@@ -1647,7 +1593,7 @@ console.log('see albums:',  albumCovers);
                   </Box>
 
                   {/* Desktop Add to Playlist Button */}
-                 <AddButton />
+                 <AddButton handleAddToPlaylist={handleAddToPlaylist} track={track} />
 
 
                   {/* Desktop More Options Button */}
@@ -1657,11 +1603,7 @@ console.log('see albums:',  albumCovers);
                   }}>
                     <IconButton
                       size="medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTrack(track);
-                        setTrackMenuAnchor(e.currentTarget);
-                      }}
+                      onClick={(e) => handleOpenTrackMenu(track, e)}
                       sx={{
                         color: 'text.secondary',
                         width: 48,
@@ -1883,476 +1825,36 @@ sx={{
 
 
 
-      {/* Track Options Dropdown Menu */}
-      <Menu
+      <ActionMenu
+        isMobile={isMobile}
         anchorEl={trackMenuAnchor}
         open={!isMobile && Boolean(trackMenuAnchor)}
         onClose={() => {
           setTrackMenuAnchor(null);
           setLongPressTrack(null);
         }}
-        PaperProps={{
-          sx: {
-            backgroundColor: '#181818',
-            color: '#fff',
-            minWidth: isMobile ? 280 : 220,
-            borderRadius: 3,
-            boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            maxHeight: '70vh',
-            overflow: 'auto',
-          },
+        drawerOpen={trackDrawerOpen}
+        onCloseDrawer={handleCloseTrackDrawer}
+        items={trackMenuItems}
+        menuPaperSx={{
+          minWidth: isMobile ? 280 : 220,
+          borderRadius: 3,
+          boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+          maxHeight: "70vh",
+          overflow: "auto",
         }}
-        transformOrigin={{ 
-          horizontal: isMobile ? 'center' : 'right', 
-          vertical: 'top' 
+        drawerTitle={selectedTrack?.title || "Track Options"}
+        drawerSubtitle={selectedTrack?.artistName || selectedTrack?.artist?.artistAka || "Unknown Artist"}
+      />
+
+      <AddToPlaylistModal
+        open={playlistDialogOpen}
+        onClose={() => {
+          setPlaylistDialogOpen(false);
+          setPlaylistTrack(null);
         }}
-        anchorOrigin={{ 
-          horizontal: isMobile ? 'center' : 'right', 
-          vertical: 'bottom' 
-        }}
-      >
-        {isMobile && selectedTrack && (
-          <>
-            <Box sx={{ p: 2, pb: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                {selectedTrack?.title || 'Track Options'}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', opacity: 0.7 }}>
-                {selectedTrack?.artistName || 'Unknown Artist'}
-              </Typography>
-            </Box>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mx: 2 }} />
-          </>
-        )}
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handlePlayAlbumSong(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            {isSelectedTrackCurrent && playerIsPlaying ? (
-              <PauseIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            ) : (
-              <PlayArrowIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            )}
-            {isSelectedTrackCurrent && playerIsPlaying ? 'Pause' : 'Play'}
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleAddToFavorites(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <FavoriteBorderIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Add to Favorites
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleAddToPlaylist(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <PlaylistAddIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Add to Playlist
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handlePlayNext(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <SkipNextIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Play Next
-          </Box>
-        </MenuItem>
-        
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 0.5 }} />
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleShareTrack(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <ShareIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Share
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) {
-              const artistId = selectedTrack.artistId || selectedTrack?.artist?._id;
-              if (artistId) navigate(`/artist/${artistId}`);
-            }
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <PersonIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Go to Artist
-          </Box>
-        </MenuItem>
-        
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 0.5 }} />
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleReportTrack(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#ff6b6b',
-            '&:hover': { backgroundColor: 'rgba(255,107,107,0.1)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <ReportIcon sx={{ color: '#ff6b6b' }} />
-            Report Track
-          </Box>
-        </MenuItem>
-        
-        {isMobile && (
-          <>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 0.5 }} />
-            <MenuItem
-              onClick={() => setTrackMenuAnchor(null)}
-              sx={{
-                py: 2,
-                px: 2,
-                fontSize: '1rem',
-                fontWeight: 500,
-                color: 'text.secondary',
-                justifyContent: 'center',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-              }}
-            >
-              Cancel
-            </MenuItem>
-          </>
-        )}
-      </Menu>
-
-      {/* Track options drawer (mobile) */}
-      {isMobile && (
-        <Drawer
-          anchor="bottom"
-          open={trackDrawerOpen}
-          onClose={handleCloseTrackDrawer}
-          PaperProps={{
-            sx: {
-              maxHeight: "70vh",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              backgroundColor: "#181818",
-              color: "#fff",
-            },
-          }}
-        >
-          <Box sx={{ p: 2, pt: 3 }}>
-            <Box
-              sx={{
-                width: 60,
-                height: 6,
-                backgroundColor: "rgba(255,255,255,0.25)",
-                borderRadius: 3,
-                mx: "auto",
-                mb: 3,
-              }}
-            />
-
-            {selectedTrack && (
-              <Box sx={{ mb: 2, px: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {selectedTrack.title || "Track Options"}
-                </Typography>
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  {selectedTrack.artistName || selectedTrack?.artist?.artistAka || "Unknown Artist"}
-                </Typography>
-              </Box>
-            )}
-
-            <List sx={{ py: 0 }}>
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handlePlayAlbumSong(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  {isSelectedTrackCurrent && playerIsPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-                </ListItemIcon>
-                <ListItemText
-                  primary={isSelectedTrackCurrent && playerIsPlaying ? "Pause" : "Play"}
-                  primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }}
-                />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleAddToFavorites(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <FavoriteBorderIcon />
-                </ListItemIcon>
-                <ListItemText primary="Add to Favorites" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleAddToPlaylist(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <PlaylistAddIcon />
-                </ListItemIcon>
-                <ListItemText primary="Add to Playlist" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handlePlayNext(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <SkipNextIcon />
-                </ListItemIcon>
-                <ListItemText primary="Play Next" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleShareTrack(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <ShareIcon />
-                </ListItemIcon>
-                <ListItemText primary="Share" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) {
-                    const artistId = selectedTrack.artistId || selectedTrack?.artist?._id;
-                    if (artistId) navigate(`/artist/${artistId}`);
-                  }
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <PersonIcon />
-                </ListItemIcon>
-                <ListItemText primary="Go to Artist" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleReportTrack(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,107,107,0.12)" } }}
-              >
-                <ListItemIcon sx={{ color: "#ff6b6b", minWidth: 40 }}>
-                  <ReportIcon />
-                </ListItemIcon>
-                <ListItemText primary="Report Track" primaryTypographyProps={{ sx: { color: "#ff6b6b", fontWeight: 600 } }} />
-              </ListItem>
-            </List>
-
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleCloseTrackDrawer}
-              sx={{
-                mt: 1.5,
-                color: "rgba(255,255,255,0.85)",
-                borderColor: "rgba(255,255,255,0.3)",
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.5)",
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                },
-              }}
-            >
-              Cancel
-            </Button>
-          </Box>
-        </Drawer>
-      )}
-
-      {/* Mobile Bottom Sheet Drawer */}
-      {isMobile && (
-        <Drawer
-          anchor="bottom"
-          open={drawerOpen}
-          onClose={handleCloseDrawer}
-          PaperProps={{
-            sx: {
-              maxHeight: "70vh",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              backgroundColor: "#181818",
-              color: "#fff",
-            },
-          }}
-        >
-          <Box sx={{ p: 2, pt: 3 }}>
-            <Box
-              sx={{
-                width: 60,
-                height: 6,
-                backgroundColor: "rgba(255,255,255,0.25)",
-                borderRadius: 3,
-                mx: "auto",
-                mb: 3,
-              }}
-            />
-
-            <List sx={{ py: 0 }}>
-              {menuItems.map((item, index) => (
-                <ListItem
-                  button
-                  key={index}
-                  onClick={() => {
-                    item.action?.();
-                    handleCloseDrawer();
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    mb: 0.5,
-                    "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      color: item.color || "rgba(255,255,255,0.75)",
-                      minWidth: 40,
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      sx: { color: item.color || "#fff", fontWeight: 500 },
-                    }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleCloseDrawer}
-              sx={{
-                mt: 1.5,
-                color: "rgba(255,255,255,0.85)",
-                borderColor: "rgba(255,255,255,0.3)",
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.5)",
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                },
-              }}
-            >
-              Cancel
-            </Button>
-          </Box>
-        </Drawer>
-      )}
+        track={playlistTrack}
+      />
     </>
   );
 };

@@ -3,7 +3,8 @@ import fs from 'fs'
 import { pipeline } from 'stream';
 import { ApolloError } from 'apollo-server-express';
 import util from 'util';
-import  { Artist, Album, Song, User, Fingerprint } from '../../models/Artist/index_artist.js';
+import  { Artist, Album, Song, User, Fingerprint, RadioStation } from '../../models/Artist/index_artist.js';
+import { PlayCount } from '../../models/User/user_index.js';
 import dotenv from 'dotenv';
 import { AuthenticationError } from '../../utils/artist_auth.js';
 import {signArtistToken} from '../../utils/AuthSystem/tokenUtils.js'
@@ -49,7 +50,7 @@ import { recommendNextAfterFull } from '../../utils/AdEngine/nextSong.js';
 
 // import SimHash from 'simhash';
 // cache
-import { createSongRedis, getSongRedis, updateSongRedis, incrementPlayCount, deleteSongRedis, redisTrending } from './Redis/songCreateRedis.js';
+import { createSongRedis, getSongRedis, updateSongRedis, incrementPlayCount, deleteSongRedis, redisTrending, searchSongsRedis } from './Redis/songCreateRedis.js';
 import { checkRedisHealth } from '../../utils/AdEngine/redis/redisClient.js';
 import { ensureSongCached } from '../../utils/doesSongExistInCache.js';
 import { artistCreateRedis, artistUpdateRedis, deleteArtistRedis,getArtistRedis, getArtistsByCountryRedis, getTopArtistsRedis, searchArtistsRedis,} from './Redis/artistCreateRedis.js';
@@ -58,6 +59,9 @@ import { albumCreateRedis, albumUpdateRedis, deleteAlbumRedis, getLatestAlbumsRe
 
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import { trendingSongs } from './trendingSongs/trendings.js';
+import { newUploads } from './newUploads/newUploads.js';
+import { suggestedSongs } from './suggestedSongs/suggestedSongs.js';
+import { songOfMonth } from './songOfMonth/songOfMonth.js';
 // import { similarSongs } from './similarSongs/similarSongs.js';
 
 import { similarSongs } from './similarSongs/similasongResolver.js'
@@ -82,6 +86,7 @@ import{getAlbum, otherAlbumsByArtist} from '../Artist_schema/songsOfAlbum.js'
 import { CLOUDFRONT_EXPIRATION } from './Redis/keys.js';
 import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from '../../utils/cloudFrontUrl.js';
 import { getFallbackArtworkUrl } from './similarSongs/similasongResolver.js';
+import { RADIO_TYPES } from '../../utils/radioTypes.js';
 
 
 
@@ -118,6 +123,94 @@ const buildStreamingKey = (streamAudioFileUrl, audioFileUrl) => {
     }
   }
   return key || null;
+};
+
+const normalizeRadioType = (value) => {
+  if (!value) return null;
+  return RADIO_TYPES[value] || value;
+};
+
+const normalizeSeedType = (value) => {
+  if (!value) return null;
+  return String(value).toLowerCase();
+};
+
+const parseEraRange = (seedId) => {
+  if (!seedId) return null;
+  const match = String(seedId).match(/(\\d{4})/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  if (!Number.isFinite(year)) return null;
+  const startYear = year - (year % 10);
+  const start = new Date(Date.UTC(startYear, 0, 1));
+  const end = new Date(Date.UTC(startYear + 9, 11, 31, 23, 59, 59, 999));
+  return { start, end };
+};
+
+const mapSongListPayload = (songs) =>
+  (songs || []).map((song) => ({
+    ...song,
+    artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+    mood: song.mood || [],
+    subMoods: song.subMoods || [],
+    composer: Array.isArray(song.composer) ? song.composer : [],
+    producer: Array.isArray(song.producer) ? song.producer : [],
+    likesCount: song.likedByUsers?.length || song.likesCount || 0,
+    downloadCount: song.downloadCount || 0,
+    playCount: song.playCount || 0,
+    shareCount: song.shareCount || 0,
+    artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+  }));
+
+const mapRadioTypeToEnum = (value) => {
+  if (!value) return null;
+  const match = Object.entries(RADIO_TYPES).find(([, typeValue]) => typeValue === value);
+  return match ? match[0] : value;
+};
+
+const mapSeedTypeToEnum = (value) => {
+  if (!value) return null;
+  return String(value).toUpperCase();
+};
+
+const escapeRegex = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildCaseInsensitiveMatch = (value) => new RegExp(`^${escapeRegex(value)}$`, "i");
+
+const buildStationSongQuery = (station) => {
+  const or = [];
+  for (const seed of station?.seeds || []) {
+    const seedType = normalizeSeedType(seed?.seedType);
+    const seedId = seed?.seedId;
+    if (!seedType || !seedId) continue;
+    if (seedType === "artist") {
+      or.push({ artist: seedId });
+      continue;
+    }
+    if (seedType === "genre") {
+      or.push({ genre: seedId });
+      continue;
+    }
+    if (seedType === "mood") {
+      or.push({ mood: seedId });
+      continue;
+    }
+    if (seedType === "track") {
+      or.push({ _id: seedId });
+      continue;
+    }
+    if (seedType === "era") {
+      const range = parseEraRange(seedId);
+      if (range) {
+        or.push({ releaseDate: { $gte: range.start, $lte: range.end } });
+      }
+    }
+  }
+
+  const query = { visibility: { $ne: "private" } };
+  if (or.length) query.$or = or;
+  return query;
 };
 const s3 = new S3Client({
   region: process.env.JWT_REGION_SONGS_TO_STREAM,
@@ -368,6 +461,12 @@ const resolvers = {
       return Number(artist.artistDownloadCounts || 0);
     },
   },
+  RadioStation: {
+    type: (station) => mapRadioTypeToEnum(station.type),
+  },
+  RadioSeed: {
+    seedType: (seed) => mapSeedTypeToEnum(seed.seedType),
+  },
   Upload: GraphQLUpload,
 Query: {
 
@@ -565,6 +664,240 @@ albumOfArtist: async (parent, args, context) => {
 
 
 trendingSongs,
+newUploads,
+suggestedSongs,
+songOfMonth,
+radioStations: async (_parent, { type, visibility = "public" }) => {
+  const query = {};
+  if (visibility) query.visibility = visibility;
+  const normalizedType = normalizeRadioType(type);
+  if (normalizedType) query.type = normalizedType;
+
+  const stations = await RadioStation.find(query)
+    .sort({ updatedAt: -1 })
+    .populate({ path: "createdBy", select: "artistAka profileImage country" })
+    .lean();
+
+  const enriched = await Promise.all(
+    stations.map(async (station) => {
+      const song = await Song.findOne(buildStationSongQuery(station))
+        .sort({ trendingScore: -1, createdAt: -1 })
+        .select("artwork")
+        .lean();
+
+      if (!song) return null;
+
+      if (station.coverImage) return station;
+      return { ...station, coverImage: song?.artwork || "" };
+    })
+  );
+
+  return enriched.filter(Boolean);
+},
+radioStation: async (_parent, { stationId }) => {
+  const station = await RadioStation.findById(stationId)
+    .populate({ path: "createdBy", select: "artistAka profileImage country" })
+    .lean();
+  if (!station) return null;
+  if (station.coverImage) return station;
+  const song = await Song.findOne(buildStationSongQuery(station))
+    .sort({ trendingScore: -1, createdAt: -1 })
+    .select("artwork")
+    .lean();
+  return { ...station, coverImage: song?.artwork || "" };
+},
+  radioStationSongs: async (_parent, { stationId }) => {
+    const station = await RadioStation.findById(stationId).lean();
+    if (!station) return [];
+    const query = buildStationSongQuery(station);
+
+  const songs = await Song.find(query)
+    .sort({ trendingScore: -1, createdAt: -1 })
+    .limit(30)
+    .populate({
+      path: "artist",
+      select: "artistAka country bio followers artistDownloadCounts profileImage",
+    })
+    .populate({ path: "album", select: "title releaseDate albumCoverImage" })
+    .lean();
+
+  return mapSongListPayload(songs);
+},
+exploreSongs: async (_parent, { type, value }) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return [];
+
+  const normalizedType = String(type || "").toLowerCase();
+  const match = buildCaseInsensitiveMatch(trimmed);
+
+  let artistIds = null;
+  if (normalizedType === "country" || normalizedType === "region" || normalizedType === "artist") {
+    const artistQuery = {};
+    if (normalizedType === "country") artistQuery.country = match;
+    if (normalizedType === "region") artistQuery.region = match;
+    if (normalizedType === "artist") {
+      artistQuery.$or = [{ artistAka: match }, { fullName: match }];
+    }
+    const artists = await Artist.find(artistQuery).select("_id").lean();
+    artistIds = artists.map((artist) => artist._id);
+    if (!artistIds.length) return [];
+  }
+
+  const query = { visibility: { $ne: "private" } };
+
+  if (normalizedType === "genre") query.genre = match;
+  if (normalizedType === "mood") query.mood = { $elemMatch: { $regex: match } };
+  if (normalizedType === "submood" || normalizedType === "sub_mood" || normalizedType === "submoods") {
+    query.subMoods = { $elemMatch: { $regex: match } };
+  }
+  if (artistIds) {
+    query.artist = { $in: artistIds };
+  }
+
+  const songs = await Song.find(query)
+    .sort({ trendingScore: -1, createdAt: -1 })
+    .limit(50)
+    .populate({
+      path: "artist",
+      select: "artistAka country bio followers artistDownloadCounts profileImage",
+    })
+    .populate({ path: "album", select: "title releaseDate albumCoverImage" })
+    .lean();
+
+  return mapSongListPayload(songs);
+},
+searchCatalog: async (_parent, { query, limit = 12 }) => {
+  const q = String(query || "").trim();
+  if (!q) return { songs: [], artists: [], albums: [] };
+
+  const stop = new Set(["by", "feat", "ft", "featuring", "the", "a", "an"]);
+  const tokens = q
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .filter((t) => !stop.has(t));
+
+  const regexes = tokens.map(
+    (t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")
+  );
+
+  const [songHits, artistHits, albumHits] = await Promise.all([
+    searchSongsRedis(q, limit),
+    searchArtistsRedis(q, limit),
+    searchAlbumsRedis(q, limit),
+  ]);
+
+  const matchesTokens = (value) => {
+    if (!tokens.length) return true;
+    const haystack = String(value || "").toLowerCase();
+    return tokens.every((t) => haystack.includes(t));
+  };
+
+  let songs = [];
+  const songIds = (songHits || [])
+    .map((s) => String(s?._id ?? s?.songId ?? s?.id ?? ""))
+    .filter(Boolean);
+
+  if (songIds.length) {
+    const dbSongs = await Song.find({ _id: { $in: songIds }, visibility: "public" })
+      .populate({ path: "artist", select: "artistAka profileImage country artistDownloadCounts followers" })
+      .populate({ path: "album", select: "title releaseDate albumCoverImage" })
+      .lean();
+    const songMap = new Map(dbSongs.map((s) => [String(s._id), s]));
+    songs = songIds.map((id) => songMap.get(id)).filter(Boolean);
+  }
+
+  if (!songs.length) {
+    const artistIdsByToken = await Promise.all(
+      regexes.map(async (regex) => {
+        const artists = await Artist.find({
+          $or: [{ artistAka: regex }, { fullName: regex }],
+        })
+          .select("_id")
+          .lean();
+        return artists.map((artist) => artist._id);
+      })
+    );
+
+    const andClauses = regexes.map((regex, idx) => {
+      const artistIds = artistIdsByToken[idx] || [];
+      return {
+        $or: [
+          { title: regex },
+          { genre: regex },
+          { mood: regex },
+          { label: regex },
+          { "producer.name": regex },
+          { "composer.name": regex },
+          { featuringArtist: regex },
+          ...(artistIds.length ? [{ artist: { $in: artistIds } }] : []),
+        ],
+      };
+    });
+
+    songs = await Song.find({
+      visibility: "public",
+      ...(andClauses.length ? { $and: andClauses } : {}),
+    })
+      .sort({ trendingScore: -1, createdAt: -1 })
+      .limit(limit)
+      .populate({ path: "artist", select: "artistAka profileImage country artistDownloadCounts followers" })
+      .populate({ path: "album", select: "title releaseDate albumCoverImage" })
+      .lean();
+  }
+
+  let artists = [];
+  const artistIds = (artistHits || [])
+    .map((a) => String(a?._id ?? a?.artistId ?? a?.id ?? ""))
+    .filter(Boolean);
+  if (artistIds.length) {
+    const dbArtists = await Artist.find({ _id: { $in: artistIds } })
+      .select("artistAka fullName profileImage country region")
+      .lean();
+    const artistMap = new Map(dbArtists.map((a) => [String(a._id), a]));
+    artists = artistIds.map((id) => artistMap.get(id)).filter(Boolean);
+  }
+  if (!artists.length) {
+    const artistClauses = regexes.map((regex) => ({
+      $or: [{ artistAka: regex }, { fullName: regex }, { country: regex }, { region: regex }],
+    }));
+    artists = await Artist.find({
+      ...(artistClauses.length ? { $and: artistClauses } : {}),
+    })
+      .limit(limit)
+      .select("artistAka fullName profileImage country region")
+      .lean();
+  }
+
+  let albums = [];
+  const albumIds = (albumHits || [])
+    .map((a) => String(a?._id ?? a?.albumId ?? a?.id ?? ""))
+    .filter(Boolean);
+  if (albumIds.length) {
+    const dbAlbums = await Album.find({ _id: { $in: albumIds } })
+      .select("title albumCoverImage releaseDate artist")
+      .populate({ path: "artist", select: "artistAka" })
+      .lean();
+    const albumMap = new Map(dbAlbums.map((a) => [String(a._id), a]));
+    albums = albumIds.map((id) => albumMap.get(id)).filter(Boolean);
+  }
+  if (!albums.length) {
+    const albumClauses = regexes.map((regex) => ({
+      $or: [{ title: regex }],
+    }));
+    albums = await Album.find({
+      ...(albumClauses.length ? { $and: albumClauses } : {}),
+    })
+      .sort({ releaseDate: -1 })
+      .limit(limit)
+      .select("title albumCoverImage releaseDate artist")
+      .populate({ path: "artist", select: "artistAka" })
+      .lean();
+  }
+
+  return { songs, artists, albums };
+},
 
 
     similarSongs,
@@ -579,7 +912,7 @@ trendingSongs,
 
 
   Mutation: {
-createArtist: async (parent, { fullName, artistAka, email, password }) => {
+createArtist: async (parent, { fullName, artistAka, email, password, country, region }) => {
   try {
     // Check if the artist already exists
     const existingArtist = await Artist.findOne({ email });
@@ -588,13 +921,19 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
     }
 
     // Create the new artist
+    if (!country || !region) {
+      throw new Error("Country and region are required.");
+    }
+
     const newArtist = await Artist.create({
       fullName,
       artistAka,
       email,
       password,
+      country,
+      region,
       confirmed: false,
-       selectedPlan: false,
+      selectedPlan: false,
       role: 'artist'
     });
 
@@ -602,7 +941,8 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
     const artistToken = signArtistToken(newArtist, USER_TYPES.ARTIST);
 
     // Create the verification link
-    const verificationLink = `http://localhost:3001/confirmation/${artistToken}`;
+    const baseUrl = process.env.SERVER_URL || "http://localhost:3001";
+    const verificationLink = `${baseUrl}/confirmation/${artistToken}`;
 
     // Send the response to the user immediately
     // The email sending happens asynchronously in the background
@@ -638,8 +978,9 @@ createArtist: async (parent, { fullName, artistAka, email, password }) => {
     };
     
   } catch (error) {
+    const errorMessage = error?.message || "Failed to create artist";
     console.error("Failed to create artist:", error);
-    throw new Error("Failed to create artist");
+    throw new Error(errorMessage);
   }
 },
 
@@ -659,8 +1000,8 @@ resendVerificationEmail: async (parent, { email }) => {
       return { success: false, message: "Email is already verified" };
     }
 
-    // Generate a new token using signToken
-    const artistToken = signToken(artist);
+    // Generate a new token using signArtistToken
+    const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
 
     // Construct the verification link
     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${artistToken}`;
@@ -680,6 +1021,43 @@ resendVerificationEmail: async (parent, { email }) => {
     console.error("Failed to resend verification email:", error);
     throw new Error("Failed to resend verification email");
   }
+},
+
+createRadioStation: async (_parent, { input }, context) => {
+  const normalizedType = normalizeRadioType(input?.type);
+  if (!normalizedType) {
+    throw new Error("Invalid radio station type.");
+  }
+
+  const name = String(input?.name || "").trim();
+  if (!name) {
+    throw new Error("Station name is required.");
+  }
+
+  const seeds = (input?.seeds || [])
+    .map((seed) => ({
+      seedType: normalizeSeedType(seed?.seedType),
+      seedId: String(seed?.seedId || "").trim(),
+    }))
+    .filter((seed) => seed.seedType && seed.seedId);
+
+  if (!seeds.length) {
+    throw new Error("At least one seed is required.");
+  }
+
+  const station = await RadioStation.create({
+    name,
+    description: String(input?.description || "").trim(),
+    type: normalizedType,
+    seeds,
+    coverImage: String(input?.coverImage || "").trim(),
+    visibility: input?.visibility || "public",
+    createdBy: context?.artist?._id || null,
+  });
+
+  return RadioStation.findById(station._id)
+    .populate({ path: "createdBy", select: "artistAka profileImage country" })
+    .lean();
 },
 
 
@@ -1006,7 +1384,7 @@ await artistUpdateRedis(artist);
 
 updateArtistProfile: async (
   parent,
-  { artistId, bio, country, languages, genre, mood, profileImage, coverImage },
+  { artistId, bio, country, region, languages, genre, mood, profileImage, coverImage },
   context
 ) => {
   try {
@@ -1023,6 +1401,7 @@ updateArtistProfile: async (
     const updateFields = {};
     if (bio) updateFields.bio = bio;
     if (country) updateFields.country = country;
+    if (region) updateFields.region = region;
     if (languages) updateFields.languages = languages;
     if (genre) updateFields.genre = genre;
     if (mood) updateFields.mood = mood;
@@ -1080,6 +1459,27 @@ addCountry: async (parent, { country }, context) => {
       const updatedArtist = await Artist.findOneAndUpdate(
         { _id: context.artist._id },
         { country },
+        { new: true }
+      );
+
+// keep Redis in sync
+    await artistUpdateRedis(updatedArtist); 
+
+      if (!updatedArtist) {
+        throw new Error('Artist not found or update failed.');
+      }
+
+      return updatedArtist;
+    },
+
+addRegion: async (parent, { region }, context) => {
+      if (!context.artist) {
+        throw new Error('Unauthorized: You must be logged in to update your profile.');
+      }
+
+      const updatedArtist = await Artist.findOneAndUpdate(
+        { _id: context.artist._id },
+        { region },
         { new: true }
       );
 
@@ -1382,6 +1782,18 @@ if (!updatedSong) {
   throw new Error('Song not found.');
 }
 
+const hasRequiredMetadata = Boolean(
+  updatedSong.title &&
+  updatedSong.genre &&
+  updatedSong.releaseDate &&
+  updatedSong.album
+);
+
+if (updatedSong.visibility !== "public" && hasRequiredMetadata) {
+  updatedSong.visibility = "public";
+  await updatedSong.save();
+}
+
 console.log('✅ Updated song document:', updatedSong._id);
 
 // 2) similarity set precomputation (ONLY AFTER ALL FIELDS ARE SET)
@@ -1395,7 +1807,8 @@ try {
 return updatedSong;
       } catch (error) {
         console.error('Error updating song:', error);
-        throw new Error('Failed to update song.');
+        const errorMessage = error?.message || 'Failed to update song.';
+        throw new Error(errorMessage);
       }
     },
   
@@ -1613,7 +2026,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
     let album = await Album.findOne({ artist: loggedInArtistId });
     if (!album) {
       album = await Album.create({
-        title: "Uncategorized",
+        title: "Single",
         artist: loggedInArtistId,
         releaseDate: new Date()
       });
@@ -1625,6 +2038,7 @@ songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
       artist: loggedInArtistId,
       audioFileUrl: `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`,
       streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
+      visibility: "private",
       timeSignature: timeSignature || "4/4",
       key,
       mode,
@@ -1906,8 +2320,8 @@ createAlbum: async (parent, { title }, context) => {
     if (!existingAlbum) {
       // Create default album if none exist
       const defaultAlbum = await Album.create({
-        title: "Unknown",
-        artist: artistId, 
+        title: "Single",
+        artist: artistId,
       });
       await albumCreateRedis(defaultAlbum);
 
@@ -2137,6 +2551,22 @@ nextSongAfterComplete: async (_p, { input }) => {
       await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
     } catch (cooldownError) {
       console.warn('Cooldown setting failed:', cooldownError);
+    }
+  }
+
+  // Track user play history for sidebar (update timestamp even on cooldown)
+  if (context?.user?._id) {
+    try {
+      await PlayCount.findOneAndUpdate(
+        { user: context.user._id, played_songs: songId },
+        {
+          $set: { createdAt: new Date() },
+          $inc: { count: onCooldown ? 0 : 1 },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } catch (error) {
+      console.warn('PlayCount update failed:', error?.message || error);
     }
   }
 
