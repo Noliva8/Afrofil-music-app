@@ -8,15 +8,16 @@ import {
   FormControl,
   Button,
   FormLabel,
-  TextareaAutosize,
   Card,
   CardContent,
   CardActions,
   Typography,
   Grid,
+  Select,
+  MenuItem,
+  Chip,
 } from "@mui/material";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 
 const modalStyle = {
   position: "absolute",
@@ -63,34 +64,86 @@ const bioContainerStyle = {
   wordSpacing: "0.1em",
 };
 
+const MAIN_GENRES = [
+  "Afrobeats",
+  "Amapiano",
+  "Afro Pop",
+  "Afro-Fusion",
+  "Afro-House",
+  "Afro-R&B",
+  "Hip Hop",
+  "Gospel (African)",
+  "R&B / Soul",
+  "Pop",
+  "Bongo Flava",
+  "Ghanaian Drill (Asakaa)",
+  "Naija Pop",
+  "Coupe-Decale",
+  "Gengetone",
+  "Gqom",
+  "Kwaito",
+  "Azonto",
+  "Reggaeton",
+  "Dancehall",
+  "Reggae",
+  "Latin Pop",
+  "Trap",
+  "Drill (UK/US)",
+  "Electronic",
+  "K-Pop",
+  "Highlife",
+  "Soukous",
+  "Rumba",
+  "Zouk",
+  "Kizomba",
+  "Ragga",
+  "Soca",
+  "Jazz",
+  "Blues",
+  "Rock",
+  "Alternative",
+  "Traditional",
+  "Fuji",
+  "Juju",
+  "Apala",
+  "Mbalax",
+  "Zouglou",
+  "Rai",
+  "Gnawa",
+  "Taarab",
+  "Maskandi",
+  "Palmwine",
+  "Folk",
+  "Spoken Word",
+];
+
 const Genre = () => {
-  const [fieldValue, setFieldValue] = useState("");
+  const [fieldValue, setFieldValue] = useState([]);
   const { loading, data, refetch } = useQuery(ARTIST_PROFILE);
   const [addGenre, { loading: updating }] = useMutation(ADD_GENRE);
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleOpen = () => {
-    setFieldValue(data?.artistProfile?.genre?.join(", ") || "");
+    setFieldValue(data?.artistProfile?.genre || []);
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
-    setFieldValue("");
+    setFieldValue([]);
   };
 
   const handleUpdate = async () => {
-    if (!fieldValue.trim()) {
+    if (!fieldValue.length) {
       toast.error("Genres cannot be empty.");
       return;
     }
 
-    const genreArray = fieldValue.split(",").map((genre) => genre.trim());
-
     try {
       const { data } = await addGenre({
         variables: {
-          genre: genreArray,
+          genre: fieldValue,
         },
       });
 
@@ -198,7 +251,7 @@ const Genre = () => {
           </Typography>
           <FormControl fullWidth>
             <FormLabel
-              htmlFor="genre-textarea"
+              htmlFor="genre-select"
               sx={{
                 color: "#fff",
                 fontWeight: "bold",
@@ -208,25 +261,55 @@ const Genre = () => {
             >
               Genres
             </FormLabel>
-            <TextareaAutosize
-              id="genre-textarea"
+            <Select
+              id="genre-select"
+              multiple
               value={fieldValue}
-              onChange={(e) => setFieldValue(e.target.value)}
-              minRows={4}
-              style={{
-                width: "100%",
-                marginTop: "10px",
-                padding: "0.8rem",
+              open={menuOpen}
+              onOpen={() => setMenuOpen(true)}
+              onClose={() => setMenuOpen(false)}
+              onChange={(e) => {
+                setFieldValue(e.target.value);
+                setMenuOpen(false);
+              }}
+              renderValue={(selected) => (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip
+                      key={value}
+                      label={value}
+                      size="small"
+                      onDelete={() =>
+                        setFieldValue((prev) => prev.filter((genre) => genre !== value))
+                      }
+                      onMouseDown={(e) => e.stopPropagation()}
+                    />
+                  ))}
+                </Box>
+              )}
+              sx={{
+                mt: 1,
                 backgroundColor: "#fff",
                 color: "#000",
                 borderRadius: "5px",
-                fontSize: "1rem",
+                "& .MuiOutlinedInput-notchedOutline": {
+                  borderColor: "rgba(0,0,0,0.2)",
+                },
               }}
-              maxLength={500}
-            />
-            <Typography variant="caption" sx={{ color: "#fff", marginTop: "5px" }}>
-              {fieldValue.length}/500 characters
-            </Typography>
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    maxHeight: 320,
+                  },
+                },
+              }}
+            >
+              {MAIN_GENRES.map((genre) => (
+                <MenuItem key={genre} value={genre}>
+                  {genre}
+                </MenuItem>
+              ))}
+            </Select>
             <Button
               onClick={handleUpdate}
               variant="contained"
@@ -250,7 +333,6 @@ const Genre = () => {
         </Box>
       </Modal>
 
-      <ToastContainer />
     </>
   );
 };

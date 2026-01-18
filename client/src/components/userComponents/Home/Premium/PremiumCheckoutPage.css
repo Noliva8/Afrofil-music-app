@@ -6,9 +6,10 @@
   justify-content: center;
   min-height: 100vh;
   padding: 2rem 1rem;
-  background-color: #121212;
+  background: radial-gradient(circle at 12% 18%, rgba(228, 196, 33, 0.16), transparent 38%),
+    linear-gradient(180deg, #050509 0%, #151520 100%);
   color: #ffffff;
-  font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-family: 'Sora', 'Manrope', 'Inter', system-ui, sans-serif;
 }
 
 .checkout-container {
@@ -24,7 +25,7 @@
 
 .premium-icon {
   font-size: 2.5rem;
-  color: #1db954;
+  color: #E4C421;
   margin-bottom: 1rem;
 }
 
@@ -35,7 +36,7 @@
 }
 
 .subheader {
-  color: #b3b3b3;
+  color: #B3B3C2;
   font-size: 1.1rem;
 }
 
@@ -58,11 +59,24 @@
   }
 }
 
+@media (max-width: 600px) {
+  .checkout-page {
+    padding: 1.5rem 1rem;
+  }
+
+  .payment-section,
+  .order-summary {
+    padding: 1.5rem;
+  }
+}
+
 /* Payment Method Section */
 .payment-section {
-  background-color: #181818;
+  background-color: #151520;
   padding: 2rem;
-  border-radius: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
 .section-title {
@@ -84,19 +98,19 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem;
-  background-color: #282828;
+  background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid transparent;
-  border-radius: 8px;
-  color: #b3b3b3;
+  border-radius: 12px;
+  color: #B3B3C2;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .payment-method.active {
-  background-color: rgba(29, 185, 84, 0.1);
-  border-color: #1db954;
-  color: #1db954;
+  background-color: rgba(228, 196, 33, 0.12);
+  border-color: #E4C421;
+  color: #E4C421;
 }
 
 .payment-method:disabled {
@@ -122,9 +136,9 @@
 
 .stripe-card {
   padding: 0.9rem 1.2rem;
-  background-color: #282828;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Security & Error Messages */
@@ -134,31 +148,31 @@
   gap: 0.5rem;
   margin: 1.5rem 0;
   font-size: 0.85rem;
-  color: #b3b3b3;
+  color: #B3B3C2;
 }
 
 .security-info svg {
-  color: #1db954;
+  color: #E4C421;
 }
 
 .error-message {
   padding: 1rem;
   margin: 1.5rem 0;
-  background-color: rgba(223, 27, 65, 0.1);
-  border-left: 3px solid #DF1B41;
-  color: #ff6b81;
+  background-color: rgba(255, 107, 129, 0.12);
+  border-left: 3px solid #FF6B81;
+  color: #FF6B81;
   font-size: 0.9rem;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 12px 12px 0;
 }
 
 /* Subscribe Button */
 .subscribe-btn {
   width: 100%;
   padding: 1rem;
-  background-color: #1db954;
-  color: white;
+  background: linear-gradient(90deg, #E4C421, #B25035);
+  color: #0b0b12;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -166,7 +180,8 @@
 }
 
 .subscribe-btn:hover:not(:disabled) {
-  background-color: #1ed760;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .subscribe-btn:disabled {
@@ -176,9 +191,11 @@
 
 /* Order Summary */
 .order-summary {
-  background-color: #181818;
+  background-color: #151520;
   padding: 2rem;
-  border-radius: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
 }
 
 .plan-options {
@@ -192,22 +209,22 @@
   align-items: flex-start;
   gap: 1rem;
   padding: 1.2rem;
-  background-color: #282828;
+  background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .plan-option.selected {
-  background-color: rgba(29, 185, 84, 0.1);
-  border-color: #1db954;
+  background-color: rgba(228, 196, 33, 0.12);
+  border-color: #E4C421;
 }
 
 .plan-radio {
   width: 1.25rem;
   height: 1.25rem;
-  border: 1px solid #b3b3b3;
+  border: 1px solid #B3B3C2;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -218,7 +235,7 @@
 .radio-dot {
   width: 0.75rem;
   height: 0.75rem;
-  background-color: #1db954;
+  background-color: #E4C421;
   border-radius: 50%;
 }
 
@@ -240,12 +257,12 @@
 .plan-price small {
   font-size: 0.85rem;
   font-weight: 400;
-  color: #b3b3b3;
+  color: #B3B3C2;
 }
 
 .savings-badge {
   font-size: 0.75rem;
-  background-color: #1db954;
+  background-color: #B25035;
   color: white;
   padding: 0.15rem 0.5rem;
   border-radius: 10px;
@@ -254,14 +271,14 @@
 
 .trial-info {
   font-size: 0.85rem;
-  color: #b3b3b3;
+  color: #B3B3C2;
 }
 
 /* Total Section */
 .total-section {
   padding: 1.5rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   margin-bottom: 1.5rem;
 }
 
@@ -278,12 +295,12 @@
 /* Terms Notice */
 .terms-notice {
   font-size: 0.8rem;
-  color: #b3b3b3;
+  color: #B3B3C2;
   line-height: 1.6;
 }
 
 .terms-notice a {
-  color: #1db954;
+  color: #E4C421;
   text-decoration: none;
 }
 

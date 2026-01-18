@@ -51,6 +51,12 @@ export default function Metadata({
 }) {
   const theme = useTheme();
 
+  const normalizeTitle = (value) => {
+    const trimmed = (value || "").trim();
+    if (!trimmed) return "";
+    const lower = trimmed.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  };
 
 
 
@@ -117,7 +123,10 @@ sx={{
     
     placeholder="Enter song title"
   
-{...register('title', {required: 'Title is required'})}
+{...register('title', {
+  required: 'Title is required',
+  setValueAs: normalizeTitle,
+})}
 
 error={!!errors.title}
   helperText={errors.title?.message || ''}

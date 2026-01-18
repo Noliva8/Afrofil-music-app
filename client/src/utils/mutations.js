@@ -37,39 +37,53 @@ export const LOGIN_USER = gql`
   }
 `;
 
+export const REQUEST_PASSWORD_RESET = gql`
+  mutation RequestPasswordReset($email: String!) {
+    requestPasswordReset(email: $email) {
+      success
+      message
+    }
+  }
+`;
+
+export const RESET_PASSWORD = gql`
+  mutation ResetPassword($token: String!, $newPassword: String!) {
+    resetPassword(token: $token, newPassword: $newPassword) {
+      success
+      message
+    }
+  }
+`;
+
 
 export const CREATE_PLAYLIST = gql`
-mutation CreatePlaylist($title: String!, $createdBy: ID!, $description: String) {
-  createPlaylist(title: $title, createdBy: $createdBy, description: $description) {
+mutation CreatePlaylist($title: String!, $createdBy: ID!, $description: String, $songs: [ID]) {
+  createPlaylist(title: $title, createdBy: $createdBy, description: $description, songs: $songs) {
+    _id
     title
     description
-    createdBy {
-      username
-    }
     createdAt
-    _id
     songs {
-      title
-      releaseDate
-      duration
-      audioFileUrl
-      artist {
-        artistAka
-        _id
-      }
       _id
-      genre {
-        name
-        _id
-      }
     }
   }
 }
 `;
 
+export const REORDER_PLAYLIST_SONGS = gql`
+  mutation ReorderPlaylistSongs($playlistId: ID!, $songIds: [ID!]!) {
+    reorderPlaylistSongs(playlistId: $playlistId, songIds: $songIds) {
+      _id
+      songs {
+        _id
+      }
+    }
+  }
+`;
+
 export const CREATE_ARTIST = gql`
-mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, $password: String!) {
-  createArtist(fullName: $fullName, artistAka: $artistAka, email: $email, password: $password) {
+mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, $password: String!, $country: String!, $region: String!) {
+  createArtist(fullName: $fullName, artistAka: $artistAka, email: $email, password: $password, country: $country, region: $region) {
     artist {
       _id
       artistAka
@@ -78,6 +92,8 @@ mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, 
       role
       fullName
       email
+      country
+      region
     }
     artistToken
   }
@@ -121,12 +137,13 @@ mutation selectPlan($artistId: ID!, $plan: String!) {
 
 
 export const UPDATE_ARTIST_PROFILE = gql`
-mutation updateArtistProfile($bio: String, $country: String, $languages: [String], $genre: [String], $mood: [String], $profileImage: Upload, $coverImage: Upload) {
-  updateArtistProfile(bio: $bio, country: $country, languages: $languages, genre: $genre, mood: $mood, profileImage: $profileImage, coverImage: $coverImage) {
+mutation updateArtistProfile($bio: String, $country: String, $region: String, $languages: [String], $genre: [String], $mood: [String], $profileImage: Upload, $coverImage: Upload) {
+  updateArtistProfile(bio: $bio, country: $country, region: $region, languages: $languages, genre: $genre, mood: $mood, profileImage: $profileImage, coverImage: $coverImage) {
     _id
     bio
     artistAka
     country
+    region
     coverImage
     fullName
     genre
@@ -153,6 +170,15 @@ mutation AddCountry($country: String) {
   addCountry(country: $country) {
     _id
     country
+  }
+}
+`
+
+export const ADD_REGION = gql`
+mutation AddRegion($region: String) {
+  addRegion(region: $region) {
+    _id
+    region
   }
 }
 `
@@ -361,6 +387,36 @@ mutation createAlbum($title: String!) {
   }
 }
 `
+
+export const ADD_SONG_TO_PLAYLIST = gql`
+  mutation AddSongToPlaylist($playlistId: ID!, $songId: ID!) {
+    addSongToPlaylist(playlistId: $playlistId, songId: $songId) {
+      _id
+      title
+      songs {
+        _id
+      }
+    }
+  }
+`;
+
+export const REMOVE_SONG_FROM_PLAYLIST = gql`
+  mutation RemoveSongFromPlaylist($playlistId: ID!, $songId: ID!) {
+    removeSongFromPlaylist(playlistId: $playlistId, songId: $songId) {
+      _id
+      title
+      songs {
+        _id
+      }
+    }
+  }
+`;
+
+export const DELETE_PLAYLIST = gql`
+  mutation DeletePlaylist($playlistId: ID!) {
+    deletePlaylist(playlistId: $playlistId)
+  }
+`;
 
 export const UPDATE_ALBUM = gql`
 mutation UpdateAlbum($albumId: ID!, $songId: [ID], $albumCoverImage: String) {

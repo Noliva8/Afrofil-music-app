@@ -34,17 +34,10 @@ import Lyrics from '../../components/songContentPart/Lirycs';
 // Utils
 import ArtistAuth from "../../utils/artist_auth";
 import detectTimeSignature from "../../utils/timeSignature";
+import { ARTIST_PROFILE } from "../../utils/artistQuery";
 import "../CSS/CSS-HOME-FREE-PLAN/content.css";
 
 const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
-
-function extractTitleFromFilename(filename) {
-  const basename = filename.split(/[\\/]/).pop();
-  return basename.replace(/\.[^/.]+$/, "")
-    .replace(/[^a-zA-Z0-9 ]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
 
 
 
@@ -78,6 +71,7 @@ export default function ContentFreePlan() {
 
   // GraphQL operations
   const { loading: albumLoading, error: albumError, data: albumData, refetch: refetchAlbums } = useQuery(GET_ALBUM);
+  const { loading: artistLoading, data: artistData } = useQuery(ARTIST_PROFILE);
   const { data: subscriptionData, loading: subscriptionLoading, error: subscriptionError } = useSubscription(SONG_UPLOAD_UPDATE);
   
   const [updateSong] = useMutation(UPDATE_SONG);
@@ -95,6 +89,24 @@ export default function ContentFreePlan() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+  const artistProfile = artistData?.artistProfile;
+  const missingProfileFields = [
+    !artistProfile?.profileImage && "profile image",
+    !artistProfile?.country && "country",
+    !artistProfile?.region && "region",
+  ].filter(Boolean);
+  const isProfileComplete = !artistLoading && missingProfileFields.length === 0;
+
+  const showProfileBlockMessage = () => {
+    const missingList = missingProfileFields.join(", ");
+    Swal.fire({
+      icon: "warning",
+      title: "Complete your profile first",
+      text: missingList
+        ? `Please add your ${missingList} before uploading.`
+        : "Please finish your profile before uploading.",
+    });
+  };
 
 
 
@@ -244,10 +256,15 @@ const navigate = useNavigate();
 
 
 const handleSongUpload = async (event) => {
- 
+  event.preventDefault();
+
+  if (!isProfileComplete) {
+    showProfileBlockMessage();
+    return;
+  }
+
   setIsSongLoading(true);
   setUploadProgress(10); 
-  event.preventDefault();
 
   const songFile = event.target.files[0];
   if (!songFile) {
@@ -255,11 +272,6 @@ const handleSongUpload = async (event) => {
     setIsSongLoading(false);
     return;
   }
-
-  // Extract and set title from filename
-  const titleFromFilename = extractTitleFromFilename(songFile.name);
-  setValue('title', titleFromFilename, { shouldValidate: true });
-
 
   setUploadProgress(20); 
   const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
@@ -611,13 +623,19 @@ try {
 
   } catch (error) {
     console.error("🔥 Error during song update:", error);
+    const gqlMessage = error?.graphQLErrors?.[0]?.message;
+    const networkMessage =
+      error?.networkError?.result?.errors?.[0]?.message ||
+      error?.networkError?.result?.message;
+    const message =
+      gqlMessage || networkMessage || error.message || "Failed to update song.";
 
     Swal.fire({
       icon: 'error',
       title: 'Update Failed',
       html: `
         <div style="text-align:left">
-          <p>${error.message}</p>
+          <p>${message}</p>
           ${error.networkError ? '<small>Please check your connection</small>' : ''}
         </div>
       `
@@ -693,6 +711,9 @@ try {
               activeStep={activeStep}
               setActiveStep={setActiveStep}
               setValue={setValue}
+              isProfileComplete={isProfileComplete}
+              missingProfileFields={missingProfileFields}
+              onBlockedUpload={showProfileBlockMessage}
               uploadState={uploadState}
               subscriptionLoading={subscriptionLoading}
               subscriptionError={subscriptionError}

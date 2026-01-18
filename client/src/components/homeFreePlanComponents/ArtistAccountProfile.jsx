@@ -9,13 +9,13 @@ import { GET_PRESIGNED_URL } from '../../utils/mutations';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { GET_PRESIGNED_URL_DELETE } from '../../utils/mutations';
 import { GET_PRESIGNED_URL_DOWNLOAD } from '../../utils/mutations';
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 // import './homeFreePlanComponentStyles/artistAccountProfile.css'
 import customProfileImage from '../../images/custom-profile.jpg'
 import Paper from "@mui/material/Paper";
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
+import Button from "@mui/material/Button";
 import ArtistAuth from '../../utils/artist_auth';
 import Divider from '@mui/material/Divider';
 
@@ -206,25 +206,8 @@ const handleProfileImageUpload = async (e) => {
       },
     });
 
-
-
     const presignedUrlReadData = readData.getPresignedUrlDownload.url;
-
-    // Read the file from S3
-    const response = await fetch(presignedUrlReadData, {
-      method: "GET",
-      headers: {
-        "Content-Type": file.type,
-      },
-    });
-
-    if (response.ok) {
-      console.log("Profile picture displayed successfully");
-    } else {
-      console.error("Profile picture display failed:", response.statusText, await response.text());
-      toast.error("Profile picture display failed.");
-      return;
-    }
+    setProfileImage(presignedUrlReadData);
   } catch (error) {
     console.error("Error during display process:", error);
     toast.error("Error during the display process.");
@@ -312,127 +295,79 @@ const handleProfileImageUpload = async (e) => {
 
 
 return (
- <>
-    {isLoadingImage ? (
-      <p>Uploading and updating profile image...</p>
-    ) : artistData.artistProfile.profileImage ? (
-      <>
-
-
-<Box
-
->
-<Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
-        <div
-          className="artistAcountProfile"
-          onClick={handleUploadButtonClick}
-          style={{
-                 
-            backgroundImage: `url(${profileImage})`,
-            backgroundSize: 'cover',  
-            backgroundPosition: 'center',
-            borderRadius: '50px 0 0 0',
-            height: '350px',            
-      width: '350px',            
-            cursor: 'pointer',
+  <>
+    <Box sx={{ width: "100%" }}>
+      <Paper
+        elevation={2}
+        sx={{
+          p: 3,
+          borderRadius: 3,
+          bgcolor: "var(--primary-background-color)",
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: "#ffffff" }}>
+            Profile image
+          </Typography>
+          <Button
+            onClick={handleUploadButtonClick}
+            variant="contained"
+            sx={{ textTransform: "none" }}
+            disabled={isLoadingImage}
+          >
+            {artistData.artistProfile.profileImage ? "Edit image" : "Add image"}
+          </Button>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            alignItems: "center",
+            flexWrap: "wrap",
           }}
-        > 
-          </div>
-</Paper >
-
-
- <Box sx={{display: 'flex', flexDirection: 'column', }}>
-<Typography sx={{marginBottom: '-8px'}} variant='h6'>{fullName}</Typography>
-<Typography sx={{fontStyle: 'italic', fontWeight: 'bold'}} variant="body">{email}</Typography>
-</Box>
-<Divider />
-
-</Box>
-      </>
-    ) : artistData.artistProfile === '' ? (
-      <>
-
-<Box
-  sx={{
-    display: "flex",
-    justifyContent: "space-around",
-    alignItems: "center",
-    gap: { xs: "1rem", sm: "3rem", md: "6rem" }, 
-    width: "100%", // Full width
-    flexDirection: { xs: "column", sm: "row" }, 
-  }}
->
-  {/* Profile Image Container */}
-  <Paper
-    elevation={1}
-    sx={{
-      minWidth: { xs: "250px", sm: "350px", md: "400px" }, // Responsive size
-      minHeight: { xs: "250px", sm: "350px", md: "400px" },
-      bgcolor: "var(--primary-background-color)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-    }}
-  >
-    <div
-      className="artistAcountProfile"
-      onClick={handleUploadButtonClick}
-      style={{
-        backgroundImage: `url(${customProfileImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        height: "100%", // Make it responsive
-        width: "100%",
-        cursor: "pointer",
-      }}
-    ></div>
-  </Paper>
-
-  {/* User Info */}
-  <Box
-    sx={{
-      display: "flex",
-      flexDirection: "column",
-      gap: "1rem",
-      textAlign: { xs: "center", sm: "left" }, // Center text on mobile
-    }}
-  >
-    <Typography variant="h6">{fullName}</Typography>
-    <Typography variant="body2">{email}</Typography>
-  </Box>
-</Box>
-
-
-       
-      </>
-    ) : (
-      <>
-
-<Box sx={{display: 'flex', justifyContent: 'space-around', alignItems: 'center', gap: '6rem'}}>
-     <Paper elevation={1} sx={{minWidth: '400px', minHeight: "400px", bgcolor: 'var( --primary-background-color)', display:'flex', justifyContent: 'center', alignItems: 'center'}}>
-        <div
-          className="artistAcountProfile"
-          onClick={handleUploadButtonClick}
-          style={{
-            backgroundImage: `url(${customProfileImage})`,
-            backgroundSize: 'cover',   // Ensures the image covers the entire circular div
-            backgroundPosition: 'center',
-            height: '300px',        
-            width: '300px',           
-            cursor: 'pointer',
-          }}
-        > 
-        </div>
-        </Paper>
-
-        <Typography variant='h6'>{fullName}</Typography>
-<Typography variant="body2">{email}</Typography>
-
-
-</Box>
-
-      </>
-    )}
+        >
+          <Paper
+            elevation={1}
+            sx={{
+              width: { xs: 160, sm: 200 },
+              height: { xs: 160, sm: 200 },
+              borderRadius: 2,
+              overflow: "hidden",
+              bgcolor: "var(--secondary-background-color)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              className="artistAcountProfile"
+              onClick={handleUploadButtonClick}
+              style={{
+                backgroundImage: `url(${profileImage || customProfileImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                height: "100%",
+                width: "100%",
+                cursor: "pointer",
+              }}
+            />
+          </Paper>
+          <Box sx={{ minWidth: 200 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#ffffff" }}>
+              {fullName}
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.8, color: "#ffffff" }}>
+              {email}
+            </Typography>
+            {isLoadingImage && (
+              <Typography variant="caption" sx={{ display: "block", mt: 1, color: "#ffffff" }}>
+                Uploading and updating profile image...
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </Paper>
+    </Box>
 
     <input
       type="file"

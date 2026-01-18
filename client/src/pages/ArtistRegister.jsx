@@ -22,6 +22,7 @@ import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import MuiCard from "@mui/material/Card";
 import { styled } from "@mui/material/styles";
+import MenuItem from "@mui/material/MenuItem";
 import { Link } from "react-router-dom";
 import { SitemarkIcon } from "../components/themeCustomization/customIcon";
 
@@ -73,6 +74,8 @@ export default function ArtistRegister() {
     artistAka: "",
     email: "",
     password: "",
+    country: "",
+    region: "",
   });
   const [signupErrorMessage, setSignupErrorMessage] = useState("");
   const [showPasswordSignup, setShowPasswordSignup] = useState(false);
@@ -102,6 +105,10 @@ export default function ArtistRegister() {
       setSignupErrorMessage("You must agree to the terms and conditions.");
       return;
     }
+    if (!signupFormState.country || !signupFormState.region) {
+      setSignupErrorMessage("Please select your country and region.");
+      return;
+    }
 
     try {
       const { data } = await createArtist({
@@ -120,14 +127,24 @@ export default function ArtistRegister() {
         artistAka: "",
         email: "",
         password: "",
+        country: "",
+        region: "",
       });
 
       
     } catch (e) {
-      setSignupErrorMessage(
-        "Signup failed. Please ensure your details are correct."
-      );
-      console.error(e);
+      const gqlMessage = e?.graphQLErrors?.[0]?.message;
+      const networkMessage =
+        e?.networkError?.result?.errors?.[0]?.message ||
+        e?.networkError?.result?.message;
+      const errorMessage =
+        gqlMessage || networkMessage || "Signup failed. Please ensure your details are correct.";
+      setSignupErrorMessage(errorMessage);
+      console.error("Create artist failed:", {
+        message: e?.message,
+        graphQLErrors: e?.graphQLErrors,
+        networkError: e?.networkError,
+      });
     }
 
 
@@ -195,6 +212,47 @@ export default function ArtistRegister() {
             />
           </FormControl>
 
+          {/* Country */}
+          <FormControl>
+            <FormLabel htmlFor="country">Country</FormLabel>
+            <TextField
+              name="country"
+              required
+              fullWidth
+              onChange={handleSignupChange}
+              value={signupFormState.country}
+              placeholder="Nigeria"
+            />
+          </FormControl>
+
+          {/* Region */}
+          <FormControl>
+            <FormLabel htmlFor="region">Region</FormLabel>
+            <TextField
+              name="region"
+              select
+              required
+              fullWidth
+              onChange={handleSignupChange}
+              value={signupFormState.region}
+              placeholder="Select region"
+            >
+              <MenuItem value="">Select region</MenuItem>
+              {[
+                "West Africa",
+                "East Africa",
+                "Southern Africa",
+                "North Africa",
+                "Central Africa",
+                "Diaspora",
+              ].map((region) => (
+                <MenuItem key={region} value={region}>
+                  {region}
+                </MenuItem>
+              ))}
+            </TextField>
+          </FormControl>
+
           {/* Password */}
           <FormControl>
             <FormLabel htmlFor="password">Password</FormLabel>
@@ -227,7 +285,15 @@ export default function ArtistRegister() {
                 color="primary"
               />
             }
-            label="I have read terms and conditions of using Afrofeel."
+            label={
+              <span>
+                I have read{" "}
+                <a href="/terms" target="_blank" rel="noreferrer">
+                  terms and conditions
+                </a>{" "}
+                of using Afrofeel.
+              </span>
+            }
           />
 
           <Button type="submit" fullWidth variant="contained">

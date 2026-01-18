@@ -9,6 +9,7 @@ query Query {
     artistAka
     bio
     country
+    region
     coverImage
     createdAt
     email

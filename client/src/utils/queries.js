@@ -108,6 +108,136 @@ query Playlists {
 }
 `;
 
+export const QUERY_RECENT_PLAYED = gql`
+  query RecentPlayedSongs($limit: Int = 5) {
+    recentPlayedSongs(limit: $limit) {
+      _id
+      title
+      artwork
+      audioFileUrl
+      streamAudioFileUrl
+      playCount
+      downloadCount
+      likesCount
+      shareCount
+      mood
+      subMoods
+      producer {
+        name
+        role
+      }
+      composer {
+        name
+        contribution
+      }
+      artistFollowers
+      artistDownloadCounts
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+    }
+  }
+`;
+
+export const QUERY_LIKED_SONGS = gql`
+  query LikedSongs($limit: Int = 5) {
+    likedSongs(limit: $limit) {
+      _id
+      title
+      artwork
+      audioFileUrl
+      streamAudioFileUrl
+      playCount
+      downloadCount
+      likesCount
+      shareCount
+      mood
+      subMoods
+      producer {
+        name
+        role
+      }
+      composer {
+        name
+        contribution
+      }
+      artistFollowers
+      artistDownloadCounts
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+    }
+  }
+`;
+
+export const QUERY_USER_PLAYLISTS = gql`
+  query UserPlaylists($limit: Int = 5) {
+    userPlaylists(limit: $limit) {
+      _id
+      title
+      description
+      createdAt
+      songs {
+        _id
+        title
+        artwork
+        audioFileUrl
+        streamAudioFileUrl
+        playCount
+        downloadCount
+        likesCount
+        shareCount
+        mood
+        subMoods
+        duration
+        producer {
+          name
+          role
+        }
+        composer {
+          name
+          contribution
+        }
+        artistFollowers
+        artistDownloadCounts
+        artist {
+          _id
+          artistAka
+          country
+          bio
+          profileImage
+        }
+        album {
+          _id
+          title
+          releaseDate
+          albumCoverImage
+        }
+      }
+    }
+  }
+`;
+
 
 export const ARTIST_PROFILE = gql`
 query Query {
@@ -251,11 +381,294 @@ export const TRENDING_SONGS_PUBLIC = gql`
         artistAka
         country
         bio
+        profileImage
       }
       album {
         _id
         title
         releaseDate
+        albumCoverImage
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+
+      # engagement
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+export const NEW_UPLOADS_PUBLIC = gql`
+  query newUploads {
+    newUploads {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+      }
+      album {
+        _id
+        title
+        releaseDate
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+
+      # engagement
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+export const SUGGESTED_SONGS_PUBLIC = gql`
+  query suggestedSongs {
+    suggestedSongs {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+
+      # engagement
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+export const SONG_OF_MONTH_PUBLIC = gql`
+  query songOfMonth {
+    songOfMonth {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+
+      # engagement
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+export const RADIO_STATIONS_PUBLIC = gql`
+  query radioStations {
+    radioStations {
+      _id
+      name
+      description
+      type
+      coverImage
+      visibility
+      seeds {
+        seedType
+        seedId
+      }
+      createdBy {
+        _id
+        artistAka
+        profileImage
+      }
+    }
+  }
+`;
+
+export const RADIO_STATION_SONGS = gql`
+  query radioStationSongs($stationId: ID!) {
+    radioStationSongs(stationId: $stationId) {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+
+      # engagement
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+export const RADIO_STATION = gql`
+  query radioStation($stationId: ID!) {
+    radioStation(stationId: $stationId) {
+      _id
+      name
+      description
+      type
+      coverImage
+      seeds {
+        seedType
+        seedId
+      }
+      createdBy {
+        _id
+        artistAka
+        profileImage
+      }
+    }
+  }
+`;
+
+export const EXPLORE_SONGS = gql`
+  query exploreSongs($type: String!, $value: String!) {
+    exploreSongs(type: $type, value: $value) {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
       }
       artwork
       streamAudioFileUrl
@@ -743,6 +1156,54 @@ export const SONGS_OF_ALBUM = gql`
 }
 `;
 
+export const SEARCH_CATALOG = gql`
+  query SearchCatalog($query: String!, $limit: Int) {
+    searchCatalog(query: $query, limit: $limit) {
+      songs {
+        _id
+        title
+        artwork
+        streamAudioFileUrl
+        playCount
+        duration
+        genre
+        mood
+        subMoods
+        artist {
+          _id
+          artistAka
+          profileImage
+          country
+        }
+        album {
+          _id
+          title
+          albumCoverImage
+          releaseDate
+        }
+      }
+      artists {
+        _id
+        artistAka
+        fullName
+        profileImage
+        country
+        region
+      }
+      albums {
+        _id
+        title
+        albumCoverImage
+        releaseDate
+        artist {
+          _id
+          artistAka
+        }
+      }
+    }
+  }
+`;
+
 
 
 
@@ -788,3 +1249,14 @@ query OtherAlbumsByArtist($albumId: ID!, $artistId: ID!) {
   }
 }
 `
+
+export const QUERY_USER_STATS = gql`
+  query GetUserStats {
+    userStats {
+      totalPlays
+      totalLikes
+      playlistCount
+      listeningHours
+    }
+  }
+`;

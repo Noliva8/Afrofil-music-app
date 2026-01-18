@@ -1,13 +1,63 @@
 
-import { useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 
-export default function Genre({ control,Controller, errors }) {
-  const [genres] = useState(["Pop", "Rock", "Jazz", "Hip Hop", "Classical"]);
+const MAIN_GENRES = [
+  "Afrobeats",
+  "Amapiano",
+  "Afro Pop",
+  "Afro-Fusion",
+  "Afro-House",
+  "Afro-R&B",
+  "Hip Hop",
+  "Gospel (African)",
+  "R&B / Soul",
+  "Pop",
+  "Bongo Flava",
+  "Ghanaian Drill (Asakaa)",
+  "Naija Pop",
+  "Coupe-Decale",
+  "Gengetone",
+  "Gqom",
+  "Kwaito",
+  "Azonto",
+  "Reggaeton",
+  "Dancehall",
+  "Reggae",
+  "Latin Pop",
+  "Trap",
+  "Drill (UK/US)",
+  "Electronic",
+  "K-Pop",
+  "Highlife",
+  "Soukous",
+  "Rumba",
+  "Zouk",
+  "Kizomba",
+  "Ragga",
+  "Soca",
+  "Jazz",
+  "Blues",
+  "Rock",
+  "Alternative",
+  "Traditional",
+  "Fuji",
+  "Juju",
+  "Apala",
+  "Mbalax",
+  "Zouglou",
+  "Rai",
+  "Gnawa",
+  "Taarab",
+  "Maskandi",
+  "Palmwine",
+  "Folk",
+  "Spoken Word",
+];
 
+export default function Genre({ control,Controller, errors }) {
   return (
     <Box
       mb={2}
@@ -78,8 +128,8 @@ export default function Genre({ control,Controller, errors }) {
                 color: 'white'
               }}>Select a genre</Typography>
             </MenuItem>
-            {genres.map((genre, index) => (
-              <MenuItem key={index} value={genre}>
+            {MAIN_GENRES.map((genre) => (
+              <MenuItem key={genre} value={genre}>
                 {genre}
               </MenuItem>
             ))}

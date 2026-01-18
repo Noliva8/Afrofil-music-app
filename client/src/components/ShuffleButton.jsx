@@ -5,7 +5,7 @@ import Button from '@mui/material/Button';
 
 
 
-export const ShuffleButton = ({playableTrack, isShuffled})=> {
+export const ShuffleButton = ({ playableTrack, isShuffled, onClick }) => {
 
     
     return(
@@ -15,6 +15,7 @@ export const ShuffleButton = ({playableTrack, isShuffled})=> {
                       variant="outlined"
                       startIcon={<Shuffle />}
                       disabled={!playableTrack}
+                      onClick={onClick}
                       sx={{
                         borderColor: 'rgba(255,255,255,0.3)',
                         color: '#fff',

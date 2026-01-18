@@ -47,6 +47,8 @@ import Artist from "./models/Artist/Artist.js";
 import stripeRoutes from "./routes/stripeRoutes.js";
 import location from './routes/location.js';
 import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
+import { RadioStation } from "./models/Artist/index_artist.js";
+import { RADIO_TYPES } from "./utils/radioTypes.js";
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
 import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded,   handlePaymentIntentFailed} from "./routes/webhook.js";
@@ -506,6 +508,90 @@ const startApolloServer = async () => {
     console.log("Attempting to connect to the database...");
     await connectDB();
 
+    const ensureRadioStations = async () => {
+      const existing = await RadioStation.countDocuments();
+      if (existing > 0) return;
+
+      const artists = await Artist.find().select("_id artistAka").limit(1).lean();
+      const stations = [
+        {
+          name: "Afrobeats Heat",
+          description: "Afrobeats and Afro-Fusion movers.",
+          type: RADIO_TYPES.GENRE_RADIO,
+          seeds: [{ seedType: "genre", seedId: "Afrobeats" }],
+        },
+        {
+          name: "Amapiano Groove",
+          description: "Deep log drums and dancefloor energy.",
+          type: RADIO_TYPES.GENRE_RADIO,
+          seeds: [{ seedType: "genre", seedId: "Amapiano" }],
+        },
+        {
+          name: "Gospel & Worship",
+          description: "Spirit-lifting vocals and praise anthems.",
+          type: RADIO_TYPES.MOOD_RADIO,
+          seeds: [{ seedType: "mood", seedId: "Spiritual" }],
+        },
+        {
+          name: "Late Night R&B",
+          description: "Slow burns for after-hours listening.",
+          type: RADIO_TYPES.MOOD_RADIO,
+          seeds: [{ seedType: "mood", seedId: "Late Night" }],
+        },
+        {
+          name: "Street Anthems",
+          description: "Hustle energy and gritty beats.",
+          type: RADIO_TYPES.MOOD_RADIO,
+          seeds: [{ seedType: "mood", seedId: "Street" }],
+        },
+        {
+          name: "Afro Pop Breeze",
+          description: "Feel-good Afropop and crossover hooks.",
+          type: RADIO_TYPES.GENRE_RADIO,
+          seeds: [{ seedType: "genre", seedId: "Afro Pop" }],
+        },
+        {
+          name: "2010s Classics",
+          description: "Hits from the 2010s era.",
+          type: RADIO_TYPES.ERA_RADIO,
+          seeds: [{ seedType: "era", seedId: "2010s" }],
+        },
+        {
+          name: "Discovery Mix",
+          description: "Fresh picks outside your usual rotation.",
+          type: RADIO_TYPES.DISCOVER_RADIO,
+          seeds: [{ seedType: "genre", seedId: "Afro-Fusion" }],
+        },
+        {
+          name: "Afro Mix",
+          description: "A blend of Afrobeats, Amapiano, and Afro Pop.",
+          type: RADIO_TYPES.MIX_RADIO,
+          seeds: [
+            { seedType: "genre", seedId: "Afrobeats" },
+            { seedType: "genre", seedId: "Amapiano" },
+            { seedType: "genre", seedId: "Afro Pop" },
+          ],
+        },
+      ];
+
+      if (artists.length > 0) {
+        stations.push({
+          name: `Artist Radio: ${artists[0].artistAka || "Featured"}`,
+          description: "Based on a standout Afrofeel artist.",
+          type: RADIO_TYPES.ARTIST_RADIO,
+          seeds: [{ seedType: "artist", seedId: String(artists[0]._id) }],
+          createdBy: artists[0]._id,
+        });
+      }
+
+      await RadioStation.insertMany(
+        stations.map((station) => ({ ...station, visibility: "public" }))
+      );
+      console.log(`Seeded ${stations.length} default radio stations.`);
+    };
+
+    await ensureRadioStations();
+
     // Start Apollo Server
     console.log("Apollo Server starting...");
     await server.start();
@@ -570,6 +656,7 @@ const startApolloServer = async () => {
 
     // Email verification route
     app.get("/confirmation/:artist_id_token", async (req, res) => {
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       try {
         const decoded = jwt.verify(
           req.params.artist_id_token,
@@ -581,13 +668,14 @@ const startApolloServer = async () => {
         }
         const { _id } = decoded.data;
         await Artist.findByIdAndUpdate(_id, { confirmed: true });
+        return res.redirect(`${frontendUrl}/artist/login`);
       } catch (e) {
         console.log("Error confirming email:", e);
-        res
-          .status(400)
-          .json({ success: false, message: "Error during verification" });
+        if (e?.name === "TokenExpiredError") {
+          return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
+        }
+        return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
       }
-      return res.redirect("http://localhost:3000/artist/login");
     });
 
     // Plan verification and confirmation status route

@@ -248,7 +248,7 @@ export const deriveAudiokKey = (item = {}) => {
 
 
 
-const presignAudioForTrack = async (track, client) => {
+export const presignAudioForTrack = async (track, client) => {
   
   if (!client) return track;
 

@@ -11,16 +11,11 @@ import {
   Box,
   Typography,
   IconButton,
-  Menu,
-  MenuItem,
-  Drawer,
   List,
   ListItem,
-  ListItemIcon,
   ListItemText,
   Button,
   useMediaQuery,
-  Divider,
   useTheme,
 } from "@mui/material";
 
@@ -28,13 +23,10 @@ import {
 import Description from "@mui/icons-material/Description";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ShareIcon from "@mui/icons-material/Share";
-import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
-import FavoriteIcon from "@mui/icons-material/Favorite";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
-import AddIcon from '@mui/icons-material/Add';
 import ReportIcon from '@mui/icons-material/Report';
 import PersonIcon from '@mui/icons-material/Person';
 import ChevronLeft from "@mui/icons-material/ChevronLeft";
@@ -51,8 +43,11 @@ import { useScrollNavigation } from "../utils/someSongsUtils/scrollHooks.js";
 import { similarSongsUtil } from "../utils/someSongsUtils/similarSongsHook.js";
 
 // Components
-import { ShareButton } from "./ShareButton.jsx";
 import { PlayButton } from "./PlayButton";
+import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
+import { ActionButtonsGroup } from "./ActionButtonsGroup.jsx";
+import { ActionMenu } from "./ActionMenu.jsx";
+import { TrackListSection } from "./TrackListSection.jsx";
 
 export const SingleSongPage = () => {
   // Audio player context
@@ -73,6 +68,8 @@ export const SingleSongPage = () => {
   const [isSubtitleHovered, setIsSubtitleHovered] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
+  const [playlistTrack, setPlaylistTrack] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [trackMenuAnchor, setTrackMenuAnchor] = useState(null);
   const [trackDrawerOpen, setTrackDrawerOpen] = useState(false);
@@ -503,8 +500,9 @@ useEffect(() => {
   }, [song, getId, isFavorite]);
 
   const handleAddToPlaylist = useCallback((track) => {
-    console.log('Add to playlist:', track.title);
-    // Implement playlist addition logic
+    if (!track) return;
+    setPlaylistTrack(track);
+    setPlaylistDialogOpen(true);
   }, []);
 
   const handlePlayNext = useCallback((track) => {
@@ -563,14 +561,88 @@ useEffect(() => {
     setSelectedTrack(null);
   };
 
-  const menuItems = useMemo(
+  const handleOpenTrackMenu = useCallback(
+    (track, event) => {
+      event?.stopPropagation();
+      if (!track) return;
+      setSelectedTrack(track);
+      if (isMobile) {
+        setTrackDrawerOpen(true);
+        setTrackMenuAnchor(null);
+      } else {
+        setTrackMenuAnchor(event?.currentTarget || null);
+      }
+    },
+    [isMobile]
+  );
+
+  const mainMenuItems = useMemo(
     () => [
-      { icon: <Description />, text: "Play now", action: handlePrimaryPlay },
-      { icon: <SkipNextIcon />, text: "Play next", action: () => console.log("Play next clicked") },
-      { icon: <ShareIcon />, text: "Share", action: handleShare },
+      { icon: <Description />, label: "Play now", onClick: handlePrimaryPlay, fontWeight: 400 },
+      { icon: <SkipNextIcon />, label: "Play next", onClick: () => console.log("Play next clicked"), fontWeight: 400 },
+      { icon: <ShareIcon />, label: "Share", onClick: handleShare, fontWeight: 400 },
     ],
     [handlePrimaryPlay, handleShare]
   );
+
+  const trackMenuItems = useMemo(() => {
+    const isPlayingSelected = isSelectedTrackCurrent && playerIsPlaying;
+    return [
+      {
+        icon: isPlayingSelected ? <PauseIcon sx={{ color: "rgba(255,255,255,0.7)" }} /> : <PlayArrowIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: isPlayingSelected ? "Pause" : "Play",
+        onClick: () => selectedTrack && handlePlayAlbumSong(selectedTrack),
+      },
+      {
+        icon: <FavoriteBorderIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Add to Favorites",
+        onClick: () => selectedTrack && handleAddToFavorites(selectedTrack),
+      },
+      {
+        icon: <PlaylistAddIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Add to Playlist",
+        onClick: () => selectedTrack && handleAddToPlaylist(selectedTrack),
+      },
+      {
+        icon: <SkipNextIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Play Next",
+        onClick: () => selectedTrack && handlePlayNext(selectedTrack),
+      },
+      { type: "divider" },
+      {
+        icon: <ShareIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Share",
+        onClick: () => selectedTrack && handleShareTrack(selectedTrack),
+      },
+      {
+        icon: <PersonIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Go to Artist",
+        onClick: () => {
+          const artistId = selectedTrack?.artistId || selectedTrack?.artist?._id;
+          if (artistId) navigate(`/artist/${artistId}`);
+        },
+      },
+      { type: "divider" },
+      {
+        icon: <ReportIcon sx={{ color: "#ff6b6b" }} />,
+        label: "Report Track",
+        onClick: () => selectedTrack && handleReportTrack(selectedTrack),
+        color: "#ff6b6b",
+        hoverBg: "rgba(255,107,107,0.1)",
+      },
+    ];
+  }, [
+    handleAddToFavorites,
+    handleAddToPlaylist,
+    handlePlayAlbumSong,
+    handlePlayNext,
+    handleReportTrack,
+    handleShareTrack,
+    isSelectedTrackCurrent,
+    navigate,
+    playerIsPlaying,
+    selectedTrack,
+  ]);
 
   // Marquee Text Component
   const MarqueeText = ({ text, hovered, variant = "subtitle2", sx = {}, duration = "10s" }) => (
@@ -940,674 +1012,41 @@ useEffect(() => {
 
         </Box>
 
-        <Box
-          sx={{
-            display: "flex",
-            gap: { xs: 0.5, sm: 1, md: 2 },
-            justifyContent: { xs: "space-between", sm: "flex-start" },
-            mt: { xs: 2, md: 0 },
-            width: { xs: "100%", md: "auto" },
-          }}
-        >
-          <IconButton
-            onClick={handleAddToFavorites}
-            aria-label="Add to Favorites"
-            sx={{
-              color: isFavorite ? "#E4C421" : "rgba(255,255,255,0.85)",
-              backgroundColor: "rgba(255,255,255,0.1)",
-              borderRadius: 2,
-              p: { xs: 1.2, sm: 1.5 },
-              "&:hover": {
-                backgroundColor: "rgba(255,255,255,0.15)",
-                transform: "scale(1.05)",
-              },
-              transition: "all 0.2s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0.5,
-              minWidth: { xs: 70, sm: 80 },
-            }}
-          >
-            {isFavorite ? (
-              <FavoriteIcon sx={{ fontSize: { xs: "1.3rem", sm: "1.5rem" } }} />
-            ) : (
-              <FavoriteBorderIcon sx={{ fontSize: { xs: "1.3rem", sm: "1.5rem" } }} />
-            )}
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: isFavorite ? "#E4C421" : "inherit",
-              }}
-            >
-              {isFavorite ? "Added" : "Add"}
-            </Typography>
-          </IconButton>
-
-          <ShareButton handleShare={handleShare} />
-
-          <IconButton
-            aria-label="More options"
-            onClick={handleOpenMenu}
-            sx={{
-              color: "rgba(255,255,255,0.85)",
-              backgroundColor: "rgba(255,255,255,0.1)",
-              borderRadius: 2,
-              p: { xs: 1.2, sm: 1.5 },
-              "&:hover": {
-                backgroundColor: "rgba(255,255,255,0.15)",
-                transform: "scale(1.05)",
-              },
-              transition: "all 0.2s ease",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0.5,
-              minWidth: { xs: 70, sm: 80 },
-            }}
-          >
-            <MoreHorizIcon sx={{ fontSize: { xs: "1.3rem", sm: "1.5rem" } }} />
-            <Typography
-              variant="caption"
-              sx={{
-                fontSize: { xs: "0.7rem", sm: "0.75rem" },
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
-              More
-            </Typography>
-          </IconButton>
-        </Box>
+        <ActionButtonsGroup
+          isFavorite={isFavorite}
+          onToggleFavorite={handleAddToFavorites}
+          onShare={handleShare}
+          onMore={handleOpenMenu}
+        />
       </Box>
-
-      {/* Main Menu */}
-      <Menu
+      <ActionMenu
+        isMobile={isMobile}
         anchorEl={menuAnchor}
         open={Boolean(menuAnchor)}
         onClose={handleCloseMenu}
-        PaperProps={{
-          sx: {
-            backgroundColor: "#181818",
-            color: "#fff",
-            minWidth: 220,
-            borderRadius: 2,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            border: "1px solid rgba(255,255,255,0.1)",
-          },
-        }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        {menuItems.map((item, index) => (
-          <MenuItem
-            key={index}
-            onClick={() => {
-              item.action?.();
-              handleCloseMenu();
-            }}
-            sx={{
-              py: 1.5,
-              px: 2,
-              fontSize: "0.95rem",
-              fontWeight: 400,
-              color: item.color || "#fff",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.05)" },
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
-              <Box
-                sx={{
-                  color: item.color || "rgba(255,255,255,0.7)",
-                  display: "flex",
-                  alignItems: "center",
-                  minWidth: 30,
-                }}
-              >
-                {item.icon}
-              </Box>
-              {item.text}
-            </Box>
-          </MenuItem>
-        ))}
-      </Menu>
+        drawerOpen={drawerOpen}
+        onCloseDrawer={handleCloseDrawer}
+        items={mainMenuItems}
+      />
 
-      {/* Album Songs Section - Mobile Optimized */}
-      {processedAlbumSongs.length > 0 && (
-        <Box sx={{ px: { xs: 1, sm: 2, md: 3 }, my: { xs: 4, sm: 5 } }}>
-          {/* Desktop Header */}
-          <Box sx={{ 
-            display: { xs: 'none', md: 'grid' },
-            gridTemplateColumns: '0.5fr 2.5fr 1.5fr 1fr 1fr 0.5fr 0.5fr',
-            alignItems: 'center',
-            py: 2.5,
-            px: 0,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-            borderRadius: '12px 12px 0 0',
-            mt: { xs: 3, md: 4 },
-          }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              #
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Title
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Album
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Plays
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Duration
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>
-              Add
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>
-              More
-            </Typography>
-          </Box>
-
-          {/* Mobile Header */}
-          <Box sx={{ 
-            display: { xs: 'grid', md: 'none' },
-            gridTemplateColumns: 'auto 1fr auto auto',
-            alignItems: 'center',
-            py: 2,
-            px: 0,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            bgcolor: 'background.paper',
-            borderRadius: '12px 12px 0 0',
-            mt: 3,
-          }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>
-              #
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Title
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>
-              Play
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', textAlign: 'center' }}>
-              More
-            </Typography>
-          </Box>
-
-          {/* Tracks List */}
-          <Box sx={{ 
-            display: 'flex',
-            flexDirection: 'column',
-            gap: { xs: 1.5, md: 0 },
-            borderRadius: { xs: 2, md: '0 0 12px 12px' },
-            overflow: 'hidden',
-            bgcolor: { md: 'transparent' },
-          }}>
-            {processedAlbumSongs.map((track, index) => {
-              const trackId = getId(track);
-              const isCurrent = playingId && trackId && playingId === trackId;
-              const isRouteMatch = songId && trackId && String(trackId) === String(songId);
-              const isActive = isCurrent || isRouteMatch;
-              const thumbnail = track.thumbnail || track.artwork || track.artworkUrl || track.albumCoverImageUrl || track.cover;
-              const artistName = track.artistName || track?.artist?.artistAka || 'Unknown Artist';
-              const albumName = track.albumName || track?.album?.title || 'Single';
-              const rawAlbumId = track.albumId;
-              const rawAlbum = track?.album;
-              const albumIdFromTrack =
-                typeof rawAlbumId === "string"
-                  ? (rawAlbumId.includes("[object Object]") ? "" : rawAlbumId)
-                  : (rawAlbumId?._id || rawAlbumId?.id || "");
-              const albumIdFromAlbum =
-                typeof rawAlbum === "string"
-                  ? (rawAlbum.includes("[object Object]") ? "" : rawAlbum)
-                  : (rawAlbum?._id || rawAlbum?.id || "");
-              const albumIdForLink = albumIdFromTrack || albumIdFromAlbum;
-
-              return (
-                <Box 
-                  key={trackId || index}
-                  onTouchStart={(e) => handleTouchStart(track, e)}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchMove={handleTouchEnd}
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { 
-                      xs: 'auto 1fr auto auto',
-                      md: '0.5fr 2.5fr 1.5fr 1fr 1fr 0.5fr 0.5fr'
-                    },
-                    alignItems: 'center',
-                    gap: { xs: 1.5, md: 0 },
-                    py: { xs: 2, md: 2 },
-                    px: 0,
-                    borderBottom: { xs: 'none', md: '1px solid' },
-                    borderColor: { md: 'divider' },
-                    borderRadius: { xs: 2, md: 0 },
-                    bgcolor: isActive ? 'rgba(228,196,33,0.08)' : { xs: 'background.paper', md: 'transparent' },
-                    mb: { xs: 1, md: 0 },
-                    transition: 'all 0.25s',
-                    '&:hover': {
-                      bgcolor: { xs: 'action.hover', md: 'action.hover' },
-                      transform: { xs: 'translateX(4px)', md: 'none' },
-                    },
-                    '&:last-child': {
-                      borderBottom: 'none',
-                    },
-                  }}
-                >
-                  {/* Index Number */}
-                  <Typography 
-                    sx={{ 
-                      color: isActive ? 'primary.main' : (index < 3 ? 'primary.main' : 'text.secondary'),
-                      fontSize: { xs: '1rem', md: '1.15rem' },
-                      fontWeight: 900,
-                      textAlign: 'center',
-                      minWidth: { xs: 32, md: 'auto' },
-                      fontFamily: "'Clash Display', 'Space Grotesk', 'Sora', sans-serif",
-                    }}
-                  >
-                    {index + 1}
-                  </Typography>
-
-                  {/* Track Info */}
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: { xs: 2, md: 2.5 },
-                    overflow: 'hidden',
-                    gridColumn: { xs: 'auto', md: 'auto' },
-                    minWidth: 0,
-                  }}>
-                    {/* Thumbnail */}
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        width: { xs: 50, md: 60 },
-                        height: { xs: 50, md: 60 },
-                        borderRadius: { xs: 1.5, md: 2 },
-                    overflow: 'hidden',
-                    flexShrink: 0,
-                    cursor: 'pointer',
-                    boxShadow: { xs: 1, md: 3 },
-                    transition: 'all 0.3s',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                      boxShadow: { xs: 2, md: 4 },
-                      '& .play-overlay': {
-                        opacity: 1,
-                        transform: 'translateY(0)',
-                        bgcolor: 'rgba(0,0,0,0.35)',
-                      },
-                    },
-                  }}
-                  onClick={() => handlePlayAlbumSong(track)}
-                >
-                  <Box
-                        component="img"
-                        src={thumbnail || FALLBACK}
-                        alt={track.title}
-                        sx={{
-                          width: '100%',
-                          height: '100%',
-                      objectFit: 'cover',
-                    }}
-                    onError={(e) => {
-                      e.currentTarget.src = FALLBACK;
-                    }}
-                  />
-                  <Box
-                    className="play-overlay"
-                    sx={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'grid',
-                      placeItems: 'center',
-                      opacity: isActive ? 1 : 0,
-                      transform: isActive ? 'translateY(0)' : 'translateY(6px)',
-                      transition: 'all 0.2s ease',
-                      backgroundColor: isActive && playerIsPlaying ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.25)',
-                    }}
-                  >
-                    <IconButton
-                      size="medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePlayAlbumSong(track);
-                      }}
-                      sx={{
-                        width: { xs: 38, md: 44 },
-                        height: { xs: 38, md: 44 },
-                        borderRadius: '50%',
-                        bgcolor: 'rgba(228,196,33,0.25)',
-                        border: '1px solid rgba(228,196,33,0.5)',
-                        '&:hover': {
-                          bgcolor: 'rgba(228,196,33,0.35)',
-                          transform: 'scale(1.05)',
-                        },
-                      }}
-                    >
-                      {isActive && playerIsPlaying ? (
-                        <PauseIcon sx={{ fontSize: { xs: 18, md: 22 }, color: 'primary.contrastText' }} />
-                      ) : (
-                        <PlayArrowIcon sx={{ fontSize: { xs: 20, md: 24 }, color: 'primary.contrastText', ml: 0.2 }} />
-                      )}
-                    </IconButton>
-                  </Box>
-                </Box>
-
-                {/* Title & Artist Info */}
-                <Box sx={{ 
-                  minWidth: 0, 
-                      overflow: 'hidden', 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      gap: { xs: 0.5, md: 0.5 } 
-                    }}>
-                      <Typography
-                        onClick={() => trackId && navigate(`/song/${trackId}`)}
-                        sx={{
-                          color: 'text.primary',
-                          fontWeight: 700,
-                          fontSize: { xs: '1rem', md: '1.15rem' },
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          letterSpacing: '-0.01em',
-                          fontFamily: "'Clash Display', 'Space Grotesk', 'Sora', sans-serif",
-                          cursor: trackId ? 'pointer' : 'default',
-                          '&:hover': {
-                            color: trackId ? 'primary.main' : 'text.primary',
-                            textDecoration: trackId ? 'underline' : 'none',
-                          },
-                        }}
-                      >
-                        {track.title || 'Untitled'}
-                      </Typography>
-                      
-                      <Typography
-                        onClick={() => {
-                          const artistId = track.artistId || track?.artist?._id || track?.artist;
-                          if (artistId) navigate(`/artist/${artistId}`);
-                        }}
-                        sx={{
-                          color: 'text.secondary',
-                          fontSize: { xs: '0.85rem', md: '0.975rem' },
-                          cursor: (track.artistId || track?.artist?._id || track?.artist) ? 'pointer' : 'default',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontWeight: 500,
-                          '&:hover': {
-                            color: (track.artistId || track?.artist?._id || track?.artist) ? 'primary.main' : 'text.secondary',
-                          },
-                        }}
-                      >
-                        {artistName}
-                      </Typography>
-
-                      {/* Mobile Extra Info */}
-                      <Box sx={{ 
-                        display: { xs: 'flex', md: 'none' }, 
-                        alignItems: 'center', 
-                        gap: 1,
-                        mt: 0.5,
-                        flexWrap: 'wrap',
-                      }}>
-                        <Typography
-                          onClick={() => {
-                            if (albumIdForLink) {
-                              navigate(`/album/${albumIdForLink}`);
-                            }
-                          }}
-                          sx={{
-                            color: 'text.secondary',
-                            fontSize: '0.8rem',
-                            cursor: albumIdForLink ? 'pointer' : 'default',
-                            fontWeight: 500,
-                            '&:hover': {
-                              color: albumIdForLink ? 'primary.main' : 'text.secondary',
-                              textDecoration: albumIdForLink ? 'underline' : 'none',
-                            },
-                          }}
-                        >
-                          {albumName}
-                        </Typography>
-                        
-                        <Box sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 0.5,
-                        }}>
-                          <Box sx={{ width: 3, height: 3, borderRadius: '50%', bgcolor: 'action.disabled' }} />
-                          <Typography sx={{ color: 'text.primary', fontWeight: 600, fontSize: '0.8rem' }}>
-                            {(track.playCount ?? track.plays ?? 0).toLocaleString()}
-                          </Typography>
-                          <Box sx={{ width: 3, height: 3, borderRadius: '50%', bgcolor: 'action.disabled' }} />
-                          <Typography sx={{ color: 'text.primary', fontWeight: 500, fontSize: '0.8rem' }}>
-                            {formatDuration(track.duration)}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  {/* Mobile Play Button */}
-                  <Box sx={{ 
-                    display: { xs: 'flex', md: 'none' },
-                    justifyContent: 'center',
-                  }}>
-                    <IconButton
-                      size="small"
-                      onClick={() => handlePlayAlbumSong(track)}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        bgcolor: 'rgba(228,196,33,0.15)',
-                        border: '1px solid rgba(228,196,33,0.3)',
-                        '&:hover': { 
-                          bgcolor: 'rgba(228,196,33,0.25)',
-                          transform: 'scale(1.1)',
-                        },
-                      }}
-                    >
-                      {isCurrent && playerIsPlaying ? (
-                        <PauseIcon sx={{ 
-                          fontSize: 20, 
-                          color: 'primary.contrastText' 
-                        }} />
-                      ) : (
-                        <PlayArrowIcon sx={{ 
-                          fontSize: 20, 
-                          color: 'primary.contrastText',
-                          ml: 0.5 
-                        }} />
-                      )}
-                    </IconButton>
-                  </Box>
-
-                  {/* Mobile More Button */}
-                  <Box sx={{ 
-                    display: { xs: 'flex', md: 'none' },
-                    justifyContent: 'center',
-                  }}>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTrack(track);
-                        if (isMobile) {
-                          setTrackDrawerOpen(true);
-                          setTrackMenuAnchor(null);
-                        } else {
-                          setTrackMenuAnchor(e.currentTarget);
-                        }
-                      }}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        bgcolor: 'action.hover',
-                        color: 'text.secondary',
-                        '&:hover': {
-                          color: 'primary.main',
-                          backgroundColor: 'rgba(228,196,33,0.15)',
-                        },
-                      }}
-                    >
-                      <MoreHorizIcon sx={{ fontSize: '1.4rem' }} />
-                    </IconButton>
-                  </Box>
-
-                  {/* Desktop-only Album */}
-                  <Box sx={{ 
-                    display: { xs: 'none', md: 'block' }, 
-                    overflow: 'hidden',
-                    px: 2 
-                  }}>
-                    <Typography
-                      onClick={() => {
-                        if (albumIdForLink) {
-                          navigate(`/album/${albumIdForLink}`);
-                        }
-                      }}
-                      sx={{
-                        color: 'text.primary',
-                        fontSize: '1rem',
-                        cursor: albumIdForLink ? 'pointer' : 'default',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        fontWeight: 500,
-                        '&:hover': {
-                          color: albumIdForLink ? 'primary.main' : 'text.primary',
-                          textDecoration: albumIdForLink ? 'underline' : 'none',
-                        },
-                      }}
-                    >
-                      {albumName}
-                    </Typography>
-                  </Box>
-
-                  {/* Desktop-only Plays */}
-                  <Box sx={{ 
-                    display: { xs: 'none', md: 'flex' }, 
-                    alignItems: 'center',
-                    px: 2 
-                  }}>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 1,
-                      bgcolor: 'rgba(228,196,33,0.08)',
-                      px: 2,
-                      py: 0.75,
-                      borderRadius: 2,
-                      minWidth: 100,
-                      border: '1px solid',
-                      borderColor: 'rgba(228,196,33,0.15)',
-                    }}>
-                      <PlayArrowIcon sx={{ fontSize: 16, color: 'primary.main', opacity: 0.8 }} />
-                      <Typography
-                        sx={{
-                          color: 'text.primary',
-                          fontSize: '0.95rem',
-                          fontWeight: 700,
-                          letterSpacing: '-0.01em',
-                        }}
-                      >
-                        {(track.playCount ?? track.plays ?? 0).toLocaleString()}
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  {/* Desktop-only Duration */}
-                  <Box sx={{ 
-                    display: { xs: 'none', md: 'block' },
-                    px: 2 
-                  }}>
-                    <Typography
-                      sx={{
-                        color: 'text.secondary',
-                        fontSize: '0.95rem',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {formatDuration(track.duration)}
-                    </Typography>
-                  </Box>
-
-                  {/* Desktop Add to Playlist Button */}
-                  <Box sx={{ 
-                    display: { xs: 'none', md: 'flex' }, 
-                    justifyContent: 'center',
-                  }}>
-                    <IconButton
-                      size="medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddToPlaylist(track);
-                      }}
-                      sx={{
-                        color: 'text.secondary',
-                        backgroundColor: 'action.hover',
-                        width: 48,
-                        height: 48,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          color: 'primary.main',
-                          backgroundColor: 'rgba(228,196,33,0.15)',
-                          transform: 'scale(1.1) rotate(90deg)',
-                        },
-                      }}
-                    >
-                      <AddIcon sx={{ fontSize: '1.4rem' }} />
-                    </IconButton>
-                  </Box>
-
-                  {/* Desktop More Options Button */}
-                  <Box sx={{ 
-                    display: { xs: 'none', md: 'flex' }, 
-                    justifyContent: 'center',
-                  }}>
-                    <IconButton
-                      size="medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTrack(track);
-                        setTrackMenuAnchor(e.currentTarget);
-                      }}
-                      sx={{
-                        color: 'text.secondary',
-                        width: 48,
-                        height: 48,
-                        borderRadius: 2,
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          color: 'text.primary',
-                          backgroundColor: 'action.hover',
-                          transform: 'scale(1.1)',
-                        },
-                      }}
-                    >
-                      <MoreHorizIcon sx={{ fontSize: '1.6rem' }} />
-                    </IconButton>
-                  </Box>
-                </Box>
-              );
-            })}
-          </Box>
-        </Box>
-      )}
+      <TrackListSection
+        tracks={processedAlbumSongs}
+        getId={getId}
+        playingId={playingId}
+        songId={songId}
+        playerIsPlaying={playerIsPlaying}
+        isMobile={isMobile}
+        fallbackArtwork={FALLBACK}
+        onPlayTrack={handlePlayAlbumSong}
+        onOpenTrackMenu={handleOpenTrackMenu}
+        onAddToPlaylist={handleAddToPlaylist}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onNavigateTrack={(id) => navigate(`/song/${id}`)}
+        onNavigateArtist={(id) => navigate(`/artist/${id}`)}
+        onNavigateAlbum={(id) => navigate(`/album/${id}`)}
+        formatDuration={formatDuration}
+      />
 
       {(recommendedLoading || processedRecommendedSongs.length > 0) && (
         <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, mt: { xs: 4, md: 6 } }}>
@@ -2015,476 +1454,35 @@ useEffect(() => {
 
 
 
-      {/* Track Options Dropdown Menu */}
-      <Menu
+      <ActionMenu
+        isMobile={isMobile}
         anchorEl={trackMenuAnchor}
         open={!isMobile && Boolean(trackMenuAnchor)}
         onClose={() => {
           setTrackMenuAnchor(null);
           setLongPressTrack(null);
         }}
-        PaperProps={{
-          sx: {
-            backgroundColor: '#181818',
-            color: '#fff',
-            minWidth: isMobile ? 280 : 220,
-            borderRadius: 3,
-            boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            maxHeight: '70vh',
-            overflow: 'auto',
-          },
+        drawerOpen={trackDrawerOpen}
+        onCloseDrawer={handleCloseTrackDrawer}
+        items={trackMenuItems}
+        menuPaperSx={{
+          minWidth: isMobile ? 280 : 220,
+          borderRadius: 3,
+          boxShadow: "0 10px 40px rgba(0,0,0,0.5)",
+          maxHeight: "70vh",
+          overflow: "auto",
         }}
-        transformOrigin={{ 
-          horizontal: isMobile ? 'center' : 'right', 
-          vertical: 'top' 
+        drawerTitle={selectedTrack?.title || "Track Options"}
+        drawerSubtitle={selectedTrack?.artistName || selectedTrack?.artist?.artistAka || "Unknown Artist"}
+      />
+      <AddToPlaylistModal
+        open={playlistDialogOpen}
+        onClose={() => {
+          setPlaylistDialogOpen(false);
+          setPlaylistTrack(null);
         }}
-        anchorOrigin={{ 
-          horizontal: isMobile ? 'center' : 'right', 
-          vertical: 'bottom' 
-        }}
-      >
-        {isMobile && selectedTrack && (
-          <>
-            <Box sx={{ p: 2, pb: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                {selectedTrack?.title || 'Track Options'}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', opacity: 0.7 }}>
-                {selectedTrack?.artistName || 'Unknown Artist'}
-              </Typography>
-            </Box>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mx: 2 }} />
-          </>
-        )}
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handlePlayAlbumSong(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            {isSelectedTrackCurrent && playerIsPlaying ? (
-              <PauseIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            ) : (
-              <PlayArrowIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            )}
-            {isSelectedTrackCurrent && playerIsPlaying ? 'Pause' : 'Play'}
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleAddToFavorites(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <FavoriteBorderIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Add to Favorites
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleAddToPlaylist(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <PlaylistAddIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Add to Playlist
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handlePlayNext(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <SkipNextIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Play Next
-          </Box>
-        </MenuItem>
-        
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 0.5 }} />
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleShareTrack(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <ShareIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Share
-          </Box>
-        </MenuItem>
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) {
-              const artistId = selectedTrack.artistId || selectedTrack?.artist?._id;
-              if (artistId) navigate(`/artist/${artistId}`);
-            }
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#fff',
-            '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <PersonIcon sx={{ color: 'rgba(255,255,255,0.7)' }} />
-            Go to Artist
-          </Box>
-        </MenuItem>
-        
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 0.5 }} />
-        
-        <MenuItem
-          onClick={() => {
-            if (selectedTrack) handleReportTrack(selectedTrack);
-            setTrackMenuAnchor(null);
-          }}
-          sx={{
-            py: isMobile ? 2 : 1.5,
-            px: 2,
-            fontSize: isMobile ? '1rem' : '0.95rem',
-            fontWeight: 500,
-            color: '#ff6b6b',
-            '&:hover': { backgroundColor: 'rgba(255,107,107,0.1)' },
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-            <ReportIcon sx={{ color: '#ff6b6b' }} />
-            Report Track
-          </Box>
-        </MenuItem>
-        
-        {isMobile && (
-          <>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 0.5 }} />
-            <MenuItem
-              onClick={() => setTrackMenuAnchor(null)}
-              sx={{
-                py: 2,
-                px: 2,
-                fontSize: '1rem',
-                fontWeight: 500,
-                color: 'text.secondary',
-                justifyContent: 'center',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.05)' },
-              }}
-            >
-              Cancel
-            </MenuItem>
-          </>
-        )}
-      </Menu>
-
-      {/* Track options drawer (mobile) */}
-      {isMobile && (
-        <Drawer
-          anchor="bottom"
-          open={trackDrawerOpen}
-          onClose={handleCloseTrackDrawer}
-          PaperProps={{
-            sx: {
-              maxHeight: "70vh",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              backgroundColor: "#181818",
-              color: "#fff",
-            },
-          }}
-        >
-          <Box sx={{ p: 2, pt: 3 }}>
-            <Box
-              sx={{
-                width: 60,
-                height: 6,
-                backgroundColor: "rgba(255,255,255,0.25)",
-                borderRadius: 3,
-                mx: "auto",
-                mb: 3,
-              }}
-            />
-
-            {selectedTrack && (
-              <Box sx={{ mb: 2, px: 1 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  {selectedTrack.title || "Track Options"}
-                </Typography>
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  {selectedTrack.artistName || selectedTrack?.artist?.artistAka || "Unknown Artist"}
-                </Typography>
-              </Box>
-            )}
-
-            <List sx={{ py: 0 }}>
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handlePlayAlbumSong(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  {isSelectedTrackCurrent && playerIsPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-                </ListItemIcon>
-                <ListItemText
-                  primary={isSelectedTrackCurrent && playerIsPlaying ? "Pause" : "Play"}
-                  primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }}
-                />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleAddToFavorites(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <FavoriteBorderIcon />
-                </ListItemIcon>
-                <ListItemText primary="Add to Favorites" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleAddToPlaylist(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <PlaylistAddIcon />
-                </ListItemIcon>
-                <ListItemText primary="Add to Playlist" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handlePlayNext(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <SkipNextIcon />
-                </ListItemIcon>
-                <ListItemText primary="Play Next" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleShareTrack(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <ShareIcon />
-                </ListItemIcon>
-                <ListItemText primary="Share" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) {
-                    const artistId = selectedTrack.artistId || selectedTrack?.artist?._id;
-                    if (artistId) navigate(`/artist/${artistId}`);
-                  }
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" } }}
-              >
-                <ListItemIcon sx={{ color: "rgba(255,255,255,0.75)", minWidth: 40 }}>
-                  <PersonIcon />
-                </ListItemIcon>
-                <ListItemText primary="Go to Artist" primaryTypographyProps={{ sx: { color: "#fff", fontWeight: 600 } }} />
-              </ListItem>
-
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />
-
-              <ListItem
-                button
-                onClick={() => {
-                  if (selectedTrack) handleReportTrack(selectedTrack);
-                  handleCloseTrackDrawer();
-                }}
-                sx={{ borderRadius: 2, mb: 0.5, "&:hover": { backgroundColor: "rgba(255,107,107,0.12)" } }}
-              >
-                <ListItemIcon sx={{ color: "#ff6b6b", minWidth: 40 }}>
-                  <ReportIcon />
-                </ListItemIcon>
-                <ListItemText primary="Report Track" primaryTypographyProps={{ sx: { color: "#ff6b6b", fontWeight: 600 } }} />
-              </ListItem>
-            </List>
-
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleCloseTrackDrawer}
-              sx={{
-                mt: 1.5,
-                color: "rgba(255,255,255,0.85)",
-                borderColor: "rgba(255,255,255,0.3)",
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.5)",
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                },
-              }}
-            >
-              Cancel
-            </Button>
-          </Box>
-        </Drawer>
-      )}
-
-      {/* Mobile Bottom Sheet Drawer */}
-      {isMobile && (
-        <Drawer
-          anchor="bottom"
-          open={drawerOpen}
-          onClose={handleCloseDrawer}
-          PaperProps={{
-            sx: {
-              maxHeight: "70vh",
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              backgroundColor: "#181818",
-              color: "#fff",
-            },
-          }}
-        >
-          <Box sx={{ p: 2, pt: 3 }}>
-            <Box
-              sx={{
-                width: 60,
-                height: 6,
-                backgroundColor: "rgba(255,255,255,0.25)",
-                borderRadius: 3,
-                mx: "auto",
-                mb: 3,
-              }}
-            />
-
-            <List sx={{ py: 0 }}>
-              {menuItems.map((item, index) => (
-                <ListItem
-                  button
-                  key={index}
-                  onClick={() => {
-                    item.action?.();
-                    handleCloseDrawer();
-                  }}
-                  sx={{
-                    borderRadius: 2,
-                    mb: 0.5,
-                    "&:hover": { backgroundColor: "rgba(255,255,255,0.08)" },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      color: item.color || "rgba(255,255,255,0.75)",
-                      minWidth: 40,
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      sx: { color: item.color || "#fff", fontWeight: 500 },
-                    }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleCloseDrawer}
-              sx={{
-                mt: 1.5,
-                color: "rgba(255,255,255,0.85)",
-                borderColor: "rgba(255,255,255,0.3)",
-                borderRadius: 2,
-                textTransform: "none",
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: "rgba(255,255,255,0.5)",
-                  backgroundColor: "rgba(255,255,255,0.06)",
-                },
-              }}
-            >
-              Cancel
-            </Button>
-          </Box>
-        </Drawer>
-      )}
+        track={playlistTrack}
+      />
     </>
   );
 };

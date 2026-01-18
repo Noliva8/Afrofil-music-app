@@ -273,8 +273,8 @@ const effectiveRepeatMode =
         backdropFilter: 'blur(12px)',
         borderTop: `1px solid rgba(228, 196, 33, 0.2)`,
         zIndex: (theme.zIndex?.appBar ?? 1100) + 300,
-        px: { xs: 0.75, sm: 1, md: 1.5, lg: 2 },
-        py: { xs: 0.5, sm: 0.75, md: 0.75, lg: 0.75 },
+        px: { xs: 1.2, sm: 1.5, md: 2, lg: 2 },
+        py: { xs: 0.2, sm: 0.2, md: 0.2, lg: 0.2 },
         height: config.height,
         display: 'flex',
         flexDirection: 'column',
@@ -345,7 +345,7 @@ const effectiveRepeatMode =
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  overflow: 'hidden', // IMPORTANT: Contain overflowing text
+  overflow: 'hidden', 
   maxWidth: {
     xs: 'calc(100vw - 180px)', // Reserve space for controls on mobile
     sm: 'none'
@@ -709,7 +709,8 @@ const effectiveRepeatMode =
               color: textMuted, 
               fontSize: { xs: '0.65rem', sm: '0.7rem' },
               minWidth: 40,
-              flexShrink: 0
+              flexShrink: 0,
+              mb: 1
             }}>
               {formatTime(currentTime)}
             </Typography>
@@ -761,6 +762,7 @@ const effectiveRepeatMode =
               fontSize: { xs: '0.65rem', sm: '0.7rem' },
               minWidth: 40,
               textAlign: 'right',
+                mb: 1,
               flexShrink: 0
             }}>
               {formatTime(effectiveDuration)}

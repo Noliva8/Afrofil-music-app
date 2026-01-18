@@ -138,6 +138,9 @@ type Query {
  searched_songsByUser(userId: ID!): [Song]
  recommended_songsByUser(userId: ID!): [Song]
  downloaded_songsByUser(userId: ID!): [Song]
+  recentPlayedSongs(limit: Int = 5): [Song]
+  likedSongs(limit: Int = 5): [Song]
+  userPlaylists(limit: Int = 5): [Playlist]
 
 
 
@@ -171,6 +174,10 @@ type UserAuthPayload {
   user: User!
 }
 
+type PasswordResetResponse {
+  success: Boolean!
+  message: String!
+}
 
 
 
@@ -191,6 +198,9 @@ type Mutation {
   password: String!): User
 
   upgradeCurrentUserToPremium: User!
+
+  requestPasswordReset(email: String!): PasswordResetResponse
+  resetPassword(token: String!, newPassword: String!): PasswordResetResponse
 
 
 
@@ -221,7 +231,11 @@ type Mutation {
  
  deleteComment(commentId: ID!): Comment
 
- createPlaylist(title: String!, description: String, songs: [ID], createdBy: ID!): Playlist
+createPlaylist(title: String!, description: String, songs: [ID], createdBy: ID!): Playlist
+addSongToPlaylist(playlistId: ID!, songId: ID!): Playlist
+removeSongFromPlaylist(playlistId: ID!, songId: ID!): Playlist
+reorderPlaylistSongs(playlistId: ID!, songIds: [ID!]!): Playlist
+deletePlaylist(playlistId: ID!): Boolean
 
 
 

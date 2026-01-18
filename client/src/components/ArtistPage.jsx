@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -8,24 +8,15 @@ import {
   IconButton,
   Avatar,
   Paper,
-   Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Tabs,
   Tab,
   LinearProgress,
   Modal,
   useTheme,
   alpha,
-  List,
-  ListItem,
   Stack,
-    Divider,
-     
-
-  ListItemIcon,
-  ListItemText,
+  CircularProgress,
+  useMediaQuery,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -35,30 +26,21 @@ import {
   Share,
   ArrowBack,
   Shuffle,
-  Add,
   Close,
-  ChevronRight ,
-  
-    Person,
+  ChevronRight,
+  Person,
   PersonAdd,
   Block,
   Description,
   Radio,
   Flag,
- 
   DesktopWindows,
- 
   FileDownloadOutlined,
   VolumeUp as VolumeUpIcon,
   MusicOff,
 } from '@mui/icons-material';
-import { SongCard } from './otherSongsComponents/songCard.jsx';
-import { CircularProgress } from '@mui/material';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import Drawer from '@mui/material/Drawer';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import { useMediaQuery } from '@mui/material';
+import { SongCard } from './otherSongsComponents/songCard.jsx';
 import Grid from '@mui/material/Grid2';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAudioPlayer } from '../utils/Contexts/AudioPlayerContext.jsx';
@@ -72,7 +54,10 @@ import { processSongs } from '../utils/someSongsUtils/someSongsUtils.js';
 import { handleTrendingSongPlay } from '../utils/plabackUtls/handleSongPlayBack.js';
 import { PlayButton } from './PlayButton.jsx';
 import { ShuffleButton } from './ShuffleButton.jsx';
-import { ShareButton } from './ShareButton.jsx';
+import { ActionButtonsGroup } from './ActionButtonsGroup.jsx';
+import { ActionMenu } from './ActionMenu.jsx';
+import { TrackListSection } from './TrackListSection.jsx';
+import AddToPlaylistModal from './AddToPlaylistModal.jsx';
 
   export const formatDuration = (seconds) => {
     if (seconds == null) return '0:00';
@@ -151,6 +136,8 @@ const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [playableTrack, setPlayableTrack] = useState(null);
+  const [playlistTrack, setPlaylistTrack] = useState(null);
+  const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [avatarLoaded, setAvatarLoaded] = useState(false);
   const prevAvatarRef = useRef(null);
   const [followerCount, setFollowerCount] = useState(null);
@@ -562,183 +549,123 @@ console.log('top track processesd:', limitedSongs)
     }
   };
 
-  const TrackRow = ({ track }) => {
-    const canDownload = Boolean(track?.downloadUrl);
-    const isThisPlaying = playingTrack && track?.raw?.id
-      ? String(playingTrack.id) === String(track.raw.id) && playerIsPlaying
-      : false;
+  const getTrackId = useCallback(
+    (track) => String(track?.raw?.id || track?.id || track?._id || track?.songId || ""),
+    []
+  );
+
+  const handleAddToPlaylist = useCallback((track) => {
+    if (!track) return;
+    setPlaylistTrack(track);
+    setPlaylistDialogOpen(true);
+  }, []);
+
+  const handleCloseAddToPlaylist = useCallback(() => {
+    setPlaylistDialogOpen(false);
+    setPlaylistTrack(null);
+  }, []);
+
+  const handlePlayTrack = useCallback(
+    async (track) => {
+      if (!track) return;
+      const song = track.raw || track;
+      await handleTrendingSongPlay({
+        song,
+        incrementPlayCount: () => {},
+        handlePlaySong,
+        trendingSongs: processedSongs,
+        client,
+      });
+    },
+    [handlePlaySong, processedSongs, client]
+  );
+
+  const handleNavigateTrack = useCallback(
+    (trackId) => {
+      if (trackId) navigate(`/song/${trackId}`);
+    },
+    [navigate]
+  );
+
+  const handleNavigateArtist = useCallback(
+    (artistId) => {
+      if (artistId) navigate(`/artist/${artistId}`);
+    },
+    [navigate]
+  );
+
+  const handleNavigateAlbum = useCallback(
+    (albumId) => {
+      if (albumId) navigate(`/album/${albumId}`);
+    },
+    [navigate]
+  );
+
+  const actionMenuItems = useMemo(
+    () => [
+      {
+        icon: <Description />,
+        label: 'Bio',
+        onClick: () => console.log('Bio clicked'),
+      },
+      {
+        icon: isFollowing ? <Person /> : <PersonAdd />,
+        label: isFollowing ? 'Unfollow' : 'Follow',
+        onClick: handleFollowToggle,
+      },
+      {
+        icon: <Radio />,
+        label: 'Go to artist radio',
+        onClick: () => console.log('Radio clicked'),
+      },
+      {
+        icon: <Share />,
+        label: 'Share',
+        onClick: handleShareArtist,
+      },
+      {
+        icon: <DesktopWindows />,
+        label: 'Open in Desktop app',
+        onClick: () => console.log('Desktop app clicked'),
+      },
+      { type: 'divider' },
+      {
+        icon: <Block />,
+        label: 'Block artist',
+        color: '#ff4444',
+        onClick: () => console.log('Block clicked'),
+      },
+      {
+        icon: <Flag />,
+        label: 'Report',
+        color: '#ff4444',
+        onClick: () => console.log('Report clicked'),
+      },
+    ],
+    [handleFollowToggle, handleShareArtist, isFollowing]
+  );
 
 
 
-
-
-
-
-    return (
-      <ListItem
-        disableGutters
-        sx={{
-          px: { xs: 1, sm: 1.5 },
-          py: 0.75,
-        }}
-      >
-        <Paper
-          variant="outlined"
-          sx={{
-            width: '100%',
-            p: 1,
-            borderRadius: 2,
-            borderColor: alpha('#fff', 0.10),
-            bgcolor: alpha(bgPaper, 0.35),
-          }}
-        >
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-              width: '100%',
-            }}
-          >
-            {/* Thumbnail with play overlay */}
-            <Box
-              sx={{
-                position: 'relative',
-                width: { xs: 52, sm: 56 },
-                height: { xs: 52, sm: 56 },
-                borderRadius: 2,
-                overflow: 'hidden',
-              flexShrink: 0,
-              bgcolor: alpha('#000', 0.25),
-              cursor: 'pointer',
-              '&:hover .track-play-btn': { opacity: 1, transform: 'scale(1.05)' },
-              }}
-              
-              onClick={async () => {
-                await handleTrendingSongPlay({
-                  song: track.raw,
-                  incrementPlayCount: () => {},
-                  handlePlaySong,
-                  trendingSongs: processedSongs,
-                  client,
-                });
-              }}
-
-
-              role="button"
-              tabIndex={0}
-            >
-              {track.thumb ? (
-                <Box
-                  component="img"
-                  src={track.thumb}
-                  alt={track.title}
-                  sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : null}
-
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  bgcolor: alpha('#000', 0.25),
-                }}
-              >
-                <IconButton
-                  size="small"
-                  className="track-play-btn"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    await handleTrendingSongPlay({
-                      song: track.raw,
-                      incrementPlayCount: () => {},
-                      handlePlaySong,
-                      trendingSongs: processedSongs,
-                      client,
-                    });
-                  }}
-                  sx={{
-                    width: 36,
-                    height: 36,
-                    bgcolor: alpha(primary, 0.25),
-                    border: `1px solid ${alpha(primary, 0.45)}`,
-                    color: onPrimary,
-                    opacity: 0.9,
-                    transition: 'opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease',
-                    '&:hover': { bgcolor: alpha(primary, 0.35), opacity: 1, transform: 'scale(1.08)' },
-                  }}
-                >
-                  {playingTrack?.id === track?.raw?.id && playerIsPlaying ? (
-                    <VolumeUpIcon sx={{ fontSize: 20, color: onPrimary }} />
-                  ) : (
-                    <PlayArrow sx={{ fontSize: 20, color: onPrimary }} />
-                  )}
-                </IconButton>
-              </Box>
-            </Box>
-
-            {/* Title + aka */}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                sx={{
-                  fontWeight: 700,
-                  color: textPrimary,
-                  fontSize: { xs: '0.95rem', sm: '1rem' },
-                  ...clampSx(1),
-                }}
-              >
-                {track.title}
-              </Typography>
-              <Typography
-                sx={{
-                  color: textSecondary,
-                  fontSize: { xs: '0.85rem', sm: '0.9rem' },
-                  ...clampSx(1),
-                }}
-              >
-                {track.artistAka || artist?.aka || artist?.name}
-              </Typography>
-            </Box>
-
-            {/* Download */}
-            <IconButton
-              onClick={() => handleDownloadTrack(track)}
-              disabled={!canDownload}
-              sx={{
-                flexShrink: 0,
-                color: canDownload ? textPrimary : alpha(textPrimary, 0.35),
-              }}
-              aria-label="Download"
-            >
-              <FileDownloadOutlined />
-            </IconButton>
-          </Box>
-        </Paper>
-      </ListItem>
-    );
-  };
+  const normalizedTopTracks = useMemo(
+    () =>
+      topTracks.map((track) => ({
+        ...track,
+        album: { title: track.album || 'Single' },
+        artist: {
+          artistAka: track.artistAka || artist?.name || '',
+          _id: track.artistId || resolvedArtistId || undefined,
+        },
+        artwork: track.thumbnail || track.albumArt,
+        albumCoverImageUrl: track.thumbnail || track.albumArt,
+        raw: track.raw,
+      })),
+    [topTracks, artist?.name, resolvedArtistId]
+  );
 
   if (!artist) return <LinearProgress />;
 
 
-
-
-// Menu/Drawer options
-const menuItems = [
-  { icon: <Description />, text: 'Bio', action: () => console.log('Bio clicked') },
-  { 
-    icon: artist.isFollowed ? <Person /> : <PersonAdd />, 
-    text: artist.isFollowed ? 'Unfollow' : 'Follow',
-    action: () => console.log('Follow clicked')
-  },
-  { icon: <Radio />, text: 'Go to artist radio', action: () => console.log('Radio clicked') },
-  { icon: <Share />, text: 'Share', action: () => console.log('Share clicked') },
-  { icon: <DesktopWindows />, text: 'Open in Desktop app', action: () => console.log('Desktop app clicked') },
-  { icon: <Block />, text: 'Block artist', color: '#ff4444', action: () => console.log('Block clicked') },
-  { icon: <Flag />, text: 'Report', color: '#ff4444', action: () => console.log('Report clicked') },
-];
 
 
 
@@ -939,96 +866,12 @@ const menuItems = [
 
 
 
-          <Box sx={{
-            display: 'flex',
-            gap: { xs: 0.5, sm: 1, md: 2 },
-            justifyContent: { xs: 'space-between', sm: 'flex-start' },
-            mt: { xs: 2, md: 0 },
-            width: { xs: '100%', md: 'auto' },
-          }}>
-
-
-            {/* Follow Button */}
-            <IconButton
-              aria-label="Follow"
-              sx={{
-                color: 'rgba(255,255,255,0.85)',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderRadius: 2,
-                p: { xs: 1.2, sm: 1.5 },
-                '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.15)',
-                  transform: 'scale(1.05)',
-                },
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0.5,
-                minWidth: { xs: 70, sm: 80 },
-              }}
-            >
-              <Add sx={{ fontSize: { xs: '1.3rem', sm: '1.5rem' } }} />
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                Follow
-              </Typography>
-            </IconButton>
-
-
-
-            {/* Share Button */}
-
-<ShareButton handleShare={handleShareArtist }/>
-
-
-
-            {/* More Button */}
-            <IconButton
-              aria-label="More options"
-              onClick={handleOpenMenu}
-              sx={{
-                color: 'rgba(255,255,255,0.85)',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                borderRadius: 2,
-                p: { xs: 1.2, sm: 1.5 },
-                '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.15)',
-                  transform: 'scale(1.05)',
-                },
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 0.5,
-                minWidth: { xs: 70, sm: 80 },
-              }}
-            >
-              <MoreHorizIcon sx={{ fontSize: { xs: '1.3rem', sm: '1.5rem' } }} />
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                  fontWeight: 500,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                More
-              </Typography>
-            </IconButton>
-
-
-
-
-          </Box>
+          <ActionButtonsGroup
+            isFavorite={isFollowing}
+            onToggleFavorite={handleFollowToggle}
+            onShare={handleShareArtist}
+            onMore={handleOpenMenu}
+          />
         </Box>
       </Box>
     </Box>
@@ -1151,401 +994,25 @@ const menuItems = [
     </Box>
   )}
 
-  {/* Tracks Grid - Premium Design */}
   {topTracks.length > 0 && (
-    <>
-      {/* Desktop Header */}
-      <Box sx={{ 
-        display: { xs: 'none', md: 'grid' },
-        gridTemplateColumns: '0.5fr 2.5fr 1.5fr 1fr 1fr 0.5fr 0.5fr',
-        alignItems: 'center',
-        py: 2.5,
-        px: 3,
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        bgcolor: 'background.paper',
-        borderRadius: '12px 12px 0 0',
-      }}>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          #
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Title
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Album
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Plays
-        </Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          Duration
-        </Typography>
-        <Box></Box>
-        <Box></Box>
-      </Box>
-
-      {/* Tracks List */}
-      <Box sx={{ 
-        display: 'flex',
-        flexDirection: 'column',
-        gap: { xs: 1.5, md: 0 },
-        borderRadius: { xs: 2, md: '0 0 12px 12px' },
-        overflow: 'hidden',
-        bgcolor: { md: 'transparent' },
-      }}>
-        {topTracks.map((track, index) => (
-          <Box 
-            key={track.id}
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { 
-                xs: 'auto 1fr auto',
-                md: '0.5fr 2.5fr 1.5fr 1fr 1fr 0.5fr 0.5fr'
-              },
-              alignItems: 'center',
-              gap: { xs: 2, md: 0 },
-              py: { xs: 2.5, md: 2 },
-              px: { xs: 3, md: 3 },
-              borderBottom: { xs: 'none', md: '1px solid' },
-              borderColor: { md: 'divider' },
-              borderRadius: { xs: 2, md: 0 },
-              bgcolor: { xs: 'background.paper', md: 'transparent' },
-              mb: { xs: 1.5, md: 0 },
-              transition: 'all 0.25s',
-              '&:hover': {
-                bgcolor: { xs: 'action.hover', md: 'action.hover' },
-                transform: { xs: 'translateX(4px)', md: 'none' },
-              },
-              '&:last-child': {
-                borderBottom: 'none',
-              },
-            }}
-          >
-            {/* Index Number with gold accent for top 3 */}
-            <Typography 
-              sx={{ 
-                color: index < 3 ? 'primary.main' : 'text.secondary',
-                fontSize: { xs: '1.1rem', md: '1.15rem' },
-                fontWeight: 900,
-                textAlign: 'center',
-                minWidth: { xs: 28, md: 'auto' },
-                fontFamily: "'Clash Display', 'Space Grotesk', 'Sora', sans-serif",
-              }}
-            >
-              {index + 1}
-            </Typography>
-
-            {/* Track Info */}
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: { xs: 3, md: 2.5 },
-              overflow: 'hidden',
-              gridColumn: { xs: 'span 2', md: 'auto' },
-            }}>
-              {/* Premium Thumbnail */}
-              <Box
-                sx={{
-                  position: 'relative',
-                  width: { xs: 56, md: 60 },
-                  height: { xs: 56, md: 60 },
-                  borderRadius: { xs: 1.5, md: 2 },
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  boxShadow: 3,
-                  transition: 'all 0.3s',
-                  '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: 4,
-                    '& .play-overlay': {
-                      opacity: 1,
-                      bgcolor: 'rgba(0,0,0,0.5)',
-                    },
-                  },
-                }}
-                onClick={async () => {
-                  await handleTrendingSongPlay({
-                    song: track.raw,
-                    incrementPlayCount: () => {},
-                    handlePlaySong,
-                    trendingSongs: processedSongs,
-                    client,
-                  });
-                }}
-              >
-                <Box
-                  component="img"
-                  src={track.thumbnail || track.albumArt}
-                  alt={track.title}
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                />
-                <Box
-                  className="play-overlay"
-                  sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'grid',
-                    placeItems: 'center',
-                    bgcolor: alpha('#000', 0.35),
-                    opacity: playingTrack?.id === track?.raw?.id && playerIsPlaying ? 1 : 0.85,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <IconButton
-                    size="large"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      await handleTrendingSongPlay({
-                        song: track.raw,
-                        incrementPlayCount: () => {},
-                        handlePlaySong,
-                        trendingSongs: processedSongs,
-                        client,
-                      });
-                    }}
-                    sx={{
-                      width: { xs: 44, md: 48 },
-                      height: { xs: 44, md: 48 },
-                      bgcolor: alpha(primary, 0.25),
-                      border: `2px solid ${alpha(primary, 0.6)}`,
-                      backdropFilter: 'blur(8px)',
-                      '&:hover': { 
-                        bgcolor: 'rgba(228,196,33,0.4)',
-                        transform: 'scale(1.1)',
-                      },
-                    }}
-                  >
-                    {playingTrack?.id === track?.raw?.id && playerIsPlaying ? (
-                      <VolumeUpIcon sx={{ 
-                        fontSize: { xs: 22, md: 24 }, 
-                        color: 'primary.contrastText' 
-                      }} />
-                    ) : (
-                      <PlayArrow sx={{ 
-                        fontSize: { xs: 22, md: 24 }, 
-                        color: 'primary.contrastText',
-                        ml: 0.5 
-                      }} />
-                    )}
-                  </IconButton>
-                </Box>
-              </Box>
-
-              {/* Title Info with Clash Display font */}
-              <Box sx={{ 
-                minWidth: 0, 
-                overflow: 'hidden', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: { xs: 0.75, md: 0.5 } 
-              }}>
-                <Typography
-                  sx={{
-                    color: 'text.primary',
-                    fontWeight: 700,
-                    fontSize: { xs: '1.1rem', md: '1.15rem' },
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    letterSpacing: '-0.01em',
-                    fontFamily: "'Clash Display', 'Space Grotesk', 'Sora', sans-serif",
-                  }}
-                >
-                  {track.title}
-                </Typography>
-                
-                <Typography
-                  onClick={() => (track.raw.artistId || resolvedArtistId) && navigate(`/artist/${track.raw.artistId || resolvedArtistId}`)}
-                  sx={{
-                    color: 'text.secondary',
-                    fontSize: { xs: '0.95rem', md: '0.975rem' },
-                    cursor: (track.raw.artistId || resolvedArtistId) ? 'pointer' : 'default',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    fontWeight: 500,
-                    '&:hover': {
-                      color: (track.raw.artistId || resolvedArtistId) ? 'primary.main' : 'text.secondary',
-                      textDecoration: (track.raw.artistId || resolvedArtistId) ? 'underline' : 'none',
-                    },
-                  }}
-                >
-                  {track.artistAka || artist?.name || 'Unknown Artist'}
-                </Typography>
-
-                {/* Mobile-only extra info */}
-                <Box sx={{ 
-                  display: { xs: 'flex', md: 'none' }, 
-                  alignItems: 'center', 
-                  gap: 1.5,
-                  mt: 0.5 
-                }}>
-                  <Typography
-                    onClick={() => track.albumId && navigate(`/album/${track.albumId}`)}
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.875rem',
-                      cursor: track.albumId ? 'pointer' : 'default',
-                      fontWeight: 500,
-                      '&:hover': {
-                        color: track.albumId ? 'primary.main' : 'text.secondary',
-                      },
-                    }}
-                  >
-                    {track.album || 'Single'}
-                  </Typography>
-                  
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 0.75,
-                  }}>
-                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: 'action.disabled' }} />
-                    <Typography sx={{ color: 'text.primary', fontWeight: 600 }}>
-                      {(track.plays ?? 0).toLocaleString()}
-                    </Typography>
-                    <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: 'action.disabled' }} />
-                    <Typography sx={{ color: 'text.primary', fontWeight: 500 }}>
-                      {formatDuration(track.duration)}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Box>
-            </Box>
-
-            {/* Desktop-only Album */}
-            <Box sx={{ 
-              display: { xs: 'none', md: 'block' }, 
-              overflow: 'hidden',
-              px: 2 
-            }}>
-              <Typography
-                onClick={() => track.albumId && navigate(`/album/${track.albumId}`)}
-                sx={{
-                  color: 'text.primary',
-                  fontSize: '1rem',
-                  cursor: track.albumId ? 'pointer' : 'default',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  fontWeight: 500,
-                  '&:hover': {
-                    color: track.albumId ? 'primary.main' : 'text.primary',
-                    textDecoration: track.albumId ? 'underline' : 'none',
-                  },
-                }}
-              >
-                {track.album || 'Single'}
-              </Typography>
-            </Box>
-
-            {/* Desktop-only Plays with gold accent */}
-            <Box sx={{ 
-              display: { xs: 'none', md: 'flex' }, 
-              alignItems: 'center',
-              px: 2 
-            }}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1,
-                bgcolor: 'rgba(228,196,33,0.08)',
-                px: 2,
-                py: 0.75,
-                borderRadius: 2,
-                minWidth: 100,
-                border: '1px solid',
-                borderColor: 'rgba(228,196,33,0.15)',
-              }}>
-                <PlayArrow sx={{ fontSize: 16, color: 'primary.main', opacity: 0.8 }} />
-                <Typography
-                  sx={{
-                    color: 'text.primary',
-                    fontSize: '0.95rem',
-                    fontWeight: 700,
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  {(track.plays ?? 0).toLocaleString()}
-                </Typography>
-              </Box>
-            </Box>
-
-            {/* Desktop-only Duration */}
-            <Box sx={{ 
-              display: { xs: 'none', md: 'block' },
-              px: 2 
-            }}>
-              <Typography
-                sx={{
-                  color: 'text.secondary',
-                  fontSize: '0.95rem',
-                  fontWeight: 500,
-                }}
-              >
-                {formatDuration(track.duration)}
-              </Typography>
-            </Box>
-
-            {/* Action Buttons */}
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'center',
-              gridColumn: { xs: '3', md: 'auto' },
-            }}>
-              <IconButton
-                size="medium"
-                sx={{
-                  color: 'text.secondary',
-                  backgroundColor: 'action.hover',
-                  width: { xs: 44, md: 48 },
-                  height: { xs: 44, md: 48 },
-                  borderRadius: 2,
-                  '&:hover': {
-                    color: 'primary.main',
-                    backgroundColor: 'rgba(228,196,33,0.15)',
-                    transform: 'scale(1.1) rotate(90deg)',
-                  },
-                }}
-              >
-                <Add sx={{ fontSize: { xs: '1.3rem', md: '1.4rem' } }} />
-              </IconButton>
-            </Box>
-
-            <Box sx={{ 
-              display: { xs: 'none', md: 'flex' }, 
-              justifyContent: 'center' 
-            }}>
-              <IconButton
-                size="medium"
-                sx={{
-                  color: 'text.secondary',
-                  width: 48,
-                  height: 48,
-                  borderRadius: 2,
-                  '&:hover': {
-                    color: 'text.primary',
-                    backgroundColor: 'action.hover',
-                    transform: 'scale(1.1)',
-                  },
-                }}
-              >
-                <MoreHorizIcon sx={{ fontSize: '1.6rem' }} />
-              </IconButton>
-            </Box>
-          </Box>
-        ))}
-      </Box>
-
-    </>
+    <TrackListSection
+      tracks={normalizedTopTracks}
+      getId={getTrackId}
+      playingId={playingTrack?.id || playingTrack?._id}
+      songId={null}
+      playerIsPlaying={playerIsPlaying}
+      isMobile={isMobile}
+      fallbackArtwork={artist?.avatar || ''}
+      onPlayTrack={handlePlayTrack}
+      onAddToPlaylist={handleAddToPlaylist}
+      onNavigateTrack={handleNavigateTrack}
+      onNavigateArtist={handleNavigateArtist}
+      onNavigateAlbum={handleNavigateAlbum}
+      formatDuration={formatDuration}
+    />
   )}
 </Box>
+
 
 
 {secondarySongs.length > 0 && (
@@ -1818,219 +1285,23 @@ const menuItems = [
   )}
 </Box>
 
-
-
-
-
-
-
-
-
-
-
-
-
-{/* drawer from the top of more buttons : Bio, Follow, Block, Credits, Go to artist radio, Report, Share, Open in Desktop app*/}
- <Menu
+  <ActionMenu
+    isMobile={isMobile}
     anchorEl={menuAnchor}
     open={Boolean(menuAnchor)}
     onClose={handleCloseMenu}
-    PaperProps={{
-      sx: {
-        backgroundColor: '#181818',
-        color: '#fff',
-        minWidth: 220,
-        borderRadius: 2,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        border: '1px solid rgba(255,255,255,0.1)',
-      }
-    }}
-    transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-    anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-  >
-    {menuItems.map((item, index) => (
-      <MenuItem
-        key={index}
-        onClick={() => {
-          item.action();
-          handleCloseMenu();
-        }}
-        sx={{
-          py: 1.5,
-          px: 2,
-          fontSize: '0.95rem',
-          fontWeight: 400,
-          color: item.color || '#fff',
-          '&:hover': {
-            backgroundColor: 'rgba(255,255,255,0.05)',
-          }
-        }}
-      >
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: 2,
-          width: '100%'
-        }}>
-          <Box sx={{ 
-            color: item.color || 'rgba(255,255,255,0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            minWidth: 30,
-          }}>
-            {item.icon}
-          </Box>
-          {item.text}
-        </Box>
-      </MenuItem>
-    ))}
-  </Menu>
+    drawerOpen={drawerOpen}
+    onCloseDrawer={handleCloseDrawer}
+    items={actionMenuItems}
+    drawerTitle={artist?.name}
+    drawerSubtitle={artist ? `${followerDisplay} followers` : undefined}
+  />
 
-  {/* Mobile Drawer */}
-  {isMobile && (
-    <Drawer
-      anchor="bottom"
-      open={drawerOpen}
-      onClose={handleCloseDrawer}
-      PaperProps={{
-        sx: {
-          maxHeight: '80vh',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          backgroundColor: '#181818',
-          color: '#fff',
-        }
-      }}
-    >
-      <Box sx={{ p: 2, pt: 3 }}>
-        {/* Handle bar - Larger */}
-        <Box sx={{ 
-          width: 60, 
-          height: 6, 
-          backgroundColor: 'rgba(255,255,255,0.2)', 
-          borderRadius: 3, 
-          mx: 'auto', 
-          mb: 3,
-          cursor: 'grab',
-          '&:active': {
-            cursor: 'grabbing',
-          }
-        }} />
-        
-        {/* Artist Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, px: 1 }}>
-          <Box
-            component="img"
-            src={artist.avatar}
-            alt={artist.name}
-            sx={{
-              width: 60,
-              height: 60,
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '2px solid rgba(255,255,255,0.1)',
-            }}
-          />
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1.1rem' }}>
-              {artist.name}
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
-              {followerDisplay} followers
-            </Typography>
-          </Box>
-        </Box>
-
-        <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 1 }} />
-
-        {/* Actions List - Larger items */}
-        <List sx={{ py: 1 }}>
-          {menuItems.map((item, index) => (
-            <React.Fragment key={index}>
-              <ListItem 
-                button 
-                onClick={() => {
-                  item.action();
-                  handleCloseDrawer();
-                }}
-                sx={{
-                  py: 2, // Increased padding for larger touch target
-                  px: 2,
-                  borderRadius: 2,
-                  mb: 0.5,
-                  '&:hover': {
-                    backgroundColor: 'rgba(255,255,255,0.05)',
-                  },
-                  '&:active': {
-                    backgroundColor: 'rgba(255,255,255,0.08)',
-                  }
-                }}
-              >
-                <ListItemIcon sx={{ 
-                  minWidth: 44, // Increased min width
-                  color: item.color || 'rgba(255,255,255,0.7)',
-                }}>
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  primaryTypographyProps={{ 
-                    sx: { 
-                      fontSize: '1rem', // Larger font
-                      fontWeight: 400,
-                      color: item.color || '#fff',
-                      ml: 1,
-                    }
-                  }}
-                />
-              </ListItem>
-              
-              {/* Add divider after certain items */}
-              {index === 2 && (
-                <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', my: 1 }} />
-              )}
-            </React.Fragment>
-          ))}
-        </List>
-
-        {/* Cancel Button - Larger */}
-        <Box sx={{ p: 2, pt: 1 }}>
-          <Button
-            fullWidth
-            variant="contain"
-            onClick={handleCloseDrawer}
-            sx={{
-              color: 'rgba(255,255,255,0.7)',
-              borderColor: 'rgba(255,255,255,0.2)',
-              borderRadius: 3,
-              py: 1.5,
-              fontSize: '1rem',
-              fontWeight: 500,
-              textTransform: 'none',
-              '&:hover': {
-                borderColor: 'rgba(255,255,255,0.4)',
-                backgroundColor: 'rgba(255,255,255,0.05)',
-              }
-            }}
-          >
-            Cancel
-          </Button>
-        </Box>
-      </Box>
-
-
-
-                {/* other buttons */}
-
-
-
-
-    </Drawer>
-  )}
-
-
-
-
+  <AddToPlaylistModal
+    open={playlistDialogOpen}
+    onClose={handleCloseAddToPlaylist}
+    track={playlistTrack}
+  />
 
     </>
   );

@@ -1,5 +1,6 @@
 import logo from '../images/logo.png';
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation} from "@apollo/client";
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
 import UserAuth from '../utils/auth';
@@ -10,7 +11,7 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
-import { TRENDING_SONGS_PUBLIC } from '../utils/queries';
+import { TRENDING_SONGS_PUBLIC, NEW_UPLOADS_PUBLIC, SUGGESTED_SONGS_PUBLIC, SONG_OF_MONTH_PUBLIC, RADIO_STATIONS_PUBLIC } from '../utils/queries';
 import MainMenu from '../components/MainMenu';
 import { GoogleLogin } from '@react-oauth/google';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
@@ -35,6 +36,22 @@ const useFormState = (initialState) => {
 };
 
 const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
+  const navigate = useNavigate();
+
+  const handleBackHome = () => {
+    onClose?.();
+    navigate('/loginSignin', { replace: true });
+  };
+
+  const handleSwitchToLogin = () => {
+    onSwitchToLogin?.();
+    navigate('/loginSignin?login=1', { replace: true });
+  };
+
+  const handleSwitchToSignup = () => {
+    onSwitchToSignup?.();
+    navigate('/loginSignin?signup=1', { replace: true });
+  };
   const theme = useTheme();
   const heroGradient = `
     radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
@@ -46,6 +63,22 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
   const { data, loading, error, refetch } = useQuery(TRENDING_SONGS_PUBLIC, {
     pollInterval: 30000, // Refetch every 30 seconds
     notifyOnNetworkStatusChange: true,
+  });
+  const { data: newUploadsData } = useQuery(NEW_UPLOADS_PUBLIC, {
+    pollInterval: 30000,
+    notifyOnNetworkStatusChange: true,
+  });
+  const { data: suggestedData } = useQuery(SUGGESTED_SONGS_PUBLIC, {
+    pollInterval: 30000,
+    notifyOnNetworkStatusChange: true,
+  });
+  const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
+    fetchPolicy: "cache-first",
+    nextFetchPolicy: "cache-first",
+  });
+  const { data: radioStationsData } = useQuery(RADIO_STATIONS_PUBLIC, {
+    fetchPolicy: "cache-first",
+    nextFetchPolicy: "cache-first",
   });
 
 
@@ -71,6 +104,19 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
   }, [loading, error, data]);
 
   const { songsWithArtwork } = useSongsWithPresignedUrls(data?.trendingSongs);
+  const { songsWithArtwork: newUploadsWithArtwork } = useSongsWithPresignedUrls(
+    newUploadsData?.newUploads
+  );
+  const { songsWithArtwork: suggestedSongsWithArtwork } = useSongsWithPresignedUrls(
+    suggestedData?.suggestedSongs
+  );
+  const songOfMonthSource = React.useMemo(
+    () => (songOfMonthData?.songOfMonth ? [songOfMonthData.songOfMonth] : []),
+    [songOfMonthData?.songOfMonth]
+  );
+  const { songsWithArtwork: songOfMonthWithArtwork } = useSongsWithPresignedUrls(
+    songOfMonthSource
+  );
 console.log('see the songs with preigned urls:', songsWithArtwork )
 
   // const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
@@ -366,11 +412,16 @@ const renderLogin = () => (
               onClick={() => setShowPasswordLogin(!showPasswordLogin)}
               style={{
                 position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
                 right: '10px',
                 background: 'none',
                 border: 'none',
-                color: 'rgba(255,255,255,0.5)',
+                color: '#000',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 ':hover': {
                   color: '#E4C421'
                 }
@@ -380,6 +431,26 @@ const renderLogin = () => (
             </button>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            onClose?.();
+            navigate('/password-reset');
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            marginBottom: '18px',
+            color: theme.palette.primary.main,
+            fontSize: '14px',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          Forgot password?
+        </button>
 
         {loginErrorMessage && (
           <p className="error-message" style={{
@@ -427,7 +498,7 @@ const renderLogin = () => (
           <button
             type="button"
             className="switch-button"
-            onClick={onSwitchToSignup}
+            onClick={handleSwitchToSignup}
             style={{
               background: 'none',
               border: 'none',
@@ -446,7 +517,7 @@ const renderLogin = () => (
         </div>
 
         <Button
-          onClick={onClose}
+          onClick={handleBackHome}
           variant="text"
           color="inherit"
           sx={{
@@ -627,11 +698,16 @@ const renderSignup = () => (
               onClick={() => setShowPasswordSignup(!showPasswordSignup)}
               style={{
                 position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
                 right: '10px',
                 background: 'none',
                 border: 'none',
-                color: 'rgba(255,255,255,0.5)',
+                color: '#000',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 ':hover': {
                   color: '#E4C421'
                 }
@@ -712,7 +788,7 @@ const renderSignup = () => (
           <button
             type="button"
             className="switch-button"
-            onClick={onSwitchToLogin}
+            onClick={handleSwitchToLogin}
             style={{
               background: 'none',
               border: 'none',
@@ -734,7 +810,7 @@ const renderSignup = () => (
         <button
           type="button"
           className="back-button"
-          onClick={onClose}
+          onClick={handleBackHome}
           style={{
             background: 'none',
             border: 'none',
@@ -771,7 +847,10 @@ const renderSignup = () => (
 {display === '' && (
 <MainMenu
   songsWithArtwork={songsWithArtwork}    
-  onSwitchToLogin={onSwitchToLogin}
+  newUploadsWithArtwork={newUploadsWithArtwork}
+  suggestedSongsWithArtwork={suggestedSongsWithArtwork}
+  songOfMonthWithArtwork={songOfMonthWithArtwork}
+  radioStations={radioStationsData?.radioStations || []}
    refetch={refetch}
 />
 

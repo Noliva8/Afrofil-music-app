@@ -3,6 +3,7 @@ import "../CSS/CSS-HOME-FREE-PLAN/homeFreePlan.css";
 import Bio from "../../components/homeFreePlanComponents/Bio.jsx";
 import Language from "../../components/homeFreePlanComponents/Language.jsx";
 import Country from "../../components/homeFreePlanComponents/Country.jsx";
+import Region from "../../components/homeFreePlanComponents/Region.jsx";
 import Genre from "../../components/homeFreePlanComponents/Genre.jsx";
 import { useTheme, useMediaQuery } from "@mui/material";
 import Grid from "@mui/material/Grid2";
@@ -28,13 +29,13 @@ export default function HomeFreePlan() {
           mb: 2, 
           mt: isMobile ? 4 : 9,
           fontWeight: 600,
-          color: 'text.primary'
+          color: '#ffffff'
         }}
       >
         Profile Information
       </Typography>
 
-      {/* Bio Section - Full width on all screens */}
+      {/* Bio */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid xs={12}>
           <Bio />
@@ -45,6 +46,10 @@ export default function HomeFreePlan() {
       <Grid container spacing={2}>
         <Grid xs={12} sm={6} md={4}>
           <Country />
+        </Grid>
+
+        <Grid xs={12} sm={6} md={4}>
+          <Region />
         </Grid>
 
         <Grid xs={12} sm={6} md={4}>

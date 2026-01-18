@@ -8,6 +8,7 @@ import { useUser } from './userContext';
 import { useLocationContext } from './useLocationContext.jsx';
 import { ensureSessionId } from '../sessions/sessionGenerator.js';
 import UserAuth from "../auth.js";
+import { usePlayCount } from '../handlePlayCount.js';
 
 import { SAVE_PLAYBACK_SESSION, GET_PRESIGNED_URL_DOWNLOAD_AUDIO, GET_PRESIGNED_URL_DOWNLOAD } from '../mutations.js';
 import { GET_PLAYBACK_SESSION } from '../queries.js';
@@ -234,6 +235,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const userContext = useUser();
   const { isGuest, isPremium, isRegular } = userContext;
   const isUserLoggedIn = !isGuest;
+  const { incrementPlayCount } = usePlayCount();
 
   const audioRef = useRef(null);
   const canonicalQueueRef = useRef([]);        // full canonical queue
@@ -989,6 +991,12 @@ useEffect(() => {
   // Warm up the next few tracks whenever the current track changes.
   prefetchUpcomingAudio();
 }, [playerState.currentTrack]);
+
+useEffect(() => {
+  const trackId = playerState.currentTrack?.id;
+  if (!trackId) return;
+  incrementPlayCount(String(trackId));
+}, [playerState.currentTrack?.id, incrementPlayCount]);
 
 useEffect(() => {
   if (playerState.queue && canonicalQueueRef.current) {

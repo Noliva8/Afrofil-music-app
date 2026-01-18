@@ -15,8 +15,7 @@ import {
   Typography,
   Grid,
 } from "@mui/material";
-import { ToastContainer, toast } from "react-toastify";  // Import react-toastify
-import "react-toastify/dist/ReactToastify.css";  // Import styles
+import { toast } from "react-toastify";  // Import react-toastify
 
 
 const modalStyle = {
@@ -256,8 +255,6 @@ const Country = () => {
         </Box>
       </Modal>
 
-      {/* ToastContainer to render toasts */}
-      <ToastContainer />
     </>
   );
 };

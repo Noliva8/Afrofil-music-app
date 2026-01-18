@@ -5,6 +5,7 @@ import ProfileDropdown from "./components/ProfileDropdown";
 import { useCallback } from "react";
 import MobileNav from "./components/MobileNav"; // New component for mobile
 import BottomNav from "./components/BottomNav";
+import GuestBottomNav from "./components/GuestBottomNav.jsx";
 import { Outlet } from "react-router-dom";
 import {
   ApolloClient,
@@ -41,17 +42,19 @@ import AuthModal from "./components/WelcomePage/AuthModal.jsx";
 import MediaPlayerContainer from "./components/MusicPlayer/MediaPlayerContainer.jsx";
 import { Modal, Paper, Typography, Button, Stack } from "@mui/material";
 import { eventBus } from "./utils/Contexts/playerAdapters.js";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 
 import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
-
-import UserTopMobileNavbar from "./components/AuthenticateCompos/UserTopMobileNavbar.jsx";
 
 // Apollo Client setup remains the same...
 const httpLink = createUploadLink({ uri: "/graphql" });
 
 import UserNavBar from "./components/AuthenticateCompos/UserNavBar.jsx";
+import UserSideBar from "./components/userComponents/Home/UserSideBar.jsx";
 
+import AddToPlaylistModal from "./components/AddToPlaylistModal.jsx";
 import { UserButtonMobileNavBar } from "./components/AuthenticateCompos/UserButtonMobileNavBar.jsx";
 
 
@@ -119,7 +122,7 @@ const splitLink = split(
 });
 
 
-function AppBody() {
+function AppBody({ onCreatePlaylist }) {
   const theme = useTheme();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authAction, setAuthAction] = useState('login');
@@ -167,6 +170,18 @@ function AppBody() {
   }, [pathname, tabMetaFromPath]);
 
   useEffect(() => {
+    if (!pathname.startsWith('/loginSignin')) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('login') === '1' && formDisplay !== 'login') {
+      setFormDisplay('login');
+      return;
+    }
+    if (params.get('signup') === '1' && formDisplay !== 'signup') {
+      setFormDisplay('signup');
+    }
+  }, [formDisplay, location.search, pathname]);
+
+  useEffect(() => {
     const handleAdBlockNotice = (payload) => {
       setAdNoticeMessage(payload?.message || 'Playback will resume after the advertisement finishes.');
       setAdNoticeOpen(true);
@@ -178,7 +193,10 @@ function AppBody() {
   const isPublicArtistPage =
     pathname.startsWith('/artist/register') ||
     pathname.startsWith('/artist/login') ||
-    pathname.startsWith('/artist/verification');
+    pathname.startsWith('/artist/verification') ||
+    pathname.startsWith('/terms');
+
+  const shouldHideGuestChrome = pathname.startsWith('/terms');
 
   const isNotMediaPlayerAllowed =
     pathname.startsWith('/artist/studio') ||
@@ -234,9 +252,7 @@ function AppBody() {
           adNoticeOpen={adNoticeOpen}
           adNoticeMessage={adNoticeMessage}
           setAdNoticeOpen={setAdNoticeOpen}
-          
-         
-        
+          onCreatePlaylist={onCreatePlaylist}
         />
       </AudioPlayerProvider>
     </AdAudioProvider>
@@ -267,7 +283,8 @@ function AppUI({
   bottomNavHeight,
   adNoticeOpen,
   adNoticeMessage,
-  setAdNoticeOpen
+  setAdNoticeOpen,
+  onCreatePlaylist
 }) {
   const { currentTrack } = useAudioPlayer();
   const location = useLocation();
@@ -276,11 +293,27 @@ function AppUI({
   const lastLogin = localStorage.getItem('lastLogin');
   const showArtist = isArtistLoggedIn && lastLogin === 'artist';
   const showUser = isUserLoggedIn && lastLogin === 'user';
-  const isGuestView =
-    !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '';
-
-  const showGuestNav = !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage;
+  const shouldHideGuestChrome =
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/password-reset') ||
+    pathname.startsWith('/artist/login') ||
+    formDisplay !== '';
+  const guestChromeVisible =
+    !isUserLoggedIn && !isArtistLoggedIn && !shouldHideGuestChrome;
+  const isGuestView = guestChromeVisible;
+  const showGuestNav = guestChromeVisible;
   const showGuestSearch = showGuestNav && !pathname.startsWith('/artist/');
+  const showUserSidebar =
+    isUserLoggedIn && !isMobile && !isPublicArtistPage && !isNotMediaPlayerAllowed;
+
+  const guestBottomNavHeight = guestChromeVisible && isMobile ? 72 : 0;
+  const effectiveBottomNavHeight = bottomNavHeight + guestBottomNavHeight;
+  const showPanel = showGuestNav || showUserSidebar;
+  const panelOffset = showGuestNav
+    ? 'calc(var(--guest-sidebar-width) + var(--guest-sidebar-gap) + 2px)'
+    : showUserSidebar
+      ? 'calc(var(--user-sidebar-width) + var(--user-sidebar-gap) + 2px)'
+      : 0;
 
   return (
     <div
@@ -293,10 +326,12 @@ function AppUI({
         '--safe-top': 'env(safe-area-inset-top, 0px)',
         '--safe-bottom': 'env(safe-area-inset-bottom, 0px)',
         '--player-height': '68px',
-        '--bottom-nav-height': `${bottomNavHeight}px`,
+        '--bottom-nav-height': `${effectiveBottomNavHeight}px`,
         '--guest-sidebar-width': 'clamp(280px, 30vw, 400px)',
         '--guest-sidebar-gap': theme.spacing(3),
-        paddingBottom: `calc(${bottomNavHeight}px + env(safe-area-inset-bottom, 0px))`,
+        '--user-sidebar-width': 'clamp(280px, 30vw, 400px)',
+        '--user-sidebar-gap': theme.spacing(3),
+        paddingBottom: `calc(${effectiveBottomNavHeight}px + env(safe-area-inset-bottom, 0px))`,
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
@@ -315,15 +350,8 @@ function AppUI({
       )}
 
       {/* Header when user is logged in */}
-      {isUserLoggedIn && !isPublicArtistPage && !isNotMediaPlayerAllowed && !isMobile && (
-        <UserNavBar/>
-      )}
-
-      {isUserLoggedIn && !isPublicArtistPage && !isNotMediaPlayerAllowed &&  isMobile && (
-        <UserTopMobileNavbar
-          title={mobileTop.title}
-          showSearch={mobileTop.showSearch}
-        />
+      {isUserLoggedIn && !isPublicArtistPage && !isNotMediaPlayerAllowed && (
+        <UserNavBar />
       )}
 
       {/* Main content with flex: 1 to push everything down */}
@@ -334,13 +362,14 @@ function AppUI({
           display: 'flex',
         }}
       >
-        {!isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '' && (
+        {showGuestNav && (
           <Box
             sx={{
               position: 'fixed',
               top: { xs: 72, md: 96 }, // header height
               left: 0,
-              width: 'var(--guest-sidebar-width)',
+              ml: { xs: 0, md: 2 },
+              width: { xs: 'var(--guest-sidebar-width)', md: 'calc(var(--guest-sidebar-width) - 16px)' },
               height: { xs: 'calc(100vh - 72px)', md: 'calc(100vh - 96px)' },
               zIndex: 10,
               display: { xs: 'none', md: 'block' },
@@ -352,22 +381,44 @@ function AppUI({
             />
           </Box>
         )}
+        {showUserSidebar && (
+          <Box
+            sx={{
+              position: 'fixed',
+              top: { xs: 72, md: 96 },
+              left: 0,
+              ml: { xs: 0, md: 2 },
+              width: { xs: 'var(--user-sidebar-width)', md: 'calc(var(--user-sidebar-width) - 16px)' },
+              height: { xs: 'calc(100vh - 72px)', md: 'calc(100vh - 96px)' },
+              zIndex: 10,
+              display: { xs: 'none', md: 'block' },
+            }}
+          >
+            <UserSideBar />
+          </Box>
+        )}
         <Box
           sx={{
             flex: 1,
             minWidth: 0,
-            ml:
-              !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === ''
-                ? { xs: 0, md: 'calc(var(--guest-sidebar-width) + var(--guest-sidebar-gap))' }
-                : 0,
-            borderLeft:
-              !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === ''
-                ? `1px solid ${theme.palette.divider}`
-                : 'none',
+            ml: showPanel ? { xs: 0, md: panelOffset } : 0,
+            border: showPanel ? `1px solid ${theme.palette.divider}` : 'none',
+            borderRadius: showPanel ? 3 : 0,
+            mt: showPanel ? { xs: 0, md: 2.5 } : 0,
+            mr: showPanel ? { xs: 0, md: 2 } : 0,
             pl:
-              !isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === ''
-                ? { xs: 0, md: 3 }
+              showPanel
+                ? { xs: 0, md: 2.5 }
                 : 0,
+            pr:
+              showPanel
+                ? { xs: 0, md: 2.5 }
+                : 0,
+            py:
+              showPanel
+                ? { xs: 0, md: 2 }
+                : 0,
+            backgroundColor: showPanel ? alpha(theme.palette.background.paper, 0.6) : 'transparent',
           }}
         >
           <main className="main-content">
@@ -403,7 +454,7 @@ function AppUI({
           </main>
 
           {/* Guest Footer */}
-          {!isUserLoggedIn && !isArtistLoggedIn && !isPublicArtistPage && formDisplay === '' && (
+          {showGuestNav && (
             <Footer
               handleLoginFormDisplay={handleLoginFormDisplay}
               handleSignupFormDisplay={handleSignupFormDisplay}
@@ -440,11 +491,13 @@ function AppUI({
         isUserLoggedIn={isUserLoggedIn}
         isMobile={isMobile}
         theme={theme}
+        bottomOffset={effectiveBottomNavHeight}
         onPlayerStateChange={(isActive, height) => {
           setIsPlayerActive(isActive);
           setPlayerHeight(height);
         }}
       />
+
       
       <PauseOnLogin formDisplay={formDisplay} />
 
@@ -494,6 +547,8 @@ function AppUI({
       </Modal>
 
       {/* ✅ Fixed Bottom Navbar - At the very bottom */}
+      {guestChromeVisible && isMobile && <GuestBottomNav />}
+
       {isUserLoggedIn && isMobile && (
         <Box
           sx={{
@@ -517,6 +572,7 @@ function AppUI({
                 showSearch: tab.label === 'Search'
               });
             }}
+            onCreatePlaylist={onCreatePlaylist}
           />
         </Box>
       )}
@@ -525,12 +581,22 @@ function AppUI({
 }
 
 function App() {
+  const [createPlaylistModalOpen, setCreatePlaylistModalOpen] = useState(false);
+
   return (
     <ApolloProvider client={client}>
       <UserProvider>
         <LocationProvider>
           <LocationGate>
-            <AppBody />
+            <ToastContainer position="top-right" autoClose={3000} />
+            <AppBody
+              onCreatePlaylist={() => setCreatePlaylistModalOpen(true)}
+            />
+            <AddToPlaylistModal
+              open={createPlaylistModalOpen}
+              onClose={() => setCreatePlaylistModalOpen(false)}
+              track={null}
+            />
           </LocationGate>
         </LocationProvider>
       </UserProvider>
@@ -541,7 +607,7 @@ function App() {
 export default App;
 
 // Player slot that hides when no track is loaded
-function PlayerSlot({ isPublicArtistPage, isNotMediaPlayerAllowed, formDisplay, isUserLoggedIn, isMobile, theme }) {
+function PlayerSlot({ isPublicArtistPage, isNotMediaPlayerAllowed, formDisplay, isUserLoggedIn, isMobile, theme, bottomOffset }) {
   const { currentTrack, playerState } = useAudioPlayer();
   const isAdPlaying = playerState?.isAdPlaying;
   if (!currentTrack && !isAdPlaying) return null;
@@ -552,7 +618,7 @@ function PlayerSlot({ isPublicArtistPage, isNotMediaPlayerAllowed, formDisplay, 
       sx={{
         position: 'fixed',
         bottom: {
-          xs: isUserLoggedIn && isMobile ? 'var(--bottom-nav-height, 72px)' : 0,
+          xs: isMobile ? `${bottomOffset || 0}px` : 0,
           md: 0
         },
         left: 0,

@@ -38,6 +38,8 @@ export default function AlbumSong({
   const [albumOpen, setAlbumOpen] = useState(false);
 
   const handleOpen = () => setAlbumOpen(true);
+  const displayAlbumTitle = (title) =>
+    title === "Unknown" || title === "Uncategorized" ? "Single" : title;
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -140,7 +142,7 @@ MenuProps={{
               },
             }}
           >
-            <Typography variant="subtitle1">{album.title}</Typography>
+            <Typography variant="subtitle1">{displayAlbumTitle(album.title)}</Typography>
           </MenuItem>
         ))}
       </Select>
