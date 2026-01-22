@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useApolloClient, useQuery, useMutation, useSubscription } from "@apollo/client";
-import {
-  Box,
-  Paper,
-  Typography,
-  useTheme,
-  useMediaQuery
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { useForm, Controller } from "react-hook-form";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
@@ -35,6 +33,7 @@ import Lyrics from '../../components/songContentPart/Lirycs';
 import ArtistAuth from "../../utils/artist_auth";
 import detectTimeSignature from "../../utils/timeSignature";
 import { ARTIST_PROFILE } from "../../utils/artistQuery";
+import { resizeImageFile } from "../../utils/ResizeImageFile";
 import "../CSS/CSS-HOME-FREE-PLAN/content.css";
 
 const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
@@ -130,6 +129,13 @@ export default function ContentFreePlan() {
       // Object key (with folder)
       const objectKey = `cover-images/${file.name}`;
 
+      let optimizedFile = file;
+      try {
+        optimizedFile = await resizeImageFile(file, 1200, 0.82);
+      } catch (resizeErr) {
+        console.warn("Image optimization failed, using original file.", resizeErr);
+      }
+
       // 2. Get presigned URL and upload
       const { data } = await getPresignedUrl({
         variables: {
@@ -143,7 +149,7 @@ console.log('the data produced from song image upload:', data);
 
       await fetch(data.getPresignedUrl.url, {
         method: "PUT",
-        body: file,
+        body: optimizedFile,
         headers: { "Content-Type": file.type },
       });
 

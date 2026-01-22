@@ -1,4 +1,10 @@
-import { Box, Collapse, Container, Stack, Typography, alpha, useTheme } from "@mui/material";
+import Box from '@mui/material/Box';
+import Collapse from '@mui/material/Collapse';
+import Container from '@mui/material/Container';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
+import useTheme from '@mui/material/styles/useTheme';
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 
@@ -32,6 +38,7 @@ export default function CollectionLanding() {
           theme.palette.background.paper,
           0.85
         )} 100%)`,
+        py: {xs:2.5, }
       }}
     >
       <Container maxWidth="lg" sx={{ py: { xs: 3, md: 4 } }}>

@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
 import { alpha } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client";
@@ -483,6 +481,8 @@ export default function CollectionPage() {
                     component="img"
                     src={heroArtwork}
                     alt={selectedPlaylist.title}
+                    loading="eager"
+                    fetchPriority="high"
                     sx={{
                       position: "absolute",
                       inset: 0,
@@ -530,12 +530,14 @@ export default function CollectionPage() {
                       backgroundColor: "rgba(255,255,255,0.06)",
                     }}
                   >
-                    <Box
-                      component="img"
-                      src={heroArtwork}
-                      alt={selectedPlaylist.title}
-                      sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
+                  <Box
+                    component="img"
+                    src={heroArtwork}
+                    alt={selectedPlaylist.title}
+                    loading="eager"
+                    fetchPriority="high"
+                    sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
                   </Box>
                   <Box
                     sx={{

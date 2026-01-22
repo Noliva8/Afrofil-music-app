@@ -1,5 +1,8 @@
 import React from "react";
-import { Box, Container, Typography, Button } from "@mui/material";
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
 import { useTheme, alpha } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 

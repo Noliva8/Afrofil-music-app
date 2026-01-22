@@ -1,77 +1,115 @@
 // components/PlaylistSection.jsx
-import { useState, useEffect } from 'react';
 import { FiMusic } from 'react-icons/fi';
-import { IoMdPlay } from 'react-icons/io';
+import { IoMdPlay, IoMdPause } from 'react-icons/io';
 import { BsThreeDots } from 'react-icons/bs';
-import { FiChevronRight } from 'react-icons/fi';
+import { useSongsWithPresignedUrls } from '../../../utils/someSongsUtils/songsWithPresignedUrlHook.js';
+import { useAudioPlayer } from '../../../utils/Contexts/AudioPlayerContext.jsx';
+import { usePlayCount } from '../../../utils/handlePlayCount';
+import { handleTrendingSongPlay } from '../../../utils/plabackUtls/handleSongPlayBack.js';
+import { useApolloClient } from '@apollo/client';
+import SectionHeader from '../../common/SectionHeader.jsx';
 
+const MAX_RECENT_SONGS = 4;
 
-const PlaylistSection = ({ currentSong, setCurrentSong, setIsPlaying }) => {
-  const [recommendedSongs, setRecommendedSongs] = useState([]);
-  const [loading, setLoading] = useState(true);
+const PlaylistSection = ({ songs = [], loading, currentSong, setCurrentSong, setIsPlaying }) => {
+  const { songsWithArtwork, loading: artworkLoading } = useSongsWithPresignedUrls(songs);
+  const client = useApolloClient();
+  const { currentTrack, isPlaying: isTrackPlaying, handlePlaySong, pause } = useAudioPlayer();
+  const { incrementPlayCount } = usePlayCount();
+  const headerTitle = 'Recently Played';
+  const playlistDescription = 'Back to the tracks you loved most recently.';
+  const displayedSongs = songsWithArtwork.slice(0, Math.min(MAX_RECENT_SONGS, songsWithArtwork.length));
+  const isLoading = loading || artworkLoading;
 
-  useEffect(() => {
-    setTimeout(() => {
-      setRecommendedSongs([
-        { id: 1, title: 'Sunset Dreams', artist: 'Chill Wave', duration: '3:45', coverColor: '#ff9a4d' },
-        { id: 2, title: 'Electric Feel', artist: 'Pulse', duration: '4:12', coverColor: '#ff4dd2' },
-        { id: 3, title: 'Morning Coffee', artist: 'Acoustic Soul', duration: '2:58', coverColor: '#4d4dff' },
-        { id: 4, title: 'Urban Nights', artist: 'Neon Drive', duration: '3:22', coverColor: '#4dff4d' },
-      ]);
-      setLoading(false);
-    }, 800);
-  }, []);
+  const normalizeArtist = (value) => {
+    if (!value) return 'Unknown Artist';
+    if (typeof value === 'string') return value;
+    if (value.artistAka) return value.artistAka;
+    if (value.fullName) return value.fullName;
+    return 'Unknown Artist';
+  };
+
+  const handleSelectSong = async (song) => {
+    const normalizedSong = {
+      ...song,
+      artist: normalizeArtist(song.artist) || normalizeArtist(song.artistName),
+    };
+    setCurrentSong(normalizedSong);
+    await handleTrendingSongPlay({
+      song: normalizedSong,
+      incrementPlayCount,
+      handlePlaySong,
+      trendingSongs: songsWithArtwork,
+      client,
+    });
+    setIsPlaying(true);
+  };
 
   return (
     <section className="integrated-playlist">
-      <div className="section-header">
-        <h2>Continue Listening</h2>
-        <button className="see-all">See all <FiChevronRight /></button>
-      </div>
+      <SectionHeader title={headerTitle} subtitle={playlistDescription} />
 
       <div className="playlist-tracks">
-        {loading ? (
+        {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <div key={i} className="playlist-track shimmer" />)
-        ) : (
-          recommendedSongs.map(song => (
-            <div 
-              key={song.id} 
-              className="playlist-track"
-              onClick={() => setCurrentSong(song)}
-            >
-            <div 
-              className="track-cover"
-              style={{ backgroundColor: song.coverColor }}
-            >
-              <FiMusic />
-              <button 
-                  className="play-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentSong(song);
-                    setIsPlaying(true);
+        ) : displayedSongs.length ? (
+          displayedSongs.map(song => {
+            const artistName =
+              typeof song.artist === "string"
+                ? song.artist
+                : normalizeArtist(song.artist) || normalizeArtist(song.artistName);
+            const coverImageUrl =
+              song.artworkUrl ||
+              song.albumCoverImageUrl ||
+              song.coverImage ||
+              song.artwork ||
+              song.album?.albumCoverImage ||
+              song.profilePictureUrl ||
+              '';
+            const hasCoverImage = Boolean(coverImageUrl);
+            const isSongActive = currentTrack?._id === song._id;
+            const isPlayingSong = isSongActive && isTrackPlaying;
+            const durationLabel = song.duration || song.durationSeconds || '0:00';
+
+            return (
+              <div
+                key={song._id}
+                className={`playlist-track${isSongActive ? ' active' : ''}`}
+                onClick={() => handleSelectSong(song)}
+              >
+                <div
+                  className="track-cover"
+                  style={{
+                    backgroundImage: hasCoverImage ? `url(${coverImageUrl})` : 'none',
+                    backgroundColor: hasCoverImage ? 'transparent' : song.coverColor || '#222',
                   }}
                 >
-                  <IoMdPlay />
-                </button>
+                  {!hasCoverImage && <FiMusic />}
+                  <button
+                    className="play-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectSong(song);
+                    }}
+                  >
+                    {isPlayingSong ? <IoMdPause /> : <IoMdPlay />}
+                  </button>
+                </div>
+                <div className="track-info">
+                  <h3>{song.title}</h3>
+                  <p>{artistName}</p>
+                </div>
+                <div className="track-meta">
+                  <span className="track-duration">{durationLabel}</span>
+                  <button className="more-options">
+                    <BsThreeDots />
+                  </button>
+                </div>
               </div>
-              <div className="track-info">
-                <h3>{song.title}</h3>
-                <p>
-                  {typeof song.artist === "string"
-                    ? song.artist
-                    : (song.artist?.artistAka ||
-                       song.artist?.fullName ||
-                       song.artistName ||
-                       "")}
-                </p>
-              </div>
-              <span className="track-duration">{song.duration}</span>
-              <button className="more-options">
-                <BsThreeDots />
-              </button>
-            </div>
-          ))
+            );
+          })
+        ) : (
+          <p className="section-description">No songs available in this playlist.</p>
         )}
       </div>
     </section>

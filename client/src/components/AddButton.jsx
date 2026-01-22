@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { Box, IconButton } from "@mui/material";
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
 import AddIcon from "@mui/icons-material/Add";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useQuery } from "@apollo/client";

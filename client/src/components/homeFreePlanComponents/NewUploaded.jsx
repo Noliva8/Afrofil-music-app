@@ -1,6 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import { useApolloClient } from "@apollo/client";
-import { Box, Typography, IconButton, useTheme } from "@mui/material";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import useTheme from '@mui/material/styles/useTheme';
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import { useAudioPlayer } from "../../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../../utils/handlePlayCount";

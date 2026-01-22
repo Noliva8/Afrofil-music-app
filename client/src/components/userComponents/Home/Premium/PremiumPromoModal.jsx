@@ -4,6 +4,7 @@ import { FiCheck, FiX, FiMusic, FiDownload, FiHeadphones } from 'react-icons/fi'
 import { BsStars } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import './PremiumPromoModal.css';
+import { PremiumInfo } from '../../../../pages/PremiumInfo';
 
 const PremiumPromoModal = ({ onClose }) => {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ const PremiumPromoModal = ({ onClose }) => {
   };
 
   return (
+    
     <div className="promo-modal-overlay">
       <div className="promo-modal-container">
         <button className="close-btn" onClick={onClose}>
@@ -77,6 +79,8 @@ const PremiumPromoModal = ({ onClose }) => {
         </div>
       </div>
     </div>
+
+
   );
 };
 

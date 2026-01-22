@@ -1,10 +1,8 @@
-import {
-  Dialog,
-  Box,
-  Button,
-  Typography,
-  IconButton
-} from "@mui/material";
+import Dialog from '@mui/material/Dialog';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import { Close } from '@mui/icons-material';
 
 export default function AuthModal({ open, onClose, currentSong, onSwitchToLogin, onSwitchToSignup, theme }) {

@@ -2,20 +2,18 @@ import React, { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client";
 import { ARTIST_PROFILE } from "../../utils/artistQuery";
 import { ADD_REGION } from "../../utils/mutations";
-import {
-  Box,
-  Modal,
-  FormControl,
-  Button,
-  FormLabel,
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Grid,
-  TextField,
-  MenuItem,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Modal from '@mui/material/Modal';
+import FormControl from '@mui/material/FormControl';
+import Button from '@mui/material/Button';
+import FormLabel from '@mui/material/FormLabel';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
+import TextField from '@mui/material/TextField';
+import MenuItem from '@mui/material/MenuItem';
 import { toast } from "react-toastify";
 
 const REGIONS = [

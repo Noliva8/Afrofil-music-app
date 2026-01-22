@@ -7,7 +7,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { SitemarkIcon } from './themeCustomization/customIcon';
 import MenuContent from './MenuContent';
-import { useTheme, useMediaQuery } from '@mui/material';
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const MobileDrawer = styled(MuiDrawer)(({ theme }) => ({
   width: '100%',

@@ -53,6 +53,7 @@ import { RADIO_TYPES } from "./utils/radioTypes.js";
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
 import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded,   handlePaymentIntentFailed} from "./routes/webhook.js";
 import geoip from 'geoip-lite';
+import aiMixRoutes from "./routes/aiMix.js";
 
 
 
@@ -367,6 +368,7 @@ app.use("/api", stripeRoutes);
 app.set('trust proxy', 1);
 
 app.use("/api/location", location);
+app.use("/api/ai", aiMixRoutes);
 
 
 

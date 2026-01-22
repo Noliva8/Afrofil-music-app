@@ -1,4 +1,9 @@
-import { Box, Grid, Typography, Link, Divider, IconButton } from '@mui/material';
+import Box from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import Typography from '@mui/material/Typography';
+import Link from '@mui/material/Link';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import { Facebook, Twitter, Instagram, YouTube } from '@mui/icons-material';
 
 const Footer = () => {

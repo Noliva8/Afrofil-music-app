@@ -7,17 +7,15 @@ import { SongCard } from "./otherSongsComponents/songCard.jsx";
 
 
 
-import {
-  Box,
-  Typography,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  Button,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Button from '@mui/material/Button';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
 
 // Icons
 import Description from "@mui/icons-material/Description";

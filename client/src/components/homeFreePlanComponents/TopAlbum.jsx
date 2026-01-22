@@ -179,7 +179,7 @@ export default function TopAlbum({ songsWithArtwork = [] }) {
                 lineHeight: 1.15,
               }}
             >
-              ALBUMS YOU CAN'T MISS
+             Tob albums
             </Typography>
             <Typography
               variant="caption"

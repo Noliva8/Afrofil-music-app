@@ -1,20 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client';
-import {
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  List,
-  ListItemButton,
-  ListItemText,
-  TextField,
-  Typography,
-  useTheme,
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import useTheme from '@mui/material/styles/useTheme';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { ADD_SONG_TO_PLAYLIST, CREATE_PLAYLIST } from '../utils/mutations';
 import { QUERY_USER_PLAYLISTS } from '../utils/queries';

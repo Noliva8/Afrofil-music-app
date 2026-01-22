@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import {
-  Box,
-  TextField,
-  InputAdornment,
-  Typography,
-  IconButton,
-  useTheme,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import useTheme from '@mui/material/styles/useTheme';
 import { Group as GroupIcon, AddCircleOutline, DeleteOutline } from "@mui/icons-material";
 
 export default function FeaturingArtist({ register, errors, watch, setValue }) {

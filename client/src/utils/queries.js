@@ -16,6 +16,75 @@ query Users {
 `
 ;
 
+export const QUERY_DAILY_MIX = gql`
+  query AIDailyMix($profile: MixProfileInput) {
+    dailyMix(profileInput: $profile) {
+      profileKey
+      profileLabel
+      profile {
+        label
+        energy
+        tempo
+        mood
+      }
+      tracks {
+        title
+        artist
+        score
+        artwork
+        energy
+        tempo
+        mood
+        songId
+        id
+        _id
+        artistName
+        artistId
+        artistProfile {
+          _id
+          artistAka
+          profileImage
+          country
+        }
+        albumId
+        album {
+          _id
+          title
+          albumCoverImage
+        }
+        genre
+        subMoods
+        key
+        mode
+        plays
+        duration
+        durationSeconds
+        streamAudioFileUrl
+        audioUrl
+        label
+      }
+      generatedAt
+      userContext {
+        moods
+        subMoods
+        genres
+        tempoRange {
+          min
+          max
+        }
+        key
+        mode
+        location {
+          country
+          region
+          city
+        }
+      }
+    }
+  }
+`;
+
+
 
 // songs
 // -----
@@ -74,6 +143,10 @@ query Songs {
   }
 }
 `;
+
+
+
+
 
 
 
@@ -237,6 +310,17 @@ export const QUERY_USER_PLAYLISTS = gql`
     }
   }
 `;
+
+export const USER_SUBSCRIPTION = gql`
+query userSubscription {
+  userSubscription {
+    periodEnd
+    planId
+    status
+  }
+}
+`;
+
 
 
 export const ARTIST_PROFILE = gql`

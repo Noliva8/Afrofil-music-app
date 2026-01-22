@@ -1,12 +1,10 @@
 import React from "react";
-import {
-  Box,
-  Typography,
-  Chip,
-  Autocomplete,
-  TextField,
-  Stack,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
+import Autocomplete from '@mui/material/Autocomplete';
+import TextField from '@mui/material/TextField';
+import Stack from '@mui/material/Stack';
 import { Controller } from "react-hook-form";
 
 const MAIN_MOODS = [

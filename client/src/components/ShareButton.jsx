@@ -1,8 +1,6 @@
 
-import {  Typography,
-
-  IconButton,
-  } from "@mui/material";
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 
   import {
   Share

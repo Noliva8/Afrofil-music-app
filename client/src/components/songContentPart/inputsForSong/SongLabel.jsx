@@ -1,4 +1,7 @@
-import { Box, TextField, Typography, InputAdornment } from "@mui/material";
+import Box from '@mui/material/Box';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import InputAdornment from '@mui/material/InputAdornment';
 import RecordVoiceOverIcon from "@mui/icons-material/RecordVoiceOver";
 
 export default function SongLabel({ register, errors }) {

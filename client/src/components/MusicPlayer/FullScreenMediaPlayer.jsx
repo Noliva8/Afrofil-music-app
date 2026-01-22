@@ -1,24 +1,22 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation } from '@apollo/client';
-import {
-  Box,
-  IconButton,
-  Typography,
-  Slider,
-  Button,
-  Paper,
-  Container,
-  Avatar,
-  Fab,
-  CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  useTheme,
-  alpha
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import Slider from '@mui/material/Slider';
+import Button from '@mui/material/Button';
+import Paper from '@mui/material/Paper';
+import Container from '@mui/material/Container';
+import Avatar from '@mui/material/Avatar';
+import Fab from '@mui/material/Fab';
+import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import useTheme from '@mui/material/styles/useTheme';
+import { alpha } from '@mui/material/styles';
 import {
   PlayArrow,
   Pause,
@@ -632,6 +630,12 @@ const [showReadMore, setShowReadMore] = useState(false);
         component="img"
         src={displayImageSrc}
         alt={displayTitle}
+         
+  loading="eager"           
+  decoding="sync"          
+  fetchpriority="high"
+
+
         sx={{
           width: '100%',
           height: '100%',
@@ -641,9 +645,12 @@ const [showReadMore, setShowReadMore] = useState(false);
           transition: 'transform 0.3s ease',
           '&:hover': {
             transform: 'scale(1.02)',
-          }
+          },
+           display: 'block'   
         }}
       />
+      
+
       
       {/* Floating Play Button */}
       <Fab

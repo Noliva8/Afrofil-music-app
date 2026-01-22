@@ -18,6 +18,7 @@ import { createClient } from "graphql-ws";
 import { getMainDefinition } from "@apollo/client/utilities";
 import createUploadLink from "apollo-upload-client/createUploadLink.mjs";
 import { setContext } from "@apollo/client/link/context";
+import { onError } from "@apollo/client/link/error";
 
 import UserAuth from "./utils/auth";
 import ArtistAuth from "./utils/artist_auth";
@@ -26,7 +27,7 @@ import WelcomeAppNavBar from "./components/WelcomePage/WelcomAppNavBar";
 import { WelcomeSideNavbar } from "./components/WelcomePage/WelcomeSideNavBar.jsx";
 import Footer from "./pages/Footer";
 import ForArtistOnly from "./components/ForArtistOnly";
-import { Box } from "@mui/material";
+import Box from '@mui/material/Box';
 import { useTheme, alpha } from "@mui/material/styles";
 import LoginSignin from "./pages/LoginSignin";
 import { useNavigate, useLocation } from 'react-router-dom'; 
@@ -40,7 +41,11 @@ import Orchestrator from "./utils/Contexts/adPlayer/orchestrator.jsx";
 
 import AuthModal from "./components/WelcomePage/AuthModal.jsx";
 import MediaPlayerContainer from "./components/MusicPlayer/MediaPlayerContainer.jsx";
-import { Modal, Paper, Typography, Button, Stack } from "@mui/material";
+import Modal from '@mui/material/Modal';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import { eventBus } from "./utils/Contexts/playerAdapters.js";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -113,17 +118,32 @@ const splitLink = split(
   authLink.concat(httpLink)
 );
 
+const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
+  if (graphQLErrors && graphQLErrors.length) {
+    console.error(
+      `[GraphQL error]`,
+      operation?.operationName || "unknown",
+      graphQLErrors
+    );
+  }
+  if (networkError) {
+    console.error(`[Network error]`, networkError);
+  }
+});
+
+
 
 
 
  const client = new ApolloClient({
-  link: splitLink,
+  link: errorLink.concat(splitLink),
   cache: new InMemoryCache(),
-});
+ });
 
 
 function AppBody({ onCreatePlaylist }) {
   const theme = useTheme();
+  const [isHydrated, setIsHydrated] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authAction, setAuthAction] = useState('login');
   const [authIntent, setAuthIntent] = useState(null);
@@ -189,6 +209,14 @@ function AppBody({ onCreatePlaylist }) {
     eventBus.on("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
     return () => eventBus.off("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
   }, []);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  if (!isHydrated) {
+    return null;
+  }
 
   const isPublicArtistPage =
     pathname.startsWith('/artist/register') ||
@@ -314,6 +342,7 @@ function AppUI({
     : showUserSidebar
       ? 'calc(var(--user-sidebar-width) + var(--user-sidebar-gap) + 2px)'
       : 0;
+  const mainMarginTop = !isUserLoggedIn ? { xs: 0, md: 0 } : { xs: 0, md: 0 };
 
   return (
     <div
@@ -338,6 +367,8 @@ function AppUI({
         position: 'relative',
       }}
     >
+
+
       {/* Guest NavBar */}
       {showGuestNav && (
         <WelcomeAppNavBar
@@ -366,7 +397,7 @@ function AppUI({
           <Box
             sx={{
               position: 'fixed',
-              top: { xs: 72, md: 96 }, // header height
+              top: { xs: 72, md: 101 }, // header height
               left: 0,
               ml: { xs: 0, md: 2 },
               width: { xs: 'var(--guest-sidebar-width)', md: 'calc(var(--guest-sidebar-width) - 16px)' },
@@ -381,11 +412,13 @@ function AppUI({
             />
           </Box>
         )}
+
+
         {showUserSidebar && (
           <Box
             sx={{
               position: 'fixed',
-              top: { xs: 72, md: 96 },
+              top: { xs: 72, md: 104 },
               left: 0,
               ml: { xs: 0, md: 2 },
               width: { xs: 'var(--user-sidebar-width)', md: 'calc(var(--user-sidebar-width) - 16px)' },
@@ -397,6 +430,13 @@ function AppUI({
             <UserSideBar />
           </Box>
         )}
+
+
+
+
+
+
+{/* Main start */}
         <Box
           sx={{
             flex: 1,
@@ -404,8 +444,10 @@ function AppUI({
             ml: showPanel ? { xs: 0, md: panelOffset } : 0,
             border: showPanel ? `1px solid ${theme.palette.divider}` : 'none',
             borderRadius: showPanel ? 3 : 0,
-            mt: showPanel ? { xs: 0, md: 2.5 } : 0,
+            mt: isUserLoggedIn ? { xs: 0, md: 0 } : !isUserLoggedIn ? { xs: 0, md: 2.5 }: 0,
             mr: showPanel ? { xs: 0, md: 2 } : 0,
+
+            
             pl:
               showPanel
                 ? { xs: 0, md: 2.5 }
@@ -421,13 +463,17 @@ function AppUI({
             backgroundColor: showPanel ? alpha(theme.palette.background.paper, 0.6) : 'transparent',
           }}
         >
+
+
+          
           <main className="main-content">
           {formDisplay === '' && (
             <Outlet
               context={{
                 isUserLoggedIn,
                 onSwitchToLogin: () => setFormDisplay('login'),
-                onSwitchToSignup: () => setFormDisplay('signup')
+                onSwitchToSignup: () => setFormDisplay('signup'),
+                onCreatePlaylist,
               }}
             />
           )}
@@ -461,6 +507,8 @@ function AppUI({
             />
           )}
         </Box>
+
+
       </Box>
 
 

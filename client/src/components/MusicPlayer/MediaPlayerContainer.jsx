@@ -4,7 +4,7 @@ import ModernMusicPlayer from './ModernMusicPlayer.jsx';
 import { AdMediaPlayer } from './ModernAdPlayer.jsx';
 import { useFullScreenPlayer } from './FullScreenMediaPlayer.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
-import { Box } from '@mui/material';
+import Box from '@mui/material/Box';
 
 const MediaPlayerContainer = () => {
   const {

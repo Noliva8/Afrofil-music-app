@@ -70,6 +70,7 @@ export const songsLikedByMe = async (_, { limit = 20, offset = 0 }, context) => 
       ...song,
       artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
       artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+      composer: Array.isArray(song.composer) ? song.composer : song.composer ? [song.composer] : [],
     }));
 
     return {
@@ -113,6 +114,7 @@ export const songsLikedByMe = async (_, { limit = 20, offset = 0 }, context) => 
       ...song,
       artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
       artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+      composer: Array.isArray(song.composer) ? song.composer : song.composer ? [song.composer] : [],
     }));
 
     return {

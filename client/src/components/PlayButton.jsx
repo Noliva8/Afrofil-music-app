@@ -3,7 +3,7 @@
 
 
 import Button from "@mui/material/Button"
-import { useTheme } from "@mui/material";
+import useTheme from '@mui/material/styles/useTheme';
 import {PlayArrow, Pause} from '@mui/icons-material';
 
 

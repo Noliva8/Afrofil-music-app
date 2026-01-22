@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import ArtistLogin from './pages/ArtistLogin.jsx';
 import App from './App.jsx';
 import Home from './pages/Home';
@@ -30,6 +31,7 @@ import CollectionPage from './pages/CollectionPage.jsx';
 import CollectionLanding from './pages/CollectionLanding.jsx';
 import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
 import PremiumCheckoutWrapper from './components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx';
+import PremiumPromo from './pages/PremiumPromo.jsx';
 import ArtistPage from './components/ArtistPage.jsx';
 import { SongPage } from './components/SongPage.jsx';
 import { AlbumPage } from './pages/freeDashboard/AlbumPage.jsx';
@@ -41,6 +43,8 @@ import PasswordReset from './pages/PasswordReset.jsx';
 import HomeFreePlan from './pages/freeDashboard/HomeFreePlan.jsx';
 import CompletePageWrapper from './components/userComponents/Home/Premium/CompletePageWrapper.jsx';
 import { afrofeelTheme } from './pages/CSS/themeSettins.js';
+import { Support } from './pages/Support.jsx';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ element }) => {
@@ -157,8 +161,15 @@ const router = createBrowserRouter([
         element: <LoginSignin />, 
       },
       {
+        path: "premium",
+        element: <PremiumPromo />,
+      },
+      {
         path: "terms",
         element: <Terms />,
+      },
+      {path: "support",
+        element: <Support />
       },
       {
         path: "track/:trackId",
@@ -287,9 +298,28 @@ const router = createBrowserRouter([
   },
 ]);
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <ThemeProvider theme={afrofeelTheme}>
-    <CssBaseline />
-    <RouterProvider router={router} />
-  </ThemeProvider>
-);
+const root = ReactDOM.createRoot(document.getElementById("root"));
+const renderApp = () =>
+  root.render(
+    <ThemeProvider theme={afrofeelTheme}>
+      <CssBaseline />
+      <RouterProvider router={router} />
+    </ThemeProvider>
+  );
+
+renderApp();
+
+const removeSplash = () => {
+  const splash = document.getElementById("preload-splash");
+  if (!splash) return;
+  splash.classList.add("hidden");
+  setTimeout(() => {
+    splash.remove();
+  }, 350);
+};
+
+if (document.readyState === "complete") {
+  removeSplash();
+} else {
+  window.addEventListener("load", removeSplash, { once: true });
+}

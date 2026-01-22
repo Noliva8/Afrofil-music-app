@@ -2,19 +2,21 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  BottomNavigation,
-  BottomNavigationAction,
-  Box,
-  alpha,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
+import BottomNavigation from '@mui/material/BottomNavigation';
+import BottomNavigationAction from '@mui/material/BottomNavigationAction';
+import Box from '@mui/material/Box';
+import { alpha } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
+import { SitemarkIcon } from '../themeCustomization/customIcon';
+import { Search } from '@mui/icons-material';
+import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import ExploreRoundedIcon from '@mui/icons-material/ExploreRounded';
 import CollectionsBookmarkRoundedIcon from '@mui/icons-material/CollectionsBookmarkRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DynamicFeedRoundedIcon from '@mui/icons-material/DynamicFeedRounded';
+
 
 export function UserButtonMobileNavBar({
   onTabChange,
@@ -35,89 +37,55 @@ export function UserButtonMobileNavBar({
 
   // Responsive tab configurations with very small screen handling
   const tabs = useMemo(() => {
+    const baseTabs = [
+      { label: 'Home', icon: <HomeRoundedIcon />, path: '/', showLabel: !isVerySmall },
+      {
+        label: 'Search',
+        icon: <Search />,
+        path: '/explore',
+        showLabel: true,
+        searchParams: 'search=1',
+      },
+      { label: 'Your library', icon: <LibraryMusicIcon />, path: '/library', showLabel: true },
+      {
+        label: 'Create',
+        icon: <AddRoundedIcon />,
+        path: '/library',
+        showLabel: true,
+        triggerCreateModal: true,
+      },
+      { label: 'Premium', icon: <SitemarkIcon />, path: '/premium', showLabel: true },
+    ];
+
     if (isVerySmall) {
-      // VERY SMALL SCREENS (< 481px): Compact tabs (icons only)
-      return [
-        { 
-          label: 'Home', 
-          icon: <HomeRoundedIcon />, 
-          path: '/',
-          showLabel: false
-        },
-        { 
-          label: 'Explore', 
-          icon: <ExploreRoundedIcon />, 
-          path: '/explore',
-          showLabel: false
-        },
-        { 
-          label: 'Collections', 
-          icon: <CollectionsBookmarkRoundedIcon />, 
-          path: '/collection',
-          showLabel: false
-        },
-        { 
-          label: 'Create', 
-          icon: <AddRoundedIcon />, 
-          path: '/collection/playlist/create_playlist',
-          showLabel: false,
-          triggerCreateModal: true,
-        },
-        { 
-          label: 'Feed', 
-          icon: <DynamicFeedRoundedIcon />, 
-          path: '/feed',
-          showLabel: false
-        },
-      ];
-    } else if (isSmall) {
-      // SMALL/TABLET (481px - 900px): Full tabs
-      return [
-        { 
-          label: 'Home', 
-          icon: <HomeRoundedIcon />, 
-          path: '/',
-          showLabel: true
-        },
-        { 
-          label: 'Explore', 
-          icon: <ExploreRoundedIcon />, 
-          path: '/explore',
-          showLabel: true
-        },
-        { 
-          label: 'Collections', 
-          icon: <CollectionsBookmarkRoundedIcon />, 
-          path: '/collection',
-          showLabel: true
-        },
-        { 
-          label: 'Create', 
-          icon: <AddRoundedIcon />, 
-          path: '/collection/playlist/create_playlist',
-          showLabel: true,
-          triggerCreateModal: true,
-        },
-        {
-          label: 'Feed',
-          icon: <DynamicFeedRoundedIcon />,
-          path: '/feed',
-          showLabel: true
-        }
-      ];
-    } else {
-      // MEDIUM+ (≥ 900px): Not shown (use sidebar)
-      return [];
+      return baseTabs.map((tab) =>
+        tab.label === 'Home' ? { ...tab, showLabel: false } : tab
+      );
     }
+
+    if (isSmall) {
+      return baseTabs.map((tab) => ({ ...tab, showLabel: true }));
+    }
+
+    return [];
   }, [isVerySmall, isSmall, isMediumUp]);
 
   // Sync with current route
   useEffect(() => {
-    const currentIndex = tabs.findIndex(tab => tab.path === location.pathname);
+    const currentIndex = tabs.findIndex((tab) => {
+      if (!tab.path) return false;
+      if (tab.searchParams) {
+        return (
+          tab.path === location.pathname &&
+          location.search.replace(/^\?/, "") === tab.searchParams
+        );
+      }
+      return tab.path === location.pathname && !tab.triggerCreateModal;
+    });
     if (currentIndex >= 0) {
       setValue(currentIndex);
     }
-  }, [location.pathname, tabs]);
+  }, [location.pathname, location.search, tabs]);
 
 
   // Calculate bottom position based on player
@@ -157,12 +125,15 @@ export function UserButtonMobileNavBar({
     const tab = tabs[newValue];
 
     if (tab.triggerCreateModal) {
+      navigate('/library');
       onCreatePlaylist?.();
       if (onTabChange) onTabChange(tab);
       return;
     }
 
-    if (tab.path) {
+    if (tab.searchParams) {
+      navigate(`${tab.path}?${tab.searchParams}`);
+    } else if (tab.path) {
       navigate(tab.path);
     }
 

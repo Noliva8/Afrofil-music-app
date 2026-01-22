@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Box, IconButton, Slider, Typography, Fab, useTheme, alpha, Button, Container } from '@mui/material';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Slider from '@mui/material/Slider';
+import Typography from '@mui/material/Typography';
+import Fab from '@mui/material/Fab';
+import useTheme from '@mui/material/styles/useTheme';
+import { alpha } from '@mui/material/styles';
+import Button from '@mui/material/Button';
+import Container from '@mui/material/Container';
 import { PlayArrow, Pause, Close, VolumeUp, OpenInNew, SkipPrevious, SkipNext, ArrowDownward, ExpandMore } from '@mui/icons-material';
 import { eventBus } from '../../utils/Contexts/playerAdapters';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext';

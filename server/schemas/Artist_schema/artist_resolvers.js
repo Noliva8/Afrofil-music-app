@@ -147,13 +147,18 @@ const parseEraRange = (seedId) => {
   return { start, end };
 };
 
+const normalizeComposerList = (value) => {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
 const mapSongListPayload = (songs) =>
   (songs || []).map((song) => ({
     ...song,
     artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
     mood: song.mood || [],
     subMoods: song.subMoods || [],
-    composer: Array.isArray(song.composer) ? song.composer : [],
+    composer: normalizeComposerList(song.composer),
     producer: Array.isArray(song.producer) ? song.producer : [],
     likesCount: song.likedByUsers?.length || song.likesCount || 0,
     downloadCount: song.downloadCount || 0,
@@ -2808,6 +2813,8 @@ Subscription: {
     likesCount: (parent) => {
       return parent.likedByUsers?.length || 0;
     },
+
+    composer: (song) => normalizeComposerList(song?.composer),
 
     // Always return CloudFront-signed artwork URL (or fallback)
     artworkPresignedUrl: async (song) => {

@@ -1,13 +1,11 @@
 import React from 'react';
-import {
-  Box,
-  Slider,
-  IconButton,
-  Typography,
-  Tooltip,
-  useTheme,
-  useMediaQuery
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import Slider from '@mui/material/Slider';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import Tooltip from '@mui/material/Tooltip';
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   PlayArrow,
   Pause,

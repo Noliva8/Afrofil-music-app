@@ -1,27 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
-import {
-  alpha,
-  Avatar,
-  Badge,
-  Box,
-  Button,
-  Divider,
-  Drawer,
-  IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Stack,
-  Toolbar,
-  Tooltip,
-  Typography,
-  useMediaQuery,
-  useTheme
-} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import Avatar from '@mui/material/Avatar';
+import Badge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
+import Drawer from '@mui/material/Drawer';
+import IconButton from '@mui/material/IconButton';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Stack from '@mui/material/Stack';
+import Toolbar from '@mui/material/Toolbar';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -30,11 +29,12 @@ import PersonIcon from '@mui/icons-material/Person';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
+import GetAppRoundedIcon from '@mui/icons-material/GetAppRounded';
 import { SitemarkIcon } from '../themeCustomization/customIcon';
 import UserAuth from '../../utils/auth.js';
 import { SearchBar } from '../../pages/SearchBar.jsx';
-
-
+import { usePWAInstall } from '../../PWAInstall/pwaInstall.js';
+import CloseIcon from '@mui/icons-material/Close';
 
 
 export default function UserNavBar() {
@@ -44,6 +44,12 @@ export default function UserNavBar() {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery('(max-width:768px)');
+  const isCompactDesktop = useMediaQuery('(max-width:1000px)') && !isMobile;
+  const isDesktop = !isMobile && !isCompactDesktop;
+  const { isInstallable, triggerInstall } = usePWAInstall();
+
+
+
 
   const userName = profile?.data?.username || 'User';
   const isPremiumUser = (profile?.data?.role || '').toLowerCase() === 'premium';
@@ -71,6 +77,9 @@ export default function UserNavBar() {
     if (!hasHistoryIndex) return;
     setMaxHistoryIndex((prev) => (historyIndex > prev ? historyIndex : prev));
   }, [hasHistoryIndex, historyIndex]);
+
+
+
 
   const canGoBack = showBack && (historyIndex > 0 || historyLength > 1);
   const canGoForward = showBack && hasHistoryIndex && historyIndex < maxHistoryIndex;
@@ -105,6 +114,12 @@ export default function UserNavBar() {
     handleMobileMenuClose();
   };
 
+
+
+  
+
+
+
   const handleOpenMobileDrawer = () => setMobileDrawerOpen(true);
   const handleCloseMobileDrawer = () => setMobileDrawerOpen(false);
   
@@ -114,7 +129,31 @@ export default function UserNavBar() {
     navigate('/');
   };
 
+  const handleInstallApp = () => {
+    triggerInstall();
+  };
+
+  const handleUpgradeClick = () => {
+    if (!isPremiumUser) {
+      navigate('/premium');
+      handleMenuClose();
+      handleCloseMobileDrawer();
+    }
+  };
+
+
+const handlePremiumNavigate = () => {
+  if(isPremiumUser){
+    navigate('/premium');
+     handleCloseMobileDrawer();
+  }
+}
+
+
+
   const menuId = 'primary-search-account-menu';
+
+  
   const renderMenu = (
     <Menu
       anchorEl={anchorEl}
@@ -143,24 +182,33 @@ export default function UserNavBar() {
         </ListItemIcon>
         <ListItemText>My Profile</ListItemText>
       </MenuItem>
-      <MenuItem onClick={handleMenuClose}>
+{isPremiumUser &&(
+   <MenuItem onClick={handleMenuClose}>
+
         <ListItemIcon>
-          <LibraryMusicIcon fontSize="small" />
+          <SitemarkIcon fontSize="small" />
         </ListItemIcon>
-        <ListItemText>My Library</ListItemText>
+        <ListItemText> Subscription</ListItemText>
       </MenuItem>
+
+)}
+   
+
+    
       <MenuItem onClick={handleMenuClose}>
         <ListItemIcon>
           <SettingsIcon fontSize="small" />
         </ListItemIcon>
         <ListItemText>Settings</ListItemText>
       </MenuItem>
+
       <MenuItem onClick={handleLogout}>
         <ListItemIcon>
           <LogoutIcon fontSize="small" />
         </ListItemIcon>
         <ListItemText>Logout</ListItemText>
       </MenuItem>
+
     </Menu>
   );
 
@@ -177,6 +225,7 @@ export default function UserNavBar() {
         }}
       >
         <Toolbar sx={{ justifyContent: 'space-between', py: 1.25, gap: 2, px: { xs: 2, md: 3 } }}>
+
           {/* Logo */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
             <Box
@@ -222,6 +271,8 @@ export default function UserNavBar() {
                   </Typography>
                 )}
               </Button>
+
+
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <IconButton
@@ -248,21 +299,36 @@ export default function UserNavBar() {
               >
                 <ArrowForwardIosRoundedIcon fontSize="small" />
               </IconButton>
+
+             {!isMobile && (
+               <Button onClick={() => navigate('/')}>
+
+                <HomeRoundedIcon />
+              </Button>
+             )}
+              
             </Box>
           </Box>
 
           {/* Search */}
+
+
+
+
+
+
           {!isMobile && (
             <Box sx={{ flex: 1, maxWidth: 560, mx: 3 }}>
+
               <SearchBar />
             </Box>
           )}
 
           {/* Actions */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-            {!isPremiumUser && isMobile && (
+            {!isPremiumUser && isCompactDesktop && (
               <Button
-                onClick={() => navigate('/checkout')}
+                onClick={handleUpgradeClick}
                 startIcon={<PlayArrowRoundedIcon />}
                 sx={{
                   textTransform: 'none',
@@ -274,12 +340,64 @@ export default function UserNavBar() {
                   background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                   color: theme.palette.primary.contrastText,
                   boxShadow: theme.shadows[2],
-                  '&:hover': { background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})` }
+                  '&:hover': {
+                    background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})`,
+                  },
                 }}
               >
                 Upgrade
               </Button>
             )}
+            {!isPremiumUser && !isMobile && !isCompactDesktop && (
+              <Button
+                variant="contained"
+                onClick={handleUpgradeClick}
+                endIcon={<ArrowForwardIosRoundedIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  px: 3,
+                  py: 0.9,
+                  background: `linear-gradient(125deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  color: theme.palette.primary.contrastText,
+                  boxShadow: theme.shadows[2],
+                  '&:hover': {
+                    boxShadow: theme.shadows[3],
+                  },
+                }}
+              >
+                Upgrade to Premium
+              </Button>
+            )}
+
+
+
+            {isInstallable &&  (
+              <Button
+                variant="outlined"
+                 onClick={triggerInstall}
+                startIcon={<GetAppRoundedIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 700,
+                  borderRadius: 3,
+                  px: 3,
+                  py: 0.9,
+                  borderColor: alpha(theme.palette.primary.main, 0.6),
+                  color: theme.palette.text.primary,
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    boxShadow: theme.shadows[1],
+                  },
+                }}
+              >
+                Install App
+              </Button>
+            )}
+
+
+
 
             {isMobile ? (
               <Tooltip title="Account">
@@ -308,6 +426,8 @@ export default function UserNavBar() {
               </Tooltip>
             ) : (
               <>
+
+
                 <Tooltip title="Support">
                   <IconButton
                     size="large"
@@ -318,6 +438,8 @@ export default function UserNavBar() {
                     <SupportAgentRoundedIcon />
                   </IconButton>
                 </Tooltip>
+
+
 
                 <Tooltip title="Notifications">
                   <IconButton
@@ -340,6 +462,8 @@ export default function UserNavBar() {
                     </Badge>
                   </IconButton>
                 </Tooltip>
+
+                
 
                 <Tooltip title="Account settings">
                   <IconButton
@@ -365,6 +489,8 @@ export default function UserNavBar() {
                     </Avatar>
                   </IconButton>
                 </Tooltip>
+
+
               </>
             )}
 
@@ -378,7 +504,7 @@ export default function UserNavBar() {
         onClose={handleCloseMobileDrawer}
         PaperProps={{
           sx: {
-            width: 280,
+            width: 300,
             background: alpha(theme.palette.background.paper, 0.98),
             borderRight: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
             px: 2.5,
@@ -387,6 +513,12 @@ export default function UserNavBar() {
         }}
       >
         <Stack spacing={2}>
+          <Box 
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}
+          >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Avatar
               sx={{
@@ -404,14 +536,24 @@ export default function UserNavBar() {
                 {userName}
               </Typography>
               <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                {isPremiumUser ? 'Premium member' : 'Afrofeel member'}
+                {isPremiumUser ? 'Premium member' : 'Regural member'}
               </Typography>
             </Box>
+          </Box>
+
+
+          <Button onClick={()=> handleCloseMobileDrawer()}>
+            <CloseIcon />
+
+          </Button>
+
+
           </Box>
 
           <Divider sx={{ borderColor: alpha(theme.palette.text.primary, 0.08) }} />
 
           <Stack spacing={1.2}>
+
             <Button
               variant="text"
               startIcon={<SupportAgentRoundedIcon />}
@@ -428,6 +570,7 @@ export default function UserNavBar() {
             >
               Support
             </Button>
+
             <Button
               variant="text"
               startIcon={<NotificationsIcon />}
@@ -441,6 +584,26 @@ export default function UserNavBar() {
             >
               Notifications
             </Button>
+
+
+               {isPremiumUser && (
+               <Button
+              variant="text"
+              startIcon={<SitemarkIcon />}
+              onClick={() => handlePremiumNavigate()}
+              sx={{
+                textTransform: "none",
+                fontWeight: 700,
+                justifyContent: "flex-start",
+                color: theme.palette.text.primary,
+              }}
+            >
+              Subscription
+            </Button>
+
+
+            )}
+
             <Button
               variant="text"
               startIcon={<SettingsIcon />}
@@ -454,6 +617,9 @@ export default function UserNavBar() {
             >
               Settings
             </Button>
+
+         
+
             <Button
               variant="text"
               startIcon={<LogoutIcon />}
@@ -470,6 +636,7 @@ export default function UserNavBar() {
             >
               Logout
             </Button>
+
           </Stack>
         </Stack>
       </Drawer>

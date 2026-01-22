@@ -2,19 +2,17 @@ import React, { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client";
 import { ARTIST_PROFILE } from "../../utils/artistQuery";
 import { ADD_LANGUAGES } from "../../utils/mutations";
-import {
-  Box,
-  Modal,
-  FormControl,
-  Button,
-  FormLabel,
-  TextareaAutosize,
-  Card,
-  CardContent,
-  CardActions,
-  Typography,
-  Grid,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Modal from '@mui/material/Modal';
+import FormControl from '@mui/material/FormControl';
+import Button from '@mui/material/Button';
+import FormLabel from '@mui/material/FormLabel';
+import TextareaAutosize from '@mui/material/TextareaAutosize';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardActions from '@mui/material/CardActions';
+import Typography from '@mui/material/Typography';
+import Grid from '@mui/material/Grid';
 import { toast } from "react-toastify";  // Import react-toastify
 
 const modalStyle = {

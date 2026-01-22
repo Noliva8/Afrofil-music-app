@@ -1,25 +1,29 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, {  useRef, useEffect, useMemo  } from 'react';
+
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext';
-import { Box, Typography, Card, IconButton, useTheme } from '@mui/material';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+
+import IconButton from '@mui/material/IconButton';
+import useTheme from '@mui/material/styles/useTheme';
 import { useApolloClient, useMutation } from '@apollo/client';
-import { PlayArrow, Pause, ChevronLeft, ChevronRight } from '@mui/icons-material';
-import { SONG_OF_ARTIST } from '../../utils/queries';
+
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+
 import { usePlayCount } from '../../utils/handlePlayCount';
-import { buildTrendingContext, RepeatModes, PlaybackSource } from '../../utils/plabackUtls/playbackSources';
-import { buildTrendingQueue } from '../../utils/plabackUtls/trendingAlg/buildTrendingQueue';
 
-import { SIMILAR_SONGS_TRENDINGS } from '../../utils/queries';
-
-import { LikesComponent } from '../otherSongsComponents/like';
-import { useSongsWithPresignedUrls } from '../../utils/someSongsUtils/songsWithPresignedUrlHook.js';
-import { fetchPresignedUrls } from '../../utils/someSongsUtils/songsWithPresignedUrlHook.js';
 
 
 // some songsutils to use
 import { processSongs } from '../../utils/someSongsUtils/someSongsUtils.js';
 import { useScrollNavigation } from '../../utils/someSongsUtils/scrollHooks.js';
-import { similarSongsUtil } from '../../utils/someSongsUtils/similarSongsHook.js';
+
 import { SongCard, CompactSongCard } from '../otherSongsComponents/songCard.jsx';
+
+
+
+
 import { handleTrendingSongPlay } from '../../utils/plabackUtls/handleSongPlayBack.js';
 
 
@@ -51,10 +55,25 @@ export default function TrendingSongs({ songsWithArtwork, refetch, onCardClick }
   } = useScrollNavigation();
 
 
-const trendingSongs = processSongs(songsWithArtwork)
-  .filter((song) => song.audioUrl)
-  .sort((a, b) => b.plays - a.plays)
-  .slice(0, 20);
+// const trendingSongs = processSongs(songsWithArtwork)
+
+//   .filter((song) => song.audioUrl)
+//   .sort((a, b) => b.plays - a.plays)
+//   .slice(0, 20);
+
+  // use memo to memoise the process
+
+  const trendingSongs = useMemo(() => {
+  return processSongs(songsWithArtwork)
+    .filter(song => song.audioUrl)
+    .sort((a, b) => b.plays - a.plays)
+    .slice(0, 20);
+}, [songsWithArtwork]);
+
+
+
+
+
 
   useEffect(() => {
     checkScrollPosition();
@@ -63,6 +82,10 @@ const trendingSongs = processSongs(songsWithArtwork)
     window.addEventListener('resize', checkScrollPosition);
     return () => window.removeEventListener('resize', checkScrollPosition);
   }, []);
+
+
+
+
 
   return (
     <Box sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 } }}>
@@ -99,7 +122,7 @@ const trendingSongs = processSongs(songsWithArtwork)
                 letterSpacing: "-0.5px",
               }}
             >
-              TRENDING NOW
+              Trending now
             </Typography>
             <Typography
               variant="caption"
@@ -127,6 +150,9 @@ const trendingSongs = processSongs(songsWithArtwork)
         </IconButton>
 
       </Box>
+
+
+
 
       {/* Grid View (when Show All is active) */}
       {showAll ? (
@@ -205,7 +231,7 @@ const trendingSongs = processSongs(songsWithArtwork)
                 }
               }}
             >
-              <ChevronLeft sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+              <ChevronLeftIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
             </IconButton>
           )}
 
@@ -231,7 +257,7 @@ const trendingSongs = processSongs(songsWithArtwork)
                 }
               }}
             >
-              <ChevronRight sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+              <ChevronRightIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
             </IconButton>
           )}
 
@@ -286,6 +312,9 @@ const trendingSongs = processSongs(songsWithArtwork)
           </Box>
         </Box>
       )}
+
+
+      
     </Box>
   );
 }

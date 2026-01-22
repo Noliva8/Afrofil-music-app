@@ -1,15 +1,13 @@
 import React from 'react';
-import {
-  Box,
-  LinearProgress,
-  Typography,
-  Paper,
-  Fade,
-  Chip,
-  Alert,
-  CircularProgress,
-  Stack
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import LinearProgress from '@mui/material/LinearProgress';
+import Typography from '@mui/material/Typography';
+import Paper from '@mui/material/Paper';
+import Fade from '@mui/material/Fade';
+import Chip from '@mui/material/Chip';
+import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
+import Stack from '@mui/material/Stack';
 
 import {
   CheckCircleOutline,

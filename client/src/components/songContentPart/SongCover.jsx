@@ -6,13 +6,11 @@ import {ADD_ARTWORK} from "../../utils/mutations";
 import Swal from "sweetalert2";
 import { useNavigate } from 'react-router-dom';
 
-import {
-  Paper,
-  Box,
-  Typography,
-  IconButton,
-  CircularProgress
-} from '@mui/material';
+import Paper from '@mui/material/Paper';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import CircularProgress from '@mui/material/CircularProgress';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
