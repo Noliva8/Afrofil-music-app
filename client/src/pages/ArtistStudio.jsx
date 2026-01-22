@@ -12,7 +12,7 @@ import FreePlanAppNavBar from "../components/FreePlanAppNavBar";
 import StudioHeader from "../components/StudioHeader";
 import SideMenu from "../components/SideNavBar";
 import SideMenuReduced from "../components/SideNavBarReduced";
-import { Typography } from "@mui/material";
+import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid2';
 import MobileSideMenu from "../components/MobileSideMenu";
 import { createTheme, ThemeProvider, styled } from '@mui/material/styles';

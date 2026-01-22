@@ -5,7 +5,8 @@ import CardContent from "@mui/material/CardContent";
 import IconButton from "@mui/material/IconButton";
 import { PlayArrow, Pause } from "@mui/icons-material";
 import Grid2 from "@mui/material/Grid2";
-import { Button,  Avatar } from "@mui/material";
+import Button from '@mui/material/Button';
+import Avatar from '@mui/material/Avatar';
 
 
 export default function() {

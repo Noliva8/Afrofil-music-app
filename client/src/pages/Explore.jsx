@@ -1,29 +1,27 @@
 import { useMemo, useState } from "react";
 import Grid from "@mui/material/Grid2";
-import {
-  Avatar,
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  Paper,
-  Stack,
-  Tabs,
-  Tab,
-  TextField,
-  Typography,
-  alpha,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
+import Container from '@mui/material/Container';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
 import {
   CloseRounded,
   LanguageRounded,
@@ -38,7 +36,8 @@ import {
   FavoriteBorderRounded,
   PlayArrowRounded,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { SearchBar } from "./SearchBar";
 
 /** -----------------------------
  * DATA (replace later with API)
@@ -125,11 +124,15 @@ function SectionHeader({ title, subtitle, onViewAll, icon }) {
         flexDirection: { xs: "column", sm: "row" },
         gap: { xs: 1, sm: 0 }
       }}>
+
+        
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           {icon}
-          <Typography variant={isMobile ? "h6" : "h5"} sx={{ fontWeight: 800, letterSpacing: "-0.5px" }}>
+          <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: "-0.5px", fontSize: { xs: "1.5rem", sm: "1.75rem" } }}>
             {title}
           </Typography>
+
+
         </Box>
         {onViewAll && (
           <Button
@@ -536,6 +539,8 @@ function MoodCard({ mood, onClick }) {
   );
 }
 
+
+
 /** -----------------------------
  * MAIN EXPLORE
  * ------------------------------ */
@@ -545,6 +550,9 @@ export default function Explore() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const navigate = useNavigate();
+  const location = useLocation();
+  const showMobileSearch = new URLSearchParams(location.search).get("search") === "1";
+  const shouldShowSearchBar = (isMobile || isTablet) && showMobileSearch;
 
   const [tabValue, setTabValue] = useState(0);
 
@@ -571,12 +579,50 @@ export default function Explore() {
           theme.palette.background.paper,
           0.82
         )} 100%)`,
+        
+        
       }}
     >
       <Container maxWidth={false} disableGutters sx={{ 
         py: { xs: 2, sm: 3, md: 4 }, 
         px: { xs: 1.5, sm: 2, md: 4 } 
       }}>
+
+        
+        {shouldShowSearchBar && (
+          <Box
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 1250,
+              py: 1.5,
+              px: { xs: 1, sm: 2 },
+              mb: 2,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              background: "transparent",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <Box
+              sx={{
+                width: "100%",
+                maxWidth: 640,
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <SearchBar
+                variant="compact"
+                autoFocus
+                fullWidth
+                sx={{ minHeight: 68, justifyContent: "center" }}
+              />
+            </Box>
+          </Box>
+        )}
+
         {/* Header */}
         <Box sx={{ mb: { xs: 3, sm: 4, md: 5 } }}>
           <Stack
@@ -589,7 +635,7 @@ export default function Explore() {
               <Typography
                 variant={isMobile ? "h4" : "h3"}
                 sx={{
-                  fontWeight: 950,
+                  fontWeight: 900,
                   letterSpacing: { xs: "-0.5px", sm: "-1px" },
                   background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                   WebkitBackgroundClip: "text",
@@ -600,6 +646,7 @@ export default function Explore() {
               >
                 Explore Africa
               </Typography>
+
               <Typography variant={isMobile ? "body1" : "h6"} sx={{ 
                 color: theme.palette.text.secondary, 
                 fontWeight: 400,
@@ -607,6 +654,7 @@ export default function Explore() {
               }}>
                 Discover new sounds across Africa, then follow the diaspora wave.
               </Typography>
+
             </Box>
           </Stack>
 
@@ -642,6 +690,7 @@ export default function Explore() {
               <Tab icon={<MoodRounded sx={{ fontSize: { xs: 18, sm: 20 } }} />} iconPosition="start" label="Moods" />
               <Tab icon={<StarRounded sx={{ fontSize: { xs: 18, sm: 20 } }} />} iconPosition="start" label="Featured" />
             </Tabs>
+            
           </Paper>
         </Box>
 
@@ -817,6 +866,9 @@ export default function Explore() {
           }}
         />
       </Container>
+
+
+
     </Box>
   );
 }

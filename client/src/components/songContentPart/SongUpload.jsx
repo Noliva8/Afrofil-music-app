@@ -1,12 +1,10 @@
 import React, { useRef } from "react";
-import {
-  Paper,
-  Button,
-  Box,
-  Typography,
-  CircularProgress,
-  Fade
-} from "@mui/material";
+import Paper from '@mui/material/Paper';
+import Button from '@mui/material/Button';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import CircularProgress from '@mui/material/CircularProgress';
+import Fade from '@mui/material/Fade';
 
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";

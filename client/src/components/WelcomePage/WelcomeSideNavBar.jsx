@@ -2,17 +2,15 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import UserAuth from '../../utils/auth.js';
-import {
-  alpha,
-  Box,
-  Button,
-  Collapse,
-  Divider,
-  IconButton,
-  Stack,
-  Typography,
-  useTheme
-} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Collapse from '@mui/material/Collapse';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import useTheme from '@mui/material/styles/useTheme';
 import { SitemarkIcon } from '../themeCustomization/customIcon';
 
 export const WelcomeSideNavbar = ({
@@ -59,12 +57,11 @@ export const WelcomeSideNavbar = ({
         top: { xs: 0, md: 96 },
         minHeight: { xs: 'auto', md: 'calc(100vh - 96px)' },
         maxHeight: { xs: 'none', md: 'calc(100vh - 96px)' },
-        justifyContent: 'flex-start',
         alignSelf: 'flex-start',
         px: 2.5,
         py: 3,
         pb: 3,
-        justifyContent: 'space-between',
+        justifyContent: { xs: 'flex-start', md: 'space-between' },
         borderRadius: 3,
         background: `linear-gradient(160deg, ${alpha(theme.palette.background.default, 0.98)} 0%, ${alpha(theme.palette.background.paper, 0.92)} 100%)`,
         border: `1px solid ${alpha(primary, 0.18)}`,
@@ -74,6 +71,11 @@ export const WelcomeSideNavbar = ({
         overflowX: 'hidden'
       }}
     >
+
+
+
+
+      
       <Stack spacing={2}>
         <Divider sx={dividerSx} />
 

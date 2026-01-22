@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import {
-  Avatar,
-  Box,
-  Card,
-  CardContent,
-  Container,
-  Tab,
-  Tabs,
-  Stack,
-  Typography,
-  alpha,
-  useTheme,
-} from "@mui/material";
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Container from '@mui/material/Container';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
+import useTheme from '@mui/material/styles/useTheme';
 import Grid from "@mui/material/Grid2";
 import { SEARCH_CATALOG } from "../utils/queries";
 import { GET_PRESIGNED_URL_DOWNLOAD } from "../utils/mutations";

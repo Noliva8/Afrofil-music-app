@@ -9,13 +9,11 @@ import { AddButton } from "./AddButton.jsx";
 import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
 
 
-import {
-  Box,
-  Typography,
-  IconButton,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
 
 // Icons
 import Description from "@mui/icons-material/Description";

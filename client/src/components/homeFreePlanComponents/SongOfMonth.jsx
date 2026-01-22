@@ -1,16 +1,14 @@
 import React, { useMemo, useState } from "react";
-import {
-  Box,
-  Typography,
-  IconButton,
-  Card,
-  CardContent,
-  CardMedia,
-  Chip,
-  LinearProgress,
-  alpha,
-  Tooltip,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardMedia from '@mui/material/CardMedia';
+import Chip from '@mui/material/Chip';
+import LinearProgress from '@mui/material/LinearProgress';
+import { alpha } from '@mui/material/styles';
+import Tooltip from '@mui/material/Tooltip';
 import { useTheme } from "@mui/material/styles";
 import {
   PlayArrow,

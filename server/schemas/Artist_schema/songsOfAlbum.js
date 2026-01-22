@@ -104,7 +104,6 @@ export const otherAlbumsByArtist = async (parent, { albumId, artistId }) => {
       .sort({ releaseDate: -1, createdAt: -1 })
       .lean();
 
-console.log('all abums:', albums)
     if (!albums?.length) return [];
 
     const albumIds = albums.map((album) => String(album._id));

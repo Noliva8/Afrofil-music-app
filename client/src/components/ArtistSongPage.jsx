@@ -1,15 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import {
-  Box,
-  Typography,
-  IconButton,
-  Button,
-  Chip,
-  TextField,
-  InputAdornment,
-  Avatar,
-  Link
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
+import Avatar from '@mui/material/Avatar';
+import Link from '@mui/material/Link';
 import {
   PlayArrow,
   Pause,

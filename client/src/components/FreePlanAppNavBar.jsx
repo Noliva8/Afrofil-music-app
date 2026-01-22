@@ -28,7 +28,7 @@ import Stack from "@mui/material/Stack";
 import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
 import Typography from "@mui/material/Typography";
 import { tabsClasses } from "@mui/material/Tabs";
-import { Button } from "@mui/material";
+import Button from '@mui/material/Button';
 import AccountMenu from "./AccountMenu";
 
 const Toolbar = styled(MuiToolbar)({

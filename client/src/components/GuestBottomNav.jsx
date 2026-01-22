@@ -1,5 +1,9 @@
 import React from "react";
-import { BottomNavigation, BottomNavigationAction, Paper, useMediaQuery, useTheme } from "@mui/material";
+import BottomNavigation from '@mui/material/BottomNavigation';
+import BottomNavigationAction from '@mui/material/BottomNavigationAction';
+import Paper from '@mui/material/Paper';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import useTheme from '@mui/material/styles/useTheme';
 import MusicNoteRoundedIcon from "@mui/icons-material/MusicNoteRounded";
 import Box from "@mui/material/Box";
 import DynamicFeedRoundedIcon from "@mui/icons-material/DynamicFeedRounded";

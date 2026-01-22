@@ -1,5 +1,5 @@
 // MainMenu.jsx
-import { Box } from "@mui/material";
+import Box from '@mui/material/Box';
 import Grid2 from "@mui/material/Grid2";
 import TrendingSongs from "./homeFreePlanComponents/TrendingSongs";
 import NewUploaded from "./homeFreePlanComponents/NewUploaded";
@@ -12,6 +12,9 @@ import SuggestedSongs from "./homeFreePlanComponents/SuggestedSongs";
 import SongOfMonth from "./homeFreePlanComponents/SongOfMonth";
 import RadioStations from "./homeFreePlanComponents/RadioStations";
 import { useNavigate } from "react-router-dom";
+import useTheme from '@mui/material/styles/useTheme';
+import { alpha } from '@mui/material/styles';
+
 
 const MainMenu = ({
   songsWithArtwork,
@@ -23,6 +26,7 @@ const MainMenu = ({
 }) => {
 
   const navigate = useNavigate();
+    const theme = useTheme();
 
   const handleCardClick = (song) => {
     const albumId = song?.albumId || song?.album?._id || song?.album;
@@ -40,17 +44,17 @@ const MainMenu = ({
 
 
   return (
-    <Box
-      sx={{
-        pt: { xs: 8, md: 10 },
-        mt: 0,
-        px: { xs: 2, md: 4 },
-        backgroundColor: "#0A0A0A",
-        color: "white",
-        minHeight: "100vh",
-        pb: { xs: 20, sm: 24 }
-      }}
-    >
+  <Box
+       sx={{
+         minHeight: "100vh",
+         overflowX: "hidden",
+         background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${alpha(
+           theme.palette.background.paper,
+           0.82
+         )} 100%)`,
+         py: 5
+       }}
+     >
 
 
 {/* 1. Trending */}

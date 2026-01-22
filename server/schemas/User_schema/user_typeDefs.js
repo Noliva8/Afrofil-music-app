@@ -31,8 +31,111 @@ type Subscription {
   status: SubscriptionStatus!
   periodEnd: Date
   planId: String
-  lastPaymentDate: Date
+
 }
+
+
+type DailyMixProfile {
+  energy: Float
+  tempo: String
+  mood: String
+  label: String
+}
+
+type MixTrackArtist {
+  _id: ID
+  artistAka: String
+  profileImage: String
+  country: String
+}
+
+type MixTrackAlbum {
+  _id: ID
+  title: String
+  albumCoverImage: String
+}
+
+type DailyMixTrack {
+  _id: ID
+  id: ID
+  songId: ID
+  title: String
+  artist: String
+  artistName: String
+  artistId: ID
+  artistProfile: MixTrackArtist
+  albumId: ID
+  album: MixTrackAlbum
+  genre: [String]
+  mood: [String]
+  subMoods: [String]
+  score: Float
+  artwork: String
+  energy: Float
+  tempo: String
+  key: String
+  mode: Int
+  plays: Float
+  duration: String
+  durationSeconds: Float
+  streamAudioFileUrl: String
+  audioUrl: String
+  durationLabel: String
+  label: String
+}
+
+type DailyMix {
+  profileKey: String!
+  profileLabel: String
+  profile: DailyMixProfile
+  tracks: [DailyMixTrack!]!
+  generatedAt: Date
+  userContext: MixProfileContext
+}
+
+type MixLocation {
+  country: String
+  region: String
+  city: String
+}
+
+type TempoRange {
+  min: Float
+  max: Float
+}
+
+type MixProfileContext {
+  moods: [String]
+  subMoods: [String]
+  genres: [String]
+  tempoRange: TempoRange
+  key: String
+  mode: Int
+  location: MixLocation
+}
+
+input MixLocationInput {
+  country: String
+  region: String
+  city: String
+}
+
+input TempoRangeInput {
+  min: Float
+  max: Float
+}
+
+input MixProfileInput {
+  moods: [String]
+  subMoods: [String]
+  genres: [String]
+  tempoRange: TempoRangeInput
+  key: String
+  mode: Int
+  location: MixLocationInput
+}
+
+
 
 enum SubscriptionStatus {
   ACTIVE
@@ -93,14 +196,6 @@ type Download {
   createdAt: Date!
 }
 
-type Recommended {
-  _id: ID!
-  user: User
-  recommended_songs: [Song]
-  algorithm: String
-  createdAt: Date!
-}
-
 type Comment {
   _id: ID!
   content: String!
@@ -133,15 +228,16 @@ type Query {
   # Users
   users: [User]
   userById(userId: ID!): User
+  userSubscription: Subscription
+  dailyMix(profileInput: MixProfileInput): DailyMix
   searchUser(username: String!): User
  liked_songsByUser(userId: ID!): [Song]
  searched_songsByUser(userId: ID!): [Song]
  recommended_songsByUser(userId: ID!): [Song]
  downloaded_songsByUser(userId: ID!): [Song]
-  recentPlayedSongs(limit: Int = 5): [Song]
-  likedSongs(limit: Int = 5): [Song]
-  userPlaylists(limit: Int = 5): [Playlist]
-
+  recentPlayedSongs(limit: Int = 50): [Song]
+  likedSongs(limit: Int = 50): [Song]
+  userPlaylists(limit: Int = 50): [Playlist]
 
 
 
@@ -198,6 +294,7 @@ type Mutation {
   password: String!): User
 
   upgradeCurrentUserToPremium: User!
+  cancelCurrentUserSubscription: User!
 
   requestPasswordReset(email: String!): PasswordResetResponse
   resetPassword(token: String!, newPassword: String!): PasswordResetResponse
@@ -215,8 +312,6 @@ type Mutation {
   addLikedSong(userId: ID!, songId: ID!): LikedSongs
 
   searched_Songs(userId: ID!, songId: ID!): SearchHistory
-
-  recommended_songs(userId: ID!, songId: ID!, algorithm: String): Recommended
 
   removeLikedSong(userId: ID!, songId: ID!): Boolean
 

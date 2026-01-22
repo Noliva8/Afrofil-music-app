@@ -2,7 +2,8 @@ import React, { useMemo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Grid2 from "@mui/material/Grid2";
-import { Avatar, useTheme } from "@mui/material";
+import Avatar from '@mui/material/Avatar';
+import useTheme from '@mui/material/styles/useTheme';
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils.js";
 
 const getInitials = (name) =>

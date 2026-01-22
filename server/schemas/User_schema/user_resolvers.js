@@ -1,6 +1,6 @@
 
 import {  Album, Artist } from '../../models/Artist/index_artist.js'
-import { User, Playlist, Comment, LikedSongs, PlayCount, Song, Recommended } from '../../models/User/user_index.js'
+import { User, Playlist, Comment, LikedSongs, PlayCount, Song } from '../../models/User/user_index.js'
 import {   AuthenticationError} from '../../utils/user_auth.js';
 import { GraphQLError } from 'graphql';
 import bcrypt from 'bcrypt';
@@ -15,6 +15,137 @@ import { addSongRedis } from '../Artist_schema/Redis/addSongRedis.js';
 import { songKey } from '../Artist_schema/Redis/keys.js';
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import sendEmail from '../../utils/emailTransportation.js';
+import { buildDailyMix } from '../../utils/aiMixService.js';
+
+const normalizeString = (value) => {
+  if (!value) return "";
+  return String(value).trim().toLowerCase();
+};
+
+const ensureArray = (value) => {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+const incrementCounts = (counts, values) => {
+  values.forEach((value) => {
+    const normalized = normalizeString(value);
+    if (!normalized) return;
+    counts[normalized] = counts[normalized] || { label: value, count: 0 };
+    counts[normalized].count += 1;
+    if (!counts[normalized].label) {
+      counts[normalized].label = value;
+    }
+  });
+};
+
+const pickTopValues = (counts, limit = 3) => {
+  return Object.values(counts)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+    .map((entry) => entry.label)
+    .filter(Boolean);
+};
+
+const pickFirstValue = (counts) => {
+  return (
+    Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .map((entry) => entry.label)
+      .find(Boolean) || null
+  );
+};
+
+const flattenSongs = (docs, field) =>
+  docs.flatMap((doc) => {
+    const values = Array.isArray(doc[field]) ? doc[field] : [];
+    return values.filter(Boolean);
+  });
+
+
+
+const buildMixProfileFromSongs = (songs, userDoc) => {
+  const moodCounts = {};
+  const subMoodCounts = {};
+  const genreCounts = {};
+  const keyCounts = {};
+  const modeCounts = {};
+  let tempoSum = 0;
+  let tempoCount = 0;
+
+  songs.forEach((song) => {
+    incrementCounts(moodCounts, ensureArray(song.mood));
+    incrementCounts(subMoodCounts, ensureArray(song.subMoods));
+
+    const genres = ensureArray(song.genre).map((genre) =>
+      typeof genre === "object" ? genre?.name : genre
+    );
+    incrementCounts(genreCounts, genres);
+
+    if (song.key) {
+      incrementCounts(keyCounts, [song.key]);
+    }
+    if (typeof song.mode === "number") {
+      incrementCounts(modeCounts, [song.mode]);
+    }
+    if (typeof song.tempo === "number" && !Number.isNaN(song.tempo)) {
+      tempoSum += song.tempo;
+      tempoCount += 1;
+    } else if (typeof song.tempo === "string" && !Number.isNaN(Number(song.tempo))) {
+      const tempoValue = Number(song.tempo);
+      tempoSum += tempoValue;
+      tempoCount += 1;
+    }
+  });
+
+  const avgTempo = tempoCount ? tempoSum / tempoCount : null;
+
+  const tempoRange =
+    avgTempo !== null
+      ? {
+          min: Math.max(avgTempo - 10, 20),
+          max: avgTempo + 10,
+        }
+      : null;
+
+  return {
+    moods: pickTopValues(moodCounts, 3),
+    subMoods: pickTopValues(subMoodCounts, 4),
+    genres: pickTopValues(genreCounts, 3),
+    tempoRange,
+    key: pickFirstValue(keyCounts),
+    mode: pickFirstValue(modeCounts),
+    location: userDoc?.location || null,
+  };
+};
+
+const gatherSongsFromUser = async (userId) => {
+  const [playDocs, likedDoc, playlists] = await Promise.all([
+    PlayCount.find({ user: userId }).sort({ createdAt: -1 }).limit(20).populate("played_songs"),
+    LikedSongs.findOne({ user: userId }).populate("liked_songs"),
+    Playlist.find({ createdBy: userId }).populate("songs"),
+  ]);
+
+  const playedSongs = playDocs.flatMap((play) => ensureArray(play.played_songs));
+  const likedSongs = ensureArray(likedDoc?.liked_songs);
+  const playlistSongs = playlists.flatMap((pl) => ensureArray(pl.songs));
+
+  const combined = [...playedSongs, ...likedSongs, ...playlistSongs];
+  const deduped = Array.from(
+    new Map(combined.map((song) => [String(song?._id ?? song?.id ?? Math.random()), song])).values()
+  ).filter(Boolean);
+
+  return deduped;
+};
+
+const buildUserMixProfile = async (userId, userDoc) => {
+  if (!userId) return null;
+
+  const songs = await gatherSongsFromUser(userId);
+  if (!songs.length) return null;
+
+  return buildMixProfileFromSongs(songs, userDoc);
+};
 
 
 
@@ -79,12 +210,8 @@ comments: async () => {
 searchUser: async (parent, { username }) => {
   try{
      const user = await User.findOne({ username })
-  .select('likedSongs playCounts recommendedSongs') 
-  .populate('likedSongs') 
-  .populate({
-    path: 'recommendedSongs.song', 
-    model: 'Song'
-  });
+  .select('likedSongs playCounts') 
+  .populate('likedSongs');
 
     if (!user) {
       throw new Error(`User with username ${username} not found`);
@@ -112,7 +239,55 @@ userById: async (parent, { userId }) => {
   }
 },
 
-recentPlayedSongs: async (_, { limit = 5 }, { user }) => {
+    userSubscription: async (_, __, { user }) => {
+      if (!user?._id) {
+        throw new AuthenticationError('You must be logged in to view your subscription.');
+      }
+
+      const freshUser = await User.findById(user._id).select('subscription');
+      if (!freshUser) {
+        throw new GraphQLError('Unable to locate your account.');
+      }
+      console.log('returned dta for sub:', freshUser.subscription)
+
+      const subs = freshUser.subscription || {
+        status: 'none',
+        planId: null,
+        periodEnd: null,
+      };
+      return {
+        ...subs,
+        status: subs.status?.toUpperCase?.() || 'NONE',
+      };
+    },
+
+
+
+    dailyMix: async (_parent, { profileInput }, { user }) => {
+      try {
+        let userContext = profileInput || null;
+        if (!userContext && user?._id) {
+          const userDoc = await User.findById(user._id).select("location");
+          userContext = await buildUserMixProfile(user._id, userDoc || user);
+        }
+        const mix = await buildDailyMix({ userContext });
+        return mix;
+      } catch (error) {
+        console.error('Failed to resolve daily mix, returning fallback:', error);
+        return {
+          profileKey: 'fallback',
+          profileLabel: 'Daily mix temporarily unavailable',
+          profile: null,
+          tracks: [],
+          generatedAt: new Date().toISOString(),
+          userContext: profileInput || null,
+        };
+      }
+    },
+
+
+
+recentPlayedSongs: async (_, { limit = 50 }, { user }) => {
   if (!user?._id) {
     throw new AuthenticationError('You must be logged in!');
   }
@@ -147,7 +322,7 @@ recentPlayedSongs: async (_, { limit = 5 }, { user }) => {
     }));
 },
 
-likedSongs: async (_, { limit = 5 }, { user }) => {
+likedSongs: async (_, { limit = 50 }, { user }) => {
   if (!user?._id) {
     throw new AuthenticationError('You must be logged in!');
   }
@@ -182,7 +357,7 @@ likedSongs: async (_, { limit = 5 }, { user }) => {
     }));
 },
 
-userPlaylists: async (_, { limit = 5 }, { user }) => {
+userPlaylists: async (_, { limit = 50 }, { user }) => {
   if (!user?._id) {
     throw new AuthenticationError('You must be logged in!');
   }
@@ -756,33 +931,38 @@ if (!isMatch) {
 
 
 
-    // upgradeUserToPremium
+  // upgradeUserToPremium
   // ---------------------
   // upgradeCurrentUserToPremium: async (_, __, { user }) => {
-  //     if (!user?._id) {
-  //       throw new AuthenticationError('You must be logged in to upgrade.');
-  //     }
-
-  //     console.log('verify, user:', user)
-
-  //     const now = new Date();
-  //     const oneMonthLater = new Date(now.setMonth(now.getMonth() + 1));
-
-  //     const updatedUser = await User.findByIdAndUpdate(
-  //       user._id,
-  //       {
-  //         role: 'premium',
-  //         subscription: {
-  //           status: 'active',
-  //           periodEnd: oneMonthLater,
-  //           planId: 'manual-test'
-  //         }
-  //       },
-  //       { new: true }
-  //     );
-
-  //     return updatedUser;
+  //     ...
   //   },
+
+  cancelCurrentUserSubscription: async (_, __, { user }) => {
+      if (!user?._id) {
+        throw new AuthenticationError('You must be logged in to cancel your subscription.');
+      }
+
+      const currentUser = await User.findById(user._id);
+      if (!currentUser) {
+        throw new AuthenticationError('User not found.');
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        user._id,
+        {
+          role: 'regular',
+          'subscription.status': 'canceled',
+          'subscription.periodEnd': currentUser.subscription?.periodEnd || new Date(),
+        },
+        { new: true }
+      );
+
+      if (!updatedUser) {
+        throw new GraphQLError('Unable to cancel subscription at the moment.');
+      }
+
+      return updatedUser;
+    },
 
 
 
@@ -861,86 +1041,6 @@ addLikedSong: async (parent, { userId, songId }, { LikedSongs }) => {
   }
 },
 
-
-searched_Songs: async (parent, { songId }, { user, SearchHistory }) => {
-  if (!user) {
-    throw new AuthenticationError('You must be logged in!');
-  }
-
-  try {
-    // Create a new search history record
-    const searchHistory = new SearchHistory({
-      user: user.id, // Use the authenticated user's ID
-      searched_songs: songId,
-    });
-
-    // Save to the database
-    await searchHistory.save();
-
-    return searchHistory;
-  } catch (error) {
-    console.error('Failed to record search history:', error);
-    throw new Error('Failed to record search history.');
-  }
-},
-
-
-recommended_songs: async (parent, { userId, algorithm }) => {
-  try {
-    // Step 1: Validate the algorithm input
-    const validAlgorithms = ['basedOnLikes', 'basedOnPlayCounts', 'trending', 'newReleases'];
-    if (!validAlgorithms.includes(algorithm)) {
-      throw new Error('Invalid algorithm provided.');
-    }
-
-    // Step 2: Fetch the list of songs based on the algorithm
-    let songsToRecommend;
-    
-    switch (algorithm) {
-      case 'basedOnLikes':
-        // Recommend songs with the highest number of likes
-        songsToRecommend = await Song.find().sort({ likes: -1 }).limit(5); // Top 5 songs
-        break;
-      case 'basedOnPlayCounts':
-        // Recommend songs with the highest play counts
-        songsToRecommend = await Song.find().sort({ playCount: -1 }).limit(5); // Top 5 songs
-        break;
-      case 'trending':
-        // Recommend songs based on recent popularity or interactions
-        songsToRecommend = await Song.find().sort({ updatedAt: -1 }).limit(5); // Top 5 recent songs
-        break;
-      case 'newReleases':
-        // Recommend recently released songs
-        songsToRecommend = await Song.find().sort({ releaseDate: -1 }).limit(5); // Top 5 new releases
-        break;
-      default:
-        throw new Error('Invalid algorithm specified.');
-    }
-
-    // Step 3: Create recommendations for each song
-    const recommendations = await Promise.all(
-      songsToRecommend.map(async (song) => {
-        const recommendation = new Recommended({
-          user: userId,
-          recommended_songs: song._id,
-          algorithm,
-        });
-        
-        await recommendation.save();
-        return recommendation;
-      })
-    );
-
-    // Step 4: Return the recommendations
-    return {
-      message: "Recommendations generated successfully!",
-      recommendations, 
-    };
-  } catch (error) {
-    console.error('Failed to generate recommendations:', error);
-    throw new Error('Failed to generate recommendations.');
-  }
-},
 
 
   createPlaylist : async (parent, { title, description, songs }, { user }) => {

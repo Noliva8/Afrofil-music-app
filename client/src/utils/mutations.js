@@ -55,6 +55,20 @@ export const RESET_PASSWORD = gql`
   }
 `;
 
+export const CANCEL_SUBSCRIPTION = gql`
+  mutation CancelCurrentUserSubscription {
+    cancelCurrentUserSubscription {
+      _id
+      role
+      subscription {
+        status
+        periodEnd
+        planId
+      }
+    }
+  }
+`;
+
 
 export const CREATE_PLAYLIST = gql`
 mutation CreatePlaylist($title: String!, $createdBy: ID!, $description: String, $songs: [ID]) {

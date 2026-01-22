@@ -218,6 +218,191 @@ export const useSongsWithPresignedUrls = (songsData) => {
 
 
 
+export const useSongsWithPresignedUrlsMemoized = (songsData) => {
+  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+
+  const [songsWithArtwork, setSongsWithArtwork] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const lastSignatureRef = useRef('');
+
+  useEffect(() => {
+    const fetchArtworksAndAudio = async () => {
+      if (!songsData || !Array.isArray(songsData)) {
+        console.log('No songs data available or not an array:', songsData);
+        setSongsWithArtwork([]);
+        setLoading(false);
+        lastSignatureRef.current = '';
+        return;
+      }
+
+      const signature = songsData
+        .map((song) => song?._id ?? song?.id ?? song?.songId ?? '')
+        .join('|');
+
+      if (signature === lastSignatureRef.current) {
+        return;
+      }
+
+      lastSignatureRef.current = signature;
+      setLoading(true);
+
+      try {
+        const updatedSongs = await Promise.all(
+          songsData.map(async (song) => {
+            // Default “No Cover” SVG
+            let artworkUrl =
+              'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="%231a1a1a"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23ffffff" font-size="24" font-family="Arial">No Cover</text></svg>';
+
+            let profilePictureUrl = null;
+            let coverImageUrl = null;
+            let albumCoverImageUrl = null;
+            // Preserve any audio locator coming from the API (key or URL) without presigning here.
+            const audioUrl = song?.audioUrl || song?.streamAudioFileUrl || null;
+
+            // -----------------------------
+            // 1) Song artwork (full key)
+            // -----------------------------
+            const songArtworkKey = song?.artwork ? getFullKeyFromUrlOrKey(song.artwork) : null;
+
+            if (songArtworkKey) {
+              try {
+                const { data } = await getPresignedUrlDownload({
+                  variables: {
+                    bucket: 'afrofeel-cover-images-for-songs',
+                    key: songArtworkKey, // ✅ keep folders
+                    region: 'us-east-2',
+                    expiresIn: 604800,
+                  },
+                });
+
+                artworkUrl = data?.getPresignedUrlDownload?.url || artworkUrl;
+              } catch (error) {
+                console.error('Error fetching artwork for', song?.title, error);
+              }
+            } else {
+              // -----------------------------
+              // 1b) Fallback artwork (full key)
+              // -----------------------------
+              try {
+                const fallbackKey = getRandomFallbackImage(); // e.g. fallback-images/Icon1.jpg
+                const { data } = await getPresignedUrlDownload({
+                  variables: {
+                    bucket: 'afrofeel-cover-images-for-songs',
+                    key: fallbackKey, // ✅ keep folders
+                    region: 'us-east-2',
+                    expiresIn: 604800,
+                  },
+                });
+
+                artworkUrl = data?.getPresignedUrlDownload?.url || artworkUrl;
+              } catch (error) {
+                console.error('Error fetching fallback artwork for', song?.title, error);
+              }
+            }
+
+            // -----------------------------
+            // 3) Artist profile image (full key)
+            // -----------------------------
+            const rawProfileImage = song?.artist?.profileImage || null;
+            const artistProfileKey = rawProfileImage
+              ? getFullKeyFromUrlOrKey(rawProfileImage)
+              : null;
+
+            if (artistProfileKey) {
+              try {
+                const { data } = await getPresignedUrlDownload({
+                  variables: {
+                    bucket: 'afrofeel-profile-picture',
+                    key: artistProfileKey, // ✅ keep folders
+                    region: 'us-west-2',
+                    expiresIn: 604800,
+                  },
+                });
+
+                profilePictureUrl = data?.getPresignedUrlDownload?.url || null;
+              } catch (error) {
+                console.error('Error fetching artist profile image for', song?.title, error);
+              }
+            }
+
+            // -----------------------------
+            // 4) Artist cover image (full key)
+            // -----------------------------
+            const artistCoverKey = song?.artist?.coverImage
+              ? getFullKeyFromUrlOrKey(song.artist.coverImage)
+              : null;
+
+            if (artistCoverKey) {
+              try {
+                const { data } = await getPresignedUrlDownload({
+                  variables: {
+                    bucket: 'afrofeel-cover-images-for-songs',
+                    key: artistCoverKey, // ✅ keep folders
+                    region: 'us-east-2',
+                    expiresIn: 604800,
+                  },
+                });
+
+                coverImageUrl = data?.getPresignedUrlDownload?.url || null;
+              } catch (error) {
+                console.error('Error fetching artist cover image for', song?.title, error);
+              }
+            }
+
+            // -----------------------------
+            // 5) Album cover image (full key)
+            // -----------------------------
+            const albumCoverKey = song?.album?.albumCoverImage
+              ? getFullKeyFromUrlOrKey(song.album.albumCoverImage)
+              : null;
+
+            if (albumCoverKey) {
+              try {
+                const { data } = await getPresignedUrlDownload({
+                  variables: {
+                    bucket: 'afrofeel-cover-images-for-songs',
+                    key: albumCoverKey, // ✅ keep folders
+                    region: 'us-east-2',
+                    expiresIn: 604800,
+                  },
+                });
+
+                albumCoverImageUrl = data?.getPresignedUrlDownload?.url || null;
+              } catch (error) {
+                console.error('Error fetching album cover image for', song?.title, error);
+              }
+            }
+
+            return {
+              ...song,
+              artworkUrl,
+              audioUrl,
+              profilePictureUrl,
+              coverImageUrl,
+              albumCoverImageUrl,
+            };
+          })
+        );
+
+        setSongsWithArtwork(updatedSongs);
+      } catch (error) {
+        console.error('Error in useSongsWithPresignedUrls:', error);
+        setSongsWithArtwork([]);
+        lastSignatureRef.current = '';
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArtworksAndAudio();
+  }, [songsData]);
+
+  return { songsWithArtwork, loading };
+};
+
+
+
+
 
 // // Extract the URL fetching logic into a reusable function
 // export const fetchPresignedUrls = async (songs, getPresignedUrlDownload, getPresignedUrlDownloadAudio) => {

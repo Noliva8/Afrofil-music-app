@@ -1,23 +1,21 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import {
-  Box,
-  Container,
-  Typography,
-  Button,
-  IconButton,
-  Avatar,
-  Paper,
-  Tabs,
-  Tab,
-  LinearProgress,
-  Modal,
-  useTheme,
-  alpha,
-  Stack,
-  CircularProgress,
-  useMediaQuery,
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Avatar from '@mui/material/Avatar';
+import Paper from '@mui/material/Paper';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import LinearProgress from '@mui/material/LinearProgress';
+import Modal from '@mui/material/Modal';
+import useTheme from '@mui/material/styles/useTheme';
+import { alpha } from '@mui/material/styles';
+import Stack from '@mui/material/Stack';
+import CircularProgress from '@mui/material/CircularProgress';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   PlayArrow,
   Pause,
@@ -191,9 +189,9 @@ const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   fetchPolicy: 'cache-and-network',
   onCompleted: (data) => {
-    console.log('✅ Query completed! Data:', data);
-    console.log('🔍 getArtistSongs result:', data?.getArtistSongs);
-    console.log('🔍 Array length:', data?.getArtistSongs?.length);
+    // console.log('✅ Query completed! Data:', data);
+    // console.log('🔍 getArtistSongs result:', data?.getArtistSongs);
+    // console.log('🔍 Array length:', data?.getArtistSongs?.length);
   },
   onError: (error) => {
     console.error('❌ Query error:', error);

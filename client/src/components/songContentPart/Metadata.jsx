@@ -1,15 +1,13 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Paper,
-  Stack,
-  Collapse,
-  IconButton,
-  Typography,
-  useTheme,
-  Fade,
-  Button,
-} from "@mui/material";
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Stack from '@mui/material/Stack';
+import Collapse from '@mui/material/Collapse';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import useTheme from '@mui/material/styles/useTheme';
+import Fade from '@mui/material/Fade';
+import Button from '@mui/material/Button';
 import Title from "./inputsForSong/Title";
 import FeaturingArtist from "./inputsForSong/FeaturingArtist";
 import Producer from "../songContentPart/Producer";

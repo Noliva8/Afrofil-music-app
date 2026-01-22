@@ -5,10 +5,16 @@ import Language from "../../components/homeFreePlanComponents/Language.jsx";
 import Country from "../../components/homeFreePlanComponents/Country.jsx";
 import Region from "../../components/homeFreePlanComponents/Region.jsx";
 import Genre from "../../components/homeFreePlanComponents/Genre.jsx";
-import { useTheme, useMediaQuery } from "@mui/material";
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import Grid from "@mui/material/Grid2";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+
+
+
+
+
 
 export default function HomeFreePlan() {
   const theme = useTheme();

@@ -1,17 +1,32 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useLazyQuery } from '@apollo/client';
-import { useNavigate } from 'react-router-dom';
-import { Box, InputBase, alpha, useTheme, useMediaQuery } from '@mui/material';
+import { useLocation, useNavigate } from 'react-router-dom';
+import Box from '@mui/material/Box';
+import InputBase from '@mui/material/InputBase';
+import { alpha } from '@mui/material/styles';
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import { SEARCH_CATALOG } from '../utils/queries';
+import UserAuth from '../utils/auth.js'
 
-export const SearchBar = ({ onSearch, autoFocus = false, variant = 'compact' }) => {
+export const SearchBar = ({
+  onSearch,
+  autoFocus = false,
+  variant = 'compact',
+  fullWidth = false,
+  maxWidth: maxWidthProp,
+  sx,
+}) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const inputRef = useRef(null);
   const containerRef = useRef(null);
   
+
+  const isLoggedIn = UserAuth.loggedIn(); // 
   // State
   const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,6 +41,7 @@ export const SearchBar = ({ onSearch, autoFocus = false, variant = 'compact' }) 
   
   // Responsive breakpoints
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
   
@@ -78,6 +94,8 @@ export const SearchBar = ({ onSearch, autoFocus = false, variant = 'compact' }) 
   
   // Maximum width based on screen
   const getMaxWidth = () => {
+    if (maxWidthProp) return maxWidthProp;
+    if (fullWidth) return '100%';
     if (isMobile) return 280;
     if (isTablet) return 400;
     return 520;
@@ -169,14 +187,31 @@ export const SearchBar = ({ onSearch, autoFocus = false, variant = 'compact' }) 
 
   const handleClick = () => {
     if (variant === 'compact' && !isFocused) {
+      if (isLoggedIn && !isMobile) {
+        navigate('/explore?search=1');
+        return;
+      }
       navigate('/search');
     }
   };
+
+  useEffect(() => {
+    if (
+      variant === 'compact' &&
+   
+      !isMobile &&
+      isFocused &&
+      !location.pathname.startsWith('/explore')
+    ) {
+      navigate('/explore?search=1', { replace: true });
+    }
+  }, [isLoggedIn, isMobile, isFocused, location.pathname, navigate, variant]);
 
   const handleSuggestionSelect = (path) => {
     setIsFocused(false);
     navigate(path);
   };
+
 
   // Animation styles
   const pulseAnimation = {
@@ -257,14 +292,18 @@ export const SearchBar = ({ onSearch, autoFocus = false, variant = 'compact' }) 
     <>
       <style>{keyframes}</style>
       <Box
+ 
         ref={containerRef}
-        sx={{
-          position: 'relative',
-          maxWidth: getMaxWidth(),
-          width: '100%',
-          flex: getFlexBasis(),
-          animation: 'slideDown 0.3s ease-out',
-        }}
+        sx={[
+          {
+            position: 'relative',
+            maxWidth: getMaxWidth(),
+            width: '100%',
+            flex: getFlexBasis(),
+            animation: 'slideDown 0.3s ease-out',
+          },
+          sx,
+        ]}
       >
         <form onSubmit={handleSearch} style={{ width: '100%' }}>
           <Box

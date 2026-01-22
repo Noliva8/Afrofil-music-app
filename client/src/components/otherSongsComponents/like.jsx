@@ -1,6 +1,8 @@
 // LikesComponent.jsx
 import React, { useMemo, useState } from 'react';
-import { IconButton, Typography, Box } from '@mui/material';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { useMutation } from '@apollo/client';

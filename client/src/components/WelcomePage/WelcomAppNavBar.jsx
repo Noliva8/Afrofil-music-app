@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  IconButton,
-  Typography,
-  useMediaQuery,
-  Avatar,
-  Drawer,
-  Stack,
-  Divider,
-  Button,
-} from '@mui/material';
+import Box from '@mui/material/Box';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import Avatar from '@mui/material/Avatar';
+import Drawer from '@mui/material/Drawer';
+import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
+import Button from '@mui/material/Button';
 import { useTheme, alpha } from '@mui/material/styles';
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
@@ -98,14 +96,13 @@ const WelcomeAppNavBar = ({
           }}
         >
           <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: { xs: 1.5, md: 2 },
-              minWidth: 0,
-              width: { xs: 'auto', md: sidebarOffset ? sidebarOffset : 'auto' },
-              minWidth: { md: sidebarOffset ? sidebarOffset : 'auto' },
-              maxWidth: { md: sidebarOffset ? sidebarOffset : 'auto' },
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: { xs: 1.5, md: 2 },
+            width: { xs: 'auto', md: sidebarOffset ? sidebarOffset : 'auto' },
+            minWidth: { xs: 0, md: sidebarOffset ? sidebarOffset : 'auto' },
+            maxWidth: { md: sidebarOffset ? sidebarOffset : 'auto' },
               justifyContent: { xs: 'flex-start', md: 'space-between' },
             }}
           >
@@ -365,25 +362,7 @@ const WelcomeAppNavBar = ({
         </Box>
       </Box>
 
-      {showMobileSearchBar && (
-        <Box
-          sx={{
-            px: { xs: 2, sm: 3 },
-            pb: 2,
-            pt: 1,
-            background: `linear-gradient(180deg, ${alpha(theme.palette.background.default, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.92)} 100%)`,
-            position: 'sticky',
-            top: { xs: 72, sm: 80, md: 80 },
-            zIndex: 1000,
-            display: 'flex',
-            justifyContent: 'center',
-          }}
-        >
-          <Box sx={{ width: '100%', maxWidth: 420 }}>
-            <SearchBar autoFocus variant="full" />
-          </Box>
-        </Box>
-      )}
+    
 
       <Box sx={{ height: { xs: 72, sm: 80, md: 80 } }} />
     </>

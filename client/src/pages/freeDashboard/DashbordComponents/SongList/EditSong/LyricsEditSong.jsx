@@ -2,15 +2,14 @@ import React, { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation } from "@apollo/client";
 import Swal from "sweetalert2";
-import { useTheme, useMediaQuery } from "@mui/material";
-import {
-  Fade,
-  Box,
-  Paper,
-  Typography,
-  Button,
-  TextareaAutosize,
-} from "@mui/material";
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import Fade from '@mui/material/Fade';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import TextareaAutosize from '@mui/material/TextareaAutosize';
 
 import { ADD_LYRICS } from "../../../../../utils/mutations";
 import { SONG_OF_ARTIST } from "../../../../../utils/queries";

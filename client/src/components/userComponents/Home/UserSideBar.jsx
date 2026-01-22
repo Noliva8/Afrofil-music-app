@@ -1,23 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client';
-import {
-  alpha,
-  Box,
-  Collapse,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Stack,
-  Typography,
-  useTheme,
-  Avatar,
-  Button,
-  Paper,
-} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import useTheme from '@mui/material/styles/useTheme';
+import Box from '@mui/material/Box';
+import Collapse from '@mui/material/Collapse';
+import Divider from '@mui/material/Divider';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
+import Paper from '@mui/material/Paper';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import {
@@ -34,6 +32,7 @@ import {
   TrendingUpRounded,
   RemoveCircleOutline,
   OpenInNewRounded,
+  Add
 } from '@mui/icons-material';
 import {
   DndContext,
@@ -444,6 +443,12 @@ const UserSideBar = () => {
 
   const [playlists, setPlaylists] = useState([]);
 
+
+
+// themes
+ const primary = theme.palette.primary.main;
+
+
   // Initialize playlists state when data loads
   useEffect(() => {
     if (playlistsData?.userPlaylists) {
@@ -765,65 +770,37 @@ const UserSideBar = () => {
   }
 
   return (
-    <Box
+       <Box
       sx={{
-        width: '400px',
-        height: '100%',
-        display: 'flex',
+        width: 'var(--guest-sidebar-width)',
+        display: { xs: 'none', md: 'flex' },
         flexDirection: 'column',
+        gap: 2,
+        position: 'sticky',
+        top: { xs: 0, md: 96 },
+        minHeight: { xs: 'auto', md: 'calc(100vh - 96px)' },
+        maxHeight: { xs: 'none', md: 'calc(100vh - 96px)' },
+        alignSelf: 'flex-start',
         px: 2.5,
         py: 3,
+        pb: 3,
+        justifyContent: { xs: 'flex-start', md: 'space-between' },
         borderRadius: 3,
-        background: `linear-gradient(160deg, 
-          ${alpha(theme.palette.background.default, 0.98)} 0%, 
-          ${alpha(theme.palette.background.paper, 0.92)} 100%
-        )`,
-        border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
-        boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.08)}`,
-        backdropFilter: 'blur(20px)',
+        background: `linear-gradient(160deg, ${alpha(theme.palette.background.default, 0.98)} 0%, ${alpha(theme.palette.background.paper, 0.92)} 100%)`,
+        border: `1px solid ${alpha(primary, 0.18)}`,
+        boxShadow: theme.shadows[8],
+        backdropFilter: 'blur(18px)',
         overflowY: 'auto',
-        '&::-webkit-scrollbar': {
-          width: '4px',
-        },
-        '&::-webkit-scrollbar-track': {
-          background: alpha(theme.palette.divider, 0.1),
-          borderRadius: 2,
-        },
-        '&::-webkit-scrollbar-thumb': {
-          background: alpha(theme.palette.primary.main, 0.3),
-          borderRadius: 2,
-        },
+        overflowX: 'hidden'
       }}
     >
-      <Box sx={{ mb: 3 }}>
-        <Button
-          fullWidth
-          variant="contained"
-          startIcon={<AddRounded />}
-          onClick={handleOpenCreatePlaylist}
-          sx={{
-            textTransform: 'none',
-            fontWeight: 700,
-            py: 1.2,
-            borderRadius: 2,
-            background: `linear-gradient(90deg, 
-              ${alpha(theme.palette.primary.main, 0.9)} 0%, 
-              ${alpha(theme.palette.secondary.main, 0.9)} 100%
-            )`,
-            boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
-            },
-          }}
-        >
-          Create New Playlist
-        </Button>
-      </Box>
 
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
+
+
+  
+
+      {/* Library Header */}
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between' }}>
         <Typography
           variant="h6"
           sx={{
@@ -837,10 +814,44 @@ const UserSideBar = () => {
         >
           Your Library
         </Typography>
-        <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-          Drag and drop to organize playlists and songs
-        </Typography>
+
+    <Box >
+        <Button
+          
+        
+          startIcon={<AddRounded />}
+          onClick={handleOpenCreatePlaylist}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 700,
+            color: 'black',
+            py: .3,
+            borderRadius: 2,
+            background: `linear-gradient(90deg, 
+              ${alpha(theme.palette.primary.main, 0.9)} 0%, 
+              ${alpha(theme.palette.secondary.main, 0.9)} 100%
+            )`,
+            boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+            },
+          }}
+        >
+         Playlist
+        </Button>
       </Box>
+
+
+    
+
+      </Box>
+
+
+
+
+
 
       {/* Recent Activity */}
       <Box sx={{ mb: 4 }}>

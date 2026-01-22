@@ -3,15 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
-import { useTheme, useMediaQuery } from "@mui/material";
-import {
-  Box,
-  Paper,
-  Typography,
-  IconButton,
-  Button,
-  CircularProgress,
-} from "@mui/material";
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { resizeImageFile } from "../../../../../utils/ResizeImageFile";
