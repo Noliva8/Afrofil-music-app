@@ -20,6 +20,8 @@ import {
   FavoriteBorder,
   TrendingUp,
 } from "@mui/icons-material";
+
+
 import { Link as RouterLink } from "react-router-dom";
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils.js";
 import { useAudioPlayer } from "../../utils/Contexts/AudioPlayerContext";
@@ -27,7 +29,13 @@ import { usePlayCount } from "../../utils/handlePlayCount";
 import { useApolloClient } from "@apollo/client";
 import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
 
-export default function SuggestedSongs({ suggestedSongsWithArtwork = [], onCardClick }) {
+
+
+
+
+export default function SuggestedSongs({ suggestedSongsWithArtwork = [], onCardClick })
+
+ {
   const theme = useTheme();
   const client = useApolloClient();
   const [showAll, setShowAll] = useState(false);
@@ -35,10 +43,14 @@ export default function SuggestedSongs({ suggestedSongsWithArtwork = [], onCardC
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
 
+
+
   const suggestedSongs = useMemo(() => {
     const normalized = processSongs(suggestedSongsWithArtwork).filter((song) => song.audioUrl);
     return showAll ? normalized.slice(0, 20) : normalized.slice(0, 8);
   }, [suggestedSongsWithArtwork, showAll]);
+
+
 
   const handlePlay = (event, song) => {
     event.stopPropagation();
@@ -62,6 +74,8 @@ export default function SuggestedSongs({ suggestedSongsWithArtwork = [], onCardC
       });
     }
   };
+
+
 
   return (
     <Box sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 } }}>

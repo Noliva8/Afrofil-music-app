@@ -3,9 +3,11 @@ import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { SUGGESTED_SONGS_CACHE_KEY, similarSongsMatches } from "../Redis/keys.js";
 
 const CACHE_TTL_SECONDS = 60;
-const LIMIT = 20;
+const DEFAULT_LIMIT = 20;
 
-export const suggestedSongs = async () => {
+const buildCacheKey = (limit) => `${SUGGESTED_SONGS_CACHE_KEY}:${limit}`;
+
+export const suggestedSongs = async ({ limit = DEFAULT_LIMIT } = {}) => {
   let redis;
   try {
     redis = await getRedis();
@@ -15,7 +17,7 @@ export const suggestedSongs = async () => {
 
   if (redis) {
     try {
-      const cached = await redis.get(SUGGESTED_SONGS_CACHE_KEY);
+      const cached = await redis.get(buildCacheKey(limit));
       if (cached) return JSON.parse(cached);
     } catch (error) {
       console.warn("Suggested songs cache read failed:", error?.message || error);
@@ -32,9 +34,15 @@ export const suggestedSongs = async () => {
       return [];
     }
 
-    const similarIds = await redis.zRange(similarSongsMatches(String(topSong._id)), 0, LIMIT - 1, {
-      REV: true,
-    });
+    const safeLimit = Math.max(1, Number(limit) || DEFAULT_LIMIT);
+    const similarIds = await redis.zRange(
+      similarSongsMatches(String(topSong._id)),
+      0,
+      safeLimit - 1,
+      {
+        REV: true,
+      }
+    );
 
     if (!similarIds.length) {
       return [];
@@ -44,10 +52,11 @@ export const suggestedSongs = async () => {
       _id: { $in: similarIds },
       visibility: { $ne: "private" },
     })
-      .populate({
-        path: "artist",
-        select: "artistAka country bio followers artistDownloadCounts profileImage",
-      })
+    .populate({
+      path: "artist",
+      select:
+        "artistAka country bio followers artistDownloadCounts profileImage bookingAvailability",
+    })
       .populate({ path: "album", select: "title releaseDate albumCoverImage" })
       .lean();
 
@@ -70,7 +79,7 @@ export const suggestedSongs = async () => {
 
     if (redis) {
       try {
-        await redis.set(SUGGESTED_SONGS_CACHE_KEY, JSON.stringify(mapped), {
+        await redis.set(buildCacheKey(limit), JSON.stringify(mapped), {
           EX: CACHE_TTL_SECONDS,
         });
       } catch (error) {

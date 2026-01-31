@@ -159,16 +159,12 @@ export default function SongOfMonth({ songOfMonthWithArtwork = [], onCardClick }
           },
         }}
       >
-        {/* Background Pattern */}
+        {/* Background Tint */}
         <Box
           sx={{
             position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `radial-gradient(circle at 70% 30%, ${alpha(theme.palette.primary.main, 0.05)} 0%, transparent 60%)`,
-            opacity: 0.5,
+            inset: 0,
+            backgroundColor: alpha(theme.palette.background.paper, 0.15),
           }}
         />
 

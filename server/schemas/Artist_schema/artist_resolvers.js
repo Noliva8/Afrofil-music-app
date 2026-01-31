@@ -3,7 +3,13 @@ import fs from 'fs'
 import { pipeline } from 'stream';
 import { ApolloError } from 'apollo-server-express';
 import util from 'util';
-import  { Artist, Album, Song, User, Fingerprint, RadioStation } from '../../models/Artist/index_artist.js';
+import  { Artist, Album, Song, User, Fingerprint, RadioStation , Message} from '../../models/Artist/index_artist.js';
+import BookArtist from '../../models/Artist/bookArtist.js';
+import { getMessages } from './MessagingSystem/Queries/getmessages.js';
+import { getConversations } from './MessagingSystem/Queries/conversation.js';
+import { getUnreadCount } from './MessagingSystem/Queries/unreadCount.js';
+
+
 import { PlayCount } from '../../models/User/user_index.js';
 import dotenv from 'dotenv';
 import { AuthenticationError } from '../../utils/artist_auth.js';
@@ -58,9 +64,12 @@ import { artistCreateRedis, artistUpdateRedis, deleteArtistRedis,getArtistRedis,
 import { albumCreateRedis, albumUpdateRedis, deleteAlbumRedis, getLatestAlbumsRedis,getAlbumsByReleaseDateRedis, getAlbumsBySongCountRedis, searchAlbumsRedis,getMultipleAlbumsRedis, addSongToAlbumRedis,getAlbumRedis, removeSongFromAlbumRedis } from './Redis/albumCreateRedis.js';
 
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
-import { trendingSongs } from './trendingSongs/trendings.js';
+import { processedTrendingSongs } from './trendingSongs/trendings.js';
+
+import { trendingSongsV2 } from './trendingSongs/trendingV2.js';
+
 import { newUploads } from './newUploads/newUploads.js';
-import { suggestedSongs } from './suggestedSongs/suggestedSongs.js';
+import { suggestedSongs as fetchSuggestedSongs } from './suggestedSongs/suggestedSongs.js';
 import { songOfMonth } from './songOfMonth/songOfMonth.js';
 // import { similarSongs } from './similarSongs/similarSongs.js';
 
@@ -87,15 +96,50 @@ import { CLOUDFRONT_EXPIRATION } from './Redis/keys.js';
 import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from '../../utils/cloudFrontUrl.js';
 import { getFallbackArtworkUrl } from './similarSongs/similasongResolver.js';
 import { RADIO_TYPES } from '../../utils/radioTypes.js';
-
-
-
+import { createBookArtist } from './bookingArtist/createBookArtist.js';
+import { respondToBooking } from './bookingArtist/respondToBooking.js';
+import { sendMessage } from './MessagingSystem/Mutations/sendMessage.js';
 
 
 
 const pipe = util.promisify(pipeline);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const normalizeBookingForResponse = (booking) => {
+  if (!booking) return booking;
+  const copy = booking.toObject ? booking.toObject() : { ...booking };
+  if (copy.status) copy.status = copy.status.toUpperCase();
+  if (copy.eventType) copy.eventType = copy.eventType.toUpperCase();
+  if (copy.budgetRange) {
+    const budgetMap = {
+      "500-1000": "RANGE_500_1000",
+      "1000-3000": "RANGE_1000_3000",
+      "3000-5000": "RANGE_3000_5000",
+      "5000+": "RANGE_5000_PLUS",
+      flexible: "FLEXIBLE",
+    };
+    copy.budgetRange = budgetMap[copy.budgetRange] || copy.budgetRange;
+  }
+  if (copy.setLength) {
+    const lengthMap = {
+      30: "MIN_30",
+      60: "MIN_60",
+      90: "MIN_90",
+    };
+    copy.setLength = lengthMap[copy.setLength] || copy.setLength;
+  }
+  if (copy.performanceType) {
+    const perfMap = {
+      DJ: "DJ",
+      Live: "LIVE",
+      Acoustic: "ACOUSTIC",
+      "Backing-track": "BACKING_TRACK",
+    };
+    copy.performanceType = perfMap[copy.performanceType] || copy.performanceType;
+  }
+  return copy;
+};
 
 /** Safely derive an S3 object key from a URL or key string. */
 const s3KeyFromUrl = (urlOrKey) => {
@@ -476,7 +520,7 @@ const resolvers = {
 Query: {
 
 
-  artistProfile: async (parent, args, context) => {
+artistProfile: async (parent, args, context) => {
   try {
     // Debugging: Log the entire artistContext to see what it contains
     // console.log('context in artist profile:', context);
@@ -510,6 +554,28 @@ Query: {
     throw new Error("Failed to fetch artist profile.");
   }
 },
+
+// Added booking query for artist messaging
+artistBookings: async (_parent, { status }, context) => {
+  if (!context.artist) {
+    throw new AuthenticationError("Unauthorized: You must be logged in to view bookings.");
+  }
+  const query = { artist: context.artist._id };
+  if (status) {
+    query.status = status.toLowerCase();
+  }
+
+  const bookings = await BookArtist.find(query)
+    .sort({ createdAt: -1 })
+    .populate("user", "username")
+    .populate("song", "title");
+
+  return bookings.map(normalizeBookingForResponse);
+},
+
+bookingMessages: getMessages,
+messageConversations: getConversations,
+unreadMessages: getUnreadCount,
 
 // Query / Song
 // --------------
@@ -585,7 +651,10 @@ songById : async (parent, { songId }, context) => {
 publicSong: async (_parent, { songId }) => {
   try {
     const song = await Song.findById(songId)
-      .populate({ path: 'artist', select: 'artistAka bio country' })
+      .populate({
+        path: 'artist',
+        select: 'artistAka bio country bookingAvailability',
+      })
       .populate({ path: 'album', select: 'title releaseDate' })
       .lean();
     if (!song) throw new Error('Song not found.');
@@ -668,9 +737,12 @@ albumOfArtist: async (parent, args, context) => {
 },
 
 
-trendingSongs,
-newUploads,
-suggestedSongs,
+  trendingSongsV2,
+  processedTrendingSongs,
+  newUploads,
+  suggestedSongs: async (_parent, { limit }) => {
+    return fetchSuggestedSongs({ limit });
+  },
 songOfMonth,
 radioStations: async (_parent, { type, visibility = "public" }) => {
   const query = {};
@@ -1593,6 +1665,25 @@ removeGenre: async (_, { genre }, context) => {
       return updatedArtist;
     },
 
+
+    toggleBookingAvailability: async (_parent, { available }, context) => {
+      if (!context.artist) {
+        throw new AuthenticationError('Unauthorized: You must be logged in to toggle booking availability.');
+      }
+
+      const updatedArtist = await Artist.findOneAndUpdate(
+        { _id: context.artist._id },
+        { bookingAvailability: Boolean(available) },
+        { new: true }
+      );
+
+      if (!updatedArtist) {
+        throw new Error('Artist not found or update failed.');
+      }
+
+      await artistUpdateRedis(updatedArtist);
+      return updatedArtist;
+    },
 
 
 
@@ -2757,6 +2848,45 @@ nextSongAfterComplete: async (_p, { input }) => {
       return updatedSong;
     },
 
+    createBookArtist,
+    respondToBooking,
+    sendMessage,
+    
+
+//     sendBookingMessage,
+
+// sendBookingMessage: async (_parent, { input }, context) => {
+//   const { bookingId, content } = input;
+//   const senderType = context.artist ? "artist" : context.user ? "user" : null;
+//   if (!senderType) {
+//     throw new AuthenticationError("Please log in to send a message.");
+//   }
+
+//   const booking = await BookArtist.findById(bookingId);
+//   if (!booking) {
+//     throw new Error("Booking not found.");
+//   }
+
+//   const isArtist = context.artist?._id?.toString() === booking.artist?.toString();
+//   const isUser = context.user?._id?.toString() === booking.user?.toString();
+//   if (!isArtist && !isUser) {
+//     throw new AuthenticationError("You do not have permission to message this booking.");
+//   }
+
+//   if (booking.status === "pending") {
+//     throw new Error("Respond to the booking request before starting a chat.");
+//   }
+
+//   const senderId = senderType === "artist" ? context.artist._id : context.user._id;
+//   const message = await Message.create({
+//     bookingId,
+//     senderId,
+//     senderType,
+//     content,
+//   });
+
+//   return { message };
+// },
 
   },
 

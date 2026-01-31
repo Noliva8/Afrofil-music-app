@@ -136,6 +136,11 @@ export const processSongs = (songs) => {
       fullOriginal: song,
       country: song.artist?.country || "",
       album: song.album,
+      artist: song.artist || null,
+      artistBookingAvailability:
+        song.artist?.bookingAvailability ??
+        song.fullOriginal?.artist?.bookingAvailability ??
+        true,
     };
   });
 };

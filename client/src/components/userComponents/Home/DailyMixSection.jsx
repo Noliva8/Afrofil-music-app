@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -31,6 +32,14 @@ export default function DailyMixSection({
     handleShowAll,
   } = useScrollNavigation();
 
+
+  useEffect(() => {
+    window.addEventListener("resize", checkScrollPosition);
+    return () => window.removeEventListener("resize", checkScrollPosition);
+  }, [checkScrollPosition]);
+
+
+
   const renderCard = (CardComponent, track, index) => {
     const baseId = track.id || track._id || track.songId;
     const trackId = baseId ? String(baseId) : `daily-mix-${index}`;
@@ -53,9 +62,12 @@ export default function DailyMixSection({
     md: theme.spacing(theme.customSpacing?.cardGap?.md ?? 2),
     lg: theme.spacing(theme.customSpacing?.cardGap?.lg ?? 2.25),
   };
-  const MAX_ROW_SONGS = 8;
-  const rowQueue = mixQueue.slice(0, MAX_ROW_SONGS);
-  const placeholderCards = Array.from({ length: MAX_ROW_SONGS });
+  const rowQueue = mixQueue;
+  const placeholderCards = Array.from({ length: 8 });
+
+  useEffect(() => {
+    checkScrollPosition();
+  }, [checkScrollPosition, rowQueue.length, showAll]);
 
   if (loading) {
     return (
@@ -91,7 +103,7 @@ export default function DailyMixSection({
   }
 
   return (
-    <>
+    <Box sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 }, overflowX: 'visible' }}>
       <SectionHeader
         title={mixProfileLabel}
         subtitle="AI Daily Mix"
@@ -113,18 +125,19 @@ export default function DailyMixSection({
             <Box key={`compact-${track._id || track.id || `mix-${index}`}`} sx={{ flexShrink: 0 }}>
               {renderCard(CompactSongCard, track, index)}
             </Box>
-            ))}
+          ))}
         </Box>
       ) : (
         <Box
           sx={{
             position: "relative",
+            overflowX: "visible",
             "&:hover .scroll-arrows": {
               opacity: 1,
             },
           }}
         >
-            {showLeftArrow && (
+          {showLeftArrow && (
             <IconButton
               className="scroll-arrows"
               onClick={() => handleNavClick("left")}
@@ -174,23 +187,51 @@ export default function DailyMixSection({
             </IconButton>
           )}
 
-            <Box
+          {/* Fixed Scrollable Container */}
+          <Box
             ref={scrollContainerRef}
             onScroll={checkScrollPosition}
             onWheel={handleWheel}
             sx={{
               display: "flex",
-              overflowX: "auto",
+              flexWrap: "nowrap", // Forces single row
+              overflowX: "auto", // Enables horizontal scrolling
+              overflowY: "hidden", // Prevents vertical scrolling
               gap: spacingGap,
               pb: 2,
               px: { xs: 1, sm: 2 },
-              scrollbarWidth: "none",
-              "&::-webkit-scrollbar": { display: "none" },
-              "&-ms-overflow-style": "none",
+              width: "100%",
+              scrollBehavior: "smooth", // Smooth scrolling
+              scrollSnapType: "x mandatory",
+              scrollbarWidth: "thin",
+              "&::-webkit-scrollbar": {
+                height: 6,
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: "rgba(0, 0, 0, 0.1)",
+                borderRadius: 3,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "rgba(228,196,33,0.4)",
+                borderRadius: 3,
+                "&:hover": {
+                  backgroundColor: "rgba(228,196,33,0.6)",
+                },
+              },
+              "& > div": {
+                flexShrink: 0, // Prevents cards from shrinking
+                scrollSnapAlign: "start",
+              },
             }}
-            >
-              {rowQueue.map((track, index) => (
-              <Box key={`scroll-${track._id || track.id || `mix-${index}`}`} sx={{ flexShrink: 0 }}>
+          >
+            {rowQueue.map((track, index) => (
+              <Box 
+                key={`scroll-${track._id || track.id || `mix-${index}`}`}
+                sx={{ 
+                  flexShrink: 0,
+                  minWidth: 150, // Ensures cards have minimum width
+                }}
+              >
                 {renderCard(SongCard, track, index)}
               </Box>
             ))}
@@ -203,6 +244,12 @@ export default function DailyMixSection({
           {mixError}
         </Typography>
       )}
-    </>
+    </Box>
   );
 }
+
+
+
+
+
+// --------------------

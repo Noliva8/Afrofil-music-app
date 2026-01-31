@@ -74,6 +74,20 @@ export default function MenuContent({handleShowMobileMenu}) {
   </span>
 </Link>
 
+
+
+<Link to="dashboard" className="nav-item" onClick={handleShowMobileMenu}>
+  <span>
+    <DashboardRounded />
+  </span>
+  <span className="nav-text" style={{ fontSize: '18px', fontWeight: '400' }}>
+    Collabo Request
+  </span>
+
+
+
+</Link>
+
     
 </Box>
 

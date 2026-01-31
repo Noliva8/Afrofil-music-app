@@ -25,12 +25,12 @@ import {
   EmojiEvents,
 } from '@mui/icons-material';
 import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import PremiumCheckout from '../components/userComponents/Home/Premium/PremiumCheckout';
 
 import PremiumInfo from './PremiumInfo';
 import { useNavigate } from 'react-router';
 import UserAuth from '../utils/auth.js'
+import { useStripePromise } from '../utils/stripeLoader.js';
 
 const benefitsList = [
   {
@@ -70,11 +70,6 @@ const benefitsList = [
     color: 'error'
   },
 ];
-
-const stripePromise = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-  : null;
-
 
 
 
@@ -174,6 +169,7 @@ export default function PremiumPromo() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(pricingPlans[0].id);
   const navigate = useNavigate();
+  const stripePromise = useStripePromise();
 
  
 

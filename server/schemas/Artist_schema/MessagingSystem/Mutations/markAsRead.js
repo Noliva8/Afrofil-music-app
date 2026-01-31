@@ -1,0 +1,1 @@
+import {Artist, Song, User, Message, BookArtist} from "../../../../models/Artist/index_artist.js"

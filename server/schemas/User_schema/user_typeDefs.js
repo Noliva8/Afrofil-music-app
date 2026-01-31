@@ -47,6 +47,7 @@ type MixTrackArtist {
   artistAka: String
   profileImage: String
   country: String
+  bookingAvailability: Boolean
 }
 
 type MixTrackAlbum {
@@ -64,6 +65,7 @@ type DailyMixTrack {
   artistName: String
   artistId: ID
   artistProfile: MixTrackArtist
+  bookingAvailability: Boolean
   albumId: ID
   album: MixTrackAlbum
   genre: [String]
@@ -80,6 +82,8 @@ type DailyMixTrack {
   durationSeconds: Float
   streamAudioFileUrl: String
   audioUrl: String
+  likesCount: Int
+  likedByMe: Boolean
   durationLabel: String
   label: String
 }
@@ -167,6 +171,34 @@ type Playlist {
   createdAt: Date!
 }
 
+enum NotificationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+
+
+
+
+
+type UserNotification {
+  _id: ID!
+  userId: ID!
+  bookingId: ID!
+  messageId: ID
+  type: NotificationStatus!
+  message: String
+  isArtistRead: Boolean
+  isChatEnabled: Boolean
+  isNotificationSeen: Boolean
+}
+
+
+
+
+
+
 type LikedSongs {
   _id: ID!
   user: User
@@ -225,11 +257,28 @@ type userLocation{
 
 
 type Query {
+
+#USER NOTIFICATIONS
+#------------------
+
+notificationOnCreatedBookings(
+bookingId: ID! 
+): UserNotification
+
+  notificationOnArtistMessages(
+  messageId: ID
+  bookingId: ID
+  ): [UserNotification!]
+
+
+
+
+
   # Users
   users: [User]
   userById(userId: ID!): User
   userSubscription: Subscription
-  dailyMix(profileInput: MixProfileInput): DailyMix
+  dailyMix(profileInput: MixProfileInput, limit: Int = 20): DailyMix
   searchUser(username: String!): User
  liked_songsByUser(userId: ID!): [Song]
  searched_songsByUser(userId: ID!): [Song]
@@ -254,6 +303,7 @@ type Query {
   # Comments
   comments: [Comment]
   commentsForSong(songId: ID!): [Comment]
+  userNotifications(status: NotificationStatus): [UserNotification!]!
 
  
 }
@@ -280,7 +330,12 @@ type PasswordResetResponse {
 
 
 type Mutation {
-  
+
+markSeenUserNotification(notificationId: ID!
+isNotificationSeen: Boolean
+): UserNotification
+
+
  createUser(input: CreateUserInput!): UserAuthPayload
 
 
@@ -314,6 +369,7 @@ type Mutation {
   searched_Songs(userId: ID!, songId: ID!): SearchHistory
 
   removeLikedSong(userId: ID!, songId: ID!): Boolean
+  markNotificationRead(notificationId: ID!): UserNotification!
 
   createComment(
     songId: ID!,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -30,8 +30,10 @@ import Terms from './pages/Terms.jsx';
 import CollectionPage from './pages/CollectionPage.jsx';
 import CollectionLanding from './pages/CollectionLanding.jsx';
 import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
-import PremiumCheckoutWrapper from './components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx';
-import PremiumPromo from './pages/PremiumPromo.jsx';
+const PremiumCheckoutWrapper = lazy(() =>
+  import('./components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx')
+);
+const PremiumPromo = lazy(() => import('./pages/PremiumPromo.jsx'));
 import ArtistPage from './components/ArtistPage.jsx';
 import { SongPage } from './components/SongPage.jsx';
 import { AlbumPage } from './pages/freeDashboard/AlbumPage.jsx';
@@ -95,9 +97,17 @@ const router = createBrowserRouter([
       },
 
       {
-    path: "checkout",
-    element: <ProtectedRoute element={<PremiumCheckoutWrapper />} />,
-  },
+        path: "checkout",
+        element: (
+          <ProtectedRoute
+            element={
+              <Suspense fallback={<div />}>
+                <PremiumCheckoutWrapper />
+              </Suspense>
+            }
+          />
+        ),
+      },
 
     {
     path: "complete",
@@ -162,7 +172,11 @@ const router = createBrowserRouter([
       },
       {
         path: "premium",
-        element: <PremiumPromo />,
+        element: (
+          <Suspense fallback={<div />}>
+            <PremiumPromo />
+          </Suspense>
+        ),
       },
       {
         path: "terms",

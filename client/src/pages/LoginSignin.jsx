@@ -11,12 +11,15 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
-import { TRENDING_SONGS_PUBLIC, NEW_UPLOADS_PUBLIC, SUGGESTED_SONGS_PUBLIC, SONG_OF_MONTH_PUBLIC, RADIO_STATIONS_PUBLIC } from '../utils/queries';
+import { NEW_UPLOADS_PUBLIC, UPGRADED_TRENDING_SONGS, SUGGESTED_SONGS_PUBLIC, SONG_OF_MONTH_PUBLIC, RADIO_STATIONS_PUBLIC } from '../utils/queries';
 import MainMenu from '../components/MainMenu';
 import { GoogleLogin } from '@react-oauth/google';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
 import { useTheme, alpha } from '@mui/material/styles';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { HORIZONTAL_LIMIT, COMPACT_LIMIT } from '../CommonSettings/songsRowNumberControl';
+
+import { TRENDING_SONGS_PUBLICV2 } from '../utils/queries';
 
 // simple helpers (matching the previously working version)
 const useToggle = (initialState = false) => {
@@ -24,6 +27,10 @@ const useToggle = (initialState = false) => {
   const toggle = () => setState(prev => !prev);
   return [state, toggle];
 };
+
+
+
+
 
 const useFormState = (initialState) => {
   const [state, setState] = useState(initialState);
@@ -38,9 +45,15 @@ const useFormState = (initialState) => {
 const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
   const navigate = useNavigate();
 
+
+
+
+
+
+
   const handleBackHome = () => {
     onClose?.();
-    navigate('/loginSignin', { replace: true });
+    navigate('/loginSignin');
   };
 
   const handleSwitchToLogin = () => {
@@ -60,18 +73,43 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
 
 
 
-  const { data, loading, error, refetch } = useQuery(TRENDING_SONGS_PUBLIC, {
-    pollInterval: 30000, // Refetch every 30 seconds
-    notifyOnNetworkStatusChange: true,
-  });
-  const { data: newUploadsData } = useQuery(NEW_UPLOADS_PUBLIC, {
-    pollInterval: 30000,
-    notifyOnNetworkStatusChange: true,
-  });
+
+
+
+  const {data: trendingSongsV2 , loading: trendingSongsLoadingV2, error: trendingSongsErrorV2} = 
+  useQuery(TRENDING_SONGS_PUBLICV2, {
+    variables: {limit: HORIZONTAL_LIMIT},
+      pollInterval: 30000,
+  notifyOnNetworkStatusChange: true,
+  })
+
+
+
+
+  const processedTrendingSongs = trendingSongsV2 ?.trendingSongsV2 || [];
+
+  const { songsWithArtwork } = useSongsWithPresignedUrls(processedTrendingSongs);
+
+
+
+
+
+
+const {data: newUploadsData} = useQuery(NEW_UPLOADS_PUBLIC, {
+  variables: {limit: HORIZONTAL_LIMIT },
+  pollInterval: 30000,
+  notifyOnNetworkStatusChange: true,
+});
+
+
+
+
   const { data: suggestedData } = useQuery(SUGGESTED_SONGS_PUBLIC, {
     pollInterval: 30000,
     notifyOnNetworkStatusChange: true,
+    variables: { limit: HORIZONTAL_LIMIT },
   });
+
   const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
@@ -83,27 +121,28 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
 
 
   // Debug trendingSongs fetch to surface GraphQL errors and network state
-  React.useEffect(() => {
-    if (loading) {
-      console.log('[TrendingSongs] loading…');
-      return;
-    }
-    if (error) {
-      console.error('[TrendingSongs] error:', error);
-      if (error.graphQLErrors?.length) {
-        error.graphQLErrors.forEach((gqlErr, idx) =>
-          console.error(`[TrendingSongs] graphQLErrors[${idx}]`, gqlErr.message, gqlErr)
-        );
-      }
-      if (error.networkError) {
-        console.error('[TrendingSongs] networkError:', error.networkError);
-      }
-    } else {
-      console.log('[TrendingSongs] data:', data?.trendingSongs);
-    }
-  }, [loading, error, data]);
+  // React.useEffect(() => {
+  //   if (loading) {
+  //     console.log('[TrendingSongs] loading…');
+  //     return;
+  //   }
+  //   if (error) {
+  //     console.error('[TrendingSongs] error:', error);
+  //     if (error.graphQLErrors?.length) {
+  //       error.graphQLErrors.forEach((gqlErr, idx) =>
+  //         console.error(`[TrendingSongs] graphQLErrors[${idx}]`, gqlErr.message, gqlErr)
+  //       );
+  //     }
+  //     if (error.networkError) {
+  //       console.error('[TrendingSongs] networkError:', error.networkError);
+  //     }
+  //   } else {
+  //     console.log('[TrendingSongs] data:', data?.trendingSongs);
+  //   }
+  // }, [loading, error, data]);
 
-  const { songsWithArtwork } = useSongsWithPresignedUrls(data?.trendingSongs);
+
+
   const { songsWithArtwork: newUploadsWithArtwork } = useSongsWithPresignedUrls(
     newUploadsData?.newUploads
   );
@@ -117,7 +156,6 @@ const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup,
   const { songsWithArtwork: songOfMonthWithArtwork } = useSongsWithPresignedUrls(
     songOfMonthSource
   );
-console.log('see the songs with preigned urls:', songsWithArtwork )
 
   // const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
   // const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
@@ -841,22 +879,21 @@ const renderSignup = () => (
 
   return (
     <>
-        {display === 'login' && renderLogin()}
+      {display === 'login' && renderLogin()}
       {display === 'signup' && renderSignup()}
 
-{display === '' && (
-<MainMenu
-  songsWithArtwork={songsWithArtwork}    
-  newUploadsWithArtwork={newUploadsWithArtwork}
-  suggestedSongsWithArtwork={suggestedSongsWithArtwork}
-  songOfMonthWithArtwork={songOfMonthWithArtwork}
-  radioStations={radioStationsData?.radioStations || []}
-   refetch={refetch}
-/>
-
-)}
-
-
+      {display === '' && (
+        <MainMenu
+          trendingSongs={processedTrendingSongs}
+          songsWithArtwork={songsWithArtwork}
+          newUploadsWithArtwork={newUploadsWithArtwork}
+          suggestedSongsWithArtwork={suggestedSongsWithArtwork}
+          songOfMonthWithArtwork={songOfMonthWithArtwork}
+          radioStations={radioStationsData?.radioStations || []}
+        
+          
+        />
+      )}
     </>
   );
 };

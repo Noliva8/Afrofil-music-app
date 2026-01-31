@@ -21,6 +21,7 @@ import Shuffle from "@mui/icons-material/Shuffle";
 import SkipNextIcon from "@mui/icons-material/SkipNext";
 import ShareIcon from "@mui/icons-material/Share";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -36,18 +37,20 @@ import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
 import { useMutation } from "@apollo/client";
 import { usePlayCount } from "../utils/handlePlayCount";
 import { SONG_BY_ID, SONGS_OF_ALBUM, OTHER_ALBUMS_ARTIST } from "../utils/queries";
-import { GET_PRESIGNED_URL_DOWNLOAD } from "../utils/mutations";
+import { GET_PRESIGNED_URL_DOWNLOAD, CREATE_BOOK_ARTIST } from "../utils/mutations";
 import { useSongsWithPresignedUrls } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
 import { handleTrendingSongPlay } from "../utils/plabackUtls/handleSongPlayBack.js";
 import { getFullKeyFromUrlOrKey } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { useScrollNavigation } from "../utils/someSongsUtils/scrollHooks.js";
+import { useBookingId } from "../utils/contexts/bookingIdContext";
 
 // Components
 import { ShuffleButton } from "./ShuffleButton.jsx";
 import { PlayButton } from "./PlayButton";
 import { ActionButtonsGroup } from "./ActionButtonsGroup.jsx";
 import { ActionMenu } from "./ActionMenu.jsx";
+import BookingArtistModal from "./BookingArtistModal.jsx";
 
 export const SongPage = () => {
   // Audio player context
@@ -76,8 +79,11 @@ export const SongPage = () => {
   const [touchTimer, setTouchTimer] = useState(null);
   const [longPressTrack, setLongPressTrack] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [menuBookingOpen, setMenuBookingOpen] = useState(false);
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const [createBooking] = useMutation(CREATE_BOOK_ARTIST);
   const [albumCovers, setAlbumCovers] = useState({});
+  const { setBookingId } = useBookingId();
 
 
   const isMobile = useMediaQuery("(max-width:900px)");
@@ -118,6 +124,15 @@ const theme = useTheme();
     }
   }, []);
 
+  const getArtistBookingAvailability = useCallback((track) => {
+    if (!track) return undefined;
+    if (track.artistBookingAvailability !== undefined) return track.artistBookingAvailability;
+    if (track.artist?.bookingAvailability !== undefined) return track.artist.bookingAvailability;
+    if (track.fullOriginal?.artist?.bookingAvailability !== undefined)
+      return track.fullOriginal.artist.bookingAvailability;
+    return undefined;
+  }, []);
+
   const formatDuration = useCallback((duration) => {
     if (!duration) return '--:--';
     
@@ -151,6 +166,7 @@ const theme = useTheme();
   // 1) Song from navigation state
   // -----------------------
   const songFromStateRaw = location.state?.song ?? null;
+  console.log('')
 
   const songFromState = useMemo(() => {
     if (!songFromStateRaw) return null;
@@ -159,12 +175,20 @@ const theme = useTheme();
     return String(stateId) === String(songId) ? songFromStateRaw : null;
   }, [songFromStateRaw, songId, getId]);
 
-  const stateHasFreshSignedArtwork = useMemo(() => 
-    !isCloudFrontExpired(songFromState?.artworkUrl),
+  const stateHasFreshSignedArtwork = useMemo(
+    () => !isCloudFrontExpired(songFromState?.artworkUrl),
     [songFromState, isCloudFrontExpired]
   );
 
-  const skipSongFetch = Boolean(songFromState && stateHasFreshSignedArtwork);
+  const stateHasBookingFlag = useMemo(
+    () =>
+      songFromState?.artistBookingAvailability !== undefined ||
+      songFromState?.artist?.bookingAvailability !== undefined ||
+      songFromState?.fullOriginal?.artist?.bookingAvailability !== undefined,
+    [songFromState]
+  );
+
+  const skipSongFetch = Boolean(songFromState && stateHasFreshSignedArtwork && stateHasBookingFlag);
 
   // -----------------------
   // 2) Fetch song by ID
@@ -182,10 +206,14 @@ const theme = useTheme();
   // 3) Process song with presigned URLs
   // -----------------------
   const { songsWithArtwork } = useSongsWithPresignedUrls(fallbackSongs);
+
+
   const processedSongFetched = useMemo(() => {
     const processed = processSongs(songsWithArtwork);
     return processed?.[0] || null;
   }, [songsWithArtwork]);
+
+
 
   // -----------------------
   // 4) Resolve album ID
@@ -292,6 +320,11 @@ const theme = useTheme();
   // 6) Final song for rendering
   // -----------------------
   const song = processedSongFetched || songFromState || null;
+  const artistBookingAvailability = useMemo(
+    () => getArtistBookingAvailability(song),
+    [song, getArtistBookingAvailability]
+  );
+  const bookingAllowed = artistBookingAvailability !== false;
 
   // -----------------------
   // 7) Artwork
@@ -662,6 +695,35 @@ console.log('see albums:',  albumCovers);
     setSelectedTrack(null);
   };
 
+  const handleMenuBookingOpen = useCallback(() => setMenuBookingOpen(true), []);
+  const handleMenuBookingClose = useCallback(() => setMenuBookingOpen(false), []);
+  const handleCreateBooking = useCallback(
+    async (payload) => {
+      const { data } = await createBooking({
+        variables: {
+          input: payload,
+        },
+      });
+      const booking = data?.createBookArtist?.booking;
+      if (booking?._id) {
+        setBookingId(booking._id);
+      }
+      return booking;
+    },
+    [createBooking]
+  );
+
+  const handleMenuBookingSubmit = useCallback(
+    async (data) => {
+      try {
+        await handleCreateBooking(data);
+      } finally {
+        handleMenuBookingClose();
+      }
+    },
+    [handleCreateBooking, handleMenuBookingClose]
+  );
+
   const handleOpenTrackMenu = useCallback(
     (track, event) => {
       event?.stopPropagation();
@@ -677,15 +739,23 @@ console.log('see albums:',  albumCovers);
     [isMobile]
   );
 
-  const mainMenuItems = useMemo(
-    () => [
+  const mainMenuItems = useMemo(() => {
+    const items = [
       { icon: <Description />, label: "Play now", onClick: handlePrimaryPlay, fontWeight: 400 },
       { icon: <Shuffle />, label: "Shuffle", onClick: () => console.log("Shuffle clicked"), fontWeight: 400 },
       { icon: <SkipNextIcon />, label: "Play next", onClick: () => console.log("Play next clicked"), fontWeight: 400 },
       { icon: <ShareIcon />, label: "Share", onClick: handleShare, fontWeight: 400 },
-    ],
-    [handlePrimaryPlay, handleShare]
-  );
+    ];
+    if (bookingAllowed) {
+      items.push({
+        icon: <CalendarMonthIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: "Book artist",
+        onClick: handleMenuBookingOpen,
+        fontWeight: 400,
+      });
+    }
+    return items;
+  }, [handlePrimaryPlay, handleShare, bookingAllowed, handleMenuBookingOpen]);
 
   const trackMenuItems = useMemo(() => {
     const isPlayingSelected = isSelectedTrackCurrent && playerIsPlaying;
@@ -1112,6 +1182,11 @@ console.log('see albums:',  albumCovers);
           onToggleFavorite={handleAddToFavorites}
           onShare={handleShare}
           onMore={handleOpenMenu}
+          supportArtistId={song?.artistId || song?.artist?._id}
+          supportArtistName={song?.artistName || song?.artist?.artistAka}
+          supportSongId={song?.id || song?._id}
+          isBookingEnabled={artistBookingAvailability}
+          onBookingSubmit={handleCreateBooking}
         />
       </Box>
 
@@ -1124,6 +1199,19 @@ console.log('see albums:',  albumCovers);
         onCloseDrawer={handleCloseDrawer}
         items={mainMenuItems}
       />
+
+      {bookingAllowed && (
+        <BookingArtistModal
+          open={menuBookingOpen}
+          onClose={handleMenuBookingClose}
+          artistName={song?.artist?.artistAka || song?.artistName}
+          context={{
+            artistId: song?.artistId || song?.artist?._id,
+            songId: song?.id || song?._id,
+          }}
+          onSubmit={handleMenuBookingSubmit}
+        />
+      )}
 
       {/* Album Songs Section - Mobile Optimized */}
       {processedAlbumSongs.length > 0 && (

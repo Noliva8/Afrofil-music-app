@@ -8,8 +8,7 @@ import Download from './Download.js';
 import Artist from '../Artist/Artist.js';
 import Song from '../Artist/Song.js';
 import Album from '../Artist/Album.js';
+import UserNotification from './Notification.js';
 
 
-
-
-export { User, Playlist, Comment,  LikedSongs, SearchHistory, PlayCount, Download, Artist, Song, Album };
+export { User, Playlist, Comment,  LikedSongs, SearchHistory, PlayCount, Download, Artist, Song, Album, UserNotification };

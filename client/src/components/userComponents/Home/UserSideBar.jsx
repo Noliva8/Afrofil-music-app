@@ -18,6 +18,7 @@ import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
+
 import {
   PlaylistPlayRounded,
   FavoriteRounded,
@@ -34,6 +35,7 @@ import {
   OpenInNewRounded,
   Add
 } from '@mui/icons-material';
+
 import {
   DndContext,
   closestCenter,
@@ -770,7 +772,7 @@ const UserSideBar = () => {
   }
 
   return (
-       <Box
+    <Box
       sx={{
         width: 'var(--guest-sidebar-width)',
         display: { xs: 'none', md: 'flex' },
@@ -778,7 +780,7 @@ const UserSideBar = () => {
         gap: 2,
         position: 'sticky',
         top: { xs: 0, md: 96 },
-        minHeight: { xs: 'auto', md: 'calc(100vh - 96px)' },
+        height: { xs: 'auto', md: 'calc(100vh - 96px)' },
         maxHeight: { xs: 'none', md: 'calc(100vh - 96px)' },
         alignSelf: 'flex-start',
         px: 2.5,
@@ -791,7 +793,15 @@ const UserSideBar = () => {
         boxShadow: theme.shadows[8],
         backdropFilter: 'blur(18px)',
         overflowY: 'auto',
-        overflowX: 'hidden'
+        overflowX: 'hidden',
+        scrollbarWidth: 'thin',
+        '&::-webkit-scrollbar': {
+          width: 6,
+        },
+        '&::-webkit-scrollbar-thumb': {
+          backgroundColor: alpha(theme.palette.primary.main, 0.4),
+          borderRadius: 3,
+        },
       }}
     >
 

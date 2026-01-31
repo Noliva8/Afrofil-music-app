@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import CheckoutForm from './CheckoutForm';
 import UserAuth from "../utils/auth.js";
 import Box from '@mui/material/Box';
@@ -14,8 +13,7 @@ import { alpha } from '@mui/material/styles';
 import useTheme from '@mui/material/styles/useTheme';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+import { useStripePromise } from '../utils/stripeLoader.js';
 
 const CheckoutPage = () => {
   const theme = useTheme();
@@ -52,6 +50,8 @@ const CheckoutPage = () => {
 
   const appearance = { theme: 'stripe' };
   const options = { clientSecret, appearance };
+
+  const stripePromise = useStripePromise();
 
   return (
     <Box
@@ -157,7 +157,13 @@ const CheckoutPage = () => {
               )}
               {loading && (
                 <Stack alignItems="center" spacing={2} sx={{ py: 4 }}>
-                  <CircularProgress />
+          {!stripePromise ? (
+            <CircularProgress />
+          ) : (
+            <Elements stripe={stripePromise} options={options}>
+              <CheckoutForm clientSecret={clientSecret} />
+            </Elements>
+          )}
                   <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                     Preparing your checkout...
                   </Typography>

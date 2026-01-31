@@ -21,6 +21,7 @@ query Query {
     languages
     mood
     profileImage
+    bookingAvailability
     songs {
       _id
       title

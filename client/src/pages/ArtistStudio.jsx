@@ -222,8 +222,8 @@ console.log('structure of url on artist side:', presignedUrl)
               handleShowDrawers={handleShowDrawers}
               handleshowAccountMenu={handleshowAccountMenu}
               profileImage={profileImage}
+              artistProfile={artistProfile}
             />
-
              <Box sx={{ overflowY: 'scroll',
            
              }}  >

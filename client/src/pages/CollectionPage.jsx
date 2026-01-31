@@ -482,7 +482,7 @@ export default function CollectionPage() {
                     src={heroArtwork}
                     alt={selectedPlaylist.title}
                     loading="eager"
-                    fetchPriority="high"
+                    fetchpriority="high"
                     sx={{
                       position: "absolute",
                       inset: 0,
@@ -535,7 +535,7 @@ export default function CollectionPage() {
                     src={heroArtwork}
                     alt={selectedPlaylist.title}
                     loading="eager"
-                    fetchPriority="high"
+                    fetchpriority="high"
                     sx={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                   </Box>

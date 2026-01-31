@@ -869,6 +869,9 @@ console.log('top track processesd:', limitedSongs)
             onToggleFavorite={handleFollowToggle}
             onShare={handleShareArtist}
             onMore={handleOpenMenu}
+            supportArtistId={artist?._id}
+            supportArtistName={artist?.artistAka || artist?.name}
+            isBookingEnabled={artist?.bookingAvailability ?? true}
           />
         </Box>
       </Box>

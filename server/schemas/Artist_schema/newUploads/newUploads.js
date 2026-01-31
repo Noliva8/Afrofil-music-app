@@ -3,7 +3,15 @@ import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { NEW_UPLOADS_CACHE_KEY } from "../Redis/keys.js";
 const CACHE_TTL_SECONDS = 60;
 
-export const newUploads = async () => {
+
+
+
+
+
+export const newUploads = async (_parent, { limit }) => {
+  const requested = Math.max(1, Math.min(Number(limit), 50)); // guard
+  const CACHE_LIMIT = 20;
+  
   let redis;
   try {
     redis = await getRedis();
@@ -11,26 +19,40 @@ export const newUploads = async () => {
     redis = null;
   }
 
+  // 1) Redis hit: slice and return
   if (redis) {
     try {
       const cached = await redis.get(NEW_UPLOADS_CACHE_KEY);
-      if (cached) return JSON.parse(cached);
-    } catch (error) {
-      console.warn("New uploads cache read failed:", error?.message || error);
+      if (cached) {
+        const list = JSON.parse(cached);
+        if (Array.isArray(list)) {
+          return list.slice(0, requested);
+        }
+      }
+    } catch (e) {
+      console.warn("New uploads cache read failed:", e?.message || e);
     }
   }
 
+  // 2) DB fallback: fetch newest CACHE_LIMIT, normalize, cache
   try {
-    const songs = await Song.find({ visibility: { $ne: "private" } })
-      .sort({ createdAt: -1 })
-      .limit(20)
-      .populate({ path: "artist", select: "artistAka country bio followers artistDownloadCounts" })
-      .populate({ path: "album", select: "title releaseDate" })
+    const songsFromDb = await Song.find({ visibility: { $ne: "private" } })
+      .sort({ createdAt: -1, _id: -1 }) // newest first, deterministic
+      .limit(CACHE_LIMIT)
+    .populate({
+      path: "artist",
+      select:
+        "artistAka country bio artistDownloadCounts followersCount bookingAvailability",
+    })
+      .populate({
+        path: "album",
+        select: "title releaseDate",
+      })
       .lean();
 
-    return songs.map((song) => ({
+    const normalized = songsFromDb.map((song) => ({
       ...song,
-      artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+      artistFollowers: Number(song.artist?.followersCount || 0),
       mood: song.mood || [],
       subMoods: song.subMoods || [],
       composer: Array.isArray(song.composer) ? song.composer : [],
@@ -44,13 +66,17 @@ export const newUploads = async () => {
 
     if (redis) {
       try {
-        await redis.set(NEW_UPLOADS_CACHE_KEY, JSON.stringify(songs), { EX: CACHE_TTL_SECONDS });
-      } catch (error) {
-        console.warn("New uploads cache write failed:", error?.message || error);
+        await redis.set(
+          NEW_UPLOADS_CACHE_KEY,
+          JSON.stringify(normalized),
+          { EX: CACHE_TTL_SECONDS }
+        );
+      } catch (e) {
+        console.warn("New uploads cache write failed:", e?.message || e);
       }
     }
 
-    return songs;
+    return normalized.slice(0, requested);
   } catch (error) {
     console.error("New uploads error:", error);
     return [];

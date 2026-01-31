@@ -1,10 +1,12 @@
 // LikesComponent.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ThumbUpOffAltIcon from '@mui/icons-material/ThumbUpOffAlt';
+
 import { useMutation } from '@apollo/client';
 import { LIKES } from '../../utils/mutations';
 import Feedback from '../Feedback';
@@ -14,18 +16,24 @@ import PanToolRoundedIcon from '@mui/icons-material/PanToolRounded';
 
 
 export function LikesComponent({ song, onRequireAuth }) {
-  
+
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
-  
-  // Normalize inputs
+
   const songId = useMemo(() => String(song?.id ?? song?._id ?? song?.songId ?? ''), [song]);
 
-  const likesCount = Number(song?.likesCount ?? 0);
-  const likedByMe = Boolean(song?.likedByMe);
+  const [displayLikes, setDisplayLikes] = useState(Number(song?.likesCount ?? 0));
+  const [displayLikedByMe, setDisplayLikedByMe] = useState(Boolean(song?.likedByMe));
 
+  useEffect(() => {
+    setDisplayLikes(Number(song?.likesCount ?? 0));
+    setDisplayLikedByMe(Boolean(song?.likedByMe));
+  }, [song?.likesCount, song?.likedByMe]);
+
+  const likesCount = displayLikes;
+  const likedByMe = displayLikedByMe;
   const [toggleLike, { loading }] = useMutation(LIKES, {
     variables: { songId },
     // Instant UI update - but don't calculate likesCount optimistically
@@ -56,6 +64,7 @@ export function LikesComponent({ song, onRequireAuth }) {
     // Write the canonical Song entity so every list/card stays in sync
     update: (cache, { data }) => {
       const s = data?.toggleLikeSong;
+      console.log('likes data:', s)
       if (!s) return;
       cache.modify({
         id: cache.identify({ __typename: 'Song', _id: s._id }),
@@ -63,11 +72,29 @@ export function LikesComponent({ song, onRequireAuth }) {
           likesCount: () => s.likesCount,
           likedByMe: () => s.likedByMe,
         },
+
       });
+      setDisplayLikes(s.likesCount);
+      setDisplayLikedByMe(s.likedByMe);
+      const dailyMixId = cache.identify({ __typename: 'DailyMixTrack', _id: s._id });
+      if (dailyMixId) {
+        cache.modify({
+          id: dailyMixId,
+          fields: {
+            likesCount: () => s.likesCount,
+            likedByMe: () => s.likedByMe,
+          },
+        });
+        setDisplayLikes(s.likesCount);
+        setDisplayLikedByMe(s.likedByMe);
+      }
     },
     // Important: don't refetch queries; that causes the snap-back you observed
     refetchQueries: [],
   });
+
+  
+
 
   const handleClick = async (e) => {
     e.stopPropagation();
@@ -89,6 +116,8 @@ export function LikesComponent({ song, onRequireAuth }) {
     }
   };
 
+
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
       <IconButton
@@ -101,10 +130,13 @@ export function LikesComponent({ song, onRequireAuth }) {
           '&:hover': { backgroundColor: 'rgba(255,255,255,0.16)' },
         }}
       >
-        {likedByMe ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+        {displayLikedByMe ? <ThumbUpOffAltIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
       </IconButton>
+
+
+
       <Typography variant="caption" sx={{ color: '#E4C421', fontWeight: 600 }}>
-        {likesCount}
+        {displayLikes}
       </Typography>
 
       <Feedback

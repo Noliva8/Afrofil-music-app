@@ -54,23 +54,6 @@ html, body, #root {
 
 
 
-/* Main container */
-.app-container {
-  display: flex;
-  flex-direction: column;
-  position: fixed; /* Changed from absolute */
-  top: calc(-1 * var(--safe-top));
-  left: 0;
-  right: 0;
-  bottom: calc(-1 * var(--safe-bottom));
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  background-attachment: scroll; /* Better performance */
-  overflow-y: auto;
-  overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
-}
-
 
 
 
@@ -108,13 +91,3 @@ html, body, #root {
   }
 }
 
-
-/* Mobile-specific fixes */
-@media (max-width: 768px) {
-  .app-container {
-    background-attachment: local;
-    height: 100%;
-    height: -moz-available;
-    height: stretch;
-  }
-}

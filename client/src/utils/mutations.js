@@ -227,6 +227,20 @@ mutation addMood($mood: [String]) {
 }
 `
 
+export const TOGGLE_BOOKING_AVAILABILITY = gql`
+  mutation toggleBookingAvailability($available: Boolean!) {
+    toggleBookingAvailability(available: $available) {
+      _id
+      bookingAvailability
+    }
+  }
+`
+
+
+
+
+
+
 export const REMOVE_GENRE = gql`
 mutation RemoveGenre($genre: [String]) {
   removeGenre(genre: $genre) {
@@ -666,6 +680,7 @@ export const CLEAR_PLAYBACK_CONTEXT_STATE = gql`
 export const LIKES = gql`
 mutation ToggleLikeSong($songId: ID!) {
   toggleLikeSong(songId: $songId) {
+    __typename
     _id
     title
     likesCount
@@ -710,4 +725,138 @@ export const HANDLE_ARTIST_DOWNLOAD = gql`
       artistDownloadCounts
     }
   }
+`
+
+
+
+export const SEND_BOOKING_REQUEST = gql`
+  mutation sendBookingRequest($input: BookingRequestInput!) {
+    sendBookingRequest(input: $input) {
+      _id
+      status
+      eventType
+      eventDate
+      location {
+        city
+        country
+        venue
+      }
+      budgetRange
+      performanceType
+      setLength
+      message
+      artist {
+        _id
+        artistAka
+        bookingAvailability
+      }
+    }
+  }
+
+`
+
+
+  export const CREATE_BOOK_ARTIST = gql`
+  mutation CreateBookArtist($input: CreateBookArtistInput!) {
+  createBookArtist(input: $input) {
+    booking {
+      _id
+      status
+      eventType
+      eventDate
+      budgetRange
+      performanceType
+      setLength
+      customSetLength
+      message
+
+      artist {
+        _id
+        artistAka
+      }
+
+      user {
+        _id
+      }
+
+      song {
+        _id
+        title
+      }
+
+      createdAt
+    }
+  }
+}
+  `
+
+
+  export const RESPOND_TO_BOOKING_ARTIST = gql`
+  mutation RespondToBooking($input: RespondToBookingInput!) {
+  respondToBooking(input: $input) {
+    booking {
+      _id
+      status
+
+      artistResponse {
+        message
+        respondedAt
+      }
+
+      artist {
+        _id
+        artistAka
+      }
+
+      user {
+        _id
+      }
+
+      song {
+        _id
+        title
+      }
+
+      updatedAt
+    }
+  }
+}
+  `
+
+export const SEND_MESSAGE = gql`
+  mutation SendMessage($input: SendMessageInput!) {
+    sendMessage(input: $input) {
+      _id
+      bookingId
+      senderId
+      senderType
+      content
+      isRead
+      readAt
+      createdAt
+    }
+  }
+`
+
+export const MARK_NOTIFICATION_READ = gql`
+  mutation MarkNotificationRead($notificationId: ID!) {
+    markNotificationRead(notificationId: $notificationId) {
+      _id
+      isRead
+    }
+  }
+`;
+
+
+// USER NOTIFICATION MUTATION
+
+export const MARK_SEEN_USER_NOTIFICATION = gql`
+mutation MarkSeenUserNotification($notificationId: ID!, $isNotificationSeen: Boolean) {
+  markSeenUserNotification(notificationId: $notificationId, isNotificationSeen: $isNotificationSeen) {
+    _id
+    bookingId
+    isNotificationSeen
+    userId
+  }
+}
 `

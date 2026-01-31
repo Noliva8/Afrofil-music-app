@@ -1,5 +1,5 @@
 import { styled } from '@mui/material/styles';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import MuiDrawer, { drawerClasses } from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
@@ -12,6 +12,8 @@ import Typography from '@mui/material/Typography';
 import ArtistAuth from '../utils/artist_auth';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem'
+import { useMutation } from '@apollo/client';
+import { TOGGLE_BOOKING_AVAILABILITY } from '../utils/mutations';
 
 
 
@@ -31,11 +33,50 @@ const Drawer = styled(MuiDrawer)(({ theme }) => ({
   },
 }));
 
-export default function AccountMenu({ showAccountMenu, handleShowMobileMenu, profileImage, artistProfile }) {
+export default function AccountMenu({
+  showAccountMenu,
+  handleShowMobileMenu,
+  profileImage,
+  artistProfile,
+}) {
+  const [bookingEnabled, setBookingEnabled] = useState(
+    Boolean(artistProfile?.bookingAvailability ?? true)
+  );
 
-     const handleLogout = () => {
+  useEffect(() => {
+    if (artistProfile?.bookingAvailability !== undefined) {
+      setBookingEnabled(Boolean(artistProfile.bookingAvailability));
+    }
+  }, [artistProfile?.bookingAvailability]);
+
+  const [toggleBookingAvailability, { loading: togglingBooking }] =
+    useMutation(TOGGLE_BOOKING_AVAILABILITY);
+
+
+
+
+  const handleToggleBooking = async () => {
+    const target = !bookingEnabled;
+    try {
+      const { data } = await toggleBookingAvailability({
+        variables: { available: target },
+      });
+      const serverValue = data?.toggleBookingAvailability?.bookingAvailability;
+      if (typeof serverValue === 'boolean') {
+        setBookingEnabled(serverValue);
+      } else {
+        setBookingEnabled(target);
+      }
+    } catch (error) {
+      console.error('Failed to toggle booking availability', error);
+    }
+  };
+
+
+
+
+  const handleLogout = () => {
     ArtistAuth.logout();
-    
   };
 
   return (
@@ -180,6 +221,41 @@ export default function AccountMenu({ showAccountMenu, handleShowMobileMenu, pro
               </Typography>
               <Divider sx={{ marginBottom: '1rem', backgroundColor: 'var(--divider-color)' }} />
               <Button sx={{ color: 'var(--primary-font-color)', textTransform: 'none' }}>Read More</Button>
+            </Box>
+          </Paper>
+
+          <Paper
+            elevation={2}
+            sx={{
+              width: '90%',
+              margin: '0 auto',
+              marginTop: '1rem',
+              padding: '2rem',
+              backgroundColor: 'var(--secondary-background-color)',
+              borderRadius: '10px',
+            }}
+          >
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+              <Typography variant="h6" sx={{ color: 'var(--primary-font-color)', fontWeight: 'bold' }}>
+                Booking controls
+              </Typography>
+              <Typography sx={{ color: 'var(--primary-font-color)', fontSize: '0.9rem' }}>
+                Currently {bookingEnabled ? 'accepting' : 'not accepting'} bookings
+              </Typography>
+
+              <Button
+                variant={bookingEnabled ? 'outlined' : 'contained'}
+                color={bookingEnabled ? 'secondary' : 'primary'}
+                onClick={handleToggleBooking}
+                disabled={togglingBooking}
+                sx={{ textTransform: 'none' }}
+              >
+                {togglingBooking
+                  ? 'Saving...'
+                  : bookingEnabled
+                  ? 'Disable bookings'
+                  : 'Enable bookings'}
+              </Button>
             </Box>
           </Paper>
 
