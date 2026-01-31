@@ -24,6 +24,10 @@ export default function TopAlbum({ songsWithArtwork = [] }) {
     handleShowAll,
   } = useScrollNavigation();
 
+
+console.log('checkd:', songsWithArtwork)
+
+
   const topAlbums = (() => {
     const normalizedSongs = processSongs(songsWithArtwork);
     console.log("[TopAlbum] sample songs:", normalizedSongs.slice(0, 3));

@@ -38,6 +38,7 @@ import LocationGate from "./utils/Contexts/LocationGate.jsx";
 import { AudioPlayerProvider, useAudioPlayer } from "./utils/Contexts/AudioPlayerContext.jsx";
 import { AdAudioProvider } from "./utils/Contexts/adPlayer/adPlayerProvider.jsx";
 import Orchestrator from "./utils/Contexts/adPlayer/orchestrator.jsx";
+import { BookingIdProvider } from "./utils/contexts/bookingIdContext";
 
 import AuthModal from "./components/WelcomePage/AuthModal.jsx";
 import MediaPlayerContainer from "./components/MusicPlayer/MediaPlayerContainer.jsx";
@@ -49,7 +50,7 @@ import Stack from '@mui/material/Stack';
 import { eventBus } from "./utils/Contexts/playerAdapters.js";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
+import ArtistGuestViewAppBar from "./components/AuthenticateCompos/ArtistGuestViewAppBar.jsx";
 
 import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
 
@@ -252,38 +253,40 @@ function AppBody({ onCreatePlaylist }) {
   const bottomNavHeight = isUserLoggedIn && isMobile && !isNotMediaPlayerAllowed ? 82 : 0;
 
   return (
-    <AdAudioProvider>
-      <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
-        <Orchestrator />
-        <AppUI
-          theme={theme}
-          isUserLoggedIn={isUserLoggedIn}
-          isArtistLoggedIn={isArtistLoggedIn}
-          isPublicArtistPage={isPublicArtistPage}
-          isNotMediaPlayerAllowed={isNotMediaPlayerAllowed}
-          isMobile={isMobile}
-          mobileTop={mobileTop}
-          setMobileTop={setMobileTop}
-          formDisplay={formDisplay}
-          setFormDisplay={setFormDisplay}
-          handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
-          handleLoginFormDisplay={handleLoginFormDisplay}
-          handleSignupFormDisplay={handleSignupFormDisplay}
-          authModalOpen={authModalOpen}
-          setAuthModalOpen={setAuthModalOpen}
-          authAction={authAction}
-          setAuthAction={setAuthAction}
-          authIntent={authIntent}
-          setIsPlayerActive={setIsPlayerActive}
-          setPlayerHeight={setPlayerHeight}
-          bottomNavHeight={bottomNavHeight}
-          adNoticeOpen={adNoticeOpen}
-          adNoticeMessage={adNoticeMessage}
-          setAdNoticeOpen={setAdNoticeOpen}
-          onCreatePlaylist={onCreatePlaylist}
-        />
-      </AudioPlayerProvider>
-    </AdAudioProvider>
+    <BookingIdProvider>
+      <AdAudioProvider>
+        <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
+          <Orchestrator />
+          <AppUI
+            theme={theme}
+            isUserLoggedIn={isUserLoggedIn}
+            isArtistLoggedIn={isArtistLoggedIn}
+            isPublicArtistPage={isPublicArtistPage}
+            isNotMediaPlayerAllowed={isNotMediaPlayerAllowed}
+            isMobile={isMobile}
+            mobileTop={mobileTop}
+            setMobileTop={setMobileTop}
+            formDisplay={formDisplay}
+            setFormDisplay={setFormDisplay}
+            handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
+            handleLoginFormDisplay={handleLoginFormDisplay}
+            handleSignupFormDisplay={handleSignupFormDisplay}
+            authModalOpen={authModalOpen}
+            setAuthModalOpen={setAuthModalOpen}
+            authAction={authAction}
+            setAuthAction={setAuthAction}
+            authIntent={authIntent}
+            setIsPlayerActive={setIsPlayerActive}
+            setPlayerHeight={setPlayerHeight}
+            bottomNavHeight={bottomNavHeight}
+            adNoticeOpen={adNoticeOpen}
+            adNoticeMessage={adNoticeMessage}
+            setAdNoticeOpen={setAdNoticeOpen}
+            onCreatePlaylist={onCreatePlaylist}
+          />
+        </AudioPlayerProvider>
+      </AdAudioProvider>
+    </BookingIdProvider>
   );
 }
 
@@ -348,10 +351,7 @@ function AppUI({
     <div
       className={`app-container${showGuestNav ? ' guest-view' : ''}`}
       style={{
-        background: `
-          radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
-          linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.paper})
-        `,
+        backgroundColor: theme.palette.background.paper,
         '--safe-top': 'env(safe-area-inset-top, 0px)',
         '--safe-bottom': 'env(safe-area-inset-bottom, 0px)',
         '--player-height': '68px',
@@ -378,6 +378,12 @@ function AppUI({
           showSearch={showGuestSearch}
           sidebarOffset={isGuestView ? 'var(--guest-sidebar-width)' : 0}
         />
+      )}
+
+
+
+      {isArtistLoggedIn && !isPublicArtistPage  && !isNotMediaPlayerAllowed && (
+<ArtistGuestViewAppBar />
       )}
 
       {/* Header when user is logged in */}
@@ -438,29 +444,23 @@ function AppUI({
 
 {/* Main start */}
         <Box
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            ml: showPanel ? { xs: 0, md: panelOffset } : 0,
-            border: showPanel ? `1px solid ${theme.palette.divider}` : 'none',
-            borderRadius: showPanel ? 3 : 0,
-            mt: isUserLoggedIn ? { xs: 0, md: 0 } : !isUserLoggedIn ? { xs: 0, md: 2.5 }: 0,
-            mr: showPanel ? { xs: 0, md: 2 } : 0,
-
-            
-            pl:
-              showPanel
-                ? { xs: 0, md: 2.5 }
-                : 0,
-            pr:
-              showPanel
-                ? { xs: 0, md: 2.5 }
-                : 0,
-            py:
-              showPanel
-                ? { xs: 0, md: 2 }
-                : 0,
-            backgroundColor: showPanel ? alpha(theme.palette.background.paper, 0.6) : 'transparent',
+          sx={(theme) => {
+            const rightAssetGap = isUserLoggedIn
+              ? `calc(var(--user-sidebar-width) + ${theme.spacing(2)})`
+              : 0;
+            return {
+              flex: 1,
+              minWidth: 0,
+              ml: showPanel ? { xs: 0, md: panelOffset } : 0,
+              border: showPanel ? `1px solid ${theme.palette.divider}` : 'none',
+              borderRadius: showPanel ? 3 : 0,
+              mt: isUserLoggedIn ? { xs: 0, md: 0 } : !isUserLoggedIn ? { xs: 0, md: 2.5 } : 0,
+              mr: { xs: 0, md: rightAssetGap },
+              pl: showPanel ? { xs: 0, md: 2.5 } : 0,
+              pr: showPanel ? { xs: 0, md: 2.5 } : 0,
+              py: showPanel ? { xs: 0, md: 2 } : 0,
+              backgroundColor: showPanel ? alpha(theme.palette.background.paper, 0.6) : 'transparent',
+            };
           }}
         >
 
@@ -508,6 +508,22 @@ function AppUI({
           )}
         </Box>
 
+        {isUserLoggedIn && (
+          <Box
+            sx={{
+              position: 'fixed',
+              top: { xs: 72, md: 104 },
+              right: 0,
+              mr: { xs: 0, md: 2 },
+              width: { xs: 'var(--user-sidebar-width)', md: 'calc(var(--user-sidebar-width) - 16px)' },
+              height: { xs: 'calc(100vh - 72px)', md: 'calc(100vh - 96px)' },
+              zIndex: 10,
+              display: { xs: 'none', md: 'block' },
+            }}
+          >
+            <UserSideBar />
+          </Box>
+        )}
 
       </Box>
 

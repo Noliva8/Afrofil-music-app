@@ -61,7 +61,7 @@ export const songsLikedByMe = async (_, { limit = 20, offset = 0 }, context) => 
     const songs = await Song.find({
       _id: { $in: paginatedSongIds.map(id => new mongoose.Types.ObjectId(id)) }
     })
-      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts' })
+      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts bookingAvailability' })
       .populate({ path: 'album', select: 'title releaseDate' })
       .select('_id title mood tempo subMoods artwork genre trackNumber createdAt duration featuringArtist streamAudioFileUrl audioFileUrl playCount downloadCount likesCount trendingScore likedByUsers shareCount label lyrics composer producer')
       .lean(); 
@@ -103,7 +103,7 @@ export const songsLikedByMe = async (_, { limit = 20, offset = 0 }, context) => 
     }
 
     const songs = await Song.find({ likedByUsers: userObjectId })
-      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts' })
+      .populate({ path: 'artist', select: 'artistAka country bio followers artistDownloadCounts bookingAvailability' })
       .populate({ path: 'album', select: 'title releaseDate' })
       .select('_id title mood tempo subMoods artwork genre trackNumber createdAt duration featuringArtist streamAudioFileUrl audioFileUrl playCount downloadCount likesCount trendingScore likedByUsers shareCount label lyrics composer producer')
       .skip(offset)

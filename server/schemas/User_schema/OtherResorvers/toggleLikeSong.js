@@ -14,7 +14,7 @@ import { trendIndexZSet, TRENDING_WEIGHTS } from '../../Artist_schema/Redis/keys
 export const toggleLikeSong = async (_, { songId }, context) => {
 
   const userr = context?.user?._id ;
-  console.log('see the user from context:', userr)
+
   if (!context?.user?._id) {
 
     throw new GraphQLError('User login required to like songs', {
@@ -103,6 +103,16 @@ export const toggleLikeSong = async (_, { songId }, context) => {
       redis.expire(redisKey, likesSetExpiration)
     ]);
 
+    try {
+      const patternKeys = await redis.keys('home:daily-mix:*');
+      if (patternKeys.length) {
+        await redis.del(patternKeys);
+        console.log(`🔄 Cleared ${patternKeys.length} Daily Mix cache entries after like toggle`);
+      }
+    } catch (cacheError) {
+      console.warn('⚠️ Failed to clear Daily Mix cache:', cacheError.message);
+    }
+
     // 2b. Persist liked songs for user library
     if (isNowLiked) {
       await LikedSongs.findOneAndUpdate(
@@ -166,6 +176,7 @@ export const toggleLikeSong = async (_, { songId }, context) => {
     if (obj.album?._id) obj.album._id = String(obj.album._id);
     obj.likedByMe = isNowLiked;
 
+console.log('LIKES OBJECT:', obj)
     return obj;
 
   } catch (error) {

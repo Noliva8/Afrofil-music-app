@@ -8,6 +8,8 @@ const FALLBACK_IMAGES = [
   'fallback-images/Singing.jpg',
 ];
 
+
+
 const getRandomFallbackImage = () => {
   const randomIndex = Math.floor(Math.random() * FALLBACK_IMAGES.length);
   return FALLBACK_IMAGES[randomIndex];
@@ -34,6 +36,9 @@ export const getFullKeyFromUrlOrKey = (value) => {
 export const useSongsWithPresignedUrls = (songsData) => {
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
 
+
+
+console.log('CHECK SONG data', songsData)
   const [songsWithArtwork, setSongsWithArtwork] = useState([]);
   const [loading, setLoading] = useState(false);
   const lastSignatureRef = useRef('');
@@ -41,7 +46,7 @@ export const useSongsWithPresignedUrls = (songsData) => {
   useEffect(() => {
     const fetchArtworksAndAudio = async () => {
       if (!songsData || !Array.isArray(songsData)) {
-        console.log('No songs data available or not an array:', songsData);
+     
         setSongsWithArtwork([]);
         setLoading(false);
         lastSignatureRef.current = '';
@@ -75,7 +80,8 @@ export const useSongsWithPresignedUrls = (songsData) => {
             // -----------------------------
             // 1) Song artwork (full key)
             // -----------------------------
-            const songArtworkKey = song?.artwork ? getFullKeyFromUrlOrKey(song.artwork) : null;
+            const songArtworkKey = song?.artwork || song?.artworkKey
+ ? getFullKeyFromUrlOrKey(song.artwork || song?.artworkKey) : null;
 
             if (songArtworkKey) {
               try {
@@ -186,13 +192,26 @@ export const useSongsWithPresignedUrls = (songsData) => {
               }
             }
 
+            const artistBookingAvailability =
+              song.artist?.bookingAvailability ??
+              song.fullOriginal?.artist?.bookingAvailability ??
+              song.bookingAvailability ??
+              true;
+
+            const normalizedArtist = {
+              ...(song.artist || {}),
+              bookingAvailability: artistBookingAvailability,
+            };
+
             return {
               ...song,
+              artist: normalizedArtist,
               artworkUrl,
               audioUrl,
               profilePictureUrl,
               coverImageUrl,
               albumCoverImageUrl,
+              artistBookingAvailability,
             };
           })
         );
@@ -221,6 +240,8 @@ export const useSongsWithPresignedUrls = (songsData) => {
 export const useSongsWithPresignedUrlsMemoized = (songsData) => {
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
 
+
+
   const [songsWithArtwork, setSongsWithArtwork] = useState([]);
   const [loading, setLoading] = useState(false);
   const lastSignatureRef = useRef('');
@@ -328,7 +349,7 @@ export const useSongsWithPresignedUrlsMemoized = (songsData) => {
             // -----------------------------
             // 4) Artist cover image (full key)
             // -----------------------------
-            const artistCoverKey = song?.artist?.coverImage
+            const artistCoverKey = song?.artist?.coverImage 
               ? getFullKeyFromUrlOrKey(song.artist.coverImage)
               : null;
 
@@ -352,8 +373,8 @@ export const useSongsWithPresignedUrlsMemoized = (songsData) => {
             // -----------------------------
             // 5) Album cover image (full key)
             // -----------------------------
-            const albumCoverKey = song?.album?.albumCoverImage
-              ? getFullKeyFromUrlOrKey(song.album.albumCoverImage)
+            const albumCoverKey = song?.album?.albumCoverImage || song.albumCoverImageKey
+              ? getFullKeyFromUrlOrKey(song.album.albumCoverImage || song.albumCoverImageKey)
               : null;
 
             if (albumCoverKey) {
@@ -373,13 +394,26 @@ export const useSongsWithPresignedUrlsMemoized = (songsData) => {
               }
             }
 
+            const artistBookingAvailability =
+              song.artist?.bookingAvailability ??
+              song.fullOriginal?.artist?.bookingAvailability ??
+              song.artistBookingAvailability ??
+              true;
+
+            const normalizedArtist = {
+              ...(song.artist || {}),
+              bookingAvailability: artistBookingAvailability,
+            };
+
             return {
               ...song,
+              artist: normalizedArtist,
               artworkUrl,
               audioUrl,
               profilePictureUrl,
               coverImageUrl,
               albumCoverImageUrl,
+              artistBookingAvailability,
             };
           })
         );

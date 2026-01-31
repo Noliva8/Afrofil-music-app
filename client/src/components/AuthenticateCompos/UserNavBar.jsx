@@ -35,9 +35,13 @@ import UserAuth from '../../utils/auth.js';
 import { SearchBar } from '../../pages/SearchBar.jsx';
 import { usePWAInstall } from '../../PWAInstall/pwaInstall.js';
 import CloseIcon from '@mui/icons-material/Close';
-
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import { useMutation, useQuery } from '@apollo/client';
+import { USER_NOTIFICATION_ON_BOOKINGS, USER_NOTIFICATIONS_ON_MESSAGES } from '../../utils/queries';
+import { MARK_SEEN_USER_NOTIFICATION } from '../../utils/mutations';
 
 export default function UserNavBar() {
+
   const profile = UserAuth.getProfile();
   console.log('check the profile:', profile)
   const navigate = useNavigate();
@@ -80,7 +84,6 @@ export default function UserNavBar() {
 
 
 
-
   const canGoBack = showBack && (historyIndex > 0 || historyLength > 1);
   const canGoForward = showBack && hasHistoryIndex && historyIndex < maxHistoryIndex;
   const handleBack = () => {
@@ -113,6 +116,69 @@ export default function UserNavBar() {
     setAnchorEl(null);
     handleMobileMenuClose();
   };
+
+
+
+
+// user Notification
+// -------------
+
+  const handleNotificationsOpen = (event) => {
+    setNotificationsAnchor(event.currentTarget);
+  };
+
+  const handleNotificationsClose = () => {
+    setNotificationsAnchor(null);
+  };
+
+
+// 
+  const handleNotificationSelect = async (notification) => {
+    try {
+      await markNotificationRead({ variables: { notificationId: notification._id } });
+    } catch (error) {
+      console.error('Failed to mark notification read', error);
+    }
+    if (notification.isChatEnabled) {
+      navigate('/messages');
+    }
+    handleNotificationsClose();
+  };
+
+
+
+
+// Notification icon releted query
+const {data: bookingNotificationData} = useQuery(USER_NOTIFICATION_ON_BOOKINGS, {
+  variables: {bookingId: ''}
+});
+
+
+// Message icon releted query
+const {data: messageNotificationData} = useQuery(USER_NOTIFICATIONS_ON_MESSAGES, {
+  variables: {messageId:'' , bookingId: ''}
+})
+
+
+// Mark as seen notification user sees
+const [MarkSeenUserNotification] = useMutation(MARK_SEEN_USER_NOTIFICATION, {
+  variables: {notificationId: '', isNotificationSeen: true}
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const [notificationsAnchor, setNotificationsAnchor] = useState(null);
 
 
 
@@ -209,6 +275,57 @@ const handlePremiumNavigate = () => {
         <ListItemText>Logout</ListItemText>
       </MenuItem>
 
+    </Menu>
+  );
+
+  const notificationMenuId = 'primary-notification-menu';
+  const renderNotificationMenu = (
+    <Menu
+      anchorEl={notificationsAnchor}
+      anchorOrigin={{
+        vertical: 'bottom',
+        horizontal: 'right',
+      }}
+      id={notificationMenuId}
+      keepMounted
+      transformOrigin={{
+        vertical: 'top',
+        horizontal: 'right',
+      }}
+      open={Boolean(notificationsAnchor)}
+      onClose={handleNotificationsClose}
+      PaperProps={{
+        sx: {
+          mt: 1,
+          minWidth: 240,
+        }
+      }}
+    >
+      {notificationsLoading ? (
+        <MenuItem disabled>Loading responses…</MenuItem>
+      ) : userNotifications.length ? (
+        userNotifications.map((notification) => (
+          <MenuItem
+            key={notification._id}
+            onClick={() => handleNotificationSelect(notification)}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-start' }}
+          >
+            <Typography variant="subtitle2">
+              {notification.type === 'accepted' ? 'Artist accepted your booking' : 'Artist declined your booking'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {notification.booking?.eventType || 'Booking'} · {notification.booking?.location?.city || notification.booking?.location?.country || 'Location'}
+            </Typography>
+            {notification.message && (
+              <Typography variant="caption" color="text.secondary">
+                {notification.message}
+              </Typography>
+            )}
+          </MenuItem>
+        ))
+      ) : (
+        <MenuItem disabled>No new replies</MenuItem>
+      )}
     </Menu>
   );
 
@@ -441,14 +558,37 @@ const handlePremiumNavigate = () => {
 
 
 
+                <Tooltip title="Messages">
+                  <IconButton
+                    size="large"
+                    color="inherit"
+                    sx={{ position: 'relative' }}
+                    onClick={handleNotificationsOpen}
+                  >
+                    <Badge
+                      badgeContent={unreadNotificationCount}
+                      color="primary"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          fontSize: '0.65rem',
+                          height: 18,
+                          minWidth: 18,
+                        }
+                      }}
+                    >
+                      <MailOutlineIcon />
+                    </Badge>
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="Notifications">
                   <IconButton
                     size="large"
                     color="inherit"
                     sx={{ position: 'relative' }}
+                    onClick={handleNotificationsOpen}
                   >
                     <Badge
-                      badgeContent={4}
+                      badgeContent={unreadNotificationCount}
                       color="error"
                       sx={{
                         '& .MuiBadge-badge': {
@@ -641,6 +781,7 @@ const handlePremiumNavigate = () => {
         </Stack>
       </Drawer>
 
+      {renderNotificationMenu}
       {renderMenu}
     </>
   );

@@ -29,6 +29,7 @@ type Artist {
   followers: [User]
   followerCount: Int
   artistDownloadCounts: Int
+  bookingAvailability: Boolean
   createdAt: Date!
 }
 
@@ -78,14 +79,243 @@ type Song {
  timeSignature: Float
 keyConfidence: Float
 createdAt: Date!
-
-
-
- 
   artworkPresignedUrl: String       
   audioPresignedUrl: String          
 }
 
+
+
+
+
+
+
+
+
+# ---------------------------
+# BOOKING ENUMS
+# ---------------------------
+
+enum BookingEventType {
+  WEDDING
+  CONCERTS
+  CLUB
+  FESTIVAL
+  CORPORATE
+  PRIVATE
+  OTHER
+}
+
+enum BookingBudgetRange {
+  RANGE_500_1000
+  RANGE_1000_3000
+  RANGE_3000_5000
+  RANGE_5000_PLUS
+  FLEXIBLE
+}
+
+enum BookingPerformanceType {
+  DJ
+  LIVE
+  ACOUSTIC
+  BACKING_TRACK
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum BookingLength {
+  MIN_30
+  MIN_60
+  MIN_90
+}
+
+# ---------------------------
+# BOOKING SUB-TYPES
+# ---------------------------
+
+type BookingLocation {
+  city: String!
+  country: String!
+  venue: String
+}
+
+input BookingLocationInput {
+  city: String!
+  country: String!
+  venue: String
+}
+
+enum MessageSender {
+  ARTIST
+  USER
+}
+
+type Message {
+  _id: ID!
+  bookingId: ID!
+  senderId: ID!
+  senderType: MessageSender!
+  content: String!
+  isRead: Boolean!
+  readAt: Date
+  createdAt: Date!
+  updatedAt: Date!
+}
+
+type ConversationSummary {
+  bookingId: ID!
+  eventType: String
+  songTitle: String
+  location: BookingLocation
+  isChatEnabled: Boolean!
+  lastMessage: Message
+  unreadCount: Int!
+  userName: String
+  eventDate: Date
+}
+
+input SendMessageInput {
+  bookingId: ID!
+  content: String!
+}
+
+type ArtistResponse {
+  message: String
+  respondedAt: Date
+}
+
+input ArtistResponseInput {
+  message: String
+  respondedAt: Date
+}
+
+# ---------------------------
+# MAIN TYPE
+# ---------------------------
+
+type BookArtist {
+  _id: ID!
+  artist: Artist!
+  user: User!
+  song: Song
+
+  eventType: BookingEventType!
+  eventDate: Date!
+
+  location: BookingLocation!
+
+  budgetRange: BookingBudgetRange!
+  performanceType: BookingPerformanceType
+
+  setLength: BookingLength
+  customSetLength: Int
+
+  message: String
+
+  status: BookingStatus!
+  artistResponse: ArtistResponse
+  isChatEnabled: Boolean!
+
+  createdAt: Date!
+  updatedAt: Date!
+}
+
+# ---------------------------
+# INPUTS
+# ---------------------------
+
+input CreateBookArtistInput {
+  artistId: ID!
+  songId: ID
+
+  eventType: BookingEventType!
+  eventDate: Date!
+
+  location: BookingLocationInput!
+
+  budgetRange: BookingBudgetRange!
+  performanceType: BookingPerformanceType
+
+  setLength: BookingLength
+  customSetLength: Int
+
+  message: String
+}
+
+input RespondToBookingInput {
+  bookingId: ID!
+  status: BookingStatus!
+  message: String
+}
+
+# ---------------------------
+# MUTATIONS
+# ---------------------------
+
+type CreateBookArtistPayload {
+  booking: BookArtist!
+}
+
+type RespondToBookingPayload {
+  booking: BookArtist!
+}
+
+
+# ---------------------------
+# MUTATIONS
+# ---------------------------
+
+
+
+
+
+
+
+
+
+
+
+type ProcessedSong {
+  id: ID!
+  title: String!
+  artistAka: String!
+  artistId: ID!
+  artistBio: String
+  country: String
+  albumId: ID!
+  albumTitle: String!
+  albumReleaseYear: String!
+  genre: String
+  mood: String
+  subMood: String
+  plays: Int!
+  downloadCount: Int!
+  artistFollowers: Int!
+  artistDownloadCounts: Int!
+  playCount: Int!
+  shareCount: Int!
+  likesCount: Int!
+  likedByMe: Boolean!
+  durationSeconds: Int
+  artworkKey: String!
+  artworkBlur: String
+  artworkColor: String
+  profilePictureKey: String
+  coverImageKey: String
+  albumCoverImageKey: String
+  streamAudioFileKey: String
+  audioUrl: String
+  streamAudioFileUrl: String
+  lyrics: String
+  credits: String
+  label: String
+  featuringArtist: [String]
+  composer: [String]
+  producer: [String]
+}
 
 
 type SongMetadata {
@@ -441,6 +671,12 @@ input AdResumeStateInput {
   lastAdPlayedAt: Float
 }
 
+enum ViewPoint {
+  RAIL
+  SHOW_ALL
+}
+
+
 
 
 
@@ -460,13 +696,23 @@ type Query {
     songId: ID!
     artistId: ID!
   ): File
+  artistBookings(status: BookingStatus): [BookArtist!]!
+  bookingMessages(bookingId: ID!): [Message!]!
+  messageConversations: [ConversationSummary!]!
+  unreadMessages(bookingId: ID!): Int!
 
   songById(songId: ID!): Song
   publicSong(songId: ID!): Song
  getSongMetadata(songId: ID!): SongMetadata
- trendingSongs: [Song!]!
- newUploads: [Song!]!
- suggestedSongs: [Song!]!
+  trendingSongs(limit: Int!): [Song!]!
+  
+    trendingSongsV2(limit: Int!): [Song!]!
+
+  processedTrendingSongs: [ProcessedSong!]!
+
+ newUploads(limit: Int!): [Song!]!
+
+  suggestedSongs(limit: Int = 20): [Song!]!
  songOfMonth: Song
  similarSongs(songId: ID!): SimilarSongsResponse!
  radioStations(type: RadioStationType, visibility: String = "public"): [RadioStation!]!
@@ -544,6 +790,10 @@ type Mutation {
   removeGenre(genre: [String]): Artist
   addProfileImage(profileImage: String): Artist
   addMood(mood: [String]): Artist
+
+
+  toggleBookingAvailability(available: Boolean!): Artist
+
 
 
 
@@ -655,6 +905,17 @@ handleArtistDownloadCounts(
 ): Artist
 
   deleteAlbum(albumId: ID!): Album
+
+
+
+
+
+
+  createBookArtist(input: CreateBookArtistInput!): CreateBookArtistPayload!
+  respondToBooking(input: RespondToBookingInput!): RespondToBookingPayload!
+  sendMessage(input: SendMessageInput!): Message!
+
+
 }
 `;
 

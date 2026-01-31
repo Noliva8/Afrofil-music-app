@@ -10,6 +10,10 @@ import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useTheme } from '@mui/material/styles';
+
+const getArtistDisplayName = (song) =>
+  song?.artistAka || song?.artist?.artistAka || song?.artistName || '';
 
 
 
@@ -23,11 +27,13 @@ export function SongCard({
   onOpenArtist,
   imgLoading = "eager",
 }) {
+  const theme = useTheme();
+  const background = theme.palette.primary.background;
   const navigate = useNavigate();
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
   const { isAdPlaying } = useAudioPlayer();
-  console.log('song recieved by card:', song)
+
   // State for title hover scroll
   const [isTitleHovered, setIsTitleHovered] = useState(false);
 
@@ -222,7 +228,7 @@ export function SongCard({
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-start',
+        
       }}>
         
        
@@ -304,6 +310,7 @@ export function SongCard({
 
         {/* Artist Name and Likes */}
         <Box display={'flex'} justifyContent={'space-between'} alignItems={'center'} mb={0.75}>
+
           <Typography
             variant="body1"
             onClick={(e) => {
@@ -327,12 +334,15 @@ export function SongCard({
               },
             }}
           >
-            {song.artistName}
+            {getArtistDisplayName(song)}
           </Typography>
+
 
           <Box sx={{ flexShrink: 0 }}>
             <LikesComponent song={song} currentUserId={userId} />
           </Box>
+
+          
         </Box>
 
         {/* Plays & Duration */}
@@ -368,6 +378,7 @@ export function SongCard({
             {song.duration || '0:00'}
           </Typography>
         </Box>
+
       </Box>
     </Box>
   );
@@ -688,7 +699,7 @@ export function CompactSongCard({
               "&:hover": { color: "#E4C421", textDecoration: "underline" },
             }}
           >
-            {song.artistName}
+            {getArtistDisplayName(song)}
           </Typography>
 
           {/* keep LikesComponent here too if you want it always visible under card */}
@@ -743,7 +754,12 @@ export function SongCardHero({
   isPlayingThisSong,
   onPlayPause,
   onOpenArtist,
-  imgLoading = "eager",
+
+  // optional overrides object (kept for backward compatibility)
+  heroProps,
+
+  // defaults
+  imgLoading = "lazy",
   imgDecoding = "async",
   imgFetchPriority = "auto",
   heroVariant = false,
@@ -752,126 +768,113 @@ export function SongCardHero({
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
   const { isAdPlaying } = useAudioPlayer();
-  // State for title hover scroll
   const [isTitleHovered, setIsTitleHovered] = useState(false);
 
   const handlePlayAttempt = (e) => {
-    if (e?.stopPropagation) e.stopPropagation();
+    e?.stopPropagation?.();
     if (isAdPlaying) {
       try {
         eventBus.emit("AD_BLOCK_PLAY_ATTEMPT", {
-          message: "Playback will resume after the advertisement finishes."
+          message: "Playback will resume after the advertisement finishes.",
         });
       } catch {}
       return;
     }
-    onPlayPause();
+    onPlayPause?.();
   };
 
-  const artworkUrl = song.artworkUrl || song.artwork || song.cover;
+  const artworkUrl = song?.artworkUrl || song?.artwork || song?.cover || null;
+
+  // ✅ Merge defaults + overrides (heroProps wins)
+  const mergedImg = {
+    loading: heroProps?.imgLoading ?? imgLoading,
+    decoding: heroProps?.imgDecoding ?? imgDecoding,
+    fetchpriority: heroProps?.imgFetchPriority ?? imgFetchPriority,
+  };
+
+  const FALLBACK_SVG =
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>";
 
   return (
-
-
     <Box
       sx={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        width: '100%',
-        maxWidth: heroVariant
-          ? { xs: '100%', md: 420 }
-          : (theme) => ({
-              xs: theme.customSizes?.musicCard?.xs ?? 140,
-              sm: theme.customSizes?.musicCard?.sm ?? 160,
-              md: theme.customSizes?.musicCard?.md ?? 180,
-              lg: theme.customSizes?.musicCard?.lg ?? 200,
-            }),
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        maxWidth: (theme) => ({
+          xs: theme.customSizes?.musicCard?.xs ?? 140,
+          sm: theme.customSizes?.musicCard?.sm ?? 160,
+          md: theme.customSizes?.musicCard?.md ?? 180,
+          lg: theme.customSizes?.musicCard?.lg ?? 200,
+        }),
       }}
     >
-
-
-      {/* Image Card */}
       <Card
-      
-  onClick={(e) => {
-  if (e?.stopPropagation) e.stopPropagation();
-  
-  // Custom artist handler
-  if (typeof onOpenArtist === 'function') {
-    onOpenArtist(song);
-    return;
-  }
-  
-  // Navigate to song page within album context, passing song data
-  if (song?.albumId && (song?.id || song?._id)) {
-    navigate(`/album/${song.albumId}/${song.id || song._id}`, { 
-      state: { song } 
-    });
-    return;
-  }
-  
-  // Fallback: standalone song page
-  if (song?.id || song?._id) {
-    navigate(`/song/${song.id || song._id}`, { 
-      state: { song } 
-    });
-    return;
-  }
-  
-  // Last resort: artist page
-  const artistId = song?.artistId || song?.artist?._id;
-  if (artistId) {
-    navigate(`/artist/${artistId}`);
-  }
-}}
+        onClick={(e) => {
+          e?.stopPropagation?.();
 
+          // Custom handler
+          if (typeof onOpenArtist === "function") {
+            onOpenArtist(song);
+            return;
+          }
 
+          // Navigate to album-song
+          if (song?.albumId && (song?.id || song?._id)) {
+            navigate(`/album/${song.albumId}/${song.id || song._id}`, {
+              state: { song },
+            });
+            return;
+          }
+
+          // Navigate to song
+          if (song?.id || song?._id) {
+            navigate(`/song/${song.id || song._id}`, { state: { song } });
+            return;
+          }
+
+          // Fallback: artist
+          const artistId = song?.artistId || song?.artist?._id;
+          if (artistId) navigate(`/artist/${artistId}`);
+        }}
         sx={{
-          width: '100%',
-          aspectRatio: '1 / 1', // Perfect square
+          width: "100%",
+          aspectRatio: "1 / 1",
           borderRadius: 3,
           overflow: "hidden",
           transition: "transform 0.3s ease, box-shadow 0.3s ease",
-          cursor: 'pointer',
-          position: 'relative',
+          cursor: "pointer",
+          position: "relative",
           "&:hover": {
             transform: "translateY(-6px)",
             boxShadow: "0 12px 24px rgba(228, 196, 33, 0.3)",
             "& .play-button": {
               opacity: 1,
               transform: "translateY(0)",
-            }
+            },
           },
         }}
       >
-        {/* Image */}
-        <Box sx={{ position: "relative", width: '100%', height: '100%' }}>
-
-
+        <Box sx={{ position: "relative", width: "100%", height: "100%" }}>
           <Box
             component="img"
             width="100%"
             height="100%"
-            loading={imgLoading}
-            decoding={imgDecoding}
-            fetchPriority={imgFetchPriority}
-            src={
-              artworkUrl ||
-              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>"
-            }
-            alt={song.title}
-            sx={{
-              objectFit: "cover",
-              objectPosition: "center",
-            }}
+            loading={mergedImg.loading}
+            decoding={mergedImg.decoding}
+            fetchpriority={mergedImg.fetchpriority}
+            src={artworkUrl || FALLBACK_SVG}
+            alt={song?.title || "Song artwork"}
+            sx={{ objectFit: "cover", objectPosition: "center" }}
             onError={(e) => {
-              e.target.src =
-                "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><rect width='300' height='300' fill='%231a1a1a'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%23ffffff' font-size='24' font-family='Arial'>No Cover</text></svg>";
+              // prevent infinite loop if fallback fails
+              if (e?.currentTarget?.src !== FALLBACK_SVG) {
+                e.currentTarget.src = FALLBACK_SVG;
+              }
             }}
           />
 
-          {/* Now Playing Label */}
           {isPlayingThisSong && (
             <Typography
               variant="caption"
@@ -885,8 +888,8 @@ export function SongCardHero({
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
-                fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                backdropFilter: 'blur(4px)',
+                fontSize: { xs: "0.7rem", sm: "0.8rem", md: "0.9rem" },
+                backdropFilter: "blur(4px)",
                 zIndex: 2,
               }}
             >
@@ -894,7 +897,6 @@ export function SongCardHero({
             </Typography>
           )}
 
-          {/* Play/Pause Button - Appears on hover */}
           <IconButton
             className="play-button"
             onClick={(e) => {
@@ -908,135 +910,126 @@ export function SongCardHero({
               backgroundColor: "#E4C421",
               width: { xs: 36, sm: 40, md: 44 },
               height: { xs: 36, sm: 40, md: 44 },
-              "&:hover": { 
+              "&:hover": {
                 backgroundColor: "#F8D347",
-                transform: 'scale(1.1) !important',
+                transform: "scale(1.1) !important",
               },
-              transition: 'all 0.2s ease',
+              transition: "all 0.2s ease",
               opacity: isPlayingThisSong ? 1 : 0,
-              transform: isPlayingThisSong ? 'translateY(0)' : 'translateY(8px)',
+              transform: isPlayingThisSong ? "translateY(0)" : "translateY(8px)",
               zIndex: 2,
             }}
           >
             {isPlayingThisSong ? (
-              <Pause sx={{ color: "#000", fontSize: { xs: '1.2rem', sm: '1.4rem' } }} />
+              <Pause sx={{ color: "#000", fontSize: { xs: "1.2rem", sm: "1.4rem" } }} />
             ) : (
-              <PlayArrow sx={{ color: "#000", fontSize: { xs: '1.2rem', sm: '1.4rem' } }} />
+              <PlayArrow sx={{ color: "#000", fontSize: { xs: "1.2rem", sm: "1.4rem" } }} />
             )}
           </IconButton>
 
-          {/* Semi-transparent overlay on hover */}
           <Box
             className="hover-overlay"
             sx={{
-              position: 'absolute',
+              position: "absolute",
               top: 0,
               left: 0,
-              width: '100%',
-              height: '100%',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
               opacity: 0,
-              transition: 'opacity 0.2s ease',
-              '&:hover': {
-                opacity: 1,
-              },
+              transition: "opacity 0.2s ease",
+              pointerEvents: "none",
+              ".MuiCard-root:hover &": { opacity: 1 },
             }}
           />
-
-          
         </Box>
-
       </Card>
 
-      {/* Info Underneath the Card */}
-      <Box sx={{ 
-        mt: 2, 
-        px: 0.5,
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-      }}>
-        
-       
-       {/* Song Title with Hover Scroll (Marquee) */}
-<Box
-  onMouseEnter={() => setIsTitleHovered(true)}
-  onMouseLeave={() => setIsTitleHovered(false)}
-  sx={{
-    position: "relative",
-    overflow: "hidden",
-    width: "100%",
-    height: "1.8em",
-  }}
->
-  {/* Normal (not hovered): ellipsis */}
-  {!isTitleHovered && (
-    <Typography
-      variant="subtitle1"
-      sx={{
-        fontWeight: "bold",
-        color: "white",
-        lineHeight: 1.4,
-        fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      }}
-      title={song.title} 
-    >
-      {song.title}
-    </Typography>
-  )}
-
-  {/* Hovered: animated marquee track */}
-  {isTitleHovered && (
-    <Box
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        whiteSpace: "nowrap",
-        willChange: "transform",
-        animation: "titleMarquee 10s linear infinite",
-        "@keyframes titleMarquee": {
-          "0%": { transform: "translateX(0)" },
-          "100%": { transform: "translateX(-50%)" }, // because we duplicate content
-        },
-      }}
-    >
-      <Typography
-        variant="subtitle1"
+      {/* Info under card */}
+      <Box
         sx={{
-          fontWeight: "bold",
-          color: "white",
-          lineHeight: 1.4,
-          fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
-          pr: 4, // spacing between duplicates
+          mt: 2,
+          px: 0.5,
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {song.title}
-      </Typography>
+        {/* Title marquee */}
+        <Box
+          onMouseEnter={() => setIsTitleHovered(true)}
+          onMouseLeave={() => setIsTitleHovered(false)}
+          sx={{
+            position: "relative",
+            overflow: "hidden",
+            width: "100%",
+            height: "1.8em",
+          }}
+        >
+          {!isTitleHovered && (
+            <Typography
+              variant="subtitle1"
+              sx={{
+                fontWeight: "bold",
+                color: "white",
+                lineHeight: 1.4,
+                fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={song?.title || ""}
+            >
+              {song?.title || "Untitled"}
+            </Typography>
+          )}
 
-      <Typography
-        variant="subtitle1"
-        sx={{
-          fontWeight: "bold",
-          color: "white",
-          lineHeight: 1.4,
-          fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
-          pr: 4,
-        }}
-        aria-hidden="true"
-      >
-        {song.title}
-      </Typography>
-    </Box>
-  )}
-</Box>
+          {isTitleHovered && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                whiteSpace: "nowrap",
+                willChange: "transform",
+                animation: "titleMarquee 10s linear infinite",
+                "@keyframes titleMarquee": {
+                  "0%": { transform: "translateX(0)" },
+                  "100%": { transform: "translateX(-50%)" },
+                },
+              }}
+            >
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: "bold",
+                  color: "white",
+                  lineHeight: 1.4,
+                  fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
+                  pr: 4,
+                }}
+              >
+                {song?.title || "Untitled"}
+              </Typography>
 
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  fontWeight: "bold",
+                  color: "white",
+                  lineHeight: 1.4,
+                  fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
+                  pr: 4,
+                }}
+                aria-hidden="true"
+              >
+                {song?.title || "Untitled"}
+              </Typography>
+            </Box>
+          )}
+        </Box>
 
-        {/* Artist Name and Likes */}
-        <Box display={'flex'} justifyContent={'space-between'} alignItems={'center'} mb={0.75}>
+        {/* Artist + likes */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.75}>
           <Typography
             variant="body1"
             onClick={(e) => {
@@ -1049,18 +1042,15 @@ export function SongCardHero({
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              fontSize: { xs: '1rem', sm: '1.1rem', md: '1.3rem' },
-              cursor: 'pointer',
+              fontSize: { xs: "1rem", sm: "1.1rem", md: "1.3rem" },
+              cursor: "pointer",
               flex: 1,
               minWidth: 0,
               mr: 1,
-              '&:hover': { 
-                color: "#E4C421",
-                textDecoration: 'underline'
-              },
+              "&:hover": { color: "#E4C421", textDecoration: "underline" },
             }}
           >
-            {song.artistName}
+            {getArtistDisplayName(song)}
           </Typography>
 
           <Box sx={{ flexShrink: 0 }}>
@@ -1068,43 +1058,39 @@ export function SongCardHero({
           </Box>
         </Box>
 
-        {/* Plays & Duration */}
-        <Box sx={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: 'center',
-          gap: 1
-        }}>
-          <Typography 
+        {/* Plays + duration */}
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+          <Typography
             variant="body2"
-            sx={{ 
-              color: "#E4C421", 
-              fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+            sx={{
+              color: "#E4C421",
+              fontSize: { xs: "0.75rem", sm: "0.8rem", md: "0.85rem" },
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               fontWeight: 500,
             }}
           >
-            {song.plays?.toLocaleString?.() || 0} plays
+            {song?.plays?.toLocaleString?.() || 0} plays
           </Typography>
 
-          <Typography 
+          <Typography
             variant="body2"
-            sx={{ 
-              color: "rgba(255,255,255,0.6)", 
-              fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
+            sx={{
+              color: "rgba(255,255,255,0.6)",
+              fontSize: { xs: "0.75rem", sm: "0.8rem", md: "0.85rem" },
               flexShrink: 0,
               fontWeight: 500,
             }}
           >
-            {song.duration || '0:00'}
+            {song?.duration || "0:00"}
           </Typography>
         </Box>
       </Box>
     </Box>
   );
 }
+
 
 export function CompactSongCardHero({
   song,
@@ -1229,7 +1215,7 @@ export function CompactSongCardHero({
             height="100%"
             loading={imgLoading}
             decoding={imgDecoding}
-            fetchPriority={imgFetchPriority}
+            fetchpriority={imgFetchPriority}
             src={artworkUrl || FALLBACK}
             alt={song.title}
             sx={{ objectFit: "cover", objectPosition: "center" }}
@@ -1424,7 +1410,7 @@ export function CompactSongCardHero({
               "&:hover": { color: "#E4C421", textDecoration: "underline" },
             }}
           >
-            {song.artistName}
+            {getArtistDisplayName(song)}
           </Typography>
 
           {/* keep LikesComponent here too if you want it always visible under card */}

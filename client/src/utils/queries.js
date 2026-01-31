@@ -17,8 +17,8 @@ query Users {
 ;
 
 export const QUERY_DAILY_MIX = gql`
-  query AIDailyMix($profile: MixProfileInput) {
-    dailyMix(profileInput: $profile) {
+  query AIDailyMix($profile: MixProfileInput, $limit: Int! = 20) {
+    dailyMix(profileInput: $profile, limit: $limit) {
       profileKey
       profileLabel
       profile {
@@ -45,7 +45,9 @@ export const QUERY_DAILY_MIX = gql`
           artistAka
           profileImage
           country
+          bookingAvailability
         }
+        bookingAvailability
         albumId
         album {
           _id
@@ -61,6 +63,9 @@ export const QUERY_DAILY_MIX = gql`
         durationSeconds
         streamAudioFileUrl
         audioUrl
+        __typename
+        likesCount
+        likedByMe
         label
       }
       generatedAt
@@ -144,6 +149,102 @@ query Songs {
 }
 `;
 
+export const GET_ARTIST_BOOKINGS = gql`
+  query artistBookings($status: BookingStatus) {
+    artistBookings(status: $status) {
+      _id
+      status
+      eventType
+      eventDate
+      budgetRange
+      setLength
+      message
+      createdAt
+      user {
+        _id
+        username
+      }
+      song {
+        _id
+        title
+      }
+      location {
+        city
+        country
+        venue
+      }
+    }
+  }
+`;
+
+export const MESSAGE_CONVERSATIONS = gql`
+  query MessageConversations {
+    messageConversations {
+      bookingId
+      eventType
+      songTitle
+      location {
+        city
+        country
+        venue
+      }
+      isChatEnabled
+      lastMessage {
+        _id
+        senderId
+        senderType
+        content
+        createdAt
+      }
+      unreadCount
+      userName
+      eventDate
+    }
+  }
+`;
+
+export const BOOKING_MESSAGES = gql`
+  query BookingMessages($bookingId: ID!) {
+    bookingMessages(bookingId: $bookingId) {
+      _id
+      senderId
+      senderType
+      content
+      createdAt
+      isRead
+    }
+  }
+`;
+
+export const USER_NOTIFICATIONS = gql`
+  query UserNotifications($status: NotificationStatus) {
+    userNotifications(status: $status) {
+      _id
+      bookingId
+      bookingStatus
+      type
+      message
+      isRead
+      isChatEnabled
+      createdAt
+      booking {
+        _id
+        eventType
+        eventDate
+        location {
+          city
+          country
+          venue
+        }
+        artist {
+          _id
+          artistAka
+        }
+      }
+    }
+  }
+`;
+
 
 
 
@@ -211,6 +312,7 @@ export const QUERY_RECENT_PLAYED = gql`
         country
         bio
         profileImage
+        bookingAvailability
       }
       album {
         _id
@@ -252,6 +354,7 @@ export const QUERY_LIKED_SONGS = gql`
         country
         bio
         profileImage
+        bookingAvailability
       }
       album {
         _id
@@ -402,6 +505,9 @@ export const SONG_OF_ARTIST = gql`
 
 
 
+
+
+
 // export const SONG_HASH = gql`
 // query songHash($audioHash: String) {
 //   songHash(audioHash: $audioHash) {
@@ -424,6 +530,7 @@ query songById($songId: ID!) {
       artistAka
       bio
       country
+      bookingAvailability
     }
     album {
       _id
@@ -453,8 +560,8 @@ query songById($songId: ID!) {
 `
 
 export const TRENDING_SONGS_PUBLIC = gql`
-  query trendingSongs {
-    trendingSongs {
+  query trendingSongs($limit: Int!) {
+    trendingSongs(limit: $limit) {
       _id
       title
       mood
@@ -466,6 +573,7 @@ export const TRENDING_SONGS_PUBLIC = gql`
         country
         bio
         profileImage
+        bookingAvailability
       }
       album {
         _id
@@ -500,9 +608,105 @@ export const TRENDING_SONGS_PUBLIC = gql`
   }
 `;
 
+
+export const UPGRADED_TRENDING_SONGS = gql`
+query processedTrendingSongs {
+  processedTrendingSongs {
+    id
+    title
+    subMood
+    mood
+    streamAudioFileKey
+    streamAudioFileUrl
+    audioUrl
+    shareCount
+    profilePictureKey
+    producer
+    plays
+    playCount
+    lyrics
+    likesCount
+    likedByMe
+    label
+    genre
+    featuringArtist
+    durationSeconds
+    downloadCount
+    credits
+    coverImageKey
+    country
+    composer
+    artworkKey
+    artworkColor
+    artworkBlur
+    artistId
+    artistFollowers
+    artistDownloadCounts
+    artistBio
+    artistAka
+    albumTitle
+    albumId
+    albumCoverImageKey
+    albumReleaseYear
+  }
+}
+`
+
+
+
+
+
+// export const NEW_UPLOADS_PUBLIC = gql`
+//   query newUploads {
+//     newUploads {
+//       _id
+//       title
+//       mood
+//       tempo
+//       subMoods
+//       artist {
+//         _id
+//         artistAka
+//         country
+//         bio
+//       }
+//       album {
+//         _id
+//         title
+//         releaseDate
+//       }
+//       artwork
+//       streamAudioFileUrl
+//       audioFileUrl
+//       createdAt
+//       downloadCount
+//       artistFollowers
+//       artistDownloadCounts
+//       duration
+//       featuringArtist
+//       genre
+
+//       # engagement
+//       likesCount
+//       likedByMe
+//       playCount
+//       shareCount
+//       trendingScore
+
+//       # content
+//       lyrics
+//       composer { name contribution }
+//       producer { name role }
+//       label
+//     }
+//   }
+// `;
+
+
+
 export const NEW_UPLOADS_PUBLIC = gql`
-  query newUploads {
-    newUploads {
+  query newUploads($limit: Int!) {
+    newUploads(limit: $limit) {
       _id
       title
       mood
@@ -513,6 +717,7 @@ export const NEW_UPLOADS_PUBLIC = gql`
         artistAka
         country
         bio
+        bookingAvailability
       }
       album {
         _id
@@ -546,9 +751,76 @@ export const NEW_UPLOADS_PUBLIC = gql`
   }
 `;
 
+
+
+
+// NEW
+
+
+
+export const  TRENDING_SONGS_PUBLICV2 = gql`
+  query trendingSongsV2($limit: Int!) {
+    trendingSongsV2(limit: $limit) {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        bookingAvailability
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+
+      # engagement
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      trendingScore
+
+      # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const SUGGESTED_SONGS_PUBLIC = gql`
-  query suggestedSongs {
-    suggestedSongs {
+  query suggestedSongs($limit: Int = 20) {
+    suggestedSongs(limit: $limit) {
       _id
       title
       mood
@@ -560,6 +832,7 @@ export const SUGGESTED_SONGS_PUBLIC = gql`
         country
         bio
         profileImage
+        bookingAvailability
       }
       album {
         _id
@@ -608,6 +881,7 @@ export const SONG_OF_MONTH_PUBLIC = gql`
         country
         bio
         profileImage
+        bookingAvailability
       }
       album {
         _id
@@ -659,6 +933,7 @@ export const RADIO_STATIONS_PUBLIC = gql`
         _id
         artistAka
         profileImage
+        bookingAvailability
       }
     }
   }
@@ -678,6 +953,7 @@ export const RADIO_STATION_SONGS = gql`
         country
         bio
         profileImage
+        bookingAvailability
       }
       album {
         _id
@@ -924,12 +1200,13 @@ export const SIMILAR_SONGS_TRENDINGS = gql`
            _id
            title
             }
-        artist {
-           _id 
-           artistAka
-           bio
-           country
-           }
+    artist {
+      _id
+      artistAka
+      bio
+      country
+      bookingAvailability
+    }
 
       }
     }
@@ -967,6 +1244,7 @@ export const SONGS_I_LIKE = gql`
           artistAka
           bio
           country
+          bookingAvailability
           followers { _id }
         }
         album {
@@ -1166,6 +1444,7 @@ query getArtistSongs($artistId: ID!) {
       followerCount
       fullName
       profileImage
+      bookingAvailability
     }
     artistDownloadCounts
     artistFollowers
@@ -1344,3 +1623,36 @@ export const QUERY_USER_STATS = gql`
     }
   }
 `;
+
+
+
+
+// NOTIFICATION - USERS
+
+export const USER_NOTIFICATION_ON_BOOKINGS =gql`
+query notificationOnCreatedBookings($bookingId: ID!) {
+  notificationOnCreatedBookings(bookingId: $bookingId) {
+    _id
+    bookingId
+    isArtistRead
+    isChatEnabled
+    isNotificationSeen
+    message
+    type
+    userId
+  }
+}
+`
+
+export const USER_NOTIFICATIONS_ON_MESSAGES = gql`
+query NotificationOnArtistMessages($messageId: ID, $bookingId: ID) {
+  notificationOnArtistMessages(messageId: $messageId, bookingId: $bookingId) {
+    _id
+    bookingId
+    isNotificationSeen
+    message
+    messageId
+    userId
+  }
+}
+`

@@ -855,7 +855,7 @@ export const similarSongs = async (_parent, { songId }, _ctx) => {
     //   })
     //   .expire(ctxKey, ttlSeconds)
     //   .exec();
-console.log('structure of returned song:', playbackSongs)
+
     return { context, songs: playbackSongs, expireAt };
   } catch (error) {
     console.error("Similar songs error:", error);

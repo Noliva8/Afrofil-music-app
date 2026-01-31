@@ -1015,6 +1015,10 @@ useEffect(() => {
           onToggleFavorite={handleAddToFavorites}
           onShare={handleShare}
           onMore={handleOpenMenu}
+          supportArtistId={song?.artistId || song?.artist?._id}
+          supportArtistName={song?.artistName || song?.artist?.artistAka}
+          supportSongId={song?.id || song?._id}
+          isBookingEnabled={song?.artist?.bookingAvailability ?? true}
         />
       </Box>
       <ActionMenu

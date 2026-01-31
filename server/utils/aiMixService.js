@@ -368,12 +368,14 @@ const CACHE_TTL_SECONDS = 60 * 60; // 1 hour
 
 
 export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = {}) => {
-  console.log('🚀 START buildDailyMix');
+ 
   const profileKey = overrideTime || determineTimeSlice();
   const profile = TIME_PROFILES[profileKey] ?? TIME_PROFILES.morning;
   console.log(`📊 Profile: ${profileKey} (${profile.label})`);
   
-  const cacheKey = `home:daily-mix:${profileKey}:${hashContext(userContext)}`;
+  // Cache key with version to avoid old cached data
+  const CACHE_VERSION = 'v2-booking-fix';
+  const cacheKey = `home:daily-mix:${CACHE_VERSION}:${profileKey}:${hashContext(userContext)}`;
   
   let redisClient = null;
   
@@ -397,53 +399,49 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
   console.time('buildDailyMix');
   
   try {
-    // FIRST: Check what's available
+    // Check database stats
     console.time('dbCheck');
     const totalSongs = await Song.countDocuments();
     const songsWithPlays = await Song.countDocuments({ playCount: { $gt: 0 } });
     console.timeEnd('dbCheck');
     
-    console.log('📊 Database stats:', {
-      totalSongs,
-      songsWithPlays,
-      hasPlays: songsWithPlays > 0
-    });
+
     
     let songs = [];
     
     if (songsWithPlays > 0) {
-      // Try SIMPLER aggregation first
+      // Use aggregation with proper artist lookup
       console.time('aggregation');
       try {
         const aggregationPipeline = [
           // Match songs with plays
-          {
-            $match: {
-              playCount: { $gt: 0 }
-            }
-          },
-          // Sort by playCount (simple and fast)
-          {
-            $sort: { playCount: -1 }
-          },
+          { $match: { playCount: { $gt: 0 } } },
+          // Sort by playCount
+          { $sort: { playCount: -1 } },
           // Limit results
-          {
-            $limit: limit * 3
-          },
-          // Lookup artist - CHECK COLLECTION NAME
+          { $limit: limit * 3 },
+          // Lookup artist - IMPORTANT: collection name is 'artists' (lowercase plural)
           {
             $lookup: {
-              from: "artists", // Try "Artist" or "artist" if this fails
+              from: "artists",
               localField: "artist",
               foreignField: "_id",
               as: "artistData"
             }
           },
-          // Unwind artist (optional)
+          // Unwind to convert array to single object
           {
             $unwind: {
               path: "$artistData",
               preserveNullAndEmptyArrays: true
+            }
+          },
+          // Add fields for debugging
+          {
+            $addFields: {
+              artistId: "$artist", // Keep original artist ID
+              artistName: "$artistData.artistAka",
+              bookingAvailability: "$artistData.bookingAvailability"
             }
           }
         ];
@@ -452,16 +450,45 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
         console.timeEnd('aggregation');
         console.log(`✅ Aggregation returned ${songs.length} songs`);
         
+        // Log first song structure for debugging
+        if (songs.length > 0) {
+          const firstSong = songs[0];
+          console.log('🔍 First song from aggregation:', {
+            songId: firstSong._id,
+            title: firstSong.title,
+            artistId: firstSong.artistId,
+            hasArtistData: !!firstSong.artistData,
+            artistAka: firstSong.artistData?.artistAka,
+            bookingAvailability: firstSong.artistData?.bookingAvailability,
+            bookingAvailabilityDirect: firstSong.bookingAvailability
+          });
+        }
+        
       } catch (aggError) {
         console.error('❌ Aggregation failed:', aggError.message);
         console.log('🔄 Falling back to simple find query...');
         
-        // Fallback to simple query
+        // Fallback with proper population
         songs = await Song.find({ playCount: { $gt: 0 } })
           .sort({ playCount: -1 })
           .limit(limit * 3)
-          .populate('artist', 'artistAka profileImage country')
+          .populate({
+            path: 'artist',
+            select: '_id artistAka profileImage country bookingAvailability',
+            options: { lean: true }
+          })
           .lean();
+          
+     
+        
+        // Add artistData field for consistency
+        songs = songs.map(song => ({
+          ...song,
+          artistData: song.artist, // Move populated artist to artistData
+          artistId: song.artist?._id,
+          artistName: song.artist?.artistAka,
+          bookingAvailability: song.artist?.bookingAvailability
+        }));
       }
     }
     
@@ -472,12 +499,25 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
       songs = await Song.find({})
         .sort({ createdAt: -1 })
         .limit(limit * 2)
-        .populate('artist', 'artistAka profileImage country')
+        .populate({
+          path: 'artist',
+          select: '_id artistAka profileImage country bookingAvailability',
+          options: { lean: true }
+        })
         .lean();
       console.timeEnd('recentSongs');
+      
+      // Transform to consistent format
+      songs = songs.map(song => ({
+        ...song,
+        artistData: song.artist,
+        artistId: song.artist?._id,
+        artistName: song.artist?.artistAka,
+        bookingAvailability: song.artist?.bookingAvailability
+      }));
     }
     
-    console.log(`🎯 Total songs fetched: ${songs.length}`);
+   
     
     if (!songs.length) {
       console.log('❌ NO SONGS IN DATABASE!');
@@ -497,37 +537,62 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
     console.time('processing');
     console.log('🔄 Processing songs...');
     
+    // Helper function to get artist data from consistent format
+    const getArtistData = (song) => {
+      // Priority: Use artistData from aggregation or transformed data
+      if (song.artistData && typeof song.artistData === 'object') {
+        return {
+          _id: song.artistData._id || song.artistId,
+          artistAka: song.artistData.artistAka || song.artistName || "Unknown Artist",
+          profileImage: song.artistData.profileImage,
+          country: song.artistData.country,
+          bookingAvailability: song.artistData.bookingAvailability
+        };
+      }
+      
+      // Fallback: Direct fields
+      return {
+        _id: song.artistId || null,
+        artistAka: song.artistName || "Afrofeel Artist",
+        profileImage: null,
+        country: null,
+        bookingAvailability: true // Default fallback
+      };
+    };
+
     // Process and score tracks
     const tracks = songs
-      .map((song) => {
+      .map((song, index) => {
         try {
-          // Ensure song has basic data
           if (!song || !song._id) {
-            console.warn('⚠️ Invalid song data:', song);
+            console.warn('⚠️ Invalid song data');
             return null;
           }
           
+          // Get artist data
+          const artistData = getArtistData(song);
+          
+          // Log first few songs for debugging
+          if (index < 3) {
+            console.log(`🔍 Song ${index + 1}: "${song.title}"`, {
+              artistId: artistData._id,
+              artistAka: artistData.artistAka,
+              bookingAvailability: artistData.bookingAvailability,
+              source: 'artistData.bookingAvailability'
+            });
+          }
+          
+          // Calculate scores
           const baseScore = scoreTrack(song, profile);
           const playScore = Math.min((song.playCount ?? 0) / 100000, 1);
           const contextScore = computeUserContextMatch(song, userContext);
           const finalScore = Number(((baseScore + playScore + contextScore) / 3).toFixed(3));
 
+          // Process arrays
           const moodList = ensureArray(song.mood);
           const subMoodList = ensureArray(song.subMoods);
           const genreList = ensureArray(song.genre).map(normalizeGenre).filter(Boolean);
           const durationSeconds = Number(song.durationSeconds ?? song.duration ?? 0);
-          
-          // Handle artist data - check both aggregation and populate formats
-          let artistData = song.artistData || song.artist;
-          const artistName = artistData?.artistAka || 
-                            artistData?.name || 
-                            song.artistName || 
-                            "Afrofeel Artist";
-          
-          const artistId = song.artist?._id || 
-                          song.artistId || 
-                          artistData?._id || 
-                          null;
           
           // Handle album data
           let albumData = song.album || {};
@@ -541,32 +606,44 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
                            null,
           } : null;
           
+          // Determine booking availability - CRITICAL PART
+          // Use song.bookingAvailability (from aggregation) or artistData.bookingAvailability
+          const bookingAvailability = song.bookingAvailability !== undefined
+            ? Boolean(song.bookingAvailability)
+            : artistData.bookingAvailability !== undefined
+            ? Boolean(artistData.bookingAvailability)
+            : true; // Default fallback
+
+          // Build artist payload
           const artistPayload = {
-            _id: artistId,
-            artistAka: artistName,
-            profileImage: artistData?.profileImage || 
-                         song.artistProfileImage || 
-                         null,
-            country: artistData?.country || null,
+            _id: artistData._id,
+            artistAka: artistData.artistAka,
+            profileImage: artistData.profileImage,
+            country: artistData.country,
+            bookingAvailability: bookingAvailability,
           };
 
+          // Get audio URL
           const streamAudioFileUrl = song.streamAudioFileUrl || 
                                     song.audioUrl || 
                                     song.audioFileUrl || 
                                     song.streamUrl || 
                                     null;
 
+          // Return track in the exact format expected by GraphQL schema
           return {
             _id: song._id,
+            __typename: "DailyMixTrack",
             id: String(song._id),
             songId: song._id,
             title: song.title || "Untitled Track",
-            artist: artistName,
-            artistName,
-            artistId,
-            artistProfile: artistPayload,
-            albumId,
-            album: albumPayload,
+            artist: artistData.artistAka, // String field
+            artistName: artistData.artistAka, // String field
+            artistId: artistData._id,
+            artistProfile: artistPayload, // MixTrackArtist type
+            bookingAvailability: bookingAvailability, // Boolean field
+            album: albumPayload, // MixTrackAlbum type or null
+            albumId: albumPayload?._id || null,
             genre: genreList,
             mood: moodList,
             subMoods: subMoodList,
@@ -577,7 +654,10 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
             key: song.key || null,
             mode: typeof song.mode === "number" ? song.mode : null,
             plays: Number(song.playCount ?? song.plays ?? 0),
+            likesCount: Number(song.likesCount ?? song.likedByUsers?.length ?? 0),
+            likedByMe: false,
             duration: formatDurationLabel(durationSeconds),
+            durationLabel: formatDurationLabel(durationSeconds), // Add this if needed
             durationSeconds,
             streamAudioFileUrl,
             audioUrl: song.audioUrl || null,
@@ -589,7 +669,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
         }
       })
       .filter(track => {
-        // Filter criteria
         if (!track) return false;
         if (track.score <= 0) return false;
         if (!track.title || track.title === "Untitled Track") return false;
@@ -599,12 +678,34 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
       .slice(0, limit);
 
     console.timeEnd('processing');
-    console.log(`✅ Processed ${tracks.length} tracks`);
+
+
+    // Log booking availability statistics
+    const bookingStats = {
+      total: tracks.length,
+      true: tracks.filter(t => t.bookingAvailability === true).length,
+      false: tracks.filter(t => t.bookingAvailability === false).length,
+      undefined: tracks.filter(t => t.bookingAvailability === undefined).length
+    };
+    
+  
+    
+    // Log sample tracks
+    if (tracks.length > 0) {
+      console.log('🔍 Sample tracks:');
+      tracks.slice(0, 3).forEach((track, i) => {
+        console.log(`  ${i + 1}. ${track.title} - ${track.artistName}:`, {
+          bookingAvailability: track.bookingAvailability,
+          artistProfileBooking: track.artistProfile?.bookingAvailability
+        });
+      });
+    }
 
     // Add fallback if no tracks
     if (!tracks.length) {
       console.log('⚠️ No valid tracks after processing, adding fallback');
       tracks.push({
+        __typename: "DailyMixTrack",
         _id: 'fallback-1',
         id: 'fallback-1',
         songId: 'fallback-1',
@@ -613,6 +714,7 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
         artistName: 'Afrofeel',
         artistId: null,
         artistProfile: null,
+        bookingAvailability: true,
         albumId: null,
         album: null,
         genre: ['afrobeats'],
@@ -663,18 +765,25 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
     console.error('Stack:', error.stack);
     console.timeEnd('buildDailyMix');
     
-    // Return minimal valid response
     return {
       profileKey,
       profileLabel: profile.label,
       profile,
       tracks: [{
+        __typename: "DailyMixTrack",
         _id: 'error-fallback',
+        id: 'error-fallback',
         title: 'Daily Mix Unavailable',
         artist: 'System',
+        artistName: 'System',
+        artistId: null,
+        artistProfile: null,
+        bookingAvailability: true,
         score: 0.5,
         duration: '0:00',
-        plays: 0
+        plays: 0,
+        genre: [],
+        mood: []
       }],
       generatedAt: new Date(),
       userContext: userContext ?? null,

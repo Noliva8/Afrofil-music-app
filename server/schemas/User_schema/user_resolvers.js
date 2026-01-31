@@ -1,6 +1,7 @@
 
-import {  Album, Artist } from '../../models/Artist/index_artist.js'
-import { User, Playlist, Comment, LikedSongs, PlayCount, Song } from '../../models/User/user_index.js'
+import {  Album, Artist, BookArtist } from '../../models/Artist/index_artist.js'
+import { User, Playlist, Comment, LikedSongs, PlayCount, Song, UserNotification } from '../../models/User/user_index.js'
+
 import {   AuthenticationError} from '../../utils/user_auth.js';
 import { GraphQLError } from 'graphql';
 import bcrypt from 'bcrypt';
@@ -16,6 +17,15 @@ import { songKey } from '../Artist_schema/Redis/keys.js';
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import sendEmail from '../../utils/emailTransportation.js';
 import { buildDailyMix } from '../../utils/aiMixService.js';
+import { markSeenUserNotification } from '../Artist_schema/MessagingSystem/Notifications/Users/markSeenUserNotification.js';
+
+import { notificationOnArtistMessages } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnArtistMessages.js';
+import { notificationOnCreatedBookings } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnCreatedBookings.js';
+
+
+
+
+
 
 const normalizeString = (value) => {
   if (!value) return "";
@@ -263,14 +273,16 @@ userById: async (parent, { userId }) => {
 
 
 
-    dailyMix: async (_parent, { profileInput }, { user }) => {
+    dailyMix: async (_parent, { profileInput, limit = 20 }, { user }) => {
       try {
         let userContext = profileInput || null;
         if (!userContext && user?._id) {
           const userDoc = await User.findById(user._id).select("location");
           userContext = await buildUserMixProfile(user._id, userDoc || user);
         }
-        const mix = await buildDailyMix({ userContext });
+        const mix = await buildDailyMix({ userContext, limit });
+
+    
         return mix;
       } catch (error) {
         console.error('Failed to resolve daily mix, returning fallback:', error);
@@ -298,7 +310,11 @@ recentPlayedSongs: async (_, { limit = 50 }, { user }) => {
     .populate({
       path: 'played_songs',
       populate: [
-        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        {
+          path: 'artist',
+          select:
+            'artistAka country bio followers artistDownloadCounts profileImage bookingAvailability',
+        },
         { path: 'album', select: 'title releaseDate albumCoverImage' },
       ],
     })
@@ -333,7 +349,11 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
     .populate({
       path: 'liked_songs',
       populate: [
-        { path: 'artist', select: 'artistAka country bio followers artistDownloadCounts profileImage' },
+        {
+          path: 'artist',
+          select:
+            'artistAka country bio followers artistDownloadCounts profileImage bookingAvailability',
+        },
         { path: 'album', select: 'title releaseDate albumCoverImage' },
       ],
     })
@@ -354,8 +374,104 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
       playCount: song.playCount || 0,
       shareCount: song.shareCount || 0,
       artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
-    }));
+}));
 },
+
+
+  userNotifications: async (_, { status }, { user }) => {
+    console.log('Booking-based resolver called', { status });
+
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+
+    const query = {
+      user: user._id,
+      isChatEnabled: true,
+    };
+
+    if (status) {
+      const normalizedStatus = status.toLowerCase();
+      query.status = normalizedStatus === 'accepted' ? 'accepted' : 'declined';
+    }
+
+    let bookings;
+    try {
+      bookings = await BookArtist.find(query)
+        .populate({ path: 'artist', select: 'artistAka profileImage' })
+        .populate({ path: 'song', select: 'title' })
+        .populate({ path: 'location' })
+        .sort({ updatedAt: -1 })
+        .lean();
+    } catch (error) {
+      console.error('booking notifications query failed', error);
+      throw new GraphQLError('Failed to load booking notifications');
+    }
+
+    console.log('booking notifications result:', bookings);
+    const normalizeEvent = (value) => {
+      if (!value) return null;
+      return String(value).trim().replace(/\s+/g, '_').toUpperCase();
+    };
+
+    return bookings.map((booking) => {
+      const normalizedBooking = {
+        ...booking,
+        bookingId: booking._id,
+        eventType: normalizeEvent(booking.eventType),
+        performanceType: normalizeEvent(booking.performanceType),
+        status: normalizeEvent(booking.status),
+      };
+      const type = (normalizedBooking.status || booking.status || 'PENDING').toUpperCase();
+
+      return {
+        _id: booking._id,
+        bookingId: booking._id,
+        bookingStatus: type,
+        type,
+        message: booking.message || booking.artistResponse?.message || '',
+        isRead: true,
+        isChatEnabled: booking.isChatEnabled,
+        createdAt: booking.updatedAt,
+        updatedAt: booking.updatedAt,
+        booking: normalizedBooking,
+      };
+    });
+  },
+
+  notificationOnCreatedBookings: async (_parent, { bookingId }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in to view notifications.');
+    }
+    const booking = await BookArtist.findById(bookingId).lean();
+    if (!booking) {
+      throw new Error('Booking not found.');
+    }
+    if (booking.user.toString() !== user._id.toString()) {
+      throw new AuthenticationError('Unauthorized access to notification.');
+    }
+
+    const messageSummary = `Your ${booking.eventType || 'booking'} request is pending.`;
+
+    const notification = await UserNotification.findOneAndUpdate(
+      { bookingId, userId: user._id },
+      {
+        userId: user._id,
+        bookingId,
+        type: 'pending',
+        message: messageSummary,
+        isChatEnabled: !!booking.isChatEnabled,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+
+    if (notification) {
+      notification.type = String(notification.type || 'pending').toUpperCase();
+    }
+    return notification;
+  },
+
+
 
 userPlaylists: async (_, { limit = 50 }, { user }) => {
   if (!user?._id) {
@@ -619,14 +735,17 @@ commentsForSong: async (parent, { songId }) => {
   }
 },
 
+notificationOnCreatedBookings,
+ notificationOnArtistMessages,
+
 
   },
 
 
   Mutation: {
+
+     markSeenUserNotification,
 // Create a new user
-
-
 createUser: async (_, { input }) => {
       try {
         const { username, email, password, role = 'REGULAR' } = input;
@@ -1168,6 +1287,21 @@ addLikedSong: async (parent, { userId, songId }, { LikedSongs }) => {
     }
 
     return true;
+  },
+
+  markNotificationRead: async (_parent, { notificationId }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+    const notification = await UserNotification.findOneAndUpdate(
+      { _id: notificationId, user: user._id },
+      { isRead: true },
+      { new: true }
+    );
+    if (!notification) {
+      throw new Error('Notification not found.');
+    }
+    return notification;
   },
 
 

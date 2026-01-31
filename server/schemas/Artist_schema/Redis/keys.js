@@ -43,3 +43,10 @@ export const AVAILABLE_ADS_KEY = (userId) => `ads:user#${userId}#available`;
 export const CACHE_TTL_SECONDS = 24 * 60 * 60; 
 // One year TTL for long-lived sets (e.g., artist followers)
 export const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
+
+
+
+// Trending Doc
+
+
+export const TRENDING_SONGS_CACHE_KEY =  "afrofeel:trendings:v1";

@@ -83,6 +83,7 @@ type: String,
 
   followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   artistDownloadCounts: { type: Number, default: 0 },
+  bookingAvailability: { type: Boolean, default: true },
 
   createdAt: {
     type: Date,

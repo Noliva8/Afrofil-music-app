@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import PremiumCheckoutPage from './PremiumCheckoutPage';
 import UserAuth from '../../../../utils/auth.js';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+import { useStripePromise } from '../../../../utils/stripeLoader.js';
 
 const PremiumCheckoutWrapper = () => {
   const [userEmail, setUserEmail] = useState('');
@@ -17,16 +15,24 @@ const PremiumCheckoutWrapper = () => {
     if (email) setUserEmail(email);
   }, []);
 
+  const stripePromise = useStripePromise();
+
   if (!userEmail) return <div>Loading checkout...</div>;
 
   return (
-    <Elements stripe={stripePromise}>
-      <PremiumCheckoutPage
-        userEmail={userEmail}
-        selectedPlan={selectedPlan}
-        setSelectedPlan={setSelectedPlan}
-      />
-    </Elements>
+    <>
+      {!stripePromise ? (
+        <div>Loading checkout...</div>
+      ) : (
+        <Elements stripe={stripePromise}>
+          <PremiumCheckoutPage
+            userEmail={userEmail}
+            selectedPlan={selectedPlan}
+            setSelectedPlan={setSelectedPlan}
+          />
+        </Elements>
+      )}
+    </>
   );
 };
 
