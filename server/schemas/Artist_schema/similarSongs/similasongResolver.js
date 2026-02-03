@@ -741,13 +741,13 @@ export const similarSongs = async (_parent, { songId }, _ctx) => {
       { REV: true }
     );
 
-    console.log("CHECK SONGS FROM REDIS IN SIMILAR IDS:", similarIds.length);
+
 
     if (!similarIds.length) return { context, songs: [], expireAt };
 
     // 2) Redis songs
     const songs = await Promise.all(similarIds.map((id) => getSongRedis(id, client)));
-    console.log("CHECK SONGS FROM REDIS IN SIMILAR SONGS:", songs.length);
+ 
 
     // 3) Filter valid
     const validSongs = songs.filter(

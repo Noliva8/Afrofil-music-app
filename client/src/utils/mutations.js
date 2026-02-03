@@ -838,6 +838,12 @@ export const SEND_MESSAGE = gql`
   }
 `
 
+export const MARK_MESSAGES_READ_BY_USER = gql`
+  mutation MarkMessagesReadByUser($bookingId: ID!) {
+    markMessagesReadByUser(bookingId: $bookingId)
+  }
+`
+
 export const MARK_NOTIFICATION_READ = gql`
   mutation MarkNotificationRead($notificationId: ID!) {
     markNotificationRead(notificationId: $notificationId) {

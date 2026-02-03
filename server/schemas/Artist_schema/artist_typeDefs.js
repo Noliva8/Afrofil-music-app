@@ -163,6 +163,10 @@ type Message {
   readAt: Date
   createdAt: Date!
   updatedAt: Date!
+  artistId: Artist
+  userId: User
+  readByArtist: Boolean
+  readByUser: Boolean
 }
 
 type ConversationSummary {
@@ -175,6 +179,7 @@ type ConversationSummary {
   unreadCount: Int!
   userName: String
   eventDate: Date
+  artistName: String
 }
 
 input SendMessageInput {
@@ -217,7 +222,6 @@ type BookArtist {
 
   status: BookingStatus!
   artistResponse: ArtistResponse
-  isChatEnabled: Boolean!
 
   createdAt: Date!
   updatedAt: Date!
@@ -262,20 +266,6 @@ type CreateBookArtistPayload {
 type RespondToBookingPayload {
   booking: BookArtist!
 }
-
-
-# ---------------------------
-# MUTATIONS
-# ---------------------------
-
-
-
-
-
-
-
-
-
 
 
 type ProcessedSong {
@@ -450,6 +440,7 @@ type UploadProgress {
 
 type Subscription {
   songUploadProgress: UploadProgress
+  newMessage(bookingId: ID!): Message!
 }
 
 
@@ -685,6 +676,18 @@ enum ViewPoint {
 
 
 type Query {
+
+  # Get messages for a booking
+  getmessages(bookingId: ID!): [Message!]!
+
+   # Get unread count for current user
+  unreadCount: Int!
+
+# Get conversation between user and artist
+  conversation(artistId: ID!, userId: ID!): [Message!]!
+
+
+
   allArtists: [Artist]
   artistProfile: Artist
   songsOfArtist: [Song]
@@ -739,6 +742,20 @@ type SearchResults {
 
 
 type Mutation {
+
+# Send message
+  sendMessage(input: SendMessageInput!): Message!
+  
+  # Mark messages as read
+  markAsRead(messageIds: [ID!]!): Boolean!
+  
+  # Mark all messages in booking as read
+  markBookingAsRead(bookingId: ID!): Boolean!
+
+
+
+
+
   createArtist(
     fullName: String!
     artistAka: String!
@@ -913,7 +930,6 @@ handleArtistDownloadCounts(
 
   createBookArtist(input: CreateBookArtistInput!): CreateBookArtistPayload!
   respondToBooking(input: RespondToBookingInput!): RespondToBookingPayload!
-  sendMessage(input: SendMessageInput!): Message!
 
 
 }

@@ -36,6 +36,7 @@ export const respondToBooking = async (_parent, { input }, ctx) => {
       message: booking.artistResponse?.message,
       isChatEnabled: booking.isChatEnabled,
       isArtistRead: false,
+      isNotificationSeen: false,
       messageId: undefined,
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }

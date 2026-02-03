@@ -1,5 +1,7 @@
 import {Artist, Song, User, Message, BookArtist, UserNotification} from "../../../../models/Artist/index_artist.js"
 import { AuthenticationError } from '../../../../utils/artist_auth.js';
+import { pubsub } from '../../../../utils/ pubsub.js';
+const NEW_MESSAGE = 'NEW_MESSAGE';
 
 
 
@@ -50,5 +52,12 @@ export const sendMessage = async (_parent, { input }, context) => {
       { upsert: true, new: true }
     );
   }
+  await message.populate([
+    { path: "userId", select: "username" },
+    { path: "artistId", select: "artistAka" },
+  ]);
+
+  await pubsub.publish(NEW_MESSAGE, { newMessage: message });
+
   return message;
 };

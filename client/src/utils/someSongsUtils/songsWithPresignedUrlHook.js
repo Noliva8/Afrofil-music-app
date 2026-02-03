@@ -38,7 +38,6 @@ export const useSongsWithPresignedUrls = (songsData) => {
 
 
 
-console.log('CHECK SONG data', songsData)
   const [songsWithArtwork, setSongsWithArtwork] = useState([]);
   const [loading, setLoading] = useState(false);
   const lastSignatureRef = useRef('');

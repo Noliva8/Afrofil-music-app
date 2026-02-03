@@ -231,7 +231,7 @@ export function SongRowContainer({
   const client = useApolloClient();
   const theme = useTheme();
 
-console.log('recieved songs for trending:', songsWithArtwork)
+
 
 
 

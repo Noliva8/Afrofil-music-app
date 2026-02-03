@@ -1,5 +1,5 @@
 
-import {  Album, Artist, BookArtist } from '../../models/Artist/index_artist.js'
+import {  Album, Artist, BookArtist, Message } from '../../models/Artist/index_artist.js'
 import { User, Playlist, Comment, LikedSongs, PlayCount, Song, UserNotification } from '../../models/User/user_index.js'
 
 import {   AuthenticationError} from '../../utils/user_auth.js';
@@ -20,9 +20,8 @@ import { buildDailyMix } from '../../utils/aiMixService.js';
 import { markSeenUserNotification } from '../Artist_schema/MessagingSystem/Notifications/Users/markSeenUserNotification.js';
 
 import { notificationOnArtistMessages } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnArtistMessages.js';
+
 import { notificationOnCreatedBookings } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnCreatedBookings.js';
-
-
 
 
 
@@ -439,36 +438,20 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
     });
   },
 
-  notificationOnCreatedBookings: async (_parent, { bookingId }, { user }) => {
+  notificationOnCreatedBookings: async (_parent, _args, { user }) => {
     if (!user?._id) {
       throw new AuthenticationError('You must be logged in to view notifications.');
     }
-    const booking = await BookArtist.findById(bookingId).lean();
-    if (!booking) {
-      throw new Error('Booking not found.');
-    }
-    if (booking.user.toString() !== user._id.toString()) {
-      throw new AuthenticationError('Unauthorized access to notification.');
-    }
 
-    const messageSummary = `Your ${booking.eventType || 'booking'} request is pending.`;
-
-    const notification = await UserNotification.findOneAndUpdate(
-      { bookingId, userId: user._id },
-      {
-        userId: user._id,
-        bookingId,
-        type: 'pending',
-        message: messageSummary,
-        isChatEnabled: !!booking.isChatEnabled,
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    ).lean();
-
-    if (notification) {
-      notification.type = String(notification.type || 'pending').toUpperCase();
-    }
-    return notification;
+    const notifications = await UserNotification.find({ userId: user._id })
+      .sort({ updatedAt: -1 })
+      .lean();
+    notifications.forEach((n) => {
+      if (n.type) {
+        n.type = String(n.type).toUpperCase();
+      }
+    });
+    return notifications || [];
   },
 
 
@@ -1294,14 +1277,29 @@ addLikedSong: async (parent, { userId, songId }, { LikedSongs }) => {
       throw new AuthenticationError('You must be logged in!');
     }
     const notification = await UserNotification.findOneAndUpdate(
-      { _id: notificationId, user: user._id },
-      { isRead: true },
+      { _id: notificationId, userId: user._id },
+      { isNotificationSeen: true },
       { new: true }
     );
     if (!notification) {
       throw new Error('Notification not found.');
     }
     return notification;
+  },
+  
+  markMessagesReadByUser: async (_parent, { bookingId }, { user }) => {
+    if (!user?._id) {
+      throw new AuthenticationError('You must be logged in!');
+    }
+    const booking = await BookArtist.findById(bookingId);
+    if (!booking) {
+      throw new Error('Booking not found.');
+    }
+    if (booking.user?.toString() !== user._id.toString()) {
+      throw new AuthenticationError('You are not part of this booking.');
+    }
+    await Message.updateMany({ bookingId, readByUser: false }, { readByUser: true });
+    return true;
   },
 
 

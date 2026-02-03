@@ -199,6 +199,7 @@ export const MESSAGE_CONVERSATIONS = gql`
       unreadCount
       userName
       eventDate
+      artistName
     }
   }
 `;
@@ -212,9 +213,46 @@ export const BOOKING_MESSAGES = gql`
       content
       createdAt
       isRead
+      artistId {
+        _id
+        artistAka
+      }
+      userId {
+        _id
+        username
+      }
+      readByArtist
+      readByUser
     }
   }
 `;
+
+export const NEW_MESSAGE = gql`
+  subscription NewMessage($bookingId: ID!) {
+    newMessage(bookingId: $bookingId) {
+      _id
+      bookingId
+      senderId
+      senderType
+      content
+      createdAt
+      isRead
+      readByArtist
+      readByUser
+      artistId {
+        _id
+        artistAka
+      }
+      userId {
+        _id
+        username
+      }
+    }
+  }
+`;
+
+
+
 
 export const USER_NOTIFICATIONS = gql`
   query UserNotifications($status: NotificationStatus) {
@@ -1629,9 +1667,9 @@ export const QUERY_USER_STATS = gql`
 
 // NOTIFICATION - USERS
 
-export const USER_NOTIFICATION_ON_BOOKINGS =gql`
-query notificationOnCreatedBookings($bookingId: ID!) {
-  notificationOnCreatedBookings(bookingId: $bookingId) {
+export const USER_NOTIFICATION_ON_BOOKINGS = gql`
+query notificationOnCreatedBookings {
+  notificationOnCreatedBookings {
     _id
     bookingId
     isArtistRead

@@ -192,6 +192,8 @@ type UserNotification {
   isArtistRead: Boolean
   isChatEnabled: Boolean
   isNotificationSeen: Boolean
+  createdAt: Date
+  updatedAt: Date
 }
 
 
@@ -258,18 +260,12 @@ type userLocation{
 
 type Query {
 
-#USER NOTIFICATIONS
-#------------------
-
-notificationOnCreatedBookings(
-bookingId: ID! 
-): UserNotification
+  notificationOnCreatedBookings: [UserNotification!]!
 
   notificationOnArtistMessages(
-  messageId: ID
-  bookingId: ID
+    messageId: ID
+    bookingId: ID
   ): [UserNotification!]
-
 
 
 
@@ -370,6 +366,7 @@ isNotificationSeen: Boolean
 
   removeLikedSong(userId: ID!, songId: ID!): Boolean
   markNotificationRead(notificationId: ID!): UserNotification!
+  markMessagesReadByUser(bookingId: ID!): Boolean!
 
   createComment(
     songId: ID!,
