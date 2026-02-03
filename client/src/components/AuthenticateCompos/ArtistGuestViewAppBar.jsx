@@ -50,7 +50,7 @@ const artistProfile = ArtistAuth.getProfile();
 const isArtistLoggedIn = ArtistAuth.isArtist();
 
 
-  console.log('check the profile:', artistProfile)
+
 
   const navigate = useNavigate();
   const location = useLocation();

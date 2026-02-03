@@ -189,7 +189,6 @@ console.log('daily mix ', dailyMixWithArtwork )
 
  const { songsWithArtwork: trendingSongsWithArtworkV2 } = useSongsWithPresignedUrls(trendingDataV2?.trendingSongsV2);
 
-console.log('songs to presign:', trendingDataV2?.trendingSongsV2)
 
 
   const { songsWithArtwork: newUploadsWithArtwork } = useSongsWithPresignedUrls(newUploadsData?.newUploads);

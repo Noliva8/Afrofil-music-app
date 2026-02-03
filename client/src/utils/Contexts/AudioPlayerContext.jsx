@@ -841,7 +841,7 @@ const pickNextIndex = useCallback((reason = "auto") => {
   const load = useCallback(async (track, newQueue = []) => {
     try {
       const normalizedTrack = normalizeArtworkTrack(track);
-console.log('see normalize track:', normalizedTrack)
+
 
       let config = getAudioConfig(normalizedTrack);
 
@@ -1895,7 +1895,7 @@ useEffect(() => {
     const persist = async (force = false) => {
       const now = Date.now();
       if (!force && now - lastSaveRef.current < SAVE_EVERY_MS) return;
-console.log('VERIFY CURRENT TRACK', playerState.queue)
+
 
         const trackInput = toPlaybackTrackInput(playerState.currentTrack);
         if (!trackInput?.id) {
@@ -1922,7 +1922,7 @@ console.log('VERIFY CURRENT TRACK', playerState.queue)
       };
       
 
-console.log('check data to resume', data)
+
 
 
 

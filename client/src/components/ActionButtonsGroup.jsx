@@ -27,7 +27,7 @@ export const ActionButtonsGroup = ({
 }) => {
 
 
-  console.log(`VERIFICATION OF INPUTS : ARTIST ID${supportArtistId}, SONGiD ${supportSongId} `);
+
 
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingContext, setBookingContext] = useState(null);
@@ -46,7 +46,7 @@ export const ActionButtonsGroup = ({
     onBookingSubmit?.(data);
     handleBookingClose();
   };
-console.log('recivied button:', isBookingEnabled)
+
   const theme = useTheme();
   return (
     <>

@@ -166,7 +166,7 @@ const theme = useTheme();
   // 1) Song from navigation state
   // -----------------------
   const songFromStateRaw = location.state?.song ?? null;
-  console.log('')
+
 
   const songFromState = useMemo(() => {
     if (!songFromStateRaw) return null;
@@ -400,7 +400,7 @@ const theme = useTheme();
 
 
 const albums = otherAlbumsData?.otherAlbumsByArtist;
-console.log('see return album again:', albums)
+
 
 const isSingleAlbumTitle = useCallback((title) => {
   const normalized = String(title || "").trim().toLowerCase();
@@ -454,7 +454,7 @@ useEffect(() => {
         if (!raw) return null;
 
         const key = getFullKeyFromUrlOrKey(raw); 
-      console.log('keysss', key)
+   
         if (!key) return null;
         
 
@@ -496,7 +496,6 @@ useEffect(() => {
 
 
 
-console.log('see albums:',  albumCovers);
 
 
   // -----------------------

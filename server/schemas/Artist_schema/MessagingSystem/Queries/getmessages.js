@@ -14,7 +14,11 @@ export const getMessages = async (_parent, { bookingId }, context) => {
     throw new AuthenticationError("You are not part of this booking.");
   }
 
-  const messages = await Message.find({ bookingId }).sort({ createdAt: 1 }).lean();
+  const messages = await Message.find({ bookingId })
+    .sort({ createdAt: 1 })
+    .populate("artistId", "artistAka profileImage")
+    .populate("userId", "username")
+    .lean();
   return messages.map((message) => ({
     ...message,
     senderType: message.senderType?.toUpperCase(),

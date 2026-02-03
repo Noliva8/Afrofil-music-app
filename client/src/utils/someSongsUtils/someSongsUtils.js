@@ -42,7 +42,7 @@ const deriveAudioStreamKey = (streamUrl) => {
 // Process songs data
 export const processSongs = (songs) => {
 
-  console.log('song from with artwork:', songs)
+
   return (songs || []).map((song) => {
       const artworkUrl =
         song.artworkUrl ||

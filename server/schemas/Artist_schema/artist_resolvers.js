@@ -282,6 +282,7 @@ function analyzeFingerprints(fingerprint) {
 }
 
 const SONG_UPLOAD_UPDATE = 'SONG_UPLOAD_UPDATE';
+const NEW_MESSAGE = 'NEW_MESSAGE';
 dotenv.config();
 
 // Normalize any incoming audio path so the resolver can accept raw keys or full S3/CloudFront URLs.
@@ -2901,41 +2902,40 @@ Subscription: {
         return pubsub.asyncIterableIterator([SONG_UPLOAD_UPDATE]);
       },
       (payload, variables, context) => {
-        // Debug logging
         const payloadArtistId = payload.songUploadProgress?.artistId;
         const contextArtistId = context.artist?._id?.toString();
         
-        console.log('🔍 Filter check:', {
-          payloadArtistId,
-          contextArtistId,
-          matches: payloadArtistId === contextArtistId
-        });
+        if (!context.artist || !payloadArtistId) return false;
 
-        if (!context.artist) {
-          console.error('❌ No artist in context - rejecting subscription');
-          return false;
-        }
-
-        if (!payload.songUploadProgress?.artistId) {
-          console.error('❌ No artistId in payload - rejecting');
-          return false;
-        }
-
-        // Only send to the specific artist
-        const shouldDeliver = payload.songUploadProgress.artistId === context.artist._id.toString();
-        
-        if (shouldDeliver) {
-          /*
-          console.log('✅ Delivering progress to artist:', contextArtistId);
-          */
-        } else {
-          console.log('🚫 Blocking progress for different artist');
-        }
-        
-        return shouldDeliver;
+        return payloadArtistId === contextArtistId;
       }
     )
-  }
+  },
+  newMessage: {
+    subscribe: withFilter(
+      () => pubsub.asyncIterableIterator([NEW_MESSAGE]),
+      (payload, variables, context) => {
+        if (!variables?.bookingId) return false;
+        const participantId = context.artist
+          ? context.artist._id.toString()
+          : context.user
+          ? context.user._id.toString()
+          : null;
+        if (!participantId) return false;
+
+        const bookingMatches =
+          payload.newMessage?.bookingId?.toString() === variables.bookingId;
+        const userMatches = context.user
+          ? payload.newMessage?.userId?._id?.toString() === participantId
+          : true;
+        const artistMatches = context.artist
+          ? payload.newMessage?.artistId?._id?.toString() === participantId
+          : true;
+
+        return bookingMatches && (userMatches || artistMatches);
+      }
+    ),
+  },
 },
 
 

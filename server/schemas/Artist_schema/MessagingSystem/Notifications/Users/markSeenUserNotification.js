@@ -14,7 +14,7 @@ export const markSeenUserNotification = async (_parent, { notificationId, isNoti
   );
 
   if (!notification) {
-    throw new Error('Notification not found or already seen.');
+    return null;
   }
 
   return notification;

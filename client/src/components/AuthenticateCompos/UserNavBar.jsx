@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Drawer from '@mui/material/Drawer';
+import Paper from '@mui/material/Paper';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
@@ -36,14 +37,19 @@ import { SearchBar } from '../../pages/SearchBar.jsx';
 import { usePWAInstall } from '../../PWAInstall/pwaInstall.js';
 import CloseIcon from '@mui/icons-material/Close';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
-import { useMutation, useQuery } from '@apollo/client';
-import { USER_NOTIFICATION_ON_BOOKINGS, USER_NOTIFICATIONS_ON_MESSAGES } from '../../utils/queries';
-import { MARK_SEEN_USER_NOTIFICATION } from '../../utils/mutations';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import { useApolloClient, useMutation, useQuery } from '@apollo/client';
+import { USER_NOTIFICATION_ON_BOOKINGS, MESSAGE_CONVERSATIONS } from '../../utils/queries';
+
+import { MARK_NOTIFICATION_READ, MARK_SEEN_USER_NOTIFICATION } from '../../utils/mutations';
+import ChatContainer from '../messaging/ChatContainer';
+
 
 export default function UserNavBar() {
 
   const profile = UserAuth.getProfile();
-  console.log('check the profile:', profile)
+
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -127,58 +133,133 @@ export default function UserNavBar() {
     setNotificationsAnchor(event.currentTarget);
   };
 
+
   const handleNotificationsClose = () => {
     setNotificationsAnchor(null);
   };
 
 
 // 
+  const handleChatOpen = (bookingId) => {
+    setChatBookingId(bookingId);
+    setChatOpen(true);
+  };
+
+
+  const handleChatClose = () => {
+    setChatOpen(false);
+    setChatBookingId(null);
+  };
+
+
+
+  const client = useApolloClient();
+
   const handleNotificationSelect = async (notification) => {
+    const skipNotificationUpdates = notification.skipNotificationUpdates;
     try {
-      await markNotificationRead({ variables: { notificationId: notification._id } });
+      await markSeenUserNotification({
+        variables: { notificationId: notification._id, isNotificationSeen: true },
+      });
+      client.cache.modify({
+        fields: {
+          notificationOnCreatedBookings(existing = [], { readField }) {
+            return existing.filter((itemRef) => readField('_id', itemRef) !== notification._id);
+          },
+        },
+      });
+
     } catch (error) {
-      console.error('Failed to mark notification read', error);
+      if (!/Notification not found/i.test(error.message)) {
+        console.error('Failed to mark notification seen', error);
+      }
     }
-    if (notification.isChatEnabled) {
-      navigate('/messages');
+    try {
+      if (!skipNotificationUpdates) {
+        await markNotificationRead({ variables: { notificationId: notification._id } });
+      }
+    } catch (error) {
+      if (!/Notification not found/i.test(error.message)) {
+        console.error('Failed to mark notification read', error);
+      }
     }
+    setPendingNotificationsList((prev) =>
+      prev.filter((item) => item._id !== notification._id)
+    );
+    setShowPendingBadge(false);
+    setCanChat(false);
+
+    if (notification.type?.toLowerCase() === 'declined') {
+      alert('Sorry, the artist rejected your request; chat is disabled.');
+    } else if (notification.type?.toLowerCase() === 'pending' && !notification.isChatEnabled) {
+      alert('You will be able to chat with the artist once they respond to your booking request.');
+    } else if (notification.isChatEnabled) {
+      handleChatOpen(notification.bookingId);
+    }
+
     handleNotificationsClose();
   };
 
 
 
 
-// Notification icon releted query
-const {data: bookingNotificationData} = useQuery(USER_NOTIFICATION_ON_BOOKINGS, {
-  variables: {bookingId: ''}
-});
 
+  const [markNotificationRead] = useMutation(MARK_NOTIFICATION_READ);
 
-// Message icon releted query
-const {data: messageNotificationData} = useQuery(USER_NOTIFICATIONS_ON_MESSAGES, {
-  variables: {messageId:'' , bookingId: ''}
-})
-
-
-// Mark as seen notification user sees
-const [MarkSeenUserNotification] = useMutation(MARK_SEEN_USER_NOTIFICATION, {
-  variables: {notificationId: '', isNotificationSeen: true}
-})
-
-
-
-
-
-
-
-
-
-
-
-
-
+  const [markSeenUserNotification] = useMutation(MARK_SEEN_USER_NOTIFICATION);
 
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatBookingId, setChatBookingId] = useState(null);
+
+
+  const { data: bookingNotificationData, loading: bookingNotificationLoading } = useQuery(
+    USER_NOTIFICATION_ON_BOOKINGS,
+    {
+      fetchPolicy: 'network-only',
+      pollInterval: 8000,
+    }
+  );
+
+  const { data: messageConversationsData } = useQuery(MESSAGE_CONVERSATIONS);
+  const messageConversations = messageConversationsData?.messageConversations || [];
+
+
+
+  const [pendingNotificationsList, setPendingNotificationsList] = useState([]);
+  const [canChat, setCanChat] = useState(false);
+  const [showPendingBadge, setShowPendingBadge] = useState(false);
+
+
+  useEffect(() => {
+    const notifications = bookingNotificationData?.notificationOnCreatedBookings || [];
+    const unseen = notifications.filter((n) => !n.isNotificationSeen);
+    setPendingNotificationsList(unseen);
+    if (!unseen.length) {
+      setShowPendingBadge(false);
+      setCanChat(false);
+      return;
+    }
+    const latest = unseen[0];
+    setCanChat(Boolean(latest.isChatEnabled));
+    setShowPendingBadge(latest.type?.toLowerCase() === 'pending' && !latest.isNotificationSeen);
+  }, [bookingNotificationData]);
+
+  const unreadNotificationCount = pendingNotificationsList.length;
+  const bookingNotifications = bookingNotificationData?.notificationOnCreatedBookings || [];
+  const visibleNotifications = bookingNotifications.filter((notification) => notification.type);
+
+  const currentConversation = messageConversations.find((item) => item.bookingId === chatBookingId);
+ 
+
+  const currentUserIdentity = {
+    id: profile?.data?._id,
+    type: 'user',
+  };
+
+
+  const artistDisplayName = currentConversation?.artistName
+ || 'Artist';
 
 
 
@@ -301,30 +382,56 @@ const handlePremiumNavigate = () => {
         }
       }}
     >
-      {notificationsLoading ? (
-        <MenuItem disabled>Loading responses…</MenuItem>
-      ) : userNotifications.length ? (
-        userNotifications.map((notification) => (
-          <MenuItem
-            key={notification._id}
-            onClick={() => handleNotificationSelect(notification)}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, alignItems: 'flex-start' }}
-          >
-            <Typography variant="subtitle2">
-              {notification.type === 'accepted' ? 'Artist accepted your booking' : 'Artist declined your booking'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {notification.booking?.eventType || 'Booking'} · {notification.booking?.location?.city || notification.booking?.location?.country || 'Location'}
-            </Typography>
-            {notification.message && (
-              <Typography variant="caption" color="text.secondary">
-                {notification.message}
+      {bookingNotificationLoading ? (
+        <MenuItem disabled>Loading booking notifications…</MenuItem>
+      ) : visibleNotifications.length ? (
+        visibleNotifications.map((notification) => {
+          const status = notification.type?.toLowerCase();
+          const canOpenChat = notification.isChatEnabled;
+          const subtitle =
+            status === 'pending'
+              ? 'Awaiting artist response'
+              : status === 'declined'
+              ? 'Artist declined your request'
+              : 'Artist accepted your booking';
+          return (
+            <Paper
+              key={notification._id}
+              elevation={2}
+              sx={{
+                width: '100%',
+                mb: 1,
+                borderRadius: 2,
+                cursor: 'pointer',
+                px: 2,
+                py: 1.25,
+                display: 'block',
+                '&:hover': { backgroundColor: 'action.hover' },
+              }}
+              onClick={() => handleNotificationSelect(notification)}
+            >
+              <Typography variant="subtitle1" fontWeight="bold">
+                {notification.booking?.artist?.artistAka || 'Artist'}
               </Typography>
-            )}
-          </MenuItem>
-        ))
+              <Typography variant="body2" color="text.secondary">
+                {notification.booking?.eventType || 'Event'} ·{" "}
+                {notification.booking?.location?.venue ||
+                  notification.booking?.location?.city ||
+                  'Location'}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {subtitle}
+              </Typography>
+              {canOpenChat && (
+                <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+                  Chat with {notification.booking?.artist?.artistAka || 'artist'}
+                </Typography>
+              )}
+            </Paper>
+          );
+        })
       ) : (
-        <MenuItem disabled>No new replies</MenuItem>
+        <MenuItem disabled>No booking notifications</MenuItem>
       )}
     </Menu>
   );
@@ -578,8 +685,10 @@ const handlePremiumNavigate = () => {
                     >
                       <MailOutlineIcon />
                     </Badge>
+
                   </IconButton>
                 </Tooltip>
+
                 <Tooltip title="Notifications">
                   <IconButton
                     size="large"
@@ -604,6 +713,7 @@ const handlePremiumNavigate = () => {
                 </Tooltip>
 
                 
+
 
                 <Tooltip title="Account settings">
                   <IconButton
@@ -780,6 +890,22 @@ const handlePremiumNavigate = () => {
           </Stack>
         </Stack>
       </Drawer>
+
+      <Dialog open={chatOpen} onClose={handleChatClose} fullWidth maxWidth="md">
+        <DialogContent sx={{ px: { xs: 1, md: 2 } }}>
+          <Box display="flex" gap={2} sx={{ minHeight: 400 }}>
+            <Divider orientation="vertical" flexItem />
+            <Box flex={1}>
+              <ChatContainer
+                booking={currentConversation}
+                currentUser={currentUserIdentity}
+                artistName={artistDisplayName}
+                onClose={handleChatClose}
+              />
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {renderNotificationMenu}
       {renderMenu}

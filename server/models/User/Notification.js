@@ -24,6 +24,25 @@ const notificationSchema = new Schema({
 
 notificationSchema.index({ user: 1, isRead: 1 });
 
+
+notificationSchema.pre('save', function (next) {
+  if (this.type) {
+    this.type = String(this.type).toUpperCase();
+  }
+  next();
+});
+
+notificationSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate();
+  if (update?.type) {
+    this.setUpdate({
+      ...update,
+      type: String(update.type).toUpperCase(),
+    });
+  }
+  next();
+});
+
 const UserNotification = model('UserNotification', notificationSchema);
 
 export default UserNotification;

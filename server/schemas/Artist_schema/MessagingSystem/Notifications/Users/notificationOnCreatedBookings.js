@@ -4,25 +4,20 @@ import { AuthenticationError } from '../../../../../utils/user_auth.js';
 
 
 
-export const notificationOnCreatedBookings = async (_parent, { bookingId }, context) => {
+export const notificationOnCreatedBookings = async (_parent, _args, context) => {
   const userId = context?.user?._id;
+
   if (!userId) {
     throw new AuthenticationError('User must be logged in.');
   }
 
-  const booking = await BookArtist.findById(bookingId);
-  if (!booking) {
-    throw new Error('Booking not found.');
-  }
-  if (booking.user.toString() !== userId.toString()) {
-    throw new AuthenticationError('Unauthorized access to notification.');
+  const notifications = await UserNotification.find({ userId }).sort({ updatedAt: -1 }).lean();
+  if (!notifications.length) {
+    return [];
   }
 
-  const notification = await UserNotification.findOne({ bookingId, userId }).lean();
-  if (!notification) {
-    throw new Error('Notification not found for this booking.');
-  }
-
-  notification.type = String(notification.type || 'pending').toUpperCase();
-  return notification;
+  return notifications.map((notification) => ({
+    ...notification,
+    type: String(notification.type || 'pending').toUpperCase(),
+  }));
 };

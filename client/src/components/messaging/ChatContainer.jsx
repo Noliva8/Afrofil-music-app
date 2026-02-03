@@ -19,6 +19,7 @@ export default function ChatContainer({ booking, currentUser, onClose, artistNam
         onClose={onClose}
         unreadCount={booking.unreadCount || 0}
         artistName={artistName}
+        currentUser={currentUser}
       />
       <ChatWindow bookingId={booking.bookingId} currentUser={currentUser} />
     </Box>

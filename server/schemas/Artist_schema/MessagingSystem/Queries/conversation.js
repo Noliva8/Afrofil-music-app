@@ -31,7 +31,7 @@ export const getConversations = async (_parent, _args, context) => {
     },
   ]);
   const aggrMap = new Map(aggregation.map((item) => [item._id.toString(), item]));
-  return bookings.map((booking) => {
+  const summaries = bookings.map((booking) => {
     const key = booking._id.toString();
     const record = aggrMap.get(key);
     const transformedLastMessage = record?.lastMessage
@@ -50,7 +50,17 @@ export const getConversations = async (_parent, _args, context) => {
       lastMessage: transformedLastMessage,
       unreadCount: record?.unreadCount || 0,
       userName: booking.user?.username || "guest",
+      artistName: booking.artist?.artistAka || "Artist",
       eventDate: booking.eventDate || null,
     };
+  });
+  return summaries.sort((a, b) => {
+    const aStamp = a.lastMessage?.createdAt
+      ? new Date(a.lastMessage.createdAt).getTime()
+      : new Date(a.eventDate || 0).getTime();
+    const bStamp = b.lastMessage?.createdAt
+      ? new Date(b.lastMessage.createdAt).getTime()
+      : new Date(b.eventDate || 0).getTime();
+    return bStamp - aStamp;
   });
 };

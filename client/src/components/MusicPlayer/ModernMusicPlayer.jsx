@@ -159,7 +159,7 @@ const effectiveRepeatMode =
   };
 
   const handleKeyDown = (e) => {
-    if (e.target.tagName === 'INPUT') return;
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
     switch (e.key) {
       case ' ':
         e.preventDefault();
