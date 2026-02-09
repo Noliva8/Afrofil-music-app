@@ -1,6 +1,6 @@
-import { FaBars, FaTimes, FaUserAlt, FaMusic } from 'react-icons/fa';
+import { FaBars, FaTimes } from 'react-icons/fa';
 import ForArtistOnly from './ForArtistOnly';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 
 const MobileNav = ({ showArtistButton, setShowArtistButton }) => {

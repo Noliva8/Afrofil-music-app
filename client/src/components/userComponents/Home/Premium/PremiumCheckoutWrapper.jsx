@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import PremiumCheckoutPage from './PremiumCheckoutPage';
 import UserAuth from '../../../../utils/auth.js';

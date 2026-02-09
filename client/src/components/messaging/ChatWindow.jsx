@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, CircularProgress, TextField, Button } from "@mui/material";
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import { BOOKING_MESSAGES, NEW_MESSAGE } from "../../utils/queries";

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -10,7 +10,6 @@ import { QUERY_USER_PLAYLISTS } from "../utils/queries";
 import { REMOVE_SONG_FROM_PLAYLIST } from "../utils/mutations";
 import UserAuth from "../utils/auth";
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
-import { usePlayCount } from "../utils/handlePlayCount";
 import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
 import { useSongsWithPresignedUrls } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { similarSongsUtil } from "../utils/someSongsUtils/similarSongsHook";
@@ -21,7 +20,7 @@ import { ActionButtonsGroup } from "../components/ActionButtonsGroup";
 import { ActionMenu } from "../components/ActionMenu";
 import { TrackListSection } from "../components/TrackListSection";
 import AddToPlaylistModal from "../components/AddToPlaylistModal";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -50,7 +49,7 @@ export default function CollectionPage() {
   const [favoritePlaylistIds, setFavoritePlaylistIds] = useState(() => new Set());
   const navigate = useNavigate();
   const client = useApolloClient();
-  const { incrementPlayCount } = usePlayCount();
+
   const { currentTrack, isPlaying, handlePlaySong, pause, playerState } = useAudioPlayer();
   const playingId = currentTrack?.id || currentTrack?._id || null;
   const isLoggedIn = Boolean(UserAuth?.getProfile?.()?.data?._id);
@@ -63,11 +62,14 @@ export default function CollectionPage() {
     fetchPolicy: "cache-and-network",
   });
 
-  const playlists = data?.userPlaylists || [];
-  const selectedPlaylist = useMemo(
-    () => playlists.find((playlist) => playlist._id === openPlaylistId) || null,
-    [openPlaylistId, playlists]
-  );
+
+
+  const playlists = useMemo(() => data?.userPlaylists || [], [data?.userPlaylists]);
+const selectedPlaylist = useMemo(
+  () => playlists.find((playlist) => playlist._id === openPlaylistId) || null,
+  [openPlaylistId, playlists]
+);
+
 
   useEffect(() => {
     if (playlistId) {
@@ -75,7 +77,12 @@ export default function CollectionPage() {
     }
   }, [playlistId]);
 
-  const selectedSongs = selectedPlaylist?.songs || [];
+  const selectedSongs = useMemo(
+    () => selectedPlaylist?.songs || [],
+    [selectedPlaylist]
+  );
+
+
   const { songsWithArtwork } = useSongsWithPresignedUrls(selectedSongs);
   const playContextSongs = processSongs(songsWithArtwork);
 
@@ -128,7 +135,8 @@ export default function CollectionPage() {
     return [...baseSongs, ...filteredSimilar];
   };
 
-  const playPlaylistFromTrack = async (track, { shuffle = false } = {}) => {
+ const playPlaylistFromTrack = useCallback(
+  async (track, { shuffle = false } = {}) => {
     if (!track) return;
     const base = shuffle ? [...playContextSongs].sort(() => Math.random() - 0.5) : playContextSongs;
     const ordered = shuffle ? base : orderPlaylist(base, track.id);
@@ -142,17 +150,21 @@ export default function CollectionPage() {
       queuePosition: 0,
       queueLength: combined.length,
     });
-  };
+  },
+  [playContextSongs, orderPlaylist, buildPlaylistQueue, presignAudioForTrack, client, handlePlaySong, selectedPlaylist]
+);
 
-  const handlePlayAll = () => {
+
+  const handlePlayAll = useCallback(() => {
     if (!playContextSongs.length) return;
     playPlaylistFromTrack(playContextSongs[0]);
-  };
+  }, [playContextSongs, playPlaylistFromTrack]);
 
-  const handleShufflePlay = () => {
+  const handleShufflePlay = useCallback(() => {
     if (!playContextSongs.length) return;
     playPlaylistFromTrack(playContextSongs[0], { shuffle: true });
-  };
+  }, [playContextSongs, playPlaylistFromTrack]);
+  
   const [removeSongFromPlaylist] = useMutation(REMOVE_SONG_FROM_PLAYLIST, {
     refetchQueries: [
       { query: QUERY_USER_PLAYLISTS, variables: { limit: 50 } },
@@ -420,11 +432,11 @@ export default function CollectionPage() {
   const sectionLabel = LABELS[section] || (playlistId ? "Playlists" : section) || "Collection";
   const subLabel = subsection ? LABELS[subsection] || subsection : null;
   const showSectionHeader = !(section === "playlist" && !subLabel && !selectedPlaylist);
-  const getPlaylistArtwork = (playlist) =>
-    playlist?.songs?.[0]?.artworkUrl ||
-    playlist?.songs?.[0]?.artwork ||
-    playlist?.songs?.[0]?.album?.albumCoverImage ||
-    "";
+  // const getPlaylistArtwork = (playlist) =>
+  //   playlist?.songs?.[0]?.artworkUrl ||
+  //   playlist?.songs?.[0]?.artwork ||
+  //   playlist?.songs?.[0]?.album?.albumCoverImage ||
+  //   "";
 
   return (
     <Box

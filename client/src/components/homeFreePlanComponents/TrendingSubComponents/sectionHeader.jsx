@@ -1,9 +1,5 @@
-import { useRef } from 'react';
 import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography'
-import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import NextButton from './NextButton';
 import ShowAllButton from './ShowAllButton';
 
 

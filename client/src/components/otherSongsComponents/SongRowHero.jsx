@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useCallback, useState } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { useApolloClient, useQuery } from "@apollo/client";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -21,7 +21,6 @@ import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBa
 import {
   COMPACT_LIMIT,
 } from "../../CommonSettings/songsRowNumberControl.js";
-import { NEW_UPLOADS_PUBLIC } from "../../utils/queries.js";
 import { TRENDING_SONGS_PUBLICV2 } from "../../utils/queries.js";
 
 import { useSongsWithPresignedUrls } from "../../utils/someSongsUtils/songsWithPresignedUrlHook.js";

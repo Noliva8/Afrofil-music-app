@@ -1,4 +1,3 @@
-import React from "react";
 import { Box, Typography, IconButton, Divider, Stack } from "@mui/material";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 

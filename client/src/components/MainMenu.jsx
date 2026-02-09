@@ -1,13 +1,11 @@
 // MainMenu.jsx
-import React, { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState } from "react";
 import Box from '@mui/material/Box';
-import Typography from "@mui/material/Typography";
-import { SongRowContainer, SongRow } from './otherSongsComponents/SongsRow';
+import { SongRowContainer } from './otherSongsComponents/SongsRow';
 import { SongRowContainerHero } from "./otherSongsComponents/SongRowHero";
 import TopArtist from "./homeFreePlanComponents/TopArtist";
 import TopProducer from "./homeFreePlanComponents/TopProducer";
 import TopAlbum from "./homeFreePlanComponents/TopAlbum";
-import SuggestedSongs from "./homeFreePlanComponents/SuggestedSongs";
 import SongList from "./otherSongsComponents/ListSong";
 import SongOfMonth from "./homeFreePlanComponents/SongOfMonth";
 import RadioStations from "./homeFreePlanComponents/RadioStations";

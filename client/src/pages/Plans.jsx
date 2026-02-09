@@ -1,13 +1,10 @@
 import './CSS/plan.css';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import ArtistAuth from '../utils/artist_auth';
 import { useNavigate } from 'react-router-dom';
-import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 import { useMutation } from '@apollo/client';
 import { useApolloClient } from '@apollo/client';
 import { SELECT_PLAN } from '../utils/mutations';
-import Button from '@mui/material/Button';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AppNavBar from '../components/AppNavbar';
 import { CREATE_ALBUM } from '../utils/mutations';
 import { GET_ALBUM } from '../utils/queries';

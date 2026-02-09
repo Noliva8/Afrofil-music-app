@@ -1,5 +1,4 @@
-import { FiHome, FiSearch, FiPlus, FiMusic, FiCalendar } from 'react-icons/fi';
-import { BsMusicNoteList } from 'react-icons/bs';
+import { FiHome, FiSearch, FiMusic, FiCalendar } from 'react-icons/fi';
 import { RiCompassDiscoverLine } from 'react-icons/ri';
 
 const HomeRegularAppNavBar = ({ activeTab, setActiveTab, isMobile }) => {

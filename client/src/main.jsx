@@ -1,6 +1,6 @@
-import React, { lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
-import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import ArtistLogin from './pages/ArtistLogin.jsx';
@@ -18,18 +18,16 @@ import ArtistVerificationPage from './components/ArtistVerficationPage.jsx';
 import LoginSignin from './pages/LoginSignin';
 import SharedTrack from './pages/SharedTrack.jsx';
 import ErrorPage from './pages/ErrorPage';
-import UserAuth from './utils/auth.js';
-import ArtistAuth from './utils/artist_auth.js';
 import PlanSelection from './pages/Plans.jsx';
 import ArtistDashboardPremium from './pages/ArtistDashboardPremium.jsx';
 import ArtistDashboardProPlan from './pages/ArtistDashboardProPlan.jsx';
 import ContentFreePlan from './pages/freeDashboard/ContentFreePlan.jsx';
 import DashboardFreePlan from './pages/freeDashboard/DashboardFreePlan.jsx';
-import CheckoutPage from './pages/CheckoutPage.jsx';
+
 import Terms from './pages/Terms.jsx';
 import CollectionPage from './pages/CollectionPage.jsx';
 import CollectionLanding from './pages/CollectionLanding.jsx';
-import PremiumCheckoutPage from './components/userComponents/Home/Premium/PremiumCheckoutPage.jsx';
+
 const PremiumCheckoutWrapper = lazy(() =>
   import('./components/userComponents/Home/Premium/PremiumCheckoutWrapper.jsx')
 );
@@ -47,39 +45,7 @@ import CompletePageWrapper from './components/userComponents/Home/Premium/Comple
 import { afrofeelTheme } from './pages/CSS/themeSettins.js';
 import { Support } from './pages/Support.jsx';
 
-
-// Protected Route Component
-const ProtectedRoute = ({ element }) => {
-  const isLoggedIn = UserAuth.loggedIn(); // Check if the user is authenticated
-  return isLoggedIn ? element : <Navigate to="/loginSignin?login=1" replace />;
-};
-
-
-
-const ArtistProtectedRoute = ({ element, redirectToVerification = false }) => {
-  const isArtistLoggedIn = ArtistAuth.isArtist();
-
-  const profile = ArtistAuth.getProfile();
-
-  // Debug logs
-  // console.log("Artist Logged In:", isArtistLoggedIn);
-  // console.log("Artist Profile:", profile);
-
-  // Redirect to login if the artist is not logged in
-  if (!isArtistLoggedIn) {
-    console.warn("Redirecting to /artist/login.");
-    return <Navigate to="/artist/login" replace />;
-  }
-
-  // Redirect to verification if required and the artist's profile is not confirmed
-  if (redirectToVerification && profile?.data && !profile.data.confirmed) {
-    console.warn("Redirecting to /artist/verification.");
-    return <Navigate to="/artist/verification" replace />;
-  }
-
-  // Render the protected route element if all checks pass
-  return element;
-};
+import { ProtectedRoute, ArtistProtectedRoute } from './components/AuthenticateCompos/routeProtection.jsx';
 
 
 
@@ -91,6 +57,8 @@ const router = createBrowserRouter([
     element: <App />,
     errorElement: <ErrorPage />,
     children: [
+
+
       {
         index: true,
         element: <ProtectedRoute element={<Home />} />, // Protect home route
@@ -114,6 +82,7 @@ const router = createBrowserRouter([
     element: <ProtectedRoute element={<CompletePageWrapper />} />,
   },
 
+// public routes
       {
         path: "search",
         element: <Search />, 
@@ -170,6 +139,7 @@ const router = createBrowserRouter([
         path: "loginSignin",
         element: <LoginSignin />, 
       },
+
       {
         path: "premium",
         element: (
@@ -226,6 +196,8 @@ const router = createBrowserRouter([
         element: <ArtistVerificationPage />,
       },
 
+
+// artist protected routes
       {
         path: "artist/plan",
         element: (
@@ -312,6 +284,7 @@ const router = createBrowserRouter([
   },
 ]);
 
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 const renderApp = () =>
   root.render(
@@ -336,4 +309,34 @@ if (document.readyState === "complete") {
   removeSplash();
 } else {
   window.addEventListener("load", removeSplash, { once: true });
+}
+
+// if ("serviceWorker" in navigator) {
+//   window.addEventListener("load", () => {
+//     navigator.serviceWorker
+//       .register("/sw.js")
+//       .then((registration) => {
+//         console.log("Service worker registered:", registration.scope);
+//       })
+//       .catch((err) => {
+//         console.warn("Service worker registration failed:", err);
+//       });
+//   });
+// }
+
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => {
+                console.log('Service Worker registered:', reg);
+                reg.addEventListener('updatefound', () => {
+                    const installing = reg.installing;
+                    installing?.addEventListener('statechange', () =>
+                        console.log('SW state:', installing.state)
+                    );
+                });
+            })
+            .catch(err => console.error('SW registration failed:', err));
+    });
 }

@@ -1,18 +1,10 @@
-import React, { useState } from "react";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
 import Stack from "@mui/material/Stack";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import DashboardRounded from "@mui/icons-material/DashboardRounded";
 import { Link } from "react-router-dom";
 import { styled } from "@mui/material/styles";
-import ContentPaste from "@mui/icons-material/ContentPaste";
 import Box from "@mui/material/Box";
-import Button from '@mui/material/Button';
-import Drawer from '@mui/material/Drawer';
 import SourceIcon from "@mui/icons-material/Source";
 import "../pages/CSS/CSS-HOME-FREE-PLAN/MenuContent.css";
 
@@ -46,19 +38,19 @@ export default function MenuContentReduced() {
         }}
       >
         <Link to="home" className="nav-item">
-          <span>
+          <span  style={{ fontSize: '18px', fontWeight: '400', color: 'white' }}>
             <HomeRoundedIcon />
           </span>
         </Link>
 
         <Link to="content" className="nav-item">
-          <span>
+          <span  style={{ fontSize: '18px', fontWeight: '400', color: 'white' }}>
             <SourceIcon />
           </span>
         </Link>
 
         <Link to="dashboard" className="nav-item">
-          <span>
+          <span  style={{ fontSize: '18px', fontWeight: '400', color: 'white' }}>
             <DashboardRounded />
           </span>
         </Link>

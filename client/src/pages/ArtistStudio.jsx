@@ -1,21 +1,18 @@
 import { Outlet } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { ARTIST_PROFILE } from "../utils/artistQuery";
 import { GET_PRESIGNED_URL_DOWNLOAD } from "../utils/mutations";
 import { useQuery, useMutation } from "@apollo/client";
 
 import CssBaseline from "@mui/material/CssBaseline";
 import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
 
 import FreePlanAppNavBar from "../components/FreePlanAppNavBar";
 import StudioHeader from "../components/StudioHeader";
 import SideMenu from "../components/SideNavBar";
 import SideMenuReduced from "../components/SideNavBarReduced";
-import Typography from '@mui/material/Typography';
-import Grid from '@mui/material/Grid2';
 import MobileSideMenu from "../components/MobileSideMenu";
-import { createTheme, ThemeProvider, styled } from '@mui/material/styles';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 
 
@@ -163,7 +160,7 @@ console.log('structure of url on artist side:', presignedUrl)
 
   
       <CssBaseline enableColorScheme />
-      <Box sx={{ display: "flex",
+      <Box sx={{ display: "flex", 
       }}>
         <SideMenu
           openDrawer={openDrawer}
@@ -205,6 +202,7 @@ console.log('structure of url on artist side:', presignedUrl)
             overflow: "auto",
             bgcolor: "var(--primary-background-color)",
             alignItems: "center",
+            mt: -3
          }}
         >
           <Box

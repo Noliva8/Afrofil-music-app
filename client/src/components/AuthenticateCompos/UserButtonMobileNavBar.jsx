@@ -12,10 +12,7 @@ import { SitemarkIcon } from '../themeCustomization/customIcon';
 import { Search } from '@mui/icons-material';
 import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import ExploreRoundedIcon from '@mui/icons-material/ExploreRounded';
-import CollectionsBookmarkRoundedIcon from '@mui/icons-material/CollectionsBookmarkRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import DynamicFeedRoundedIcon from '@mui/icons-material/DynamicFeedRounded';
 
 
 export function UserButtonMobileNavBar({

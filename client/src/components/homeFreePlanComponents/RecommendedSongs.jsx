@@ -2,12 +2,9 @@
 
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import IconButton from "@mui/material/IconButton";
-import { PlayArrow, Pause } from "@mui/icons-material";
+import { PlayArrow } from "@mui/icons-material";
 import Grid2 from "@mui/material/Grid2";
-import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 
 

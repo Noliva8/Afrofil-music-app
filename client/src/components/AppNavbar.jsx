@@ -1,6 +1,6 @@
 
 import '../pages/CSS/plan.css'
-import React, { useState } from 'react';
+import { useState } from 'react';
 import ArtistAuth from '../utils/artist_auth';
 import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';

@@ -8,7 +8,6 @@ import Fab from '@mui/material/Fab';
 import useTheme from '@mui/material/styles/useTheme';
 import { alpha } from '@mui/material/styles';
 import Button from '@mui/material/Button';
-import Container from '@mui/material/Container';
 import { PlayArrow, Pause, Close, VolumeUp, OpenInNew, SkipPrevious, SkipNext, ArrowDownward, ExpandMore } from '@mui/icons-material';
 import { eventBus } from '../../utils/Contexts/playerAdapters';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext';
@@ -41,9 +40,7 @@ export const AdMediaPlayer = ({
   
   const [adState, setAdState] = useState(initialAdState);
   const { playerState, currentAd: contextAd } = useAudioPlayer();
-  const adAudioCtx = (() => {
-    try { return useAdAudio(); } catch { return null; }
-  })();
+  const adAudioCtx = useAdAudio();
   const adAudioState = adAudioCtx?.adState;
 
   const resizeTimeout = React.useRef();

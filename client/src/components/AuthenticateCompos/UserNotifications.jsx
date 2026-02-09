@@ -1,5 +1,4 @@
-import React from "react";
-import { Menu, MenuItem, Typography, Divider } from "@mui/material";
+import { Menu, MenuItem, Typography } from "@mui/material";
 
 export default function UserNotifications({
   anchorEl,

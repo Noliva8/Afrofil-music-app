@@ -1,4 +1,3 @@
-import React from "react";
 import { Box } from "@mui/material";
 import ChatHeader from "./ChatHeader";
 import ChatWindow from "./ChatWindow";

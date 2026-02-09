@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import Grid from '@mui/material/Grid';
+import Grid from '@mui/material/Grid2';
 import Typography from '@mui/material/Typography';
 import Link from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
@@ -51,7 +51,7 @@ const Footer = () => {
       {/* Grid of links */}
       <Grid container spacing={4} sx={{ maxWidth: '1200px', mx: 'auto' }}>
         {footerLinks.map((column) => (
-          <Grid item xs={6} sm={3} key={column.title}>
+          <Grid size={{ xs: 6, sm: 3}}  key={column.title}>
             <Typography variant="h6" sx={{
               mb: 2,
               color: '#E4C421',

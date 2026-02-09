@@ -70,7 +70,7 @@ const renderDrawerItems = (items, onItemClick) =>
       <React.Fragment key={item.key || index}>
         {item.dividerBefore && <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />}
         <ListItem
-          button
+          component="button"
           onClick={() => onItemClick(item)}
           disabled={item.disabled}
           sx={{

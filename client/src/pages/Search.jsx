@@ -457,7 +457,7 @@ export default function Search() {
             />
             <Grid container spacing={2}>
               {filteredArtists.map((artist) => (
-                <Grid key={artist._id} xs={12} sm={6} md={4} lg={3}>
+                <Grid key={artist._id} size={{ xs: 12, sm: 6, md: 4, lg: 3}}>
                   <Card
                     onClick={() => navigate(`/artist/${artist._id}`)}
                     sx={{
@@ -514,7 +514,7 @@ export default function Search() {
             />
             <Grid container spacing={2}>
               {filteredAlbums.map((album) => (
-                <Grid key={album._id} xs={12} sm={6} md={4} lg={3}>
+                <Grid key={album._id} size={{ xs: 12, sm: 6, md: 4, lg: 3}}>
                   <Card
                     onClick={() => navigate(`/album/${album._id}`)}
                     sx={{
@@ -569,7 +569,7 @@ export default function Search() {
             />
             <Grid container spacing={2}>
               {topProducers.map((producer) => (
-                <Grid key={producer.name} xs={12} sm={6} md={4} lg={3}>
+                <Grid key={producer.name}size={{ xs: 12, sm: 6, md: 4, lg: 3}}>
                   <Card
                     sx={{
                       borderRadius: 3,
@@ -603,7 +603,7 @@ export default function Search() {
             />
             <Grid container spacing={2}>
               {topComposers.map((composer) => (
-                <Grid key={composer.name} xs={12} sm={6} md={4} lg={3}>
+                <Grid key={composer.name} size={{ xs: 12, sm: 6, md: 4, lg: 3}} >
                   <Card
                     sx={{
                       borderRadius: 3,

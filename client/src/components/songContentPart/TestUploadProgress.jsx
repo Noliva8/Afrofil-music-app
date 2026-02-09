@@ -20,4 +20,4 @@ export default function TestUploadProgressTracker ({
       {progress.isComplete && <p>✅ Upload process complete</p>}
     </div>
   );
-};
+}

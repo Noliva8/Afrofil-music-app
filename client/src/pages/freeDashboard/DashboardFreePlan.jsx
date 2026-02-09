@@ -10,7 +10,6 @@ import { useQuery } from "@apollo/client";
 import { SONG_OF_ARTIST } from '../../utils/queries';
 import SongCountChart from './DashbordComponents/Charts/SongCountChart';
 import TopLikedSongs from './DashbordComponents/Charts/TopLikeSongs';
-import { DataGrid } from '@mui/x-data-grid';
 
 
 

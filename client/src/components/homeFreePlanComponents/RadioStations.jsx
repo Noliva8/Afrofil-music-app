@@ -28,13 +28,8 @@ import {
   Pause,
   MoreHoriz,
   Radio,
-  TrendingUp,
-  AccessTime,
-  Person,
   Close,
   QueueMusic,
-  FavoriteBorder,
-  Share,
 } from "@mui/icons-material";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useLazyQuery, useApolloClient, useMutation } from "@apollo/client";

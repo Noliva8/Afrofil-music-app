@@ -1,12 +1,10 @@
 import '../../components/homeFreePlanComponents/homeFreePlanComponentStyles/artistAccountProfile.css';
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 
 import { ADD_PROFILE_IMAGE } from '../../utils/mutations';
 import { ARTIST_PROFILE } from '../../utils/artistQuery';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { GET_PRESIGNED_URL } from '../../utils/mutations';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { GET_PRESIGNED_URL_DELETE } from '../../utils/mutations';
 import { GET_PRESIGNED_URL_DOWNLOAD } from '../../utils/mutations';
 import { toast } from "react-toastify";
@@ -17,7 +15,6 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from "@mui/material/Button";
 import ArtistAuth from '../../utils/artist_auth';
-import Divider from '@mui/material/Divider';
 
 // Keep folder path when extracting keys from URLs/keys
 const deriveKeyFromUrl = (url) => {

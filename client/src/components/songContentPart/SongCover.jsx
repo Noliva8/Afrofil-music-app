@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
 import Button from '@mui/material/Button';
 import { useForm } from "react-hook-form";
 import { useMutation } from "@apollo/client";
@@ -100,7 +100,7 @@ const response = await addArtwork({ variables });
       `
     });
 
-   navigate('/artist/studio/dashboard');
+   startTransition(() => navigate('/artist/studio/dashboard'));
   }
   catch(error){
     console.error("🔥 Error during adding artwork:", error);

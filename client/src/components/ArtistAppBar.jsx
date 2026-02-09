@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import IconButton from "@mui/material/IconButton";
@@ -9,7 +9,6 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
-import Divider from "@mui/material/Divider";
 import MailOutlineIcon from "@mui/icons-material/MailOutline";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import { useTheme } from "@mui/material/styles";

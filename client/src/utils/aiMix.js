@@ -1,5 +1,3 @@
-import * as tf from '@tensorflow/tfjs';
-
 const timeProfiles = {
   morning: { label: 'Morning Energy', energy: 0.8, tempo: 'fast', mood: 'positive' },
   afternoon: { label: 'Afternoon Flow', energy: 0.65, tempo: 'medium', mood: 'balanced' },
@@ -38,21 +36,14 @@ const buildFeatureVector = (energy, tempo, mood) => [
   moodScores[mood] ?? 0.5,
 ];
 
+const dotProduct = (a = [], b = []) =>
+  a.reduce((sum, val, index) => sum + (val || 0) * (b[index] || 0), 0);
+
 const scoreTrack = (track, profile) => {
   const trackVector = buildFeatureVector(track.energy, track.tempo, track.mood);
   const profileVector = buildFeatureVector(profile.energy, profile.tempo, profile.mood);
-
-  const score = tf.tidy(() => {
-    const tTensor = tf.tensor1d(trackVector);
-    const pTensor = tf.tensor1d(profileVector);
-    const dot = pTensor.dot(tTensor);
-    const result = dot.arraySync();
-    tTensor.dispose();
-    pTensor.dispose();
-    return result;
-  });
-
-  return Number(score.toFixed(3));
+  const result = dotProduct(trackVector, profileVector);
+  return Number(result.toFixed(3));
 };
 
 const determineTimeSlice = (date = new Date()) => {

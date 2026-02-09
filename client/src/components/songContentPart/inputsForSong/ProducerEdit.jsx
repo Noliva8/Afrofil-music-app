@@ -5,7 +5,6 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import useTheme from '@mui/material/styles/useTheme';
-import Button from '@mui/material/Button';
 import { AddCircleOutline, DeleteOutline } from "@mui/icons-material";
 
 export default function Producer({ register, errors, watch, setValue }) {

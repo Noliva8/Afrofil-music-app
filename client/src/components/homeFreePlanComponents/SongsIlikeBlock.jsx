@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
 import { SONGS_I_LIKE } from "../../utils/queries";
 import { useScrollNavigation } from "../../utils/someSongsUtils/scrollHooks";

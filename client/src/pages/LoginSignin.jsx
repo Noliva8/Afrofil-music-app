@@ -9,15 +9,13 @@ import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
-import { NEW_UPLOADS_PUBLIC, UPGRADED_TRENDING_SONGS, SUGGESTED_SONGS_PUBLIC, SONG_OF_MONTH_PUBLIC, RADIO_STATIONS_PUBLIC } from '../utils/queries';
+import { NEW_UPLOADS_PUBLIC, SUGGESTED_SONGS_PUBLIC, SONG_OF_MONTH_PUBLIC, RADIO_STATIONS_PUBLIC } from '../utils/queries';
 import MainMenu from '../components/MainMenu';
-import { GoogleLogin } from '@react-oauth/google';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
 import { useTheme, alpha } from '@mui/material/styles';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { HORIZONTAL_LIMIT, COMPACT_LIMIT } from '../CommonSettings/songsRowNumberControl';
+import { HORIZONTAL_LIMIT } from '../CommonSettings/songsRowNumberControl';
 
 import { TRENDING_SONGS_PUBLICV2 } from '../utils/queries';
 

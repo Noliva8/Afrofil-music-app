@@ -1,10 +1,9 @@
-import React, { useMemo, useEffect, useState, useCallback } from "react";
+import { useMemo, useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApolloClient, useQuery } from "@apollo/client";
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Divider from '@mui/material/Divider';
 import useTheme from '@mui/material/styles/useTheme';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';

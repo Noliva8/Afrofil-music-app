@@ -1,9 +1,8 @@
 
 
-import React, { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useApolloClient, useQuery } from "@apollo/client";
-import { SongCard } from "./otherSongsComponents/songCard.jsx";
 import { AlbumCard, CompactAlbumCard } from "./otherSongsComponents/AlbumCard.jsx";
 import { AddButton } from "./AddButton.jsx";
 import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
@@ -26,17 +25,18 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
-import AddIcon from '@mui/icons-material/Add';
 import ReportIcon from '@mui/icons-material/Report';
 import PersonIcon from '@mui/icons-material/Person';
+import DownloadIcon from '@mui/icons-material/Download';
 import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 
 // Hooks & Utils
-import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
 import { useMutation } from "@apollo/client";
 import { usePlayCount } from "../utils/handlePlayCount";
-import { SONG_BY_ID, SONGS_OF_ALBUM, OTHER_ALBUMS_ARTIST } from "../utils/queries";
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
+import { SONG_BY_ID, SONGS_OF_ALBUM, OTHER_ALBUMS_ARTIST, SHARE_SONG } from "../utils/queries";
 import { GET_PRESIGNED_URL_DOWNLOAD, CREATE_BOOK_ARTIST } from "../utils/mutations";
 import { useSongsWithPresignedUrls } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
@@ -44,10 +44,15 @@ import { handleTrendingSongPlay } from "../utils/plabackUtls/handleSongPlayBack.
 import { getFullKeyFromUrlOrKey } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { useScrollNavigation } from "../utils/someSongsUtils/scrollHooks.js";
 import { useBookingId } from "../utils/contexts/bookingIdContext";
+import { useArtistDownload } from "../utils/Contexts/artisDownload/useArtistDownload";
+import { useUser } from "../utils/Contexts/userContext";
+import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext.jsx";
 
 // Components
 import { ShuffleButton } from "./ShuffleButton.jsx";
 import { PlayButton } from "./PlayButton";
+
+
 import { ActionButtonsGroup } from "./ActionButtonsGroup.jsx";
 import { ActionMenu } from "./ActionMenu.jsx";
 import BookingArtistModal from "./BookingArtistModal.jsx";
@@ -81,8 +86,11 @@ export const SongPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [menuBookingOpen, setMenuBookingOpen] = useState(false);
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const { recordDownload } = useArtistDownload();
+  const [shareSongMutation] = useMutation(SHARE_SONG);
   const [createBooking] = useMutation(CREATE_BOOK_ARTIST);
   const [albumCovers, setAlbumCovers] = useState({});
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const { setBookingId } = useBookingId();
 
 
@@ -90,7 +98,8 @@ export const SongPage = () => {
   const { songId, albumId } = useParams();
   const location = useLocation();
 
-const theme = useTheme();
+  const theme = useTheme();
+  const { isPremium, user } = useUser();
 
   const {
     scrollContainerRef: albumScrollContainerRef,
@@ -632,15 +641,79 @@ useEffect(() => {
     // Implement play next logic
   }, []);
 
-  const handleShareTrack = useCallback((track) => {
-    console.log('Share track:', track.title);
-    // Implement track sharing logic
-  }, []);
+
+  const handleShareTrack = useCallback(
+    async (track) => {
+      if (!track?._id) return;
+      try {
+        await shareSongMutation({ variables: { songId: track._id } });
+        alert("Share count updated. Link copied to clipboard.");
+        const url = `${window.location.origin}/song/${track._id}`;
+        await navigator.clipboard.writeText(url);
+      } catch (error) {
+        console.error("Share failed:", error);
+        alert("Unable to register the share. Try again.");
+      }
+    },
+    [shareSongMutation]
+  );
+
+  const handleDownloadTrack = useCallback(
+    async (track) => {
+      const audioUrl = track?.audioUrl || track?.streamAudioFileUrl || track?.audioFileUrl;
+      const fallbackKey = getFullKeyFromUrlOrKey(audioUrl);
+      const audioKey = track?.audioKey || fallbackKey;
+      if (!audioKey || !audioUrl) {
+        alert("Download not available for this track.");
+        return;
+      }
+      try {
+        await recordDownload({
+          artistId: track.artistId || track.artist?._id,
+          userId: user?._id,
+          role: user?.role,
+        });
+
+        const { data } = await getPresignedUrlDownload({
+          variables: {
+            bucket: "afrofeel-songs-streaming",
+            key: audioKey,
+            region: "us-west-2",
+          },
+        });
+        const url = data?.getPresignedUrlDownload?.url;
+        if (!url) throw new Error("Download URL unavailable");
+
+        if ("caches" in window) {
+          try {
+            const cache = await caches.open("afrofeel-audio");
+            const existing = await cache.match(url);
+            if (!existing) {
+              const response = await fetch(url, { mode: "cors" });
+              if (response.ok) {
+                await cache.put(url, response.clone());
+              }
+            }
+          } catch (cacheErr) {
+            console.warn("Offline cache failed", cacheErr);
+          }
+        }
+
+        setSnackbar({ open: true, severity: "success", message: "Track saved for offline playback." });
+        } catch (error) {
+        console.error("Download failed:", error);
+        setSnackbar({ open: true, severity: "error", message: "Offline caching failed." });
+      }
+    },
+    [getPresignedUrlDownload, recordDownload, user]
+  );
 
   const handleReportTrack = useCallback((track) => {
     console.log('Report track:', track.title);
     // Implement report logic
   }, []);
+
+
 
   const handleAlbumCardClick = useCallback(
     (album) => {
@@ -756,6 +829,11 @@ useEffect(() => {
     return items;
   }, [handlePrimaryPlay, handleShare, bookingAllowed, handleMenuBookingOpen]);
 
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
+
   const trackMenuItems = useMemo(() => {
     const isPlayingSelected = isSelectedTrackCurrent && playerIsPlaying;
     return [
@@ -764,6 +842,8 @@ useEffect(() => {
         label: isPlayingSelected ? "Pause" : "Play",
         onClick: () => selectedTrack && handlePlayAlbumSong(selectedTrack),
       },
+
+      
       {
         icon: <FavoriteBorderIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
         label: "Add to Favorites",
@@ -784,6 +864,18 @@ useEffect(() => {
         icon: <ShareIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
         label: "Share",
         onClick: () => selectedTrack && handleShareTrack(selectedTrack),
+      },
+      {
+        icon: <DownloadIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
+        label: isPremium ? "Download Track" : "Upgrade for Downloads",
+        onClick: () => {
+          if (!selectedTrack) return;
+          if (!isPremium) {
+            navigate("/premium");
+            return;
+          }
+          handleDownloadTrack(selectedTrack);
+        },
       },
       {
         icon: <PersonIcon sx={{ color: "rgba(255,255,255,0.7)" }} />,
@@ -809,6 +901,8 @@ useEffect(() => {
     handlePlayNext,
     handleReportTrack,
     handleShareTrack,
+    handleDownloadTrack,
+    isPremium,
     isSelectedTrackCurrent,
     navigate,
     playerIsPlaying,
@@ -1940,6 +2034,16 @@ sx={{
         }}
         track={playlistTrack}
       />
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <MuiAlert severity={snackbar.severity} elevation={4} variant="filled" onClose={handleCloseSnackbar}>
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </>
   );
 };

@@ -1,6 +1,6 @@
 
 // AudioPlayerProvider.jsx
-import React, { createContext, useContext, useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import { useMutation, useLazyQuery } from '@apollo/client';
 
@@ -285,14 +285,14 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
 
 
 
-  const buildRemainingFrom = (idx) => {
+  const buildRemainingFrom = useCallback((idx) => {
     if (!Array.isArray(canonicalQueueRef.current)) return [];
     if (idx >= canonicalQueueRef.current.length - 1) return [];
     return canonicalQueueRef.current
       .slice(idx + 1)
       .map(normalizeArtworkTrack)
       .filter(Boolean);
-  };
+  }, []);
 
   const [playerState, setPlayerState] = useState({
     currentTrack: null,
@@ -338,7 +338,7 @@ const audioCtxSnapshot = () => ({
   geo
 });
 
-const progressRafRef = useRef(null);
+
 
 useEffect(() => {
   if (!audioRef.current) return; // wait until <audio> is mounted
@@ -574,34 +574,6 @@ const pickNextIndex = useCallback((reason = "auto") => {
     };
   }, []);
 
-  // Teaser watchdog
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const checkTeaserEnd = () => {
-      setPlayerState(prev => {
-        const shouldStop = prev.isTeaser &&
-          !prev.wasManuallyPaused &&
-          !prev.hasTeaserEnded && // avoid re-firing once handled
-          audio.currentTime >= TEASER_DURATION;
-
-        if (shouldStop) {
-          audio.pause();
-          onRequireAuth('teaser-end');
-          setTimeout(() => skipNext(), 3000);
-          return { ...prev, isPlaying: false, hasTeaserEnded: true };
-        }
-        return prev;
-      });
-    };
-
-    audio.addEventListener('timeupdate', checkTeaserEnd);
-    return () => audio.removeEventListener('timeupdate', checkTeaserEnd);
-  }, [onRequireAuth]);
-
-
-
   // progress sync into state (listeners only; no deps that change every render)
   useEffect(() => {
     const audio = audioRef.current;
@@ -745,13 +717,23 @@ const pickNextIndex = useCallback((reason = "auto") => {
 
   // ---- Play: stable identity, uses ref fallback ----
 
+  const shouldBlockPlayback = useCallback(() => {
+    const block =
+      playerState.hasTeaserEnded &&
+      playerState.isTeaser &&
+      !playerState.wasManuallyPaused;
+    return block;
+  }, [playerState.hasTeaserEnded, playerState.isTeaser, playerState.wasManuallyPaused]);
+
   const play = useCallback(async (trackArg = null, playbackContext = null) => {
     if (playerState.isAdPlaying) {
       try {
         eventBus.emit("AD_BLOCK_PLAY_ATTEMPT", {
           message: "Playback will resume after the advertisement finishes."
         });
-      } catch {}
+      } catch (err) {
+        console.warn('eventBus emit failed', err);
+      }
       return;
     }
     const track = trackArg || currentTrackRef.current;
@@ -790,7 +772,7 @@ const pickNextIndex = useCallback((reason = "auto") => {
         error: error?.message || 'Playback error'
       }));
     }
-  }, []); // <- stable
+  }, [onRequireAuth, playerState.isAdPlaying, shouldBlockPlayback]);
 
   // Auto-resume on buffer issues
   const lastAutoResumeRef = useRef(0);
@@ -952,7 +934,7 @@ const pickNextIndex = useCallback((reason = "auto") => {
           audio.removeEventListener('error', onError);
           resolve();
         };
-        const onError = (e) => {
+        const onError = () => {
           audio.removeEventListener('canplay', onCanPlay);
           audio.removeEventListener('error', onError);
           reject(new Error('Audio load error'));
@@ -973,7 +955,7 @@ const pickNextIndex = useCallback((reason = "auto") => {
       }));
       return false;
     }
-  }, [getAudioConfig]);
+  }, [getAudioConfig, presignArtwork, presignAudio]);
 
 
 
@@ -990,7 +972,7 @@ useEffect(() => {
 
   // Warm up the next few tracks whenever the current track changes.
   prefetchUpcomingAudio();
-}, [playerState.currentTrack]);
+}, [playerState.currentTrack, prefetchUpcomingAudio]);
 
 useEffect(() => {
   const trackId = playerState.currentTrack?.id;
@@ -1184,7 +1166,9 @@ try {
     genre: trackToPlay?.genre,
     duration: trackToPlay?.duration ?? 0
   });
-} catch {}
+} catch (err) {
+  console.warn('playerManager track load failed', err);
+}
 
 
 
@@ -1214,7 +1198,7 @@ try {
         return false;
       }
     },
-    [load, play]
+    [load, play, playerState.isAdPlaying]
   );
 
   const startManualNav = () => {
@@ -1363,6 +1347,32 @@ const skipNext = useCallback(async () => {
 
 
 
+  // Teaser watchdog (runs after skipNext definition to avoid TDZ)
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const checkTeaserEnd = () => {
+      setPlayerState(prev => {
+        const shouldStop = prev.isTeaser &&
+          !prev.wasManuallyPaused &&
+          !prev.hasTeaserEnded &&
+          audio.currentTime >= TEASER_DURATION;
+
+        if (shouldStop) {
+          audio.pause();
+          onRequireAuth('teaser-end');
+          setTimeout(() => skipNext(), 3000);
+          return { ...prev, isPlaying: false, hasTeaserEnded: true };
+        }
+        return prev;
+      });
+    };
+
+    audio.addEventListener('timeupdate', checkTeaserEnd);
+    return () => audio.removeEventListener('timeupdate', checkTeaserEnd);
+  }, [onRequireAuth, skipNext]);
+
 
 
   useEffect(() => {
@@ -1488,7 +1498,15 @@ const handleEnded = async () => {
 
     audio.addEventListener('ended', handleEnded);
     return () => audio.removeEventListener('ended', handleEnded);
-  }, [skipNext]);
+  }, [
+    skipNext,
+    handlePlaySong,
+    pickNextIndex,
+    play,
+    playerState.playbackContext,
+    playerState.repeatMode,
+    seek,
+  ]);
 
   // const skipPrevious = useCallback(async () => {
   //   startManualNav();
@@ -1867,14 +1885,6 @@ useEffect(() => {
       wasManuallyPaused: manually ? true : prev.wasManuallyPaused
     }));
   }, []);
-
-  const shouldBlockPlayback = useCallback(() => {
-    const block =
-      playerState.hasTeaserEnded &&
-      playerState.isTeaser &&
-      !playerState.wasManuallyPaused;
-    return block;
-  }, [playerState.hasTeaserEnded, playerState.isTeaser, playerState.wasManuallyPaused]);
 
   const togglePlay = useCallback(() => {
     if (shouldBlockPlayback()) {

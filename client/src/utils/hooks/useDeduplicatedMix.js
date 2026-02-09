@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef} from 'react';
+import { useMemo, useState, useEffect} from 'react';
 import { dedupeSongs } from '../songHelpers';
 import { generateDailyMix } from '../aiMix';
 

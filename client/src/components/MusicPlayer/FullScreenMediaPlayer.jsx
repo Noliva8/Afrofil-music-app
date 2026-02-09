@@ -28,9 +28,7 @@ import {
   Repeat,
   RepeatOne,
   ArrowDownward,
-  Lyrics,
   Person,
-  MusicNote,
   Share,
   Download,
   PlaylistAdd,
@@ -1834,6 +1832,17 @@ export const useFullScreenPlayer = () => {
 };
 
 export default FullScreenMediaPlayer;
+
+
+
+
+
+
+
+
+
+
+
 
 // Upgrade prompt dialog (mounted with player)
 const UpgradePrompt = ({ open, onClose, onUpgrade }) => {

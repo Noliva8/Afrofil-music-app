@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
-import Typography from '@mui/material/Typography'
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 export default function NextButton({ handleSlide}){

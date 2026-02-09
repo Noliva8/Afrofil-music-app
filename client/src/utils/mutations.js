@@ -55,6 +55,15 @@ export const RESET_PASSWORD = gql`
   }
 `;
 
+export const SEND_SUPPORT_MESSAGE = gql`
+  mutation SendSupportMessage($input: SupportRequestInput!) {
+    sendSupportMessage(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
 export const CANCEL_SUBSCRIPTION = gql`
   mutation CancelCurrentUserSubscription {
     cancelCurrentUserSubscription {

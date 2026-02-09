@@ -1,32 +1,22 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {  useEffect } from "react";
-import { useApolloClient } from "@apollo/client";
 import { useQuery, useMutation } from "@apollo/client";
 import { useForm, Controller} from "react-hook-form"
 
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import Fade from "@mui/material/Fade";
 import Button from "@mui/material/Button";
 import useTheme from '@mui/material/styles/useTheme';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { useFieldArray } from 'react-hook-form';
 
 import {
   MusicNote as MusicNoteIcon,
-  People as PeopleIcon,
-  Album as AlbumIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Label,
 } from "@mui/icons-material";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 
-import Title from "../../../../../components/songContentPart/inputsForSong/Title";
 import FeaturingArtist from "../../../../../components/songContentPart/inputsForSong/FeaturingArtist";
 import Producer from "../../../../../components/songContentPart/Producer";
 import Composer from "../../../../../components/songContentPart/inputsForSong/Composer";

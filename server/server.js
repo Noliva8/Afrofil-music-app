@@ -47,6 +47,7 @@ import Artist from "./models/Artist/Artist.js";
 import stripeRoutes from "./routes/stripeRoutes.js";
 import location from './routes/location.js';
 import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
+import supportRoute from './routes/support.js';
 import { RadioStation } from "./models/Artist/index_artist.js";
 import { RADIO_TYPES } from "./utils/radioTypes.js";
 
@@ -501,6 +502,7 @@ app.get('/api/debug/health', async (req, res) => {
 
 
 app.use('/api', verifyAdvertizerEmail);
+app.use('/api/support', supportRoute);
 
 // Start the Apollo Server and connect to the DB
 const startApolloServer = async () => {

@@ -32,8 +32,6 @@ import {
   SearchRounded,
   StarRounded,
   TrendingFlatRounded,
-  TrendingUpRounded,
-  FavoriteBorderRounded,
   PlayArrowRounded,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -238,9 +236,9 @@ function CountriesDialog({ open, onClose, title, items, badgeLabel, onPick }) {
           }}
         />
 
-        <Grid container spacing={{ xs: 1.5, sm: 2 }} disableEqualOverflow>
+        <Grid container spacing={{ xs: 1.5, sm: 2 }}>
           {filtered.map((item) => (
-            <Grid key={item} xs={6} sm={4} md={3}>
+            <Grid key={item} size={{ xs: 6, sm: 4, md: 3}}>
               <Paper
                 onClick={() => onPick(item)}
                 sx={{
@@ -707,9 +705,9 @@ export default function Explore() {
                   fontSize: { xs: 22, sm: 26, md: 28 } 
                 }} />}
               />
-              <Grid container spacing={{ xs: 2, sm: 3 }} disableEqualOverflow justifyContent="center">
+              <Grid container spacing={{ xs: 2, sm: 3 }} justifyContent="center">
                 {REGIONS.map((r) => (
-                  <Grid key={r.key} xs={12} sm={6} md={4} sx={{ minWidth: 0 }}>
+                  <Grid key={r.key} size={{ xs: 12, sm: 6, md: 4}} sx={{ minWidth: 0 }}>
                     <RegionCard region={r} onClick={(key) => handlePick("region", key)} />
                   </Grid>
                 ))}
@@ -728,9 +726,9 @@ export default function Explore() {
                 }} />}
               />
 
-              <Grid container spacing={{ xs: 1.5, sm: 3 }} disableEqualOverflow>
+              <Grid container spacing={{ xs: 1.5, sm: 3 }}>
                 {AFRICAN_COUNTRIES.slice(0, isMobile ? 4 : isTablet ? 6 : 8).map((c) => (
-                  <Grid key={c} xs={6} sm={4} md={3}>
+                  <Grid key={c} size={{ xs: 6, sm: 4, md: 3}}>
                     <CountryCard 
                       label={c} 
                       chipLabel="Africa" 
@@ -753,9 +751,9 @@ export default function Explore() {
                   fontSize: { xs: 22, sm: 26, md: 28 } 
                 }} />}
               />
-              <Grid container spacing={{ xs: 1.5, sm: 3 }} disableEqualOverflow>
+              <Grid container spacing={{ xs: 1.5, sm: 3 }}>
                 {DIASPORA_HOTSPOTS.slice(0, isMobile ? 4 : 5).map((c) => (
-                  <Grid key={c} xs={6} sm={4} md={3}>
+                  <Grid key={c} size={{ xs: 6, sm: 4, md: 3}} >
                     <CountryCard 
                       label={c} 
                       chipLabel="Diaspora" 
@@ -780,9 +778,9 @@ export default function Explore() {
                 fontSize: { xs: 22, sm: 26, md: 28 } 
               }} />}
             />
-            <Grid container spacing={{ xs: 1.5, sm: 3 }} disableEqualOverflow>
+            <Grid container spacing={{ xs: 1.5, sm: 3 }}>
               {GENRES.map((g) => (
-                <Grid key={g.name} xs={6} sm={4} md={3}>
+                <Grid key={g.name} size={{ xs: 6, sm: 4, md: 3}} >
                   <GenreCard genre={g} onClick={(v) => handlePick("genre", v)} />
                 </Grid>
               ))}
@@ -801,9 +799,9 @@ export default function Explore() {
                 fontSize: { xs: 22, sm: 26, md: 28 } 
               }} />}
             />
-            <Grid container spacing={{ xs: 1.5, sm: 2 }} disableEqualOverflow>
+            <Grid container spacing={{ xs: 1.5, sm: 2 }}>
               {MOODS.map((m) => (
-                <Grid key={m.name} xs={6} sm={4} md={3}>
+                <Grid key={m.name} size={{ xs: 6, sm: 4, md: 3}}>
                   <MoodCard mood={m} onClick={(v) => handlePick("mood", v)} />
                 </Grid>
               ))}

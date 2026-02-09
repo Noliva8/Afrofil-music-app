@@ -1,4 +1,3 @@
-import React from "react";
 import "../CSS/CSS-HOME-FREE-PLAN/homeFreePlan.css";
 import Bio from "../../components/homeFreePlanComponents/Bio.jsx";
 import Language from "../../components/homeFreePlanComponents/Language.jsx";
@@ -43,26 +42,26 @@ export default function HomeFreePlan() {
 
       {/* Bio */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid xs={12}>
+        <Grid size={{ xs: 12}} >
           <Bio />
         </Grid>
       </Grid>
 
       {/* Details Section - Responsive columns */}
       <Grid container spacing={2}>
-        <Grid xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4}} >
           <Country />
         </Grid>
 
-        <Grid xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4}} >
           <Region />
-        </Grid>
+        </Grid> 
 
-        <Grid xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4}}>
           <Language />
         </Grid>
 
-        <Grid xs={12} sm={6} md={4}>
+        <Grid size={{ xs: 12, sm: 6, md: 4}}>
           <Genre />
         </Grid>
       </Grid>

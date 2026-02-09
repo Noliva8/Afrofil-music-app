@@ -1,7 +1,7 @@
 import { Song } from "../../../models/Artist/index_artist.js";
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { NEW_UPLOADS_CACHE_KEY } from "../Redis/keys.js";
-const CACHE_TTL_SECONDS = 60;
+export const CACHE_TTL_SECONDS = 60;
 
 
 

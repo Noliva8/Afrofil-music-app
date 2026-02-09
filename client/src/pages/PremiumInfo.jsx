@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@apollo/client';
-import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -268,7 +267,7 @@ console.log('data for subscription', data);
 
           <Grid container spacing={{ xs: 3, md: 4 }}>
             {/* Main Subscription Card */}
-            <Grid item xs={12} lg={8}>
+            <Grid size={{ xs: 12, lg: 8}} >
               <Paper
                 elevation={0}
                 sx={{
@@ -322,7 +321,7 @@ console.log('data for subscription', data);
 
                   {/* Info Cards Grid */}
                   <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3}}>
                       <InfoCard
                         icon={FiCalendar}
                         label="Next Billing"
@@ -331,7 +330,7 @@ console.log('data for subscription', data);
                         loading={loading}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3}} >
                       <InfoCard
                         icon={FiCreditCard}
                         label="Payment Method"
@@ -344,7 +343,7 @@ console.log('data for subscription', data);
                         loading={loading}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3}}>
                       <InfoCard
                         icon={FiDollarSign}
                         label="Renewal Amount"
@@ -353,7 +352,7 @@ console.log('data for subscription', data);
                         loading={loading}
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid  size={{ xs: 12, sm: 6, md: 3}}>
                       <InfoCard
                         icon={FiClock}
                         label="Expires At"
@@ -423,7 +422,7 @@ console.log('data for subscription', data);
             </Grid>
 
             {/* Benefits Sidebar */}
-            <Grid item xs={12} lg={4}>
+            <Grid size={{ xs: 12, lg: 4}}>
               <Card
                 sx={{
                   borderRadius: 3,
@@ -519,7 +518,7 @@ console.log('data for subscription', data);
                     a: 'We offer refunds within 14 days of purchase if you haven\'t used premium features.',
                   },
                 ].map((faq, index) => (
-                  <Grid item xs={12} md={4} key={index}>
+                  <Grid  size={{ xs: 12, md: 4}} key={index}>
                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                       {faq.q}
                     </Typography>

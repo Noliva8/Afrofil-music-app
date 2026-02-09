@@ -1,6 +1,5 @@
 
 
-import React from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import CompletePage from './CompletePage.jsx';
 import { useStripePromise } from '../../../../utils/stripeLoader.js';

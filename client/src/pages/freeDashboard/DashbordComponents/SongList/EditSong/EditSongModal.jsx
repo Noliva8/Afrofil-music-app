@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
 import Modal from '@mui/material/Modal';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import MetadataEdit from './MetadataEdit';
-import Swal from 'sweetalert2';
 
 
 export default function EditModal({ open, onClose, song, refetch  }) {

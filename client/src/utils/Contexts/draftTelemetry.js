@@ -1,4 +1,3 @@
-import { getComprehensiveGeo } from "../geoClient";
 
 // what we need from redis data :
 /*

@@ -33,7 +33,6 @@ import {
   TrendingUpRounded,
   RemoveCircleOutline,
   OpenInNewRounded,
-  Add
 } from '@mui/icons-material';
 
 import {
@@ -75,7 +74,9 @@ const SortablePlaylistItem = ({ playlist, isOpen, onToggle, onDelete, navigate, 
     cursor: isDragging ? 'grabbing' : 'grab',
   };
 
-  const previewSongs = playlist.songs || [];
+
+
+  const theme = useTheme();
 
   return (
     <Box
@@ -95,11 +96,11 @@ const SortablePlaylistItem = ({ playlist, isOpen, onToggle, onDelete, navigate, 
           borderRadius: 2,
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          backgroundColor: alpha(useTheme().palette.background.paper, 0.6),
-          border: `1px solid ${alpha(useTheme().palette.divider, 0.1)}`,
+          backgroundColor: alpha(theme.palette.background.paper, 0.6),
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
           '&:hover': {
-            backgroundColor: alpha(useTheme().palette.primary.main, 0.08),
-            borderColor: useTheme().palette.primary.main,
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+            borderColor: theme.palette.primary.main,
             transform: 'translateX(4px)',
           },
         }}
@@ -111,13 +112,13 @@ const SortablePlaylistItem = ({ playlist, isOpen, onToggle, onDelete, navigate, 
             borderRadius: '50%',
             position: 'relative',
             background: `radial-gradient(circle at 35% 35%, ${alpha(
-              useTheme().palette.primary.main,
+              theme.palette.primary.main,
               0.9
-            )} 0%, ${alpha(useTheme().palette.primary.main, 0.35)} 45%, ${alpha(
-              useTheme().palette.primary.dark,
+            )} 0%, ${alpha(theme.palette.primary.main, 0.35)} 45%, ${alpha(
+              theme.palette.primary.dark,
               0.2
             )} 65%)`,
-            border: `2px solid ${alpha(useTheme().palette.primary.main, 0.35)}`,
+            border: `2px solid ${alpha(theme.palette.primary.main, 0.35)}`,
             boxShadow: 'inset 0 0 6px rgba(0,0,0,0.4)',
           }}
         >
@@ -126,8 +127,8 @@ const SortablePlaylistItem = ({ playlist, isOpen, onToggle, onDelete, navigate, 
               position: 'absolute',
               inset: '30%',
               borderRadius: '50%',
-              background: alpha(useTheme().palette.background.paper, 0.8),
-              border: `1px solid ${alpha(useTheme().palette.text.primary, 0.4)}`,
+              background: alpha(theme.palette.background.paper, 0.8),
+              border: `1px solid ${alpha(theme.palette.text.primary, 0.4)}`,
             }}
           />
         </Box>
@@ -208,6 +209,7 @@ const SortablePlaylistItem = ({ playlist, isOpen, onToggle, onDelete, navigate, 
 
 // Sortable Song Item Component for reordering songs within playlist
 const SortableSongItem = ({ song, playlistId, artworkById, onRemove }) => {
+  const theme = useTheme();
   const {
     attributes,
     listeners,
@@ -238,7 +240,7 @@ const SortableSongItem = ({ song, playlistId, artworkById, onRemove }) => {
         gap: 1,
         cursor: 'pointer',
         backgroundColor: isDragging
-          ? alpha(useTheme().palette.primary.main, 0.1)
+          ? alpha(theme.palette.primary.main, 0.1)
           : 'transparent',
         borderRadius: 1,
         p: 0.5,
@@ -371,7 +373,7 @@ const PlaylistSongList = ({ playlist, artworkById, playlistId, onSongsReordered 
   return (
     <Stack spacing={0.5} sx={{ mt: 1, pl: 6 }}>
       {songs.length === 0 ? (
-        <Typography variant="caption" sx={{ color: useTheme().palette.text.secondary }}>
+        <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
           No songs yet. Drag songs here to add them!
         </Typography>
       ) : (
@@ -422,7 +424,7 @@ const UserSideBar = () => {
     fetchPolicy: 'cache-and-network'
   });
   
-  const { data: playlistsData, loading: playlistsLoading, refetch: refetchPlaylists } = useQuery(QUERY_USER_PLAYLISTS, { 
+  const { data: playlistsData, loading: playlistsLoading } = useQuery(QUERY_USER_PLAYLISTS, { 
     variables: { limit: 6 },
     fetchPolicy: 'cache-and-network'
   });
@@ -493,8 +495,14 @@ const UserSideBar = () => {
     );
   };
 
-  const recentSongs = recentData?.recentPlayedSongs || [];
-  const likedSongs = likedData?.likedSongs || [];
+  const recentSongs = useMemo(
+    () => recentData?.recentPlayedSongs || [],
+    [recentData?.recentPlayedSongs]
+  );
+  const likedSongs = useMemo(
+    () => likedData?.likedSongs || [],
+    [likedData?.likedSongs]
+  );
   
   const previewSongs = useMemo(() => {
     const flattened = playlists.flatMap((playlist) => playlist.songs || []);

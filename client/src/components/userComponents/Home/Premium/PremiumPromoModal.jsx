@@ -1,10 +1,8 @@
 
-import React from 'react';
-import { FiCheck, FiX, FiMusic, FiDownload, FiHeadphones } from 'react-icons/fi';
+import { FiX, FiMusic, FiDownload, FiHeadphones } from 'react-icons/fi';
 import { BsStars } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import './PremiumPromoModal.css';
-import { PremiumInfo } from '../../../../pages/PremiumInfo';
 
 const PremiumPromoModal = ({ onClose }) => {
   const navigate = useNavigate();

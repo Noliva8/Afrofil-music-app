@@ -11,7 +11,6 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useTheme from '@mui/material/styles/useTheme';
-import { SitemarkIcon } from '../themeCustomization/customIcon';
 
 export const WelcomeSideNavbar = ({
   handleLoginFormDisplay,

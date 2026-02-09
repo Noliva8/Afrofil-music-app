@@ -1,10 +1,7 @@
 import "./entry.css";
 import { useState, useEffect } from "react";
-import NavTabs from "./components/NavTabs";
-import ProfileDropdown from "./components/ProfileDropdown";
 import { useCallback } from "react";
-import MobileNav from "./components/MobileNav"; // New component for mobile
-import BottomNav from "./components/BottomNav";
+// New component for mobile
 import GuestBottomNav from "./components/GuestBottomNav.jsx";
 import { Outlet } from "react-router-dom";
 import {
@@ -26,7 +23,6 @@ import ArtistAuth from "./utils/artist_auth";
 import WelcomeAppNavBar from "./components/WelcomePage/WelcomAppNavBar";
 import { WelcomeSideNavbar } from "./components/WelcomePage/WelcomeSideNavBar.jsx";
 import Footer from "./pages/Footer";
-import ForArtistOnly from "./components/ForArtistOnly";
 import Box from '@mui/material/Box';
 import { useTheme, alpha } from "@mui/material/styles";
 import LoginSignin from "./pages/LoginSignin";

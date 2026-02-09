@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import Stack from "@mui/material/Stack";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
 import MenuButton from "./MenuButton";
@@ -9,7 +9,6 @@ import Button from "@mui/material/Button";
 import Badge from "@mui/material/Badge";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import { useTheme } from "@mui/material/styles";
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_ARTIST_BOOKINGS, MESSAGE_CONVERSATIONS } from "../utils/queries";

@@ -743,7 +743,7 @@ const getArtworkKey = useCallback((song) => {
     <>
       {lcpImageUrl && (
         <Helmet>
-          <link rel="preload" as="image" href={lcpImageUrl} fetchpriority="high" />
+          <link rel="preload" as="image" href={lcpImageUrl} fetchPriority="high" />
         </Helmet>
       )}
       <Box sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 } }}>

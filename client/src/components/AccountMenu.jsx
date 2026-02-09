@@ -7,7 +7,6 @@ import Paper from '@mui/material/Paper';
 import Divider from '@mui/material/Divider';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import ArtistAuth from '../utils/artist_auth';
 import List from '@mui/material/List';

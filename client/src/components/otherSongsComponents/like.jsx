@@ -1,9 +1,8 @@
 // LikesComponent.jsx
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ThumbUpOffAltIcon from '@mui/icons-material/ThumbUpOffAlt';
 

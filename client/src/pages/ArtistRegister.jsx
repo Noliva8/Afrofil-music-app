@@ -1,9 +1,8 @@
 import './CSS/signup.css'
-import logo from "../images/logo.png";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
-import { ARTIST_LOGIN, CREATE_ARTIST } from "../utils/mutations";
+import { CREATE_ARTIST } from "../utils/mutations";
 import artist_auth from "../utils/artist_auth";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
@@ -12,7 +11,6 @@ import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
-import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
 import FormControl from "@mui/material/FormControl";

@@ -3,32 +3,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AppBar from '@mui/material/AppBar';
 import { alpha } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
-import Badge from '@mui/material/Badge';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Drawer from '@mui/material/Drawer';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
-import Stack from '@mui/material/Stack';
 import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import useTheme from '@mui/material/styles/useTheme';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
-import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
-import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
-import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
-import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
-import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
-import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import GetAppRoundedIcon from '@mui/icons-material/GetAppRounded';
 import { SitemarkIcon } from '../themeCustomization/customIcon';
 import ArtistAuth from '../../utils/artist_auth.js'
@@ -39,8 +26,6 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import UserAuth from '../../utils/auth.js';
 import { SearchBar } from '../../pages/SearchBar.jsx';
 import { usePWAInstall } from '../../PWAInstall/pwaInstall.js';
-import CloseIcon from '@mui/icons-material/Close';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
 
 
 export default function ArtistGuestViewAppBar() {

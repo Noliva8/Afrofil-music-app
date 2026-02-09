@@ -1,19 +1,13 @@
-import React, { useState } from "react";
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-import Stack from '@mui/material/Stack';
-import Collapse from '@mui/material/Collapse';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import useTheme from '@mui/material/styles/useTheme';
 import Fade from '@mui/material/Fade';
 import Button from '@mui/material/Button';
-import Title from "./inputsForSong/Title";
 import FeaturingArtist from "./inputsForSong/FeaturingArtist";
 import Producer from "../songContentPart/Producer";
 import Composer from "./inputsForSong/Composer";
 import AlbumSong from "./inputsForSong/AlbumInSong";
-import CustomAlbum from "../homeFreePlanComponents/albumContent/CustomAlbum";
 import TruckNumber from "./inputsForSong/TruckNumber";
 import SongLabel from "./inputsForSong/SongLabel";
 import Genre from './inputsForSong/Genre';
@@ -21,11 +15,6 @@ import Mood from "./Mood";
 import ReleaseDate from './inputsForSong/ReleaseDate';
 import {
   MusicNote as MusicNoteIcon,
-  People as PeopleIcon,
-  Album as AlbumIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Label,
 } from "@mui/icons-material";
 import TextField from "@mui/material/TextField";
 

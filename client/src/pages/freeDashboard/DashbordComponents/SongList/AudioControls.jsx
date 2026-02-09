@@ -1,4 +1,3 @@
-import React from 'react';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import Slider from '@mui/material/Slider';
 import Box from '@mui/material/Box';

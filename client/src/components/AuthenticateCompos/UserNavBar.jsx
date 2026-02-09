@@ -27,7 +27,6 @@ import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRound
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
-import LibraryMusicIcon from '@mui/icons-material/LibraryMusic';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import GetAppRoundedIcon from '@mui/icons-material/GetAppRounded';
@@ -155,8 +154,7 @@ export default function UserNavBar() {
 
   const client = useApolloClient();
 
-  const handleNotificationSelect = async (notification) => {
-    const skipNotificationUpdates = notification.skipNotificationUpdates;
+  const markNotificationSeen = async (notification) => {
     try {
       await markSeenUserNotification({
         variables: { notificationId: notification._id, isNotificationSeen: true },
@@ -168,27 +166,19 @@ export default function UserNavBar() {
           },
         },
       });
-
+      setPendingNotificationsList((prev) =>
+        prev.filter((item) => item._id !== notification._id)
+      );
+      setShowPendingBadge(false);
+      setCanChat(false);
     } catch (error) {
       if (!/Notification not found/i.test(error.message)) {
         console.error('Failed to mark notification seen', error);
       }
     }
-    try {
-      if (!skipNotificationUpdates) {
-        await markNotificationRead({ variables: { notificationId: notification._id } });
-      }
-    } catch (error) {
-      if (!/Notification not found/i.test(error.message)) {
-        console.error('Failed to mark notification read', error);
-      }
-    }
-    setPendingNotificationsList((prev) =>
-      prev.filter((item) => item._id !== notification._id)
-    );
-    setShowPendingBadge(false);
-    setCanChat(false);
+  };
 
+  const handleNotificationSelect = async (notification) => {
     if (notification.type?.toLowerCase() === 'declined') {
       alert('Sorry, the artist rejected your request; chat is disabled.');
     } else if (notification.type?.toLowerCase() === 'pending' && !notification.isChatEnabled) {
@@ -196,8 +186,23 @@ export default function UserNavBar() {
     } else if (notification.isChatEnabled) {
       handleChatOpen(notification.bookingId);
     }
-
+    await markNotificationSeen(notification);
     handleNotificationsClose();
+    refetchBookingNotifications?.();
+  };
+
+  const handleNotificationDismiss = async (notification) => {
+    await markNotificationSeen(notification);
+    try {
+      if (!notification.skipNotificationUpdates) {
+        await markNotificationRead({ variables: { notificationId: notification._id } });
+      }
+    } catch (error) {
+      if (!/Notification not found/i.test(error.message)) {
+        console.error('Failed to mark notification read', error);
+      }
+    }
+    refetchBookingNotifications?.();
   };
 
 
@@ -213,13 +218,14 @@ export default function UserNavBar() {
   const [chatBookingId, setChatBookingId] = useState(null);
 
 
-  const { data: bookingNotificationData, loading: bookingNotificationLoading } = useQuery(
-    USER_NOTIFICATION_ON_BOOKINGS,
-    {
-      fetchPolicy: 'network-only',
-      pollInterval: 8000,
-    }
-  );
+  const {
+    data: bookingNotificationData,
+    loading: bookingNotificationLoading,
+    refetch: refetchBookingNotifications,
+  } = useQuery(USER_NOTIFICATION_ON_BOOKINGS, {
+    fetchPolicy: 'network-only',
+    pollInterval: 8000,
+  });
 
   const { data: messageConversationsData } = useQuery(MESSAGE_CONVERSATIONS);
   const messageConversations = messageConversationsData?.messageConversations || [];
@@ -360,7 +366,10 @@ const handlePremiumNavigate = () => {
   );
 
   const notificationMenuId = 'primary-notification-menu';
+
+
   const renderNotificationMenu = (
+    
     <Menu
       anchorEl={notificationsAnchor}
       anchorOrigin={{
@@ -436,6 +445,9 @@ const handlePremiumNavigate = () => {
     </Menu>
   );
 
+
+  // Main return
+
   return (
     <>
       <AppBar
@@ -452,6 +464,7 @@ const handlePremiumNavigate = () => {
 
           {/* Logo */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+
             <Box
               sx={{
                 display: 'flex',
@@ -498,7 +511,10 @@ const handlePremiumNavigate = () => {
 
 
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+
+                {/* Arrows */}
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: {xs: 1, md: 3} }}>
               <IconButton
                 onClick={handleBack}
                 aria-disabled={!canGoBack}
@@ -532,7 +548,18 @@ const handlePremiumNavigate = () => {
              )}
               
             </Box>
+
+
+          
           </Box>
+
+
+      
+
+
+
+
+
 
           {/* Search */}
 
@@ -547,6 +574,7 @@ const handlePremiumNavigate = () => {
               <SearchBar />
             </Box>
           )}
+
 
           {/* Actions */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -624,6 +652,57 @@ const handlePremiumNavigate = () => {
 
 
             {isMobile ? (
+
+              <>
+
+  <Tooltip title="Messages">
+                  <IconButton
+                    size="large"
+                    color="inherit"
+                    sx={{ position: 'relative' }}
+                    onClick={handleNotificationsOpen}
+                  >
+                    <Badge
+                      badgeContent={unreadNotificationCount}
+                      color="primary"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          fontSize: '0.65rem',
+                          height: 18,
+                          minWidth: 18,
+                        }
+                      }}
+                    >
+                      <MailOutlineIcon />
+                    </Badge>
+
+                  </IconButton>
+                </Tooltip>
+
+
+                <Tooltip title="Notifications">
+                  <IconButton
+                    size="large"
+                    color="inherit"
+                    sx={{ position: 'relative' }}
+                    onClick={handleNotificationsOpen}
+                  >
+                    <Badge
+                      badgeContent={unreadNotificationCount}
+                      color="error"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          fontSize: '0.65rem',
+                          height: 18,
+                          minWidth: 18,
+                        }
+                      }}
+                    >
+                      <NotificationsIcon />
+                    </Badge>
+                  </IconButton>
+                </Tooltip>
+
               <Tooltip title="Account">
                 <IconButton
                   onClick={handleOpenMobileDrawer}
@@ -648,7 +727,9 @@ const handlePremiumNavigate = () => {
                   </Avatar>
                 </IconButton>
               </Tooltip>
+              </>
             ) : (
+
               <>
 
 
@@ -688,6 +769,7 @@ const handlePremiumNavigate = () => {
 
                   </IconButton>
                 </Tooltip>
+
 
                 <Tooltip title="Notifications">
                   <IconButton
@@ -747,6 +829,9 @@ const handlePremiumNavigate = () => {
           </Box>
         </Toolbar>
       </AppBar>
+
+
+
 
       <Drawer
         anchor="right"
@@ -821,20 +906,9 @@ const handlePremiumNavigate = () => {
               Support
             </Button>
 
-            <Button
-              variant="text"
-              startIcon={<NotificationsIcon />}
-              onClick={() => handleCloseMobileDrawer()}
-              sx={{
-                textTransform: "none",
-                fontWeight: 700,
-                justifyContent: "flex-start",
-                color: theme.palette.text.primary,
-              }}
-            >
-              Notifications
-            </Button>
 
+
+        
 
                {isPremiumUser && (
                <Button

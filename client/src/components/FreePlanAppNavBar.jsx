@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SitemarkIcon } from "../components/themeCustomization/customIcon";
 import "../pages/CSS/freeAppNavBar.css";
 import AppBar from "@mui/material/AppBar";
@@ -10,7 +10,6 @@ import MenuButton from "./MenuButton";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import Button from '@mui/material/Button';
 import AccountMenu from "./AccountMenu";
 import IconButton from "@mui/material/IconButton";
 import Badge from "@mui/material/Badge";

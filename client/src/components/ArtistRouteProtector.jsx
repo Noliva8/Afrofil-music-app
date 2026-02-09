@@ -1,4 +1,3 @@
-import React from "react";
 import { Navigate } from "react-router-dom";
 import artist_auth from "../utils/artist_auth"; 
 

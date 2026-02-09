@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
 import ModernMusicPlayer from './ModernMusicPlayer.jsx';
 import { AdMediaPlayer } from './ModernAdPlayer.jsx';
-import { useFullScreenPlayer } from './FullScreenMediaPlayer.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 import Box from '@mui/material/Box';
+import MediaSessionManager from './MediaSessionManager.jsx';
+const LazyFullScreenPlayer = lazy(() => import('./FullScreenMediaPlayer.jsx'));
 
 const MediaPlayerContainer = () => {
   const {
@@ -24,6 +25,7 @@ const MediaPlayerContainer = () => {
     toggleMute,
     queue,
     playerState, // ✅ Add playerState to access playbackContext
+    audioRef,
     cycleRepeatMode,
   } = useAudioPlayer();
   const { isAdPlaying } = useAudioPlayer();
@@ -32,12 +34,9 @@ const MediaPlayerContainer = () => {
   const [sliderValue, setSliderValue] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
-  const {
-    isFullScreenOpen,
-    openFullScreen,
-    closeFullScreen,
-    FullScreenPlayer
-  } = useFullScreenPlayer();
+  const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
+  const openFullScreen = useCallback(() => setIsFullScreenOpen(true), []);
+  const closeFullScreen = useCallback(() => setIsFullScreenOpen(false), []);
 
   // Update slider value when currentTime changes (unless dragging)
   useEffect(() => {
@@ -74,6 +73,45 @@ const MediaPlayerContainer = () => {
     }
   };
 
+  const metadata = useMemo(() => {
+    if (!currentTrack || isAdPlaying) return null;
+    return {
+      title: currentTrack.title || currentTrack.songTitle || "",
+      artistName: currentTrack.artistName || currentTrack.artist || "",
+      album: currentTrack.albumName || currentTrack.album || "",
+      artwork:
+        currentTrack.artworkPresignedUrl ||
+        currentTrack.artworkUrl ||
+        currentTrack.cover ||
+        null,
+    };
+  }, [currentTrack, isAdPlaying]);
+
+  const handleMediaAction = (action, detail) => {
+    if (!audioRef?.current || isAdPlaying) return;
+    switch (action) {
+      case "play":
+        if (!isPlaying) play(null, playerState?.playbackContext);
+        break;
+      case "pause":
+        if (isPlaying) pause(true);
+        break;
+      case "previoustrack":
+        skipPrevious();
+        break;
+      case "nexttrack":
+        skipNext();
+        break;
+      case "seekto":
+        if (detail?.seekTime != null) {
+          seek(detail.seekTime);
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
 
 
   const handleSliderChange = (_, newValue) => {
@@ -102,6 +140,7 @@ const MediaPlayerContainer = () => {
 
   return (
     <Box sx={{mb: 4}}>
+      <MediaSessionManager audioRef={audioRef} metadata={metadata} onAction={handleMediaAction} />
       {isAdPlaying ? (
         <AdMediaPlayer
           isFullScreenOpen={isFullScreenOpen}
@@ -142,38 +181,42 @@ const MediaPlayerContainer = () => {
         />
       )}
 
-      <FullScreenPlayer
-        currentSong={currentTrack}
-        isOpen={isFullScreenOpen}
-        onClose={closeFullScreen}
-        isPlaying={isPlaying}
-        currentTime={currentTime}
-        duration={duration}
-        volume={volume}
-        isMuted={isMuted}
-        onPlayPause={handlePlayPause}
-        onPrev={skipPrevious}
-        onNext={skipNext}
-        onSeek={seek}
-        onSliderChange={handleSliderChange}
-        onVolumeChange={handleVolumeChange}
-        onToggleMute={toggleMute}
-        onToggleRepeat={cycleRepeatMode}
-        teaserMode={isTeaser}
-        isTeaser={isTeaser}
-        teaserDuration={30}
-        queue={queue}
-        queueLength={queue.length}
-        isAdPlaying={isAdPlaying}
-        onSliderCommit={handleSliderCommit}
-        repeatMode={
-          playerState.repeatMode === 'one'
-            ? 'one'
-            : playerState.repeatMode === 'all'
-            ? 'all'
-            : 'none'
-        }
-      />
+      {isFullScreenOpen && (
+        <Suspense fallback={null}>
+          <LazyFullScreenPlayer
+            currentSong={currentTrack}
+            isOpen={isFullScreenOpen}
+            onClose={closeFullScreen}
+            isPlaying={isPlaying}
+            currentTime={currentTime}
+            duration={duration}
+            volume={volume}
+            isMuted={isMuted}
+            onPlayPause={handlePlayPause}
+            onPrev={skipPrevious}
+            onNext={skipNext}
+            onSeek={seek}
+            onSliderChange={handleSliderChange}
+            onVolumeChange={handleVolumeChange}
+            onToggleMute={toggleMute}
+            onToggleRepeat={cycleRepeatMode}
+            teaserMode={isTeaser}
+            isTeaser={isTeaser}
+            teaserDuration={30}
+            queue={queue}
+            queueLength={queue.length}
+            isAdPlaying={isAdPlaying}
+            onSliderCommit={handleSliderCommit}
+            repeatMode={
+              playerState.repeatMode === 'one'
+                ? 'one'
+                : playerState.repeatMode === 'all'
+                ? 'all'
+                : 'none'
+            }
+          />
+        </Suspense>
+      )}
     </Box>
   );
 };

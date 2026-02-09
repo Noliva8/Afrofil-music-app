@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Grid from '@mui/material/Grid';
+import Grid from '@mui/material/Grid2';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import useTheme from '@mui/material/styles/useTheme';
@@ -12,17 +12,16 @@ import Avatar from '@mui/material/Avatar';
 import { alpha } from '@mui/material/styles';
 import {
   CheckCircle,
-  Headphones,
+ 
   Download,
   MusicNote,
   VolumeUp,
   OfflineBolt,
   Stars,
-  FiberManualRecord,
+ 
   ArrowForward,
   PlayCircle,
   Shield,
-  EmojiEvents,
 } from '@mui/icons-material';
 import { Elements } from '@stripe/react-stripe-js';
 import PremiumCheckout from '../components/userComponents/Home/Premium/PremiumCheckout';
@@ -162,14 +161,14 @@ const faqs = [
 export default function PremiumPromo() {
   const theme = useTheme();
   const profile = UserAuth.getProfile();
-  const isPremiumUser = (profile?.data?.role || '').toLowerCase() === 'premium';
-  if (isPremiumUser) {
-    return <PremiumInfo />;
-  }
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(pricingPlans[0].id);
   const navigate = useNavigate();
   const stripePromise = useStripePromise();
+  const isPremiumUser = (profile?.data?.role || '').toLowerCase() === 'premium';
+  if (isPremiumUser) {
+    return <PremiumInfo />;
+  }
 
  
 
@@ -185,7 +184,7 @@ export default function PremiumPromo() {
   const handleShowCheckout = (event) => {
     event?.preventDefault();
     navigate('/checkout');
-    onClose();
+    setShowCheckout(true);
   };
   const handleCloseCheckout = () => setShowCheckout(false);
 
@@ -373,7 +372,7 @@ export default function PremiumPromo() {
           
           <Grid container spacing={3}>
             {benefitsList.map((benefit, index) => (
-              <Grid key={benefit.title} item xs={12} sm={6} md={4}>
+              <Grid key={benefit.title} size={{ xs: 12, sm: 6, md: 4}}>
                 <Card
                   sx={{
                     height: '100%',
@@ -614,7 +613,7 @@ export default function PremiumPromo() {
           
           <Grid container spacing={3}>
             {testimonials.map((testimonial) => (
-              <Grid key={testimonial.name} item xs={12} md={4}>
+              <Grid key={testimonial.name} size={{ xs: 12, md: 3}}>
                 <Card
                   sx={{
                     height: '100%',
@@ -698,7 +697,7 @@ export default function PremiumPromo() {
           
           <Grid container spacing={3}>
             {faqs.map((faq, index) => (
-              <Grid key={index} item xs={12} md={6}>
+              <Grid key={index} size={{ xs: 12, md: 6}} >
                 <Card
                   sx={{
                     borderRadius: 3,

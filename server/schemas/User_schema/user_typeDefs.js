@@ -177,6 +177,18 @@ enum NotificationStatus {
   DECLINED
 }
 
+input SupportRequestInput {
+  name: String!
+  email: String!
+  category: String
+  message: String!
+}
+
+type SupportResponse {
+  success: Boolean!
+  message: String!
+}
+
 
 
 
@@ -327,7 +339,7 @@ type PasswordResetResponse {
 
 type Mutation {
 
-markSeenUserNotification(notificationId: ID!
+ markSeenUserNotification(notificationId: ID!
 isNotificationSeen: Boolean
 ): UserNotification
 
@@ -367,6 +379,10 @@ isNotificationSeen: Boolean
   removeLikedSong(userId: ID!, songId: ID!): Boolean
   markNotificationRead(notificationId: ID!): UserNotification!
   markMessagesReadByUser(bookingId: ID!): Boolean!
+
+  
+
+  sendSupportMessage(input: SupportRequestInput!): SupportResponse!
 
   createComment(
     songId: ID!,

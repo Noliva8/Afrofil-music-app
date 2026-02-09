@@ -1,18 +1,14 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Modal from "@mui/material/Modal";
-import CloseIcon from "@mui/icons-material/Close";
 import Swal from "sweetalert2";
 import "./customAlbum.css";
 import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import TextField from "@mui/material/TextField";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import { styled } from "@mui/material/styles";
 import { useMutation } from "@apollo/client";
-import { CUSTOM_ALBUM, GET_PRESIGNED_URL } from "../../../utils/mutations";
+import { GET_PRESIGNED_URL } from "../../../utils/mutations";
 import { UPDATE_ALBUM } from "../../../utils/mutations";
 
 const style = {

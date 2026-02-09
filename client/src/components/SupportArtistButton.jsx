@@ -1,4 +1,3 @@
-import React from "react";
 import Button from "@mui/material/Button";
 import SupportAgentRoundedIcon from "@mui/icons-material/SupportAgentRounded";
 import { useNavigate } from "react-router-dom";

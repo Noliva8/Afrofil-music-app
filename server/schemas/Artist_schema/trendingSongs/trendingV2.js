@@ -3,26 +3,26 @@ import {Song} from "../../../models/Artist/index_artist.js";
 import { trendIndexZSet } from "../Redis/keys.js";
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { similarSongsRepair } from "../similarSongs/similasongResolver.js";
+import { TRENDING_SONGS_CACHE_KEY } from "../Redis/keys.js";
+import { CACHE_TTL_SECONDS } from "../Redis/keys.js";
 
 
 
-
-
-const normalizeSong = (song) => ({
-  ...song,
-  artistFollowers: Array.isArray(song.artist?.followers)
-    ? song.artist.followers.length
-    : 0,
-  mood: song.mood || [],
-  subMoods: song.subMoods || [],
-  composer: Array.isArray(song.composer) ? song.composer : [],
-  producer: Array.isArray(song.producer) ? song.producer : [],
-  likesCount: song.likedByUsers?.length || song.likesCount || 0,
-  downloadCount: song.downloadCount || 0,
-  playCount: song.playCount || 0,
-  shareCount: song.shareCount || 0,
-  artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
-});
+// const normalizeSong = (song) => ({
+//   ...song,
+//   artistFollowers: Array.isArray(song.artist?.followers)
+//     ? song.artist.followers.length
+//     : 0,
+//   mood: song.mood || [],
+//   subMoods: song.subMoods || [],
+//   composer: Array.isArray(song.composer) ? song.composer : [],
+//   producer: Array.isArray(song.producer) ? song.producer : [],
+//   likesCount: song.likedByUsers?.length || song.likesCount || 0,
+//   downloadCount: song.downloadCount || 0,
+//   playCount: song.playCount || 0,
+//   shareCount: song.shareCount || 0,
+//   artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
+// });
 
 
 

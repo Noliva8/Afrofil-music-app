@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -11,14 +10,11 @@ import Link from '@mui/material/Link';
 import {
   PlayArrow,
   Pause,
-  Shuffle,
   PlaylistAdd,
-  Share,
   Close,
   Search,
   MoreVert,
-  Favorite,
-  Add
+  Favorite
 } from '@mui/icons-material';
 import Footer from '../pages/Footer';
 

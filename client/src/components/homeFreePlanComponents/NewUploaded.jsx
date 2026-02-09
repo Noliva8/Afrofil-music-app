@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useApolloClient } from "@apollo/client";
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';

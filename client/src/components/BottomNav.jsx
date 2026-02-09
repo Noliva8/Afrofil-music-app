@@ -1,7 +1,7 @@
 import { FaHome, FaSearch, FaHeart, FaUser } from 'react-icons/fa';
 import { MdLibraryMusic } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const BottomNav = () => {
   const navigate = useNavigate();

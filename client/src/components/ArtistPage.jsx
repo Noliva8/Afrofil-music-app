@@ -1,31 +1,20 @@
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Box from '@mui/material/Box';
-import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import Avatar from '@mui/material/Avatar';
 import Paper from '@mui/material/Paper';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 import LinearProgress from '@mui/material/LinearProgress';
 import Modal from '@mui/material/Modal';
 import useTheme from '@mui/material/styles/useTheme';
 import { alpha } from '@mui/material/styles';
-import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   PlayArrow,
-  Pause,
-  Favorite,
   FavoriteBorder,
   Share,
-  ArrowBack,
-  Shuffle,
-  Close,
-  ChevronRight,
   Person,
   PersonAdd,
   Block,
@@ -33,13 +22,12 @@ import {
   Radio,
   Flag,
   DesktopWindows,
-  FileDownloadOutlined,
-  VolumeUp as VolumeUpIcon,
   MusicOff,
 } from '@mui/icons-material';
+
+
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import { SongCard } from './otherSongsComponents/songCard.jsx';
-import Grid from '@mui/material/Grid2';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAudioPlayer } from '../utils/Contexts/AudioPlayerContext.jsx';
 import { useArtistFollowers } from '../utils/Contexts/followers/useArtistFollowers.js';
