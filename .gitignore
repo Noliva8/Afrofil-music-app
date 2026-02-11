@@ -36,3 +36,9 @@ certificates/
 *.pem
 *.key
 
+
+# runtime uploads / temp files
+server/schemas/Artist_schema/uploads/
+**/uploads/
+*_temp_file
+
