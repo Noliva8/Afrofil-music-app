@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, lazy, Suspense } from "react";
 import {
   IconButton,
   Badge,
@@ -18,9 +18,9 @@ import { useQuery } from "@apollo/client";
 import { MESSAGE_CONVERSATIONS } from "../utils/queries";
 import ArtistAuth from "../utils/artist_auth";
 import UserAuth from "../utils/auth";
-import ChatContainer from "./messaging/ChatContainer";
+const LazyChatContainer = lazy(() => import("./messaging/ChatContainer"));
 
-export default function ArtistMessagingPanel() {
+export default function ArtistMessagingPanel({ initialOpen = false, onInitialOpenHandled }) {
   const [open, setOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -63,6 +63,13 @@ export default function ArtistMessagingPanel() {
     : UserAuth.loggedIn()
       ? { id: UserAuth.getUserId(), type: "user" }
       : null;
+
+  useEffect(() => {
+    if (initialOpen) {
+      setOpen(true);
+      onInitialOpenHandled?.();
+    }
+  }, [initialOpen, onInitialOpenHandled]);
 
   return (
     <>
@@ -166,12 +173,25 @@ export default function ArtistMessagingPanel() {
           <Box display="flex" gap={2} sx={{ minHeight: 400 }}>
             <Divider orientation="vertical" flexItem />
             <Box flex={1}>
-              <ChatContainer
+            <Suspense
+              fallback={
+                <Box
+                  display="flex"
+                  justifyContent="center"
+                  alignItems="center"
+                  sx={{ minHeight: 400 }}
+                >
+                  <CircularProgress size={36} />
+                </Box>
+              }
+            >
+              <LazyChatContainer
                 booking={conversations.find((item) => item.bookingId === selectedBookingId)}
                 currentUser={currentUser}
                 artistName={artistName}
                 onClose={handleClose}
               />
+            </Suspense>
             </Box>
           </Box>
         </DialogContent>

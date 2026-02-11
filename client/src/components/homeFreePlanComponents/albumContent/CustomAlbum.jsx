@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -12,10 +12,24 @@ import { useMutation } from "@apollo/client";
 import { CUSTOM_ALBUM } from "../../../utils/mutations";
 import { useForm } from "react-hook-form";
 import AlbumCoverUpload from "./AlbumCoverUpload";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns"; 
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider"; 
 import './customAlbum.css';
+const LazyReleaseDatePicker = lazy(() => import("./ReleaseDatePicker.jsx"));
+const ReleaseDateFallback = () => (
+  <TextField
+    fullWidth
+    placeholder="Loading release date picker..."
+    disabled
+    sx={{
+      bgcolor: "var(--secondary-background-color)",
+      "& .MuiInputLabel-root": { color: "white !important" },
+      "& .MuiInputBase-root": { color: "white !important" },
+      "& .MuiInputBase-input": {
+        color: "white !important",
+        "&::placeholder": { color: "rgba(255,255,255,0.5)" },
+      },
+    }}
+  />
+);
 
 const style = {
   position: "absolute",
@@ -43,12 +57,15 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm({
     defaultValues: {
       title: "",
       releaseDate: null, // Default value for date field
     },
   });
+
+  const releaseDateValue = watch("releaseDate");
 
   const handleClose = async () => {
     const result = await Swal.fire({
@@ -179,35 +196,14 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
 
                 <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <Typography sx={{ color: "white", fontWeight: "500", fontSize: "18px" }}>Release Date</Typography>
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-  <DatePicker
-    id="releaseDate"
-    name="releaseDate"
-    value={null} // set to your initial value
-    onChange={(date) => setValue("releaseDate", date)} // Update form value
-    renderInput={(params) => (
-      <TextField
-        {...params}
-        fullWidth
-        error={!!errors.releaseDate}
-        helperText={errors.releaseDate?.message}
-        sx={{
-          bgcolor: "var(--secondary-background-color)",
-          "& .MuiInputLabel-root": { color: "white !important" }, // Force label color to white
-          "& .MuiInputBase-root": { color: "white !important" }, // Force input field text color to white
-          "& .MuiInputBase-input": { 
-            color: "white !important", // Force input text color to white
-            "&::placeholder": { 
-              color: "white !important", // Force placeholder text color to white
-            },
-          },
-        }}
-      />
-    )}
-  />
-</LocalizationProvider>
-
-
+                  <Suspense fallback={<ReleaseDateFallback />}>
+                    <LazyReleaseDatePicker
+                      value={releaseDateValue}
+                      onChange={(date) => setValue("releaseDate", date)}
+                      error={errors.releaseDate}
+                      helperText={errors.releaseDate?.message}
+                    />
+                  </Suspense>
                 </Box>
 
                 <Button

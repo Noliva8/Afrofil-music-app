@@ -14,7 +14,7 @@ import AccountMenu from "./AccountMenu";
 import IconButton from "@mui/material/IconButton";
 import Badge from "@mui/material/Badge";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
-import ArtistMessagingPanel from "./ArtistMessagingPanel";
+import ArtistMessagingLoader from "./ArtistMessagingLoader.jsx";
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_ARTIST_BOOKINGS, MESSAGE_CONVERSATIONS } from "../utils/queries";
 import { RESPOND_TO_BOOKING_ARTIST } from "../utils/mutations";
@@ -104,7 +104,7 @@ export default function FreePlanAppNavBar({ handleShowMobileMenu, handleshowAcco
               </Box>
 
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}> 
-                <ArtistMessagingPanel />
+                <ArtistMessagingLoader />
                 <IconButton aria-label="Open notifications" onClick={handleNotificationsOpen} size="small" sx={{ p: 0.4 }}>
                   <Badge
                     badgeContent={pendingBookings.length}

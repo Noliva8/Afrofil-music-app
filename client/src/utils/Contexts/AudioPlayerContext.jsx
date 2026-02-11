@@ -238,10 +238,16 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const { incrementPlayCount } = usePlayCount();
 
   const audioRef = useRef(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  const setAudioRef = useCallback((node) => {
+    audioRef.current = node;
+    setIsAudioReady(Boolean(node));
+  }, []);
   const canonicalQueueRef = useRef([]);        // full canonical queue
   const suppressAutoAdvanceRef = useRef(false);
   const currentIndexRef = useRef(0);
   const currentSongIdRef = useRef(null);
+  const lastProgressUpdateRef = useRef(0);
   const lastArtworkRef = useRef(null);
 
   const setCanonicalQueue = (tracks = []) => {
@@ -580,11 +586,21 @@ const pickNextIndex = useCallback((reason = "auto") => {
     if (!audio) return;
 
     const updateProgress = () => {
+      const now = performance?.now?.() ?? Date.now();
+      if (now - lastProgressUpdateRef.current < 45) return;
+      lastProgressUpdateRef.current = now;
+
       setPlayerState(prev => {
+        const sameDuration =
+          (Number.isNaN(prev.duration) && Number.isNaN(audio.duration)) ||
+          prev.duration === audio.duration;
+
         if (
           Math.abs(prev.currentTime - audio.currentTime) < 0.01 &&
-          prev.duration === audio.duration
-        ) return prev;
+          sameDuration
+        ) {
+          return prev;
+        }
 
         return {
           ...prev,
@@ -601,42 +617,6 @@ const pickNextIndex = useCallback((reason = "auto") => {
       audio.removeEventListener('loadedmetadata', updateProgress);
     };
   }, []);
-
-  // smoother UI progress while playing (throttled to one rAF per frame)
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    let frameId = null;
-
-    const pushProgress = () => {
-      frameId = null;
-      setPlayerState(prev => {
-        const ct = audio.currentTime;
-        const dur = audio.duration || prev.duration;
-        if (Math.abs(prev.currentTime - ct) < 0.02 && prev.duration === dur) return prev;
-        return { ...prev, currentTime: ct, duration: dur };
-      });
-    };
-
-    const schedule = () => {
-      if (frameId || !playerState.isPlaying) return;
-      frameId = requestAnimationFrame(pushProgress);
-    };
-
-    if (playerState.isPlaying) {
-      schedule(); // prime once immediately
-      audio.addEventListener('timeupdate', schedule);
-    }
-
-    return () => {
-      audio.removeEventListener('timeupdate', schedule);
-      if (frameId) {
-        cancelAnimationFrame(frameId);
-        frameId = null;
-      }
-    };
-  }, [playerState.isPlaying]);
 
   
 
@@ -2001,6 +1981,7 @@ useEffect(() => {
       value={{
         ...playerState,
         audioRef,
+        isAudioReady,
         playerState,
         load,
         play,
@@ -2018,13 +1999,13 @@ useEffect(() => {
         clearError,
         getAudioConfig,
         shouldBlockPlayback,
-         toggleShuffle,
-      cycleRepeatMode,
-       RepeatMode, 
+        toggleShuffle,
+        cycleRepeatMode,
+        RepeatMode,
       }}
     >
       {children}
-      <audio ref={audioRef} style={{ display: 'none' }} />
+      <audio ref={setAudioRef} style={{ display: 'none' }} />
     </AudioPlayerContext.Provider>
   );
 };

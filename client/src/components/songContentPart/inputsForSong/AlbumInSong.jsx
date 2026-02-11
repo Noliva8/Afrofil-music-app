@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -14,7 +14,9 @@ import LibraryMusic from "@mui/icons-material/LibraryMusic";
 
 
 
-import CustomAlbum from "../../homeFreePlanComponents/albumContent/CustomAlbum";
+const CustomAlbum = lazy(
+  () => import("../../homeFreePlanComponents/albumContent/CustomAlbum")
+);
 
 
 export default function AlbumSong({ 
@@ -274,11 +276,13 @@ MenuProps={{
         </Box>
    
 
-      <CustomAlbum 
-        albumOpen={albumOpen} 
-        setAlbumOpen={setAlbumOpen} 
-        refetchAlbums={refetchAlbums} 
-      />
+      <Suspense fallback={<div />}>
+        <CustomAlbum 
+          albumOpen={albumOpen} 
+          setAlbumOpen={setAlbumOpen} 
+          refetchAlbums={refetchAlbums} 
+        />
+      </Suspense>
     </Box>
   );
 }

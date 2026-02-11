@@ -1,4 +1,5 @@
 import "./entry.css";
+import "./App.css";
 import { useState, useEffect } from "react";
 import { useCallback } from "react";
 // New component for mobile
@@ -25,7 +26,7 @@ import { WelcomeSideNavbar } from "./components/WelcomePage/WelcomeSideNavBar.js
 import Footer from "./pages/Footer";
 import Box from '@mui/material/Box';
 import { useTheme, alpha } from "@mui/material/styles";
-import LoginSignin from "./pages/LoginSignin";
+import { lazy, Suspense } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom'; 
 import { UserProvider } from "./utils/Contexts/userContext.jsx";
 import { LocationProvider  } from "./utils/Contexts/useLocationContext.jsx";
@@ -132,10 +133,12 @@ const errorLink = onError(({ graphQLErrors, networkError, operation }) => {
 
 
 
- const client = new ApolloClient({
+const client = new ApolloClient({
   link: errorLink.concat(splitLink),
   cache: new InMemoryCache(),
- });
+});
+
+const LazyLoginSignin = lazy(() => import("./pages/LoginSignin"));
 
 
 function AppBody({ onCreatePlaylist }) {
@@ -474,25 +477,26 @@ function AppUI({
             />
           )}
 
-          {formDisplay === 'login' && (
-            <LoginSignin
-              display="login"
-              onSwitchToLogin={() => setFormDisplay('login')}
-              onSwitchToSignup={() => setFormDisplay('signup')}
-              onClose={() => setFormDisplay('')}
-              isUserLoggedIn={isUserLoggedIn}
-            />
-          )}
-
-          {formDisplay === 'signup' && (
-            <LoginSignin
-              display="signup"
-              onSwitchToLogin={() => setFormDisplay('login')}
-              onSwitchToSignup={() => setFormDisplay('signup')}
-              onClose={() => setFormDisplay('')}
-              isUserLoggedIn={isUserLoggedIn}
-            />
-          )}
+          <Suspense fallback={null}>
+            {formDisplay === 'login' && (
+              <LazyLoginSignin
+                display="login"
+                onSwitchToLogin={() => setFormDisplay('login')}
+                onSwitchToSignup={() => setFormDisplay('signup')}
+                onClose={() => setFormDisplay('')}
+                isUserLoggedIn={isUserLoggedIn}
+              />
+            )}
+            {formDisplay === 'signup' && (
+              <LazyLoginSignin
+                display="signup"
+                onSwitchToLogin={() => setFormDisplay('login')}
+                onSwitchToSignup={() => setFormDisplay('signup')}
+                onClose={() => setFormDisplay('')}
+                isUserLoggedIn={isUserLoggedIn}
+              />
+            )}
+          </Suspense>
           </main>
 
           {/* Guest Footer */}

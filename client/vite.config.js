@@ -31,21 +31,56 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('DashbordComponents/Charts')) {
-            return 'charts';
+          if (id.includes('components/MusicPlayer/ModernMusicPlayer')) {
+            return 'media-player-compact';
           }
-          if (id.includes('components/MusicPlayer')) {
-            return 'media-player';
+          if (id.includes('components/MusicPlayer/FullScreenMediaPlayer')) {
+            return 'media-player-fullscreen';
           }
-          if (id.includes('@tensorflow')) {
-            return 'tensorflow';
+          if (id.includes('components/MusicPlayer/ModernAdPlayer')) {
+            return 'media-player-ad';
+          }
+          if (id.includes('components/MusicPlayer/MediaSessionManager')) {
+            return 'media-session-manager';
+          }
+          if (id.includes('utils/Contexts/adapters/adPlayerAdapter')) {
+            return 'player-adapters-ad';
+          }
+          if (id.includes('utils/Contexts/adapters/musicAdapter')) {
+            return 'player-adapters-music';
+          }
+          if (id.includes('utils/Contexts/adapters/eventBus')) {
+            return 'player-adapters-eventbus';
+          }
+          if (id.includes('utils/Contexts/playerAdapters.js')) {
+            return 'player-adapters-utils';
+          }
+          if (id.includes('utils/Contexts/AudioPlayerContext.jsx')) {
+            return 'audio-player-context';
+          }
+          if (id.includes('utils/Contexts/useNowPlayingArtwork')) {
+            return 'now-playing-artwork';
+          }
+          if (id.includes('utils/Contexts/followers/useArtistFollowers')) {
+            return 'artist-followers';
           }
           if (id.includes('@mui/x-date-pickers')) {
             return 'mui-date-pickers';
           }
-        // keep MUI inside vendor chunk to avoid duplicate React instances
+          if (id.includes('DashbordComponents/Charts')) {
+            return 'charts';
+          }
+          if (id.includes('components/ArtistMessagingPanel')) {
+            return 'artist-messaging';
+          }
+          if (id.includes('components/Stripe') || id.includes('stripe')) {
+            return 'stripe';
+          }
+          if (id.includes('@tensorflow')) {
+            return 'tensorflow';
+          }
+        },
       },
-    },
     },
     chunkSizeWarningLimit: 500,
   },

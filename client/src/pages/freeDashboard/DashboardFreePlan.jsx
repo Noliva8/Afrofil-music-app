@@ -1,15 +1,23 @@
+import { lazy, Suspense } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Grid2 from '@mui/material/Grid2';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
-import TotalSongCharts from './DashbordComponents/Charts/totalSongsCharts';
 import SongsList from './DashbordComponents/SongList/SongList';
 import CountUp from 'react-countup';
 import { useQuery } from "@apollo/client";
 import { SONG_OF_ARTIST } from '../../utils/queries';
-import SongCountChart from './DashbordComponents/Charts/SongCountChart';
-import TopLikedSongs from './DashbordComponents/Charts/TopLikeSongs';
+
+const LazyTotalSongCharts = lazy(
+  () => import('./DashbordComponents/Charts/totalSongsCharts')
+);
+const LazySongCountChart = lazy(
+  () => import('./DashbordComponents/Charts/SongCountChart')
+);
+const LazyTopLikedSongs = lazy(
+  () => import('./DashbordComponents/Charts/TopLikeSongs')
+);
 
 
 
@@ -161,7 +169,9 @@ console.log(chartData)
       
 
                  <Box sx={{ flexGrow: 1, height: 'auto' }}>
-              <TotalSongCharts data={chartData} refetch={refetch} />
+              <Suspense fallback={<Typography color="white">Loading chart...</Typography>}>
+                <LazyTotalSongCharts data={chartData} refetch={refetch} />
+              </Suspense>
             </Box>
           </>
         )}
@@ -203,7 +213,9 @@ console.log(chartData)
         </Box>
 
         <Box sx={{ flexGrow: 1 }}>
-          <SongCountChart />
+          <Suspense fallback={<Typography color="white">Loading chart...</Typography>}>
+            <LazySongCountChart />
+          </Suspense>
         </Box>
       </Paper>
     </Grid2>
@@ -242,7 +254,9 @@ console.log(chartData)
 
         <Box sx={{ flexGrow: 1 }}>
           {/* You can later add a Likes Chart here */}
-             <TopLikedSongs />
+             <Suspense fallback={<Typography color="white">Loading recommendations...</Typography>}>
+               <LazyTopLikedSongs />
+             </Suspense>
         </Box>
 
      
@@ -428,7 +442,9 @@ console.log(chartData)
       
 
                  <Box sx={{ flexGrow: 1, height: 'auto' }}>
-              <TotalSongCharts data={chartData} />
+              <Suspense fallback={<Typography color="white">Loading chart...</Typography>}>
+                <LazyTotalSongCharts data={chartData} />
+              </Suspense>
             </Box>
           </>
         )}
@@ -509,7 +525,9 @@ console.log(chartData)
 
         <Box sx={{ flexGrow: 1 }}>
           {/* You can later add a Likes Chart here */}
-             <TopLikedSongs />
+          <Suspense fallback={<Typography color="white">Loading recommendations...</Typography>}>
+            <LazyTopLikedSongs />
+          </Suspense>
         </Box>
 
      

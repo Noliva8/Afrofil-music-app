@@ -55,12 +55,13 @@ export default function ChatWindow({ bookingId, currentUser }) {
 
   useEffect(() => {
     if (!bookingId || !data?.bookingMessages?.length) return;
+    if (!currentUser?.id) return;
     const hasUnread = data.bookingMessages.some(
       (msg) => msg.senderType === "ARTIST" && !msg.readByUser
     );
     if (!hasUnread) return;
-    markMessagesRead({ variables: { bookingId } });
-  }, [bookingId, data, markMessagesRead]);
+    markMessagesRead({ variables: { bookingId } }).catch(() => {});
+  }, [bookingId, data, markMessagesRead, currentUser]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

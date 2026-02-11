@@ -91,6 +91,11 @@ const FullScreenMediaPlayer = ({
   isTeaser = false,
   teaserDuration = 30,
   onSliderCommit
+  ,
+  // from container
+  isDragging = false,
+  sliderValue = 0,
+  audioRef = null,
 }) => {
   const theme = useTheme();
   const [shareSong] = useMutation(SHARE_SONG);
@@ -394,37 +399,29 @@ const [showReadMore, setShowReadMore] = useState(false);
     };
   }, [isOpen]);
 
-  // Debounced progress bar update to prevent excessive re-renders
-  const [debouncedCurrentTime, setDebouncedCurrentTime] = useState(currentTime);
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedCurrentTime(currentTime);
-    }, 100); // Update every 100ms instead of continuously
-    
-    return () => clearTimeout(timer);
-  }, [currentTime]);
-
-  if (!isOpen) return null;
-
   const artworkSize = 'clamp(260px, 35vw, 520px)';
 
 
 
   // Effect to check if bio needs truncation
   useEffect(() => {
+    if (!isOpen) {
+      setShowReadMore(false);
+      return;
+    }
     if (bioRef.current && !isBioExpanded) {
-      // Check if content is taller than container
       const needsTruncation = bioRef.current.scrollHeight > bioRef.current.clientHeight;
       setShowReadMore(needsTruncation);
     } else {
       setShowReadMore(false);
     }
-  }, [artistBio, isBioExpanded]);
+  }, [artistBio, isBioExpanded, isOpen]);
 
   const toggleBioExpansion = () => {
     setIsBioExpanded(!isBioExpanded);
   };
+
+  if (!isOpen) return null;
 
   return createPortal(
     <>
@@ -909,7 +906,7 @@ const [showReadMore, setShowReadMore] = useState(false);
   </Box>
 
   {/* Progress Bar */}
-  <Box sx={{ 
+    <Box sx={{ 
     gridArea: 'slider',
     width: '100%',
     maxWidth: '100%',
@@ -917,9 +914,9 @@ const [showReadMore, setShowReadMore] = useState(false);
     mt: { xs: 0, md: 0 } // Reduced margin since buttons are now above
   }}>
     <Slider
-      value={Math.min(debouncedCurrentTime, effectiveDuration || teaserDuration)}
+      value={Math.min(sliderValue, effectiveDuration || teaserDuration)}
       max={effectiveDuration || 100}
-      onChange={isAdPlaying ? undefined : (onSliderChange || onSeek)}
+      onChange={isAdPlaying ? undefined : onSliderChange || onSeek}
       onChangeCommitted={controlsDisabled ? undefined : handleSliderCommit}
       disabled={controlsDisabled}
       sx={{
@@ -951,7 +948,11 @@ const [showReadMore, setShowReadMore] = useState(false);
         fontWeight: 500,
         fontSize: { xs: '0.85rem', md: '0.9rem' }
       }}>
-        {formatTime(isTeaser ? Math.min(debouncedCurrentTime, effectiveDuration || teaserDuration) : debouncedCurrentTime)}
+        {formatTime(
+          isTeaser
+            ? Math.min(sliderValue, effectiveDuration || teaserDuration)
+            : sliderValue
+        )}
       </Typography>
       <Typography variant="body2" sx={{ 
         color: alpha('#fff', 0.8), 

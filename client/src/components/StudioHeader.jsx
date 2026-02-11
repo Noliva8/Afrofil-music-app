@@ -14,7 +14,7 @@ import { useQuery, useMutation } from "@apollo/client";
 import { GET_ARTIST_BOOKINGS, MESSAGE_CONVERSATIONS } from "../utils/queries";
 import { RESPOND_TO_BOOKING_ARTIST } from "../utils/mutations";
 import ArtistBookingNotifications from "./ArtistBookingNotifications";
-import ArtistMessagingPanel from "./ArtistMessagingPanel";
+import ArtistMessagingLoader from "./ArtistMessagingLoader.jsx";
 
 
 
@@ -131,7 +131,7 @@ console.log('booking tend to be accepted: ....')
       >
         <Search />
 
-        <ArtistMessagingPanel />
+        <ArtistMessagingLoader />
 
         <MenuButton aria-label="Open notifications" onClick={handleNotificationsOpen}>
           <Badge

@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
-import ModernMusicPlayer from './ModernMusicPlayer.jsx';
-import { AdMediaPlayer } from './ModernAdPlayer.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 import Box from '@mui/material/Box';
 import MediaSessionManager from './MediaSessionManager.jsx';
+const LazyModernMusicPlayer = lazy(() => import('./ModernMusicPlayer.jsx'));
 const LazyFullScreenPlayer = lazy(() => import('./FullScreenMediaPlayer.jsx'));
+const LazyAdMediaPlayer = lazy(() =>
+  import('./ModernAdPlayer.jsx').then((mod) => ({ default: mod.AdMediaPlayer }))
+);
 
 const MediaPlayerContainer = () => {
   const {
@@ -24,17 +26,19 @@ const MediaPlayerContainer = () => {
     setVolume,
     toggleMute,
     queue,
-    playerState, // ✅ Add playerState to access playbackContext
+    playerState,
     audioRef,
     cycleRepeatMode,
+    isAdPlaying,
+    isAudioReady,
   } = useAudioPlayer();
-  const { isAdPlaying } = useAudioPlayer();
 
   const [isDragging, setIsDragging] = useState(false);
   const [sliderValue, setSliderValue] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
+  const [shouldLoadCompactPlayer, setShouldLoadCompactPlayer] = useState(false);
   const openFullScreen = useCallback(() => setIsFullScreenOpen(true), []);
   const closeFullScreen = useCallback(() => setIsFullScreenOpen(false), []);
 
@@ -49,6 +53,12 @@ const MediaPlayerContainer = () => {
   useEffect(() => {
     setIsVisible(!!currentTrack || isAdPlaying);
   }, [currentTrack, isAdPlaying]);
+
+  useEffect(() => {
+    if (!shouldLoadCompactPlayer && isVisible && isAudioReady) {
+      setShouldLoadCompactPlayer(true);
+    }
+  }, [shouldLoadCompactPlayer, isVisible, isAudioReady]);
 
   // Allow external triggers (e.g., shared track route) to open fullscreen player
   useEffect(() => {
@@ -142,71 +152,37 @@ const MediaPlayerContainer = () => {
     <Box sx={{mb: 4}}>
       <MediaSessionManager audioRef={audioRef} metadata={metadata} onAction={handleMediaAction} />
       {isAdPlaying ? (
-        <AdMediaPlayer
-          isFullScreenOpen={isFullScreenOpen}
-          inlineMode={!isFullScreenOpen}
-          onOpenFullScreen={openFullScreen}
-          onCloseFullScreen={closeFullScreen}
-        />
-      ) : (
-        <ModernMusicPlayer
-          currentSong={currentTrack}
-          isPlaying={isPlaying}
-          currentTime={currentTime}
-          duration={duration}
-          volume={volume}
-          isMuted={isMuted}
-          teaserMode={isTeaser}
-          onPlayPause={handlePlayPause}
-          onPrev={skipPrevious}
-          onNext={skipNext}
-          onSeek={seek}
-          onVolumeChange={handleVolumeChange}
-          onToggleMute={toggleMute}
-          onToggleRepeat={cycleRepeatMode}
-          onSliderChange={handleSliderChange}
-          onSliderCommit={handleSliderCommit}
-          isDragging={isDragging}
-          queueLength={queue.length}
-          onOpenFullScreen={openFullScreen}
-          isShuffled={playerState.shuffle}
-          repeatMode={
-            playerState.repeatMode === 'one'
-              ? 'one'
-              : playerState.repeatMode === 'all'
-              ? 'all'
-              : 'none'
-          }
-          isAdPlaying={isAdPlaying}
-        />
-      )}
-
-      {isFullScreenOpen && (
         <Suspense fallback={null}>
-          <LazyFullScreenPlayer
-            currentSong={currentTrack}
-            isOpen={isFullScreenOpen}
+          <LazyAdMediaPlayer
+            isFullScreenOpen={isFullScreenOpen}
+            inlineMode={!isFullScreenOpen}
+            onOpenFullScreen={openFullScreen}
             onClose={closeFullScreen}
+          />
+        </Suspense>
+      ) : shouldLoadCompactPlayer ? (
+        <Suspense fallback={null}>
+          <LazyModernMusicPlayer
+            currentSong={currentTrack}
             isPlaying={isPlaying}
             currentTime={currentTime}
             duration={duration}
             volume={volume}
             isMuted={isMuted}
+            teaserMode={isTeaser}
             onPlayPause={handlePlayPause}
             onPrev={skipPrevious}
             onNext={skipNext}
             onSeek={seek}
-            onSliderChange={handleSliderChange}
             onVolumeChange={handleVolumeChange}
             onToggleMute={toggleMute}
             onToggleRepeat={cycleRepeatMode}
-            teaserMode={isTeaser}
-            isTeaser={isTeaser}
-            teaserDuration={30}
-            queue={queue}
-            queueLength={queue.length}
-            isAdPlaying={isAdPlaying}
+            onSliderChange={handleSliderChange}
             onSliderCommit={handleSliderCommit}
+            isDragging={isDragging}
+            queueLength={queue.length}
+            onOpenFullScreen={openFullScreen}
+            isShuffled={playerState.shuffle}
             repeatMode={
               playerState.repeatMode === 'one'
                 ? 'one'
@@ -214,11 +190,50 @@ const MediaPlayerContainer = () => {
                 ? 'all'
                 : 'none'
             }
+            isAdPlaying={isAdPlaying}
           />
         </Suspense>
-      )}
-    </Box>
-  );
+      ) : null}
+
+      <Suspense fallback={null}>
+        <LazyFullScreenPlayer
+          currentSong={currentTrack}
+          isOpen={isFullScreenOpen}
+          onClose={closeFullScreen}
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          volume={volume}
+          isMuted={isMuted}
+          onPlayPause={handlePlayPause}
+          onPrev={skipPrevious}
+          onNext={skipNext}
+          onSeek={seek}
+          onSliderChange={handleSliderChange}
+          onVolumeChange={handleVolumeChange}
+          onToggleMute={toggleMute}
+          onToggleRepeat={cycleRepeatMode}
+          teaserMode={isTeaser}
+          isTeaser={isTeaser}
+          teaserDuration={30}
+          queue={queue}
+          queueLength={queue.length}
+          isAdPlaying={isAdPlaying}
+          onSliderCommit={handleSliderCommit}
+          repeatMode={
+            playerState.repeatMode === 'one'
+              ? 'one'
+              : playerState.repeatMode === 'all'
+              ? 'all'
+              : 'none'
+          }
+          isDragging={isDragging}
+          sliderValue={sliderValue}
+          audioRef={audioRef}
+        />
+      </Suspense>
+  </Box>
+);
 };
 
 export default MediaPlayerContainer;
