@@ -1,5 +1,4 @@
 import "./entry.css";
-import "./App.css";
 import { useState, useEffect } from "react";
 import { useCallback } from "react";
 // New component for mobile
