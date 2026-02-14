@@ -29,12 +29,18 @@ router.get('/verify-advertizer-email', async (req, res) => {
 
     // ✅ CASE 2: Already verified
     if (advertizer.isConfirmed) {
-      return res.redirect(`http://localhost:3003/verify-email?status=already`);
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?status=already`
+      );
     }
 
     // ❌ CASE 3: Expired
     if (advertizer.confirmationTokenExpire < Date.now()) {
-      return res.redirect(`http://localhost:3003/resend-email-verification-link?email=${encodeURIComponent(advertizer.businessEmail)}`);
+      return res.redirect(
+        `${process.env.FRONTEND_URL || 'http://localhost:3000'}/resend-email-verification-link?email=${encodeURIComponent(
+          advertizer.businessEmail
+        )}`
+      );
     }
 
     // ✅ CASE 1: Valid and fresh
@@ -43,7 +49,9 @@ router.get('/verify-advertizer-email', async (req, res) => {
     advertizer.confirmationTokenExpire = undefined;
     await advertizer.save();
 
-    return res.redirect(`http://localhost:3003/verify-email?status=verified`);
+    return res.redirect(
+      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?status=verified`
+    );
   } catch (err) {
     console.error(err);
     res.status(500).send('🚨 Server error.');
@@ -51,6 +59,5 @@ router.get('/verify-advertizer-email', async (req, res) => {
 });
 
 export default router;
-
 
 
