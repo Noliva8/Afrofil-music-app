@@ -57,6 +57,7 @@ const WelcomeAppNavBar = ({
   };
   const handleOpenAuthDrawer = () => setAuthDrawerOpen(true);
   const handleCloseAuthDrawer = () => setAuthDrawerOpen(false);
+  const handleHomeNavigate = () => navigate('/');
 
   const searchParams = new URLSearchParams(location.search);
   const showMobileSearchBar =
@@ -107,10 +108,17 @@ const WelcomeAppNavBar = ({
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-              <Box
+              <Button
+                onClick={handleHomeNavigate}
+                disableRipple
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 1,
+                  padding: 0,
+                  minWidth: 0,
+                  background: 'none',
+                  color: 'inherit',
                   '&:hover .logo-text': {
                     background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                     WebkitBackgroundClip: 'text',
@@ -136,9 +144,9 @@ const WelcomeAppNavBar = ({
                     },
                   }}
                 >
-                  AfroFeel
+                  FloLup
                 </Typography>
-              </Box>
+              </Button>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -205,7 +213,7 @@ const WelcomeAppNavBar = ({
                     fontSize: '0.9rem',
                   }}
                 >
-                  AF
+                  FL
                 </Avatar>
               </IconButton>
             ) : (
@@ -296,11 +304,11 @@ const WelcomeAppNavBar = ({
                       fontWeight: 700,
                     }}
                   >
-                    AF
+                  FL
                   </Avatar>
                   <Box>
                     <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                      Afrofeel
+                      FloLup
                     </Typography>
                     <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                       Guest access

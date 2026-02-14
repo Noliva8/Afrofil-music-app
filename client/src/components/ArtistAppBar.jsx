@@ -96,7 +96,7 @@ const ArtistAppBar = () => {
             {artistProfile?.artistAka?.slice(0, 2).toUpperCase() || "A"}
           </Avatar>
           <Box>
-            <Typography variant="subtitle1">Afrofeel Studio</Typography>
+            <Typography variant="subtitle1">FloLup Studio</Typography>
             <Typography variant="caption" color="text.secondary">
               {artistProfile?.artistAka || "Artist"}
             </Typography>

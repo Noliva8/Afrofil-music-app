@@ -18,7 +18,10 @@ const [showLogout, setShowLogout] = useState(false);
 
     return(
          <header className="planHeader">
-          <SitemarkIcon />
+          <div className="brandMark">
+            <SitemarkIcon />
+            <span className="brandText">FloLup</span>
+          </div>
           <div className="accountContainer">
             <button
               type="button"

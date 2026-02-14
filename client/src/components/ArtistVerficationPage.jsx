@@ -167,7 +167,7 @@ const ArtistVerificationPage = () => {
       ) : (
         <>
           <Typography variant="h4" color="textPrimary" paragraph>
-            Welcome to Afrofeel, {artistAka || "Artist"}!
+            Welcome to FloLup, {artistAka || "Artist"}!
           </Typography>
           {artistAka && email ? (
             <div>

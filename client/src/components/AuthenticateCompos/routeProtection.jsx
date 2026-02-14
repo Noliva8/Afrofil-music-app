@@ -4,7 +4,7 @@ import ArtistAuth from '../../utils/artist_auth.js';
 
 export const ProtectedRoute = ({ element }) => {
   const isLoggedIn = UserAuth.loggedIn();
-  return isLoggedIn ? element : <Navigate to="/loginSignin?login=1" replace />
+  return isLoggedIn ? element : <Navigate to="/loginSignin" replace />;
 };
 
 export const ArtistProtectedRoute = ({ element, redirectToVerification = false }) => {

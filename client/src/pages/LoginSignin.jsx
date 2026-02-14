@@ -18,6 +18,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { HORIZONTAL_LIMIT } from '../CommonSettings/songsRowNumberControl';
 
 import { TRENDING_SONGS_PUBLICV2 } from '../utils/queries';
+import FeedbackModal from '../components/FeedbackModal.jsx';
 
 // simple helpers (matching the previously working version)
 const useToggle = (initialState = false) => {
@@ -283,6 +284,10 @@ const handleGoogleLogin = async () => {
   } catch (error) {
     setLoginErrorMessage(error.message);
   }
+};
+
+const handleCloseLoginError = () => {
+  setLoginErrorMessage('');
 };
 
 
@@ -888,10 +893,14 @@ const renderSignup = () => (
           suggestedSongsWithArtwork={suggestedSongsWithArtwork}
           songOfMonthWithArtwork={songOfMonthWithArtwork}
           radioStations={radioStationsData?.radioStations || []}
-        
-          
         />
       )}
+      <FeedbackModal
+        open={Boolean(loginErrorMessage)}
+        onClose={handleCloseLoginError}
+        title="Login failed"
+        message={loginErrorMessage}
+      />
     </>
   );
 };

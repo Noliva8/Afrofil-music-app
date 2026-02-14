@@ -35,7 +35,7 @@ const DEFAULT_COVER = 'data:image/svg+xml;utf8,' +
       </defs>
       <rect width="48" height="48" fill="url(#g)"/>
       <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#e4c421" font-size="10" font-family="Arial">AF</text>
+        fill="#e4c421" font-size="10" font-family="Arial">FL</text>
     </svg>`
   );
 

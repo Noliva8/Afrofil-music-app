@@ -63,6 +63,21 @@ body {
   transition: background-color 0.3s ease;
 }
 
+.brandMark {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.2rem;
+}
+
+.brandText {
+  font-family: 'Clash Display', 'Space Grotesk', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .planHeader button:hover {
   background-color: #c97b21; /* Darker accent for hover */
 }
@@ -197,6 +212,22 @@ body {
   font-weight: bold;
   color: #ffffff;
   text-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.planLockedMessage {
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  text-align: center;
+  width: 100%;
+}
+
+.planGetStarted {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
 }
 
 /* Get Started Button */

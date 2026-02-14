@@ -277,7 +277,7 @@ const handlePremiumNavigate = () => {
                       },
                     }}
                   >
-                    AfroFeel
+                    FloLup
                   </Typography>
                 )}
               </Button>

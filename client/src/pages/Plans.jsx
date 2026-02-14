@@ -17,13 +17,14 @@ const plans = [
     benefits: [
       'Upload unlimited songs (up to 15MB per song, MP3 format)',
       'Basic analytics to track plays and audience growth',
-      'Customizable artist page with a unique Afrofeel URL',
+      'Customizable artist page with a unique FloLup URL',
       'Featured exposure for your latest uploads',
       'Join an artist community for collaboration and support',
       'Access educational tips to grow your music career',
       'Fan "like" system with monthly shoutouts to top listeners',
     ],
     price: 'Free forever',
+    locked: false,
   },
   {
     title: 'Premium Plan',
@@ -32,14 +33,15 @@ const plans = [
       'Upload unlimited songs and albums (up to 20MB per audio file for high-quality sound)',
       'Share video highlights (up to 30 seconds) to captivate your fans',
       'Receive 100% of tips from fans with our "Buy Me Coffee" feature',
-      'Send and receive files up to 50GB with Afrofeel File Share',
+      'Send and receive files up to 50GB with FloLup File Share',
       'Access local and global promotion tools to boost visibility',
-      'Priority placement on Afrofeel’s Featured Artist lists',
+      'Priority placement on FloLup’s Featured Artist lists',
       'Detailed analytics to track fan engagement and revenue growth',
-      'Apply for inclusion in Afrofeel-curated cultural playlists',
+      'Apply for inclusion in FloLup-curated cultural playlists',
       'Connect with collaborators and fans through exclusive community features',
     ],
     price: '$4 per month',
+    locked: true,
   },
   {
     title: 'Pro Plan',
@@ -47,16 +49,17 @@ const plans = [
     benefits: [
       'Everything in the Premium Plan, plus:',
       'Upload files up to 200MB per song for studio-quality sound',
-      'Send and receive files up to 200GB with Afrofeel File Share',
+      'Send and receive files up to 200GB with FloLup File Share',
       'Connect with investors and other artists for collaboration opportunities',
-      'Priority placement in Afrofeel-curated playlists and Featured Artist lists',
+      'Priority placement in FloLup-curated playlists and Featured Artist lists',
       'Run targeted promotion campaigns to grow your audience',
       'Access advanced analytics with revenue tracking and growth insights',
       'Create custom promotional links to drive fan engagement',
       'Dedicated support team for professional guidance and troubleshooting',
-      'Exclusive access to Afrofeel live showcases and virtual events',
+      'Exclusive access to FloLup live showcases and virtual events',
     ],
     price: '$12 per month',
+    locked: true,
   },
 ];
 
@@ -72,6 +75,11 @@ const PlanSelection = () => {
   // Handle Plan Selection
   const handlePlanSelection = async (plan) => {
     setLoading(true); // Show loading spinner or disable buttons during plan selection
+    const selectedPlan = plans.find((entry) => entry.title === plan);
+    if (selectedPlan?.locked) {
+      setLoading(false);
+      return;
+    }
 
     const profile = ArtistAuth.getProfile();
     if (!profile || !profile.data._id) {
@@ -115,7 +123,7 @@ try {
 
       // Plan Selection Navigation
       if (data.selectPlan.plan === "Free Plan") {
-        navigate('/artist/studio');
+        navigate('/artist/studio/home');
       } else if (data.selectPlan.plan === "Premium Plan") {
         navigate('/artist/dashboard/premium');
       } else if (data.selectPlan.plan === "Pro Plan") {
@@ -145,7 +153,7 @@ try {
           <section>
             <div className='selectPlan'>
               <h1>SELECT PLAN</h1>
-              <p>Welcome to Afrofeel! Upload unlimited songs and let your creative energy shine. Whether you're an amateur, professional, or label—choose your plan and start your journey today.</p>
+              <p>Upload unlimited songs and let your creative energy shine. Whether you're an amateur, professional, or label—choose your plan and start your journey today.</p>
             </div>
 
             <div className='planCardContainer'>
@@ -167,10 +175,16 @@ try {
                   <div className='planGetStarted'>
                     <button
                       onClick={() => handlePlanSelection(plan.title)} // Pass plan title to handler
-                      disabled={loading} // Disable button during loading
+                      disabled={loading || plan.locked} // Disable button during loading or if plan locked
+                      title={plan.locked ? 'Coming soon' : undefined}
                     >
-                      {loading ? 'Processing...' : 'Get Started'}
+                      {plan.locked ? 'Coming soon' : loading ? 'Processing...' : 'Get Started'}
                     </button>
+                    {plan.locked && (
+                      <p className='planLockedMessage'>
+                        We are polishing this option—stay tuned!
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

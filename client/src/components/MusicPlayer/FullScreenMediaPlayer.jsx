@@ -59,7 +59,7 @@ const DEFAULT_COVER = 'data:image/svg+xml;utf8,' +
       <rect width="600" height="600" fill="url(#g)"/>
       <circle cx="300" cy="300" r="250" fill="url(#shine)"/>
       <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        fill="#e4c421" font-size="48" font-family="Arial, sans-serif" font-weight="bold">AFROFEEL</text>
+        fill="#e4c421" font-size="48" font-family="Arial, sans-serif" font-weight="bold">FLOLUP</text>
     </svg>`
   );
 

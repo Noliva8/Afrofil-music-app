@@ -221,9 +221,11 @@ function AppBody({ onCreatePlaylist }) {
     pathname.startsWith('/artist/register') ||
     pathname.startsWith('/artist/login') ||
     pathname.startsWith('/artist/verification') ||
+    pathname.startsWith('/artist/plan') ||
     pathname.startsWith('/terms');
 
-  const shouldHideGuestChrome = pathname.startsWith('/terms');
+  const shouldHideGuestChrome =
+    pathname.startsWith('/terms') || isPublicArtistPage;
 
   const isNotMediaPlayerAllowed =
     pathname.startsWith('/artist/studio') ||
@@ -345,6 +347,25 @@ function AppUI({
       : 0;
   const mainMarginTop = !isUserLoggedIn ? { xs: 0, md: 0 } : { xs: 0, md: 0 };
 
+  const isStandaloneArtistPage =
+    isPublicArtistPage && !isUserLoggedIn && !isArtistLoggedIn;
+
+  if (isStandaloneArtistPage) {
+    return (
+      <div
+        className="app-container public-artist-shell"
+        style={{
+          minHeight: '100vh',
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
+        <main className="main-content">
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`app-container${showGuestNav ? ' guest-view' : ''}`}
@@ -442,24 +463,19 @@ function AppUI({
 
 {/* Main start */}
         <Box
-          sx={(theme) => {
-            const rightAssetGap = isUserLoggedIn
-              ? `calc(var(--user-sidebar-width) + ${theme.spacing(2)})`
-              : 0;
-            return {
-              flex: 1,
-              minWidth: 0,
-              ml: showPanel ? { xs: 0, md: panelOffset } : 0,
-              border: showPanel ? `1px solid ${theme.palette.divider}` : 'none',
-              borderRadius: showPanel ? 3 : 0,
-              mt: isUserLoggedIn ? { xs: 0, md: 0 } : !isUserLoggedIn ? { xs: 0, md: 2.5 } : 0,
-              mr: { xs: 0, md: rightAssetGap },
-              pl: showPanel ? { xs: 0, md: 2.5 } : 0,
-              pr: showPanel ? { xs: 0, md: 2.5 } : 0,
-              py: showPanel ? { xs: 0, md: 2 } : 0,
-              backgroundColor: showPanel ? alpha(theme.palette.background.paper, 0.6) : 'transparent',
-            };
-          }}
+          sx={(theme) => ({
+            flex: 1,
+            minWidth: 0,
+            ml: showPanel ? { xs: 0, md: panelOffset } : 0,
+            border: showPanel ? `1px solid ${theme.palette.divider}` : 'none',
+            borderRadius: showPanel ? 3 : 0,
+            mt: isUserLoggedIn ? { xs: 0, md: 0 } : { xs: 0, md: 2.5 },
+            mr: 0,
+            pl: showPanel ? { xs: 0, md: 2.5 } : 0,
+            pr: 0,
+            py: showPanel ? { xs: 0, md: 2 } : 0,
+            backgroundColor: showPanel ? alpha(theme.palette.background.paper, 0.6) : 'transparent',
+          })}
         >
 
 
@@ -506,23 +522,6 @@ function AppUI({
             />
           )}
         </Box>
-
-        {isUserLoggedIn && (
-          <Box
-            sx={{
-              position: 'fixed',
-              top: { xs: 72, md: 104 },
-              right: 0,
-              mr: { xs: 0, md: 2 },
-              width: { xs: 'var(--user-sidebar-width)', md: 'calc(var(--user-sidebar-width) - 16px)' },
-              height: { xs: 'calc(100vh - 72px)', md: 'calc(100vh - 96px)' },
-              zIndex: 10,
-              display: { xs: 'none', md: 'block' },
-            }}
-          >
-            <UserSideBar />
-          </Box>
-        )}
 
       </Box>
 
