@@ -243,7 +243,14 @@ const httpServer = createServer(app);
 
 
 // List of allowed origins
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3003', 'http://localhost:5173'];
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3003',
+  'http://localhost:5173',
+  'https://flolup.com',
+  'https://www.flolup.com',
+];
 
 app.use(cors({
   origin: allowedOrigins,
