@@ -38,7 +38,6 @@ class ArtistAuth {
 
   login(idToken) {
     localStorage.setItem("artist_id_token", idToken);
-    window.location.assign("/artist/verification"); // Redirect to verification
   }
 
   logout() {
