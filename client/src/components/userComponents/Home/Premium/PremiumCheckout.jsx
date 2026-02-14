@@ -49,7 +49,8 @@ const PremiumCheckout = ({ onClose, onSubscribe }) => {
     if (!stripe || !elements) return;
 
     try {
-      const res = await fetch('http://localhost:3001/api/create-subscription', {
+      
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/create-subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userEmail }),

@@ -67,7 +67,8 @@ const PremiumCheckoutPage = ({ selectedPlan, setSelectedPlan, userEmail }) => {
   const stripe = useStripe();
   const elements = useElements();
 
-  const BASE_API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+
+  const BASE_API_URL = import.meta.env.VITE_API_URL ;
 
   const plans = {
     monthly: {

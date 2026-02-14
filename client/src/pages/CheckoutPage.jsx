@@ -28,7 +28,8 @@ const CheckoutPage = () => {
     if (!userEmail) return;
     setLoading(true);
     setErrorMessage('');
-    fetch('http://localhost:3001/api/create-subscription', {
+
+    fetch(`${import.meta.env.VITE_API_URL}/api/create-subscription`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: userEmail }),

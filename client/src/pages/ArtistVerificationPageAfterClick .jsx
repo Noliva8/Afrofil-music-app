@@ -10,14 +10,17 @@ const ArtistVerificationPageAfterClick = () => {
     }
 
     // Send the token to the backend for verification
-    fetch(`http://localhost:3001/confirmation/${artistToken}`)
+    
+    fetch(`${import.meta.env.VITE_API_URL}/confirmation/${artistToken}`)
       .then(response => response.json())
       .then(data => {
         if (data.success) {
           console.log('Verification successful');
           
+    
           // Open the login page in a new tab/window
-          const loginWindow = window.open('http://localhost:3000/artist/login', '_blank');
+
+          const loginWindow = window.open(`${import.meta.env.VITE_API_URL}/artist/login`, '_blank');
           
           // Wait for the login page to load, then close the verification tab
           setTimeout(() => {

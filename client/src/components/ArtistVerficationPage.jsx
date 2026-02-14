@@ -27,8 +27,9 @@ const ArtistVerificationPage = () => {
   const checkConfirmationStatus = async (email) => {
     try {
       console.log("Making API call with email:", email);
+      
       const response = await axios.post(
-        "http://localhost:3001/api/confirmationStatusAndPlanStatus",
+        `${import.meta.env.VITE_API_URL}/api/confirmationStatusAndPlanStatus`,
         { email }
       );
 
@@ -132,7 +133,8 @@ const ArtistVerificationPage = () => {
     if (!email || resendCooldown > 0) return;
     try {
       setIsResending(true);
-      await axios.post("http://localhost:3001/graphql", {
+      
+      await axios.post(`${import.meta.env.VITE_API_URL}/graphql`, {
         query: `
           mutation ResendVerificationEmail($email: String!) {
             resendVerificationEmail(email: $email) {
