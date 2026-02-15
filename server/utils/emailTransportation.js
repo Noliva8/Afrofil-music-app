@@ -8,7 +8,7 @@ dotenv.config();
 
 const emailUser = process.env.EMAIL_USER;
 const emailPass = process.env.EMAIL_PASS;
-const emailFrom = process.env.EMAIL_FROM || emailUser || "info@afrofeel.com";
+const emailFrom = emailUser || "info@flolup.com";
 
 if (!emailUser || !emailPass) {
   console.error("Email transport not configured: set EMAIL_USER and EMAIL_PASS.");

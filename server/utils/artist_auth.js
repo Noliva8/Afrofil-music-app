@@ -13,9 +13,13 @@ if (!secret) {
   throw new Error("JWT_SECRET_ARTIST is not set");
 }
 
-export const AuthenticationError = new GraphQLError("Could not authenticate artist.", {
-  extensions: { code: "UNAUTHENTICATED" },
-});
+export class AuthenticationError extends GraphQLError {
+  constructor(message = "Could not authenticate artist.") {
+    super(message, {
+      extensions: { code: "UNAUTHENTICATED" },
+    });
+  }
+}
 
 /** Extract a raw token from common header shapes */
 function extractBearerToken(maybeBearer = "") {

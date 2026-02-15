@@ -1,0 +1,18 @@
+{
+  "Comment": "Add DKIM record for Namecheap Private Email",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "default._domainkey.flolup.com.",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "\"v=DKIM1;k=rsa;p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4GpsZxJ3HCi9bYRkZv6ssSlJsZcVOiqLds0I4wwBkcYXiHhRE26axgAzyXjA3fIKvRP9XBM4WnwEqLiRpHWpZ6ntl2EbIyjrZXUpxZx20bqJ8rxnBOq8NExfXIuvjWmMUdN+upALGPwQXXpg3YalN6j3qbtp3g45JqVj4Bw6DWUsyK4Q8tGLu/sJ4rZtd7G5S2qKLNXMSrwm6u1L1TVqsn/1Ikvu4H3yyWPXiVSOi2u81f+BYRPz3IcJtxl7+7uwFvpAMXvBybzLN1Jmzm8XdH8HjihkcBosXjnS/2O8ru4yyh7AM8oBvo5G0+Yb+9DNAW7NFLm2vYQEmetBTJRC3wIDAQAB\""
+          }
+        ]
+      }
+    }
+  ]
+}

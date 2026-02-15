@@ -99,12 +99,17 @@ const VerifyEmail = () => {
       <Button
         variant="contained"
         onClick={() => navigate('/loginSignin', { replace: true })}
+        fullWidth
         sx={{
+          maxWidth: 320,
+          mx: 'auto',
           background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           color: theme.palette.primary.contrastText,
           fontWeight: 700,
           px: 4,
           py: 1.5,
+          borderRadius: 999,
+          boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
         }}
       >
         Go to login now

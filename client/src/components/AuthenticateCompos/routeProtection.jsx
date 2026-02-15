@@ -45,7 +45,7 @@ export const PlanGate = ({ element }) => {
   const isArtistLoggedIn = ArtistAuth.isArtist();
   const profile = ArtistAuth.getProfile();
   const isVerified = profile?.data?.confirmed;
-  const hasPlan = profile?.data?.plan;
+  const hasPlan = Boolean(profile?.data?.selectedPlan);
 
   if (!isArtistLoggedIn) {
     console.warn('Redirecting to /artist/login.');
@@ -69,7 +69,7 @@ export const StudioGate = ({ element }) => {
   const isArtistLoggedIn = ArtistAuth.isArtist();
   const profile = ArtistAuth.getProfile();
   const isVerified = profile?.data?.confirmed;
-  const hasPlan = profile?.data?.plan;
+  const hasPlan = Boolean(profile?.data?.selectedPlan);
 
   if (!isArtistLoggedIn) {
     console.warn('Redirecting to /artist/login.');

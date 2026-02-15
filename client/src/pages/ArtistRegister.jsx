@@ -38,6 +38,8 @@ const Card = styled(MuiCard)(({ theme }) => ({
   [theme.breakpoints.up("sm")]: {
     width: "450px",
   },
+  maxHeight: "95vh",
+  overflowY: "auto",
   
  
 }));
@@ -51,7 +53,9 @@ const SignUpContainer = styled(Stack)(({ theme }) => ({
   },
   position: 'relative',
   backgroundColor: theme.palette.background.default,
-  
+  overflowY: "auto",
+  scrollBehavior: "smooth",
+  WebkitOverflowScrolling: "touch",
   "&::before": {
     content: '""',
     display: "block",

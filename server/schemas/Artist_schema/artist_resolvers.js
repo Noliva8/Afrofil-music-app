@@ -1024,23 +1024,49 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
 
     // Send the response to the user immediately
     // The email sending happens asynchronously in the background
-    setTimeout(async () => {
-      try {
-        // Send the verification email asynchronously
-        await sendEmail(
-          newArtist.email,
-          "Verify Your Email",
-          `
-            <p>Welcome to AfroFeel, ${newArtist.fullName}!</p>
-            <p>Please click the link below to verify your email:</p>
-            <a href="${verificationLink}">Verify Email</a>
-          `
-        );
-      } catch (emailError) {
-        console.error("Error sending verification email:", emailError);
-        // Optionally, log the error or handle retries
-      }
-    }, 0);
+  setTimeout(async () => {
+  try {
+    // Send the verification email asynchronously
+    await sendEmail(
+      newArtist.email,
+      "Welcome to AfroFeel - Verify Your Email",
+      `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #333; margin-bottom: 10px;">Welcome to AfroFeel! 🎵</h1>
+            <p style="color: #666; font-size: 16px;">Hi ${newArtist.fullName},</p>
+          </div>
+          
+          <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #555; font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
+              Thanks for joining AfroFeel! Please verify your email address to get started with your artist journey.
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verificationLink}" 
+                 style="display: inline-block; background-color: #4CAF50; color: white; text-decoration: none; 
+                        padding: 14px 30px; border-radius: 5px; font-size: 16px; font-weight: bold;
+                        box-shadow: 0 2px 4px rgba(0,128,0,0.3); transition: background-color 0.3s;">
+                Verify Email Address
+              </a>
+            </div>
+            
+            <p style="color: #777; font-size: 14px; line-height: 1.5; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;">
+              This link will expire in 24 hours. If you didn't create an account with AfroFeel, please ignore this email.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+            <p>© 2024 AfroFeel. All rights reserved.</p>
+          </div>
+        </div>
+      `
+    );
+  } catch (emailError) {
+    console.error("Error sending verification email:", emailError);
+    // Optionally, log the error or handle retries
+  }
+}, 0);
 
     // Explicitly include the 'confirmed' field in the return object
 
@@ -1389,6 +1415,7 @@ console.error('Error in resolver:', error);
    artist_login : async (parent, { email, password }) => {
   try {
     // Step 1: Find the artist by email
+    console.log('CHECK EMAIL RECIEVED:', email)
     const artist = await Artist.findOne({
       email
     });
@@ -2415,14 +2442,12 @@ createAlbum: async (parent, { title }, context) => {
     const existingAlbum = await Album.findOne({ artist: artistId });
 
     if (!existingAlbum) {
-      // Create default album if none exist
       const defaultAlbum = await Album.create({
-        title: "Single",
+        title: title || "Single",
         artist: artistId,
       });
       await albumCreateRedis(defaultAlbum);
-
-      return defaultAlbum(defaultAlbum);
+      return defaultAlbum;
     }
 
     return existingAlbum; 

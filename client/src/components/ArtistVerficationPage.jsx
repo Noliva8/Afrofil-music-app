@@ -161,7 +161,14 @@ const ArtistVerificationPage = () => {
   };
 
   return (
-    <Box sx={{ textAlign: "center", padding: "20px" }}>
+    <Box
+      sx={{
+        textAlign: "center",
+        padding: { xs: "20px", sm: "40px" },
+        minHeight: "100vh",
+        pt: { xs: "30px", sm: "60px" },
+      }}
+    >
       {loading ? (
         <CircularProgress />
       ) : (
@@ -180,7 +187,14 @@ const ArtistVerificationPage = () => {
               <Typography variant="body2" color="textSecondary">
                 Don't see our email? Check your spam/junk folder.
               </Typography>
-              <Box sx={{ mt: 3 }}>
+              <Box
+                sx={{
+                  mt: 3,
+                  display: "flex",
+                  justifyContent: "center",
+                  width: "100%",
+                }}
+              >
                 <Button
                   variant="contained"
                   onClick={handleResendEmail}

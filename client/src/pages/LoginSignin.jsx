@@ -587,6 +587,7 @@ const renderSignup = () => (
     sx={{
       background: heroGradient,
       minHeight: '100vh',
+      height: '100vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -606,6 +607,9 @@ const renderSignup = () => (
         width: '100%',
         maxWidth: 480,
         boxShadow: theme.shadows[2],
+        maxHeight: 'calc(100vh - 64px)',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
         fontFamily: theme.typography.fontFamily,
       }}
     >

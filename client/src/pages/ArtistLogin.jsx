@@ -21,7 +21,6 @@ import { useNavigate } from 'react-router-dom';
 
 
 
-
 const Card = styled(MuiCard)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
@@ -66,6 +65,212 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
   },
 }));
 
+
+
+// export default function ArtistLogin() {
+//   const [formState, setFormState] = useState({ email: '', password: '' });
+//   const [loginErrorMessage, setLoginErrorMessage] = useState('');
+//   const [login] = useMutation(ARTIST_LOGIN); // Assuming you have the ARTIST_LOGIN mutation defined
+
+//   const handleChange = (event) => {
+//     const { name, value } = event.target;
+//     setFormState({
+//       ...formState,
+//       [name]: value,
+//     });
+//   };
+  
+// const handleFormSubmit = async (event) => {
+//   event.preventDefault();
+
+//   try {
+//     // Log the formState to ensure the data is correct
+//     // console.log('Form State:', formState);
+    
+//     const { data } = await login({
+//       variables: { ...formState },
+//     });
+
+//     // Check if the login was successful
+//     if (data && data.artist_login) {
+//       const { artistToken } = data.artist_login;
+
+//       // Save the token using your artist_auth service
+//       ArtistAuth.login(artistToken);
+
+//       // Fetch the profile to check the confirmed status
+//       const profile = ArtistAuth.getProfile();
+
+//       if (profile && profile.data && profile.data.confirmed) {
+//         setLoginErrorMessage('');
+//       } else {
+//         // console.log('Artist is NOT confirmed or profile data is missing');
+//       }
+//     } else {
+//       setLoginErrorMessage('Login failed. Please check your credentials.');
+//     }
+
+//   } catch (e) {
+//     console.error('ApolloError:', e.message);
+    
+//     // Log specific GraphQL errors
+//     if (e.graphQLErrors) {
+//       e.graphQLErrors.forEach((error) => {
+//         console.error('GraphQL Error:', error.message);
+//       });
+//       setLoginErrorMessage('Invalid email or password. Please try again.');
+//     }
+    
+//     // Log network errors
+//     if (e.networkError) {
+//       console.error('Network Error:', e.networkError.message);
+//       setLoginErrorMessage('Network error. Please check your connection and try again.');
+//     }
+    
+//     // Handle any general errors
+//     if (!e.graphQLErrors && !e.networkError) {
+//       console.error('Unexpected Error:', e);
+//       setLoginErrorMessage('An unexpected error occurred. Please try again later.');
+//     }
+//   }
+
+//   // Clear form values only if the login was successful
+//   setFormState({
+//     email: '',
+//     password: '',
+//   });
+// };
+
+
+
+
+//   return (
+//     <ArtistLoginContainer direction="column" justifyContent="space-between">
+//       <Card variant="outlined">
+//         <Typography
+//           component="h1"
+//           variant="h4"
+//           sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
+//         >
+//           Sign in
+//         </Typography>
+
+//         <Box
+//           component="form"
+//           onSubmit={handleFormSubmit} 
+//           noValidate
+//           sx={{
+//             display: "flex",
+//             flexDirection: "column",
+//             width: "100%",
+//             gap: 2,
+//           }}
+//         >
+//           {/* Email */}
+//           <FormControl>
+//             <FormLabel htmlFor="email">Email</FormLabel>
+//             <TextField
+//               onChange={handleChange}
+//               id="email"
+//               type="email"
+//               name="email"
+//               placeholder="your@email.com"
+//               autoComplete="email"
+//               autoFocus
+//               required
+//               fullWidth
+//               variant="outlined"
+//               value={formState.email}
+//             />
+//           </FormControl>
+
+//           {/* Password */}
+//           <FormControl>
+//             <FormLabel htmlFor="password">Password</FormLabel>
+//             <TextField
+//               onChange={handleChange}
+//               id="password"
+//               type="password"
+//               name="password"
+//               placeholder="......"
+//               autoComplete="current-password"
+//               required
+//               fullWidth
+//               variant="outlined"
+//               value={formState.password}
+//             />
+//           </FormControl>
+
+//           {/* Submit Button */}
+//           <Button
+//             type="submit"
+//             fullWidth
+//             variant="contained"
+//           >
+//             Sign in
+//           </Button>
+
+//           {/* Error Message */}
+//           {loginErrorMessage && (
+//             <Typography
+//               color="error"
+//               variant="body2"
+//               sx={{ marginTop: 1, textAlign: 'center' }}
+//             >
+//               {loginErrorMessage}
+//             </Typography>
+//           )}
+//         </Box>
+
+//         <Divider>or</Divider>
+
+//         {/* Other login options */}
+//         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+//           <Button
+//             fullWidth
+//             variant="outlined"
+//             onClick={() => alert('Sign in with Google')}
+//           >
+//             Sign in with Google
+//           </Button>
+//           <Button
+//             fullWidth
+//             variant="outlined"
+//             onClick={() => alert('Sign in with Facebook')}
+//           >
+//             Sign in with Facebook
+//           </Button>
+
+          
+//               <Typography
+//           component={Link}
+//           to="/artist/register" 
+//           variant="contained"
+//           className='artistRegistAccount'
+//           color="primary"
+//           sx={{ textTransform: "none" }}
+//         >
+//           Don't have an account?
+//         </Typography>
+       
+//         <Button
+//           component={Link}
+//           to="/"
+//           variant="text"
+//           color="inherit"
+//           sx={{ mt: 1, alignSelf: 'center' }}
+//         >
+//           ← Back to home
+//         </Button>
+//         </Box>
+//       </Card>
+//     </ArtistLoginContainer>
+//   );
+// }
+
+
+
+
 export default function ArtistLogin() {
   const navigate = useNavigate(); 
   const [formState, setFormState] = useState({ email: '', password: '' });
@@ -103,7 +308,7 @@ const handleFormSubmit = async (event) => {
 
       if (profile && profile.data && profile.data.confirmed) {
         setLoginErrorMessage('');
-        navigate('/artist/dashboard');
+        navigate('/artist/studio/home');
       } else {
         // console.log('Artist is NOT confirmed or profile data is missing');
         navigate('/artist/verification');
