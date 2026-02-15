@@ -108,8 +108,7 @@ try {
     console.log('Default album created');
   }
 } catch (error) {
-  console.error('Error checking or creating album:', error.message);
-  alert('An error occurred while checking or creating the album. Please try again.');
+  console.warn('Album check/create is still running, skipping:', error.message);
 }
 
 

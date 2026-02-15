@@ -32,6 +32,8 @@ const LazyArtistLogin = lazy(() => import('../pages/ArtistLogin.jsx'));
 const LazyFeed = lazy(() => import('../pages/Feed.jsx'));
 const LazyPremiumPromo = lazy(() => import('../pages/PremiumPromo.jsx'));
 const LazyVerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
+import { VerifyGate } from '../components/AuthenticateCompos/routeProtection.jsx';
+
 
 export const PublicRoutes = [
   {
@@ -122,12 +124,15 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
   {
     path: 'verify-email',
     element: (
-      <Suspense fallback={<div />}>
-        <LazyVerifyEmail />
-      </Suspense>
+      <VerifyGate element={
+        <Suspense fallback={<div />}>
+          <LazyVerifyEmail />
+        </Suspense>
+      } />
     ),
   },
   {
