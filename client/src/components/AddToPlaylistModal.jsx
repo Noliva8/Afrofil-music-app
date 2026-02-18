@@ -79,7 +79,7 @@ const AddToPlaylistModal = ({ open, onClose, track }) => {
             </Typography>
             <Button
               variant="contained"
-              onClick={() => navigate('/loginSignin?login=1')}
+              onClick={() => navigate('/welcome?login=1')}
               sx={{ textTransform: 'none', fontWeight: 700 }}
             >
               Log in

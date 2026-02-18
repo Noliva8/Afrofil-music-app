@@ -24,7 +24,7 @@ export const WelcomeSideNavbar = ({
   const [playlistsOpen, setPlaylistsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const isMusicActive = location.pathname === '/loginSignin' || location.pathname === '/';
+  const isMusicActive = location.pathname === '/welcome' || location.pathname === '/';
   const isExploreActive = location.pathname === '/explore';
   const isFeedActive = location.pathname === '/feed';
 
@@ -41,7 +41,7 @@ export const WelcomeSideNavbar = ({
 
   useEffect(() => {
     if (location.pathname === '/') {
-      navigate('/loginSignin', { replace: true });
+      navigate('/welcome', { replace: true });
     }
   }, [location.pathname, navigate]);
 
@@ -80,7 +80,7 @@ export const WelcomeSideNavbar = ({
 
         <Stack spacing={2}>
           {[
-            { label: 'Music', icon: '🎵', onClick: () => navigate('/loginSignin') },
+            { label: 'Music', icon: '🎵', onClick: () => navigate('/welcome') },
             { label: 'Explore', icon: '🌍', onClick: () => navigate('/explore') },
             { label: 'Feed', icon: '📰', onClick: () => navigate('/feed') },
           ].map((item) => (

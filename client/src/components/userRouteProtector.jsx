@@ -6,7 +6,7 @@ import UserAuth from "../utils/auth";
 
 const ProtectedRoute = ({ element }) => {
  
-  return UserAuth.loggedIn() ? element : <Navigate to="/loginSignin" />;
+  return UserAuth.loggedIn() ? element : <Navigate to="/welcome" />;
 };
 
 export default ProtectedRoute;

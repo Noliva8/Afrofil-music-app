@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation} from "@apollo/client";
+import { useQuery, useMutation } from '@apollo/client';
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
 import UserAuth from '../utils/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -9,27 +9,26 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import { NEW_UPLOADS_PUBLIC, SUGGESTED_SONGS_PUBLIC, SONG_OF_MONTH_PUBLIC, RADIO_STATIONS_PUBLIC } from '../utils/queries';
+import {
+  NEW_UPLOADS_PUBLIC,
+  SUGGESTED_SONGS_PUBLIC,
+  SONG_OF_MONTH_PUBLIC,
+  RADIO_STATIONS_PUBLIC,
+  TRENDING_SONGS_PUBLICV2
+} from '../utils/queries';
 import MainMenu from '../components/MainMenu';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
 import { useTheme, alpha } from '@mui/material/styles';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 import { HORIZONTAL_LIMIT } from '../CommonSettings/songsRowNumberControl';
-
-import { TRENDING_SONGS_PUBLICV2 } from '../utils/queries';
 import FeedbackModal from '../components/FeedbackModal.jsx';
 
-// simple helpers (matching the previously working version)
 const useToggle = (initialState = false) => {
   const [state, setState] = useState(initialState);
   const toggle = () => setState(prev => !prev);
   return [state, toggle];
 };
-
-
-
-
 
 const useFormState = (initialState) => {
   const [state, setState] = useState(initialState);
@@ -40,149 +39,6 @@ const useFormState = (initialState) => {
   const reset = () => setState(initialState);
   return [state, handleChange, reset];
 };
-
-const LoginSignin = function ({ display = '', onSwitchToLogin, onSwitchToSignup, isUserLoggedIn, onClose }) {
-  const navigate = useNavigate();
-
-
-
-
-
-
-
-  const handleBackHome = () => {
-    onClose?.();
-    navigate('/loginSignin');
-  };
-
-  const handleSwitchToLogin = () => {
-    onSwitchToLogin?.();
-    navigate('/loginSignin?login=1', { replace: true });
-  };
-
-  const handleSwitchToSignup = () => {
-    onSwitchToSignup?.();
-    navigate('/loginSignin?signup=1', { replace: true });
-  };
-  const theme = useTheme();
-  const heroGradient = `
-    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
-    linear-gradient(to bottom, #0F0F0F, #1A1A1A)
-  `;
-
-
-
-
-
-
-  const {data: trendingSongsV2 , loading: trendingSongsLoadingV2, error: trendingSongsErrorV2} = 
-  useQuery(TRENDING_SONGS_PUBLICV2, {
-    variables: {limit: HORIZONTAL_LIMIT},
-      pollInterval: 30000,
-  notifyOnNetworkStatusChange: true,
-  })
-
-
-
-
-  const processedTrendingSongs = trendingSongsV2 ?.trendingSongsV2 || [];
-
-  const { songsWithArtwork } = useSongsWithPresignedUrls(processedTrendingSongs);
-
-
-
-
-
-
-const {data: newUploadsData} = useQuery(NEW_UPLOADS_PUBLIC, {
-  variables: {limit: HORIZONTAL_LIMIT },
-  pollInterval: 30000,
-  notifyOnNetworkStatusChange: true,
-});
-
-
-
-
-  const { data: suggestedData } = useQuery(SUGGESTED_SONGS_PUBLIC, {
-    pollInterval: 30000,
-    notifyOnNetworkStatusChange: true,
-    variables: { limit: HORIZONTAL_LIMIT },
-  });
-
-  const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
-    fetchPolicy: "cache-first",
-    nextFetchPolicy: "cache-first",
-  });
-  const { data: radioStationsData } = useQuery(RADIO_STATIONS_PUBLIC, {
-    fetchPolicy: "cache-first",
-    nextFetchPolicy: "cache-first",
-  });
-
-
-  // Debug trendingSongs fetch to surface GraphQL errors and network state
-  // React.useEffect(() => {
-  //   if (loading) {
-  //     console.log('[TrendingSongs] loading…');
-  //     return;
-  //   }
-  //   if (error) {
-  //     console.error('[TrendingSongs] error:', error);
-  //     if (error.graphQLErrors?.length) {
-  //       error.graphQLErrors.forEach((gqlErr, idx) =>
-  //         console.error(`[TrendingSongs] graphQLErrors[${idx}]`, gqlErr.message, gqlErr)
-  //       );
-  //     }
-  //     if (error.networkError) {
-  //       console.error('[TrendingSongs] networkError:', error.networkError);
-  //     }
-  //   } else {
-  //     console.log('[TrendingSongs] data:', data?.trendingSongs);
-  //   }
-  // }, [loading, error, data]);
-
-
-
-  const { songsWithArtwork: newUploadsWithArtwork } = useSongsWithPresignedUrls(
-    newUploadsData?.newUploads
-  );
-  const { songsWithArtwork: suggestedSongsWithArtwork } = useSongsWithPresignedUrls(
-    suggestedData?.suggestedSongs
-  );
-  const songOfMonthSource = React.useMemo(
-    () => (songOfMonthData?.songOfMonth ? [songOfMonthData.songOfMonth] : []),
-    [songOfMonthData?.songOfMonth]
-  );
-  const { songsWithArtwork: songOfMonthWithArtwork } = useSongsWithPresignedUrls(
-    songOfMonthSource
-  );
-
-  // const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
-  // const [getPresignedUrlDownloadAudio] = useMutation(GET_PRESIGNED_URL_DOWNLOAD_AUDIO);
-
-// Signup & Login form states
-const [signupFormState, handleSignupChange, resetSignup] = useFormState({
-  username: '',
-  email: '',
-  password: ''
-});
-const [loginFormState, handleLoginChange, resetLogin] = useFormState({
-  email: '',
-  password: ''
-});
-const [agreedToTerms, setAgreedToTerms] = useState(false);
-
-// Error messages
-const [signupErrorMessage, setSignupErrorMessage] = useState('');
-const [loginErrorMessage, setLoginErrorMessage] = useState('');
-
-// Password visibility toggles
-const [showPasswordLogin, setShowPasswordLogin] = useToggle(false);
-const [showPasswordSignup, setShowPasswordSignup] = useToggle(false);
-
-// Apollo GraphQL mutation hooks
-const [createUser] = useMutation(CREATE_USER);
-const [login] = useMutation(LOGIN_USER);
-
 
 const validateSignupForm = ({ username, email, password }) => {
   if (!username.trim() || !email.trim() || !password) {
@@ -215,84 +71,116 @@ const handleAuthError = (error, setErrorMessage) => {
   setErrorMessage(message);
 };
 
+const useAuthFormLogic = ({ onClose } = {}) => {
+  const theme = useTheme();
+  const [signupFormState, handleSignupChange, resetSignup] = useFormState({
+    username: '',
+    email: '',
+    password: ''
+  });
+  const [loginFormState, handleLoginChange, resetLogin] = useFormState({
+    email: '',
+    password: ''
+  });
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [signupErrorMessage, setSignupErrorMessage] = useState('');
+  const [loginErrorMessage, setLoginErrorMessage] = useState('');
+  const [showPasswordLogin, toggleShowPasswordLogin] = useToggle(false);
+  const [showPasswordSignup, toggleShowPasswordSignup] = useToggle(false);
+  const [createUser] = useMutation(CREATE_USER);
+  const [loginMutation] = useMutation(LOGIN_USER);
 
+  const heroGradient = `
+    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
+    linear-gradient(to bottom, #0F0F0F, #1A1A1A)
+  `;
 
-// Signup submission
-const handleSignupSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    validateSignupForm(signupFormState);
-
-
-  const { data } = await createUser({
-  variables: {
-    input: {
-      username: signupFormState.username,
-      email: signupFormState.email,
-      password: signupFormState.password,
-      role: 'regular'
-    }
-  }
-});
-
-
-    const token = data?.createUser?.userToken;
-    if (token) {
-      UserAuth.login(token);
-      resetSignup();
-      onClose();
-    }
-  } catch (error) {
-    handleAuthError(error, setSignupErrorMessage);
-  }
-};
-
-
-// Login submission
-const handleLoginSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    if (!loginFormState.email.trim() || !loginFormState.password) {
-      throw new Error('Email and password are required');
-    }
-
-    const { data } = await login({
-      variables: {
-        email: loginFormState.email,
-        password: loginFormState.password
+  const handleSignupSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      validateSignupForm(signupFormState);
+      const { data } = await createUser({
+        variables: {
+          input: {
+            username: signupFormState.username,
+            email: signupFormState.email,
+            password: signupFormState.password,
+            role: 'regular'
+          }
+        }
+      });
+      const token = data?.createUser?.userToken;
+      if (token) {
+        UserAuth.login(token);
+        resetSignup();
+        setAgreedToTerms(false);
+        onClose?.();
       }
-    });
-
-    const token = data?.login?.userToken;
-    if (token) {
-       UserAuth.login(token);
-      resetLogin();
-      onClose();
+    } catch (error) {
+      handleAuthError(error, setSignupErrorMessage);
     }
-  } catch (error) {
-    handleAuthError(error, setLoginErrorMessage);
-  }
+  };
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (!loginFormState.email.trim() || !loginFormState.password) {
+        throw new Error('Email and password are required');
+      }
+      const { data } = await loginMutation({
+        variables: {
+          email: loginFormState.email,
+          password: loginFormState.password
+        }
+      });
+      const token = data?.login?.userToken;
+      if (token) {
+        UserAuth.login(token);
+        resetLogin();
+        onClose?.();
+      }
+    } catch (error) {
+      handleAuthError(error, setLoginErrorMessage);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    const auth = getAuth();
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      setLoginErrorMessage(error.message);
+    }
+  };
+
+  const handleCloseLoginError = () => {
+    setLoginErrorMessage('');
+  };
+
+  return {
+    theme,
+    heroGradient,
+    signupFormState,
+    handleSignupChange,
+    signupErrorMessage,
+    handleSignupSubmit,
+    agreedToTerms,
+    setAgreedToTerms,
+    showPasswordSignup,
+    toggleShowPasswordSignup,
+    loginFormState,
+    handleLoginChange,
+    loginErrorMessage,
+    handleLoginSubmit,
+    handleGoogleLogin,
+    showPasswordLogin,
+    toggleShowPasswordLogin,
+    handleCloseLoginError
+  };
 };
 
-
-const handleGoogleLogin = async () => {
-  const auth = getAuth();
-  const provider = new GoogleAuthProvider();
-  try {
-    const result = await signInWithPopup(auth, provider);
-    // Handle successful login
-  } catch (error) {
-    setLoginErrorMessage(error.message);
-  }
-};
-
-const handleCloseLoginError = () => {
-  setLoginErrorMessage('');
-};
-
-
-
-const renderLogin = () => (
+const AuthFormContainer = ({ heroGradient, theme, children }) => (
   <Box
     className="auth-container"
     sx={{
@@ -320,6 +208,34 @@ const renderLogin = () => (
         fontFamily: theme.typography.fontFamily,
       }}
     >
+      {children}
+    </Box>
+  </Box>
+);
+
+const LoginForm = ({
+  heroGradient,
+  theme,
+  loginFormState,
+  handleLoginChange,
+  handleLoginSubmit,
+  handleGoogleLogin,
+  showPasswordLogin,
+  toggleShowPasswordLogin,
+  loginErrorMessage,
+  onForgotPassword,
+  onSwitchToSignup,
+  onBackHome
+}) => (
+  <AuthFormContainer heroGradient={heroGradient} theme={theme}>
+    <Box
+      className="auth-content"
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+      }}
+    >
       <Box
         className="auth-header"
         sx={{
@@ -328,7 +244,7 @@ const renderLogin = () => (
           fontFamily: theme.typography.fontFamily,
         }}
       >
-        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start', margin: '0 auto' }} />
+        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start' }} />
         <Typography
           component="h2"
           variant="h4"
@@ -342,62 +258,21 @@ const renderLogin = () => (
         </Typography>
       </Box>
 
-      {/* Custom Google Login Button */}
-      <button
-        onClick={handleGoogleLogin}
-        style={{
-          width: '100%',
-          padding: '12px',
-          borderRadius: '8px',
-          background: theme.palette.google?.main || '#4285F4',
-          color: theme.palette.google?.contrastText || '#fff',
-          border: 'none',
-          fontSize: '16px',
-          fontWeight: '500',
-          fontFamily: theme.typography.fontFamily,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
-          marginBottom: '25px',
-          transition: 'all 0.3s ease',
-          ':hover': {
-            background: '#3367D6',
-            transform: 'translateY(-2px)'
-          }
-        }}
-      >
-        <img 
-          src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" 
-          alt="Google logo"
-          style={{ width: '20px', height: '20px' }} 
-        />
-        Continue with Google
-      </button>
+      <Divider sx={{ my: 0, borderColor: 'transparent' }} />
 
-        <Divider sx={{ my: 2, borderColor: alpha(theme.palette.text.secondary, 0.2) }}>
-          <Typography variant="body2" color="text.secondary" sx={{ fontFamily: theme.typography.fontFamily }}>
-            OR
+      <Box component="form" className="form" onSubmit={handleLoginSubmit}>
+        <Box className="form-group" sx={{ mb: 2.5 }}>
+          <Typography component="label" htmlFor="email" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
+            Email:
           </Typography>
-        </Divider>
-
-      <form className="form" onSubmit={handleLoginSubmit}>
-        <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label htmlFor="email" style={{
-            display: 'block',
-            color: theme.palette.text.secondary,
-            marginBottom: '8px',
-            fontSize: '14px'
-          }}>Email:</label>
-          <input
+          <Box component="input"
             type="email"
             id="email"
             name="email"
             onChange={handleLoginChange}
             value={loginFormState.email}
             required
-            style={{
+            sx={{
               width: '100%',
               padding: '12px 15px',
               borderRadius: '8px',
@@ -408,24 +283,21 @@ const renderLogin = () => (
               fontFamily: theme.typography.fontFamily,
             }}
           />
-        </div>
+        </Box>
 
-        <div className="form-group" style={{ marginBottom: '25px' }}>
-          <label htmlFor="password" style={{
-            display: 'block',
-            color: theme.palette.text.secondary,
-            marginBottom: '8px',
-            fontSize: '14px'
-          }}>Password:</label>
-          <div className="password-input" style={{ position: 'relative' }}>
-            <input
+        <Box className="form-group" sx={{ mb: 3 }}>
+          <Typography component="label" htmlFor="password" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
+            Password:
+          </Typography>
+          <Box sx={{ position: 'relative' }}>
+            <Box component="input"
               type={showPasswordLogin ? 'text' : 'password'}
               id="password"
               name="password"
               onChange={handleLoginChange}
               value={loginFormState.password}
               required
-              style={{
+              sx={{
                 width: '100%',
                 padding: '12px 15px',
                 borderRadius: '8px',
@@ -437,11 +309,11 @@ const renderLogin = () => (
                 paddingRight: '40px'
               }}
             />
-            <button
+            <Box
+              component="button"
               type="button"
-              className="password-toggle"
-              onClick={() => setShowPasswordLogin(!showPasswordLogin)}
-              style={{
+              onClick={toggleShowPasswordLogin}
+              sx={{
                 position: 'absolute',
                 top: '50%',
                 transform: 'translateY(-50%)',
@@ -459,455 +331,192 @@ const renderLogin = () => (
               }}
             >
               <FontAwesomeIcon icon={showPasswordLogin ? faEyeSlash : faEye} />
-            </button>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Box>
 
-        <button
-          type="button"
-          onClick={() => {
-            onClose?.();
-            navigate('/password-reset');
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            marginBottom: '18px',
-            color: theme.palette.primary.main,
-            fontSize: '14px',
-            cursor: 'pointer',
-            textAlign: 'left',
-          }}
-        >
+        <Box component="button" type="button" onClick={onForgotPassword} sx={{ background: 'none', border: 'none', padding: 0, mb: 2.25, color: theme.palette.primary.main, fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>
           Forgot password?
-        </button>
-
-      <button
-        onClick={() => alert('Sign in with Facebook')}
-        style={{
-          width: '100%',
-          padding: '12px',
-          borderRadius: '8px',
-          background: '#1877F2',
-          color: '#fff',
-          border: 'none',
-          fontSize: '16px',
-          fontWeight: '500',
-          fontFamily: theme.typography.fontFamily,
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '10px',
-          marginBottom: '25px',
-          transition: 'all 0.3s ease',
-        }}
-      >
-        <img 
-          src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png"
-          alt="Facebook logo"
-          style={{ width: '20px', height: '20px' }}
-        />
-        Continue with Facebook
-      </button>
+        </Box>
 
         {loginErrorMessage && (
-          <p className="error-message" style={{
-            color: '#FF4D4D',
-            marginBottom: '15px',
-            fontSize: '14px',
-            textAlign: 'center'
-          }}>
+          <Typography className="error-message" sx={{ color: '#FF4D4D', mb: 1.5, fontSize: 14, textAlign: 'center' }}>
             {loginErrorMessage}
-          </p>
+          </Typography>
         )}
 
-        <button
-          type="submit"
-          className="submit-button"
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '8px',
-            background: 'linear-gradient(90deg, #E4C421, #B25035)',
-            color: '#000',
-            border: 'none',
-            fontSize: '16px',
-            fontWeight: '600',
-            fontFamily: theme.typography.fontFamily,
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            marginBottom: '20px',
-            ':hover': {
-              background: 'linear-gradient(90deg, #F8D347, #C96146)',
-              transform: 'translateY(-2px)'
-            }
-          }}
-        >
+        <Box component="button" type="submit" sx={{ width: '100%', padding: '14px', borderRadius: '8px', background: 'linear-gradient(90deg, #E4C421, #B25035)', color: '#000', border: 'none', fontSize: '16px', fontWeight: 600, fontFamily: theme.typography.fontFamily, cursor: 'pointer', transition: 'all 0.3s ease', mb: 2, '&:hover': { background: 'linear-gradient(90deg, #F8D347, #C96146)', transform: 'translateY(-2px)' } }}>
           Log In
-        </button>
+        </Box>
 
-        <div className="auth-switch" style={{
-          textAlign: 'center',
-          marginBottom: '20px'
-        }}>
-          <p style={{ color: theme.palette.text.secondary, margin: 0 }}>
+        <Divider sx={{ my: 1, borderColor: alpha(theme.palette.text.secondary, 0.2) }}>
+          <Typography variant="body2" color="text.secondary" sx={{ fontFamily: theme.typography.fontFamily }}>
+            OR
+          </Typography>
+        </Divider>
+
+        <Box component="button" type="button" onClick={handleGoogleLogin} sx={{ width: '100%', padding: '12px', borderRadius: '8px', background: theme.palette.google?.main || '#4285F4', color: theme.palette.google?.contrastText || '#fff', border: 'none', fontSize: '16px', fontWeight: '500', fontFamily: theme.typography.fontFamily, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', mb: 2.5, transition: 'all 0.3s ease', '&:hover': { background: '#3367D6', transform: 'translateY(-2px)' } }}>
+          <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google logo" sx={{ width: 20, height: 20 }} />
+          Continue with Google
+        </Box>
+
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
             Don't have an account?
-          </p>
-          <button
-            type="button"
-            className="switch-button"
-            onClick={handleSwitchToSignup}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: theme.palette.primary.main,
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              marginLeft: '5px',
-              ':hover': {
-                textDecoration: 'underline'
-              }
-            }}
-          >
+          </Typography>
+          <Box component="button" type="button" onClick={onSwitchToSignup} sx={{ background: 'none', border: 'none', color: theme.palette.primary.main, cursor: 'pointer', fontSize: 14, fontWeight: 600, ml: 0.5, ':hover': { textDecoration: 'underline' } }}>
             Sign up
-          </button>
-        </div>
+          </Box>
+        </Box>
 
-        <Button
-          onClick={handleBackHome}
-          variant="text"
-          color="inherit"
-          sx={{
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            mx: 'auto',
-            color: theme.palette.text.primary,
-            fontWeight: 600,
-            '&:hover': { color: theme.palette.primary.main, background: 'transparent' },
-          }}
-        >
+        <Button onClick={onBackHome} variant="text" color="inherit" sx={{ fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mx: 'auto', color: theme.palette.text.primary, fontWeight: 600, '&:hover': { color: theme.palette.primary.main, background: 'transparent' } }}>
           ← Back to home
         </Button>
-      </form>
+      </Box>
     </Box>
-  </Box>
+  </AuthFormContainer>
 );
 
-
-const renderSignup = () => (
-  <Box
-    className="auth-container"
-    sx={{
-      background: heroGradient,
-      minHeight: '100vh',
-      height: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      px: { xs: 2, sm: 3 },
-      py: { xs: 4, sm: 6 },
-      fontFamily: theme.typography.fontFamily,
-    }}
-  >
-    <Box
-      className="auth-form"
-      sx={{
-        background: alpha(theme.palette.background.paper || '#111119', 0.95),
-        backdropFilter: 'blur(12px)',
-        borderRadius: 2,
-        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-        p: { xs: 3, sm: 4 },
-        width: '100%',
-        maxWidth: 480,
-        boxShadow: theme.shadows[2],
-        maxHeight: 'calc(100vh - 64px)',
-        overflowY: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        fontFamily: theme.typography.fontFamily,
-      }}
-    >
-      <Box
-        className="auth-header"
-        sx={{
-          textAlign: 'center',
-          mb: 3,
-          fontFamily: theme.typography.fontFamily,
-        }}
-      >
-        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start', margin: '0 auto' }} />
-        <Typography
-          component="h2"
-          variant="h4"
-          sx={{
-            color: theme.palette.text.primary,
-            fontWeight: 700,
-            fontFamily: theme.typography.fontFamily,
-          }}
-        >
+const SignupForm = ({
+  heroGradient,
+  theme,
+  signupFormState,
+  handleSignupChange,
+  handleSignupSubmit,
+  agreedToTerms,
+  setAgreedToTerms,
+  showPasswordSignup,
+  toggleShowPasswordSignup,
+  signupErrorMessage,
+  onSwitchToLogin,
+  onBackHome
+}) => (
+  <AuthFormContainer heroGradient={heroGradient} theme={theme}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ textAlign: 'center', mb: 3, fontFamily: theme.typography.fontFamily }}>
+        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start' }} />
+        <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 700, fontFamily: theme.typography.fontFamily }}>
           Create Account
         </Typography>
-        <Typography
-          variant="body2"
-          sx={{
-            color: theme.palette.text.secondary,
-            mt: 1,
-            fontFamily: theme.typography.fontFamily,
-          }}
-        >
-          Join AfroFeel today
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1, fontFamily: theme.typography.fontFamily }}>
+          Join FloLup today
         </Typography>
       </Box>
 
-      <form className="form" onSubmit={handleSignupSubmit}>
-        <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label htmlFor="username" style={{
-            display: 'block',
-            color: 'rgba(255,255,255,0.8)',
-            marginBottom: '8px',
-            fontSize: '14px'
-          }}>Username:</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            onChange={handleSignupChange}
-            value={signupFormState.username}
-            required
-            style={{
-              width: '100%',
-              padding: '12px 15px',
-              borderRadius: '8px',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              background: 'rgba(255,255,255,0.05)',
-              color: theme.palette.text.primary,
-              fontSize: '16px',
-              fontFamily: theme.typography.fontFamily,
-            }}
-          />
-        </div>
+      <Box component="form" className="form" onSubmit={handleSignupSubmit}>
+        <Box className="form-group" sx={{ mb: 2 }}>
+          <Typography component="label" htmlFor="username" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)', mb: 1, fontSize: 14 }}>
+            Username:
+          </Typography>
+          <Box component="input" type="text" id="username" name="username" onChange={handleSignupChange} value={signupFormState.username} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily }} />
+        </Box>
 
-        <div className="form-group" style={{ marginBottom: '20px' }}>
-          <label htmlFor="email" style={{
-            display: 'block',
-            color: theme.palette.text.secondary,
-            marginBottom: '8px',
-            fontSize: '14px'
-          }}>Email:</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            onChange={handleSignupChange}
-            value={signupFormState.email}
-            required
-              style={{
-              width: '100%',
-              padding: '12px 15px',
-              borderRadius: '8px',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              background: 'rgba(255,255,255,0.05)',
-              color: theme.palette.text.primary,
-              fontSize: '16px',
-              fontFamily: theme.typography.fontFamily,
-            }}
-          />
-        </div>
+        <Box className="form-group" sx={{ mb: 2 }}>
+          <Typography component="label" htmlFor="email" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
+            Email:
+          </Typography>
+          <Box component="input" type="email" id="email" name="email" onChange={handleSignupChange} value={signupFormState.email} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily }} />
+        </Box>
 
-        <div className="form-group" style={{ marginBottom: '25px' }}>
-          <label htmlFor="password" style={{
-            display: 'block',
-            color: theme.palette.text.secondary,
-            marginBottom: '8px',
-            fontSize: '14px'
-          }}>Password:</label>
-          <div className="password-input" style={{ position: 'relative' }}>
-            <input
-              type={showPasswordSignup ? 'text' : 'password'}
-              id="password"
-              name="password"
-              onChange={handleSignupChange}
-              value={signupFormState.password}
-              required
-              style={{
-                width: '100%',
-                padding: '12px 15px',
-                borderRadius: '8px',
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                background: 'rgba(255,255,255,0.05)',
-                color: theme.palette.text.primary,
-                fontSize: '16px',
-                fontFamily: theme.typography.fontFamily,
-                paddingRight: '40px'
-              }}
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              onClick={() => setShowPasswordSignup(!showPasswordSignup)}
-              style={{
-                position: 'absolute',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                right: '10px',
-                background: 'none',
-                border: 'none',
-                color: '#000',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                ':hover': {
-                  color: '#E4C421'
-                }
-              }}
-            >
+        <Box className="form-group" sx={{ mb: 3 }}>
+          <Typography component="label" htmlFor="password" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
+            Password:
+          </Typography>
+          <Box sx={{ position: 'relative' }}>
+            <Box component="input" type={showPasswordSignup ? 'text' : 'password'} id="password" name="password" onChange={handleSignupChange} value={signupFormState.password} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily, paddingRight: '40px' }} />
+            <Box component="button" type="button" onClick={toggleShowPasswordSignup} sx={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: '10px', background: 'none', border: 'none', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', ':hover': { color: '#E4C421' } }}>
               <FontAwesomeIcon icon={showPasswordSignup ? faEyeSlash : faEye} />
-            </button>
-          </div>
-        </div>
+            </Box>
+          </Box>
+        </Box>
+
+        <Box sx={{ mb: 2 }}>
+          <Typography component="label" sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+            <Box component="input" type="checkbox" checked={agreedToTerms} onChange={() => setAgreedToTerms(prev => !prev)} required sx={{ mr: 1 }} />
+            I agree to the{' '}
+            <Box component="a" href="/terms" target="_blank" sx={{ color: '#E4C421', textDecoration: 'underline' }}>
+              Terms of Use
+            </Box>{' '}
+            and{' '}
+            <Box component="a" href="/privacy" target="_blank" sx={{ color: '#E4C421', textDecoration: 'underline' }}>
+              Privacy Policy
+            </Box>
+          </Typography>
+        </Box>
 
         {signupErrorMessage && (
-          <p className="error-message" style={{
-            color: '#FF4D4D',
-            marginBottom: '15px',
-            fontSize: '14px',
-            textAlign: 'center'
-          }}>
+          <Typography sx={{ color: '#FF4D4D', mb: 1.5, fontSize: 14, textAlign: 'center' }}>
             {signupErrorMessage}
-          </p>
+          </Typography>
         )}
 
-
-                 <div style={{ marginBottom: '20px' }}>
-  <label style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>
-    <input
-      type="checkbox"
-      checked={agreedToTerms}
-      onChange={() => setAgreedToTerms(prev => !prev)}
-      required
-      style={{ marginRight: '8px' }}
-    />
-    I agree to the{' '}
-    <a href="/terms" target="_blank" style={{ color: '#E4C421', textDecoration: 'underline' }}>
-      Terms of Use
-    </a>{' '}
-    and{' '}
-    <a href="/privacy" target="_blank" style={{ color: '#E4C421', textDecoration: 'underline' }}>
-      Privacy Policy
-    </a>
-  </label>
-</div>
-
-
-        <button
-          type="submit"
-          className="submit-button"
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '8px',
-            background: 'linear-gradient(90deg, #E4C421, #B25035)',
-            color: '#000',
-            border: 'none',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            marginBottom: '20px',
-            ':hover': {
-              background: 'linear-gradient(90deg, #F8D347, #C96146)',
-              transform: 'translateY(-2px)'
-            }
-          }}
-        >
+        <Box component="button" type="submit" sx={{ width: '100%', padding: '14px', borderRadius: '8px', background: 'linear-gradient(90deg, #E4C421, #B25035)', color: '#000', border: 'none', fontSize: 16, fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease', mb: 2, '&:hover': { background: 'linear-gradient(90deg, #F8D347, #C96146)', transform: 'translateY(-2px)' } }}>
           Sign Up
-        </button>
+        </Box>
 
-        <div className="auth-switch" style={{
-          textAlign: 'center',
-          marginBottom: '20px'
-        }}>
-          <p style={{ color: theme.palette.text.secondary, margin: 0 }}>
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
             Already have an account?
-          </p>
-
- 
-
-          <button
-            type="button"
-            className="switch-button"
-            onClick={handleSwitchToLogin}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: theme.palette.primary.main,
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              marginLeft: '5px',
-              ':hover': {
-                textDecoration: 'underline'
-              }
-            }}
-          >
+          </Typography>
+          <Box component="button" type="button" onClick={onSwitchToLogin} sx={{ background: 'none', border: 'none', color: theme.palette.primary.main, cursor: 'pointer', fontSize: 14, fontWeight: 600, ml: 0.5, ':hover': { textDecoration: 'underline' } }}>
             Log in
-          </button>
-          
-        </div>
+          </Box>
+        </Box>
 
-        <button
-          type="button"
-          className="back-button"
-          onClick={handleBackHome}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: theme.palette.text.primary,
-            cursor: 'pointer',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            margin: '0 auto',
-            ':hover': {
-              color: '#E4C421'
-            }
-          }}
-        >
+        <Box component="button" type="button" onClick={onBackHome} sx={{ background: 'none', border: 'none', color: theme.palette.text.primary, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mx: 'auto', ':hover': { color: '#E4C421' } }}>
           ← Back to home
-        </button>
-      </form>
+        </Box>
+      </Box>
     </Box>
-  </Box>
+  </AuthFormContainer>
 );
 
+export const UserLoginPage = ({ onClose, onSwitchToSignup }) => {
+  const navigate = useNavigate();
+  const {
+    theme,
+    heroGradient,
+    loginFormState,
+    handleLoginChange,
+    handleLoginSubmit,
+    handleGoogleLogin,
+    showPasswordLogin,
+    toggleShowPasswordLogin,
+    loginErrorMessage,
+    handleCloseLoginError
+  } = useAuthFormLogic({ onClose });
 
+  const handleBackHome = () => {
+    onClose?.();
+    navigate('/welcome');
+  };
 
+  const handleForgotPassword = () => {
+    onClose?.();
+    navigate('/password-reset');
+  };
 
-
+  const handleSwitchToSignup = () => {
+    onSwitchToSignup?.();
+    navigate('/user/signup');
+  };
 
   return (
     <>
-      {display === 'login' && renderLogin()}
-      {display === 'signup' && renderSignup()}
-
-      {display === '' && (
-        <MainMenu
-          trendingSongs={processedTrendingSongs}
-          songsWithArtwork={songsWithArtwork}
-          newUploadsWithArtwork={newUploadsWithArtwork}
-          suggestedSongsWithArtwork={suggestedSongsWithArtwork}
-          songOfMonthWithArtwork={songOfMonthWithArtwork}
-          radioStations={radioStationsData?.radioStations || []}
-        />
-      )}
+      <LoginForm
+        heroGradient={heroGradient}
+        theme={theme}
+        loginFormState={loginFormState}
+        handleLoginChange={handleLoginChange}
+        handleLoginSubmit={handleLoginSubmit}
+        handleGoogleLogin={handleGoogleLogin}
+        showPasswordLogin={showPasswordLogin}
+        toggleShowPasswordLogin={toggleShowPasswordLogin}
+        loginErrorMessage={loginErrorMessage}
+        onForgotPassword={handleForgotPassword}
+        onSwitchToSignup={handleSwitchToSignup}
+        onBackHome={handleBackHome}
+      />
       <FeedbackModal
         open={Boolean(loginErrorMessage)}
         onClose={handleCloseLoginError}
@@ -918,4 +527,99 @@ const renderSignup = () => (
   );
 };
 
-export default LoginSignin;
+export const UserSignupPage = ({ onClose, onSwitchToLogin }) => {
+  const navigate = useNavigate();
+  const {
+    theme,
+    heroGradient,
+    signupFormState,
+    handleSignupChange,
+    handleSignupSubmit,
+    agreedToTerms,
+    setAgreedToTerms,
+    showPasswordSignup,
+    toggleShowPasswordSignup,
+    signupErrorMessage
+  } = useAuthFormLogic({ onClose });
+
+  const handleBackHome = () => {
+    onClose?.();
+    navigate('/welcome');
+  };
+
+  const handleSwitchToLogin = () => {
+    onSwitchToLogin?.();
+    navigate('/user/login');
+  };
+
+  return (
+    <SignupForm
+      heroGradient={heroGradient}
+      theme={theme}
+      signupFormState={signupFormState}
+      handleSignupChange={handleSignupChange}
+      handleSignupSubmit={handleSignupSubmit}
+      agreedToTerms={agreedToTerms}
+      setAgreedToTerms={setAgreedToTerms}
+      showPasswordSignup={showPasswordSignup}
+      toggleShowPasswordSignup={toggleShowPasswordSignup}
+      signupErrorMessage={signupErrorMessage}
+      onSwitchToLogin={handleSwitchToLogin}
+      onBackHome={handleBackHome}
+    />
+  );
+};
+
+const LoginSignin = () => {
+  const { data: trendingSongsV2 } = useQuery(TRENDING_SONGS_PUBLICV2, {
+    variables: { limit: HORIZONTAL_LIMIT },
+    pollInterval: 30000,
+    notifyOnNetworkStatusChange: true,
+  });
+  const processedTrendingSongs = trendingSongsV2?.trendingSongsV2 || [];
+  const { songsWithArtwork } = useSongsWithPresignedUrls(processedTrendingSongs);
+
+  const { data: newUploadsData } = useQuery(NEW_UPLOADS_PUBLIC, {
+    variables: { limit: HORIZONTAL_LIMIT },
+    pollInterval: 30000,
+    notifyOnNetworkStatusChange: true,
+  });
+  const { songsWithArtwork: newUploadsWithArtwork } = useSongsWithPresignedUrls(newUploadsData?.newUploads);
+
+  const { data: suggestedData } = useQuery(SUGGESTED_SONGS_PUBLIC, {
+    variables: { limit: HORIZONTAL_LIMIT },
+    pollInterval: 30000,
+    notifyOnNetworkStatusChange: true,
+  });
+  const { songsWithArtwork: suggestedSongsWithArtwork } = useSongsWithPresignedUrls(suggestedData?.suggestedSongs);
+
+  const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
+    fetchPolicy: 'cache-first',
+    nextFetchPolicy: 'cache-first',
+  });
+  const songOfMonthSource = useMemo(
+    () => (songOfMonthData?.songOfMonth ? [songOfMonthData.songOfMonth] : []),
+    [songOfMonthData?.songOfMonth]
+  );
+  const { songsWithArtwork: songOfMonthWithArtwork } = useSongsWithPresignedUrls(songOfMonthSource);
+
+  const { data: radioStationsData } = useQuery(RADIO_STATIONS_PUBLIC, {
+    fetchPolicy: 'cache-first',
+    nextFetchPolicy: 'cache-first',
+  });
+
+  return (
+    <>
+      <MainMenu
+        trendingSongs={processedTrendingSongs}
+        songsWithArtwork={songsWithArtwork}
+        newUploadsWithArtwork={newUploadsWithArtwork}
+        suggestedSongsWithArtwork={suggestedSongsWithArtwork}
+        songOfMonthWithArtwork={songOfMonthWithArtwork}
+        radioStations={radioStationsData?.radioStations || []}
+      />
+    </>
+  );
+};
+
+export { LoginSignin };

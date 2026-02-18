@@ -13,7 +13,7 @@ const ProfileDropdown = () => {
 
   const handleLogout = () => {
     UserAuth.logout();
-    navigate('/loginSignin');
+    navigate('/welcome');
   };
 
   const toggleProfile = () => {

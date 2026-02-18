@@ -56,7 +56,7 @@ export default function Feed() {
           </Typography>
           <Button
             variant="contained"
-            onClick={() => navigate("/loginSignin")}
+            onClick={() => navigate("/welcome")}
             sx={{
               textTransform: "none",
               fontWeight: 700,

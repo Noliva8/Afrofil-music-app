@@ -42,7 +42,7 @@ const GuestBottomNav = () => {
         value={current}
         showLabels
         onChange={(_, value) => {
-          if (value === "music") navigate("/loginSignin");
+            if (value === "music") navigate("/welcome");
           if (value === "collections") {
             navigate("/collection");
           }

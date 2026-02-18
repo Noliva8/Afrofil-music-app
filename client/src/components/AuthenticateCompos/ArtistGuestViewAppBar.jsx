@@ -131,7 +131,7 @@ const isArtistLoggedIn = ArtistAuth.isArtist();
   const switchToUserAccount = () => {
     if (isArtistLoggedIn) {
         ArtistAuth.logout();
-      navigate('/loginSignin');
+      navigate('/welcome');
       handleMenuClose();
       
     }

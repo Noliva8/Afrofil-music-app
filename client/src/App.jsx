@@ -137,7 +137,15 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-const LazyLoginSignin = lazy(() => import("./pages/LoginSignin"));
+const LazyLoginSignin = lazy(() =>
+  import("./pages/LoginSignin").then((module) => ({ default: module.LoginSignin }))
+);
+const LazyUserLoginPage = lazy(() =>
+  import("./pages/LoginSignin").then((module) => ({ default: module.UserLoginPage }))
+);
+const LazyUserSignupPage = lazy(() =>
+  import("./pages/LoginSignin").then((module) => ({ default: module.UserSignupPage }))
+);
 
 
 // function AppBody({ onCreatePlaylist }) {
@@ -344,7 +352,7 @@ function AppBody({ onCreatePlaylist }) {
     }, [pathname, tabMetaFromPath]);
 
     useEffect(() => {
-      if (!pathname.startsWith('/loginSignin')) return;
+      if (!pathname.startsWith('/welcome')) return;
       const params = new URLSearchParams(location.search);
       if (params.get('login') === '1' && formDisplay !== 'login') {
         setFormDisplay('login');
@@ -377,7 +385,9 @@ function AppBody({ onCreatePlaylist }) {
       pathname.startsWith('/artist/login') ||
       pathname.startsWith('/artist/verification') ||
       pathname.startsWith('/artist/plan') ||
-      pathname.startsWith('/terms');
+      pathname.startsWith('/terms') ||
+      pathname.startsWith('/user/login') ||
+      pathname.startsWith('/user/signup');
 
     const shouldHideGuestChrome =
       pathname.startsWith('/terms') || isPublicArtistPage;
@@ -663,21 +673,15 @@ function AppUI({
 
           <Suspense fallback={null}>
             {formDisplay === 'login' && (
-              <LazyLoginSignin
-                display="login"
-                onSwitchToLogin={() => setFormDisplay('login')}
+              <LazyUserLoginPage
                 onSwitchToSignup={() => setFormDisplay('signup')}
                 onClose={() => setFormDisplay('')}
-                isUserLoggedIn={isUserLoggedIn}
               />
             )}
             {formDisplay === 'signup' && (
-              <LazyLoginSignin
-                display="signup"
+              <LazyUserSignupPage
                 onSwitchToLogin={() => setFormDisplay('login')}
-                onSwitchToSignup={() => setFormDisplay('signup')}
                 onClose={() => setFormDisplay('')}
-                isUserLoggedIn={isUserLoggedIn}
               />
             )}
           </Suspense>

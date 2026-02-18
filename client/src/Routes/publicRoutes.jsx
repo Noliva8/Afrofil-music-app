@@ -5,7 +5,18 @@ const LazyPasswordReset = lazy(() => import('../pages/PasswordReset.jsx'));
 const LazyCollectionLanding = lazy(() => import('../pages/CollectionLanding.jsx'));
 const LazyExplore = lazy(() => import('../pages/Explore'));
 const LazyExploreDetail = lazy(() => import('../pages/ExploreDetail.jsx'));
-const LazyLoginSignin = lazy(() => import('../pages/LoginSignin'));
+const LazyLoginSignin = lazy(() =>
+  import('../pages/LoginSignin').then((module) => ({ default: module.LoginSignin }))
+);
+const LazyLoginOrSignupRedirect = lazy(() =>
+  import('../pages/LoginOrSignupRedirect').then((module) => ({ default: module.default }))
+);
+const LazyUserLoginPage = lazy(() =>
+  import('../pages/LoginSignin').then((module) => ({ default: module.UserLoginPage }))
+);
+const LazyUserSignupPage = lazy(() =>
+  import('../pages/LoginSignin').then((module) => ({ default: module.UserSignupPage }))
+);
 const LazyTerms = lazy(() => import('../pages/Terms.jsx'));
 const LazySupport = lazy(() =>
   import('../pages/Support.jsx').then((mod) => ({ default: mod.Support }))
@@ -93,10 +104,26 @@ export const PublicRoutes = [
     ),
   },
   {
-    path: 'loginSignin',
+    path: 'welcome',
     element: (
       <Suspense fallback={<div />}>
         <LazyLoginSignin />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'user/login',
+    element: (
+      <Suspense fallback={<div />}>
+        <LazyUserLoginPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: 'user/signup',
+    element: (
+      <Suspense fallback={<div />}>
+        <LazyUserSignupPage />
       </Suspense>
     ),
   },

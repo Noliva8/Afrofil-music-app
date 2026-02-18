@@ -69,7 +69,7 @@ const VerifyEmail = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/loginSignin', { replace: true });
+      navigate('/welcome', { replace: true });
     }, 4200);
     return () => clearTimeout(timer);
   }, [navigate]);
@@ -98,7 +98,7 @@ const VerifyEmail = () => {
       </Typography>
       <Button
         variant="contained"
-        onClick={() => navigate('/loginSignin', { replace: true })}
+        onClick={() => navigate('/welcome', { replace: true })}
         fullWidth
         sx={{
           maxWidth: 320,

@@ -7,7 +7,7 @@ import { useSearchParams, Navigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ element }) => {
   const isLoggedIn = UserAuth.loggedIn();
-  return isLoggedIn ? element : <Navigate to="/loginSignin" replace />;
+  return isLoggedIn ? element : <Navigate to="/welcome" replace />;
 };
 
 

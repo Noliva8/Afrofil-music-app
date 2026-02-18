@@ -84,7 +84,7 @@ export default function PasswordReset() {
         message: data?.resetPassword?.message || "Password reset successfully! Redirecting to login..."
       });
       if (success) {
-        setTimeout(() => navigate("/loginSignin?login=1"), 2000);
+        setTimeout(() => navigate("/welcome?login=1"), 2000);
       }
     } catch (error) {
       setStatus({
@@ -95,7 +95,7 @@ export default function PasswordReset() {
   };
 
   const handleBackToLogin = () => {
-    navigate("/loginSignin?login=1");
+    navigate("/welcome?login=1");
   };
 
   return (
