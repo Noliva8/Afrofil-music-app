@@ -1,19 +1,68 @@
+// import { useRouteError } from "react-router-dom";
+
+// export default function ErrorPage() {
+//   const error = useRouteError();
+//   console.error(error);
+
+//   return (
+//     <div id="error-page">
+//       <h1>Oops!</h1>
+//       <p>Sorry, an unexpected error has occurred.</p>
+//       <p>
+//         <i>{error.statusText || error.message}</i>
+//       </p>
+//     </div>
+//   );
+// }
+
+
+
+// ErrorPage.jsx
 import { useRouteError } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function ErrorPage() {
+
+  
   const error = useRouteError();
-  console.error(error);
+
+  useEffect(() => {
+    if (error) {
+      console.error("Error caught by ErrorPage:", error);
+    }
+  }, [error]);
+
+  if (!error) {
+    return (
+      <div id="error-page">
+        <h1>Oops!</h1>
+        <p>Sorry, an unexpected error has occurred.</p>
+        <p>
+          <i>Loading error details...</i>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div id="error-page">
       <h1>Oops!</h1>
       <p>Sorry, an unexpected error has occurred.</p>
       <p>
-        <i>{error.statusText || error.message}</i>
+        <i>{error.statusText || error.message || "Unknown error"}</i>
       </p>
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 // import { useRouteError, isRouteErrorResponse } from "react-router-dom";

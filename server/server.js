@@ -55,7 +55,8 @@ import monitorSubscriptions from "./utils/subscriptionMonitor.js";
 import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded,   handlePaymentIntentFailed} from "./routes/webhook.js";
 import geoip from 'geoip-lite';
 import aiMixRoutes from "./routes/aiMix.js";
-
+import { signArtistToken } from "./utils/artist_auth.js";
+import { USER_TYPES } from "./utils/AuthSystem/constant/systemRoles.js";
 
 
 import { resolve } from "dns";
@@ -248,9 +249,17 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://localhost:3003',
   'http://localhost:5173',
+
+  // ✅ add these
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3003',
+  'http://127.0.0.1:5173',
+
   'https://flolup.com',
   'https://www.flolup.com',
 ];
+
 
 app.use(cors({
   origin: allowedOrigins,
@@ -665,29 +674,126 @@ const startApolloServer = async () => {
     // Start background monitoring
     monitorSubscriptions();
 
+
+
     // Email verification route
-    app.get("/confirmation/:artist_id_token", async (req, res) => {
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      try {
-        const decoded = jwt.verify(
-          req.params.artist_id_token,
-          process.env.JWT_SECRET_ARTIST
-        );
-        console.log(decoded);
-        if (!decoded || !decoded.data || !decoded.data._id) {
-          throw new Error("Invalid token structure");
-        }
-        const { _id } = decoded.data;
-        await Artist.findByIdAndUpdate(_id, { confirmed: true });
-        return res.redirect(`${frontendUrl}/artist/login`);
-      } catch (e) {
-        console.log("Error confirming email:", e);
-        if (e?.name === "TokenExpiredError") {
-          return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
-        }
-        return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
-      }
-    });
+    // app.get("/confirmation/:artist_id_token", async (req, res) => {
+    //   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    //   try {
+    //     const decoded = jwt.verify(
+    //       req.params.artist_id_token,
+    //       process.env.JWT_SECRET_ARTIST
+    //     );
+    //     console.log(decoded);
+    //     if (!decoded || !decoded.data || !decoded.data._id) {
+    //       throw new Error("Invalid token structure");
+    //     }
+    //     const { _id } = decoded.data;
+    //     await Artist.findByIdAndUpdate(_id, { confirmed: true });
+    //     return res.redirect(`${frontendUrl}/artist/login`);
+    //   } catch (e) {
+    //     console.log("Error confirming email:", e);
+    //     if (e?.name === "TokenExpiredError") {
+    //       return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
+    //     }
+    //     return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
+    //   }
+    // });
+
+    
+
+app.get("/confirmation/:artist_id_token", async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  
+  console.log("========== EMAIL VERIFICATION ENDPOINT HIT ==========");
+  
+  try {
+    const decoded = jwt.verify(
+      req.params.artist_id_token,
+      process.env.JWT_SECRET_ARTIST
+    );
+    
+    const artistId = decoded._id || decoded.id || decoded.userId || decoded.data?._id || decoded.artistId;
+    
+    if (!artistId) {
+      return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
+    }
+    
+    // Update the artist
+    await Artist.findByIdAndUpdate(
+      artistId,
+      { confirmed: true },
+      { new: true }
+    );
+    
+    console.log("✅ Artist verified successfully!");
+    
+    // SIMPLE: Just redirect to login - no message needed
+    return res.redirect(`${frontendUrl}/artist/login`);
+    
+  } catch (e) {
+    console.log("Verification error:", e);
+    
+    if (e?.name === "TokenExpiredError") {
+      return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
+    }
+    return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
+  }
+});
+
+
+
+
+app.get("/confirmation/:artist_id_token", async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  
+  console.log("========== EMAIL VERIFICATION ENDPOINT HIT ==========");
+  
+  try {
+    const decoded = jwt.verify(
+      req.params.artist_id_token,
+      process.env.JWT_SECRET_ARTIST
+    );
+    
+    const artistId = decoded._id || decoded.id || decoded.userId || decoded.data?._id || decoded.artistId;
+    
+    if (!artistId) {
+      return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
+    }
+    
+    // Update the artist
+    const updatedArtist = await Artist.findByIdAndUpdate(
+      artistId,
+      { confirmed: true },
+      { new: true }
+    );
+    
+    console.log("✅ Artist verified successfully!");
+    
+    // Generate a fresh token with updated data
+    const authToken = jwt.sign(
+      { 
+        _id: updatedArtist._id, 
+        email: updatedArtist.email,
+        confirmed: updatedArtist.confirmed,
+        role: 'artist' 
+      },
+      process.env.JWT_SECRET_ARTIST,
+      { expiresIn: '7d' }
+    );
+    
+    // Redirect to plan page with new token to refresh localStorage
+    return res.redirect(`${frontendUrl}/artist/plan?token=${authToken}`);
+    
+  } catch (e) {
+    console.log("Verification error:", e);
+    
+    if (e?.name === "TokenExpiredError") {
+      return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
+    }
+    return res.redirect(`${frontendUrl}/artist/verification?status=invalid`);
+  }
+});
 
     // Plan verification and confirmation status route
     app.post("/api/confirmationStatusAndPlanStatus", async (req, res) => {

@@ -3,7 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import App from './App.jsx';
-import ErrorPage from './pages/ErrorPage';
+import ErrorPage from './pages/ErrorPage.jsx';
 import { afrofeelTheme } from './pages/CSS/themeSettins.js';
 import { PublicRoutes } from './Routes/publicRoutes.jsx';
 import { UserRoutes } from './Routes/userRoute.jsx';
@@ -29,6 +29,9 @@ const router = createBrowserRouter([
 ]);
 
 renderApp(router);
+
+
+
 
 const removeSplash = () => {
   const splash = document.getElementById('preload-splash');

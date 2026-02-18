@@ -73,70 +73,148 @@ const PlanSelection = () => {
    const client = useApolloClient();
 
   // Handle Plan Selection
-  const handlePlanSelection = async (plan) => {
-    setLoading(true); // Show loading spinner or disable buttons during plan selection
-    const selectedPlan = plans.find((entry) => entry.title === plan);
-    if (selectedPlan?.locked) {
-      setLoading(false);
-      return;
-    }
+//   const handlePlanSelection = async (plan) => {
+//     setLoading(true); // Show loading spinner or disable buttons during plan selection
+//     const selectedPlan = plans.find((entry) => entry.title === plan);
+//     if (selectedPlan?.locked) {
+//       setLoading(false);
+//       return;
+//     }
 
-    const profile = ArtistAuth.getProfile();
-    if (!profile || !profile.data._id) {
-      alert('Artist is not logged in or artist ID is missing.');
-      setLoading(false); // Reset loading state on failure
-      return;
-    }
+//     const profile = ArtistAuth.getProfile();
+//     if (!profile || !profile.data._id) {
+//       alert('Artist is not logged in or artist ID is missing.');
+//       setLoading(false); // Reset loading state on failure
+//       return;
+//     }
 
-    const artistId = profile.data._id;
+//     const artistId = profile.data._id;
 
 
-try {
-  // Check if the artist already has an album by using client.query
-  const { data: albumData } = await client.query({
-    query: GET_ALBUM,
-  });
+// try {
+//   // Check if the artist already has an album by using client.query
+//   const { data: albumData } = await client.query({
+//     query: GET_ALBUM,
+//   });
 
-  const existingAlbums = albumData?.albumOfArtist || [];
-  if (existingAlbums.length === 0) {
-    // If no album is found, create a default album
-    await createAlbum({
-      variables: {
-        title: "Single",
-      }
-    });
-    console.log('Default album created');
+//   const existingAlbums = albumData?.albumOfArtist || [];
+//   if (existingAlbums.length === 0) {
+//     // If no album is found, create a default album
+//     await createAlbum({
+//       variables: {
+//         title: "Single",
+//       }
+//     });
+//     console.log('Default album created');
+//   }
+// } catch (error) {
+//   console.warn('Album check/create is still running, skipping:', error.message);
+// }
+
+
+
+// try {
+//   const { data } = await selectPlan({
+//     variables: { artistId, plan },
+//   });
+
+//       // console.log(data);
+
+//       // Plan Selection Navigation
+//       if (data.selectPlan.plan === "Free Plan") {
+//         navigate('/artist/studio/home');
+//       } else if (data.selectPlan.plan === "Premium Plan") {
+//         navigate('/artist/dashboard/premium');
+//       } else if (data.selectPlan.plan === "Pro Plan") {
+//         navigate('/artist/dashboard/ProPlan');
+//       } else {
+//         alert('Failed to select plan. Please try again.');
+//       }
+//     } catch (error) {
+//       console.error('Error selecting plan:', error.message);
+//       alert('An error occurred while selecting the plan. Please try again.');
+//     } finally {
+//       setLoading(false); // Reset loading state after mutation completes
+//     }
+//   };
+
+const handlePlanSelection = async (plan) => {
+  setLoading(true);
+  
+  // Log the profile before starting
+  console.log('📥 [STEP 1] Initial profile from ArtistAuth:', ArtistAuth.getProfile()?.data);
+  
+  const profile = ArtistAuth.getProfile();
+  if (!profile || !profile.data._id) {
+    console.error('❌ No profile or artist ID found');
+    alert('Artist is not logged in or artist ID is missing.');
+    setLoading(false);
+    return;
   }
-} catch (error) {
-  console.warn('Album check/create is still running, skipping:', error.message);
-}
+  
+  const artistId = profile.data._id;
+  console.log('📥 [STEP 2] Artist ID:', artistId);
+  console.log('📥 [STEP 3] Selected plan:', plan);
+  
+  try {
+    console.log('📤 [STEP 4] Sending mutation with variables:', { artistId, plan });
+    
+    const { data } = await selectPlan({
+      variables: { artistId, plan },
+    });
 
+    console.log('📦 [STEP 5] Raw mutation response:', data);
+    console.log('📦 [STEP 5a] selectPlan data:', data.selectPlan);
+    console.log('📦 [STEP 5b] Original selectedPlan value:', data.selectPlan?.selectedPlan);
+    console.log('📦 [STEP 5c] All fields received:', Object.keys(data.selectPlan));
 
+    // Manually ensure selectedPlan is true
+    const profileData = {
+      ...data.selectPlan,
+      selectedPlan: true  // Force it to true since we know it succeeded
+    };
+    
+    console.log('📦 [STEP 6] Profile data to store:', profileData);
 
-try {
-  const { data } = await selectPlan({
-    variables: { artistId, plan },
-  });
+    // Store in localStorage
+    localStorage.setItem('artistProfile', JSON.stringify({ 
+      data: profileData 
+    }));
+    
+    console.log('📦 [STEP 7] localStorage after setItem:');
+    
+    // Read back from localStorage to verify
+    const storedRaw = localStorage.getItem('artistProfile');
+    console.log('📦 [STEP 7a] Raw localStorage value:', storedRaw);
+    
+    const storedParsed = JSON.parse(storedRaw);
+    console.log('📦 [STEP 7b] Parsed localStorage value:', storedParsed);
+    console.log('📦 [STEP 7c] selectedPlan in localStorage:', storedParsed?.data?.selectedPlan);
+    
+    // Check what ArtistAuth returns now
+    console.log('📦 [STEP 8] ArtistAuth.getProfile() after storage:', ArtistAuth.getProfile()?.data);
 
-      // console.log(data);
-
-      // Plan Selection Navigation
-      if (data.selectPlan.plan === "Free Plan") {
-        navigate('/artist/studio/home');
-      } else if (data.selectPlan.plan === "Premium Plan") {
-        navigate('/artist/dashboard/premium');
-      } else if (data.selectPlan.plan === "Pro Plan") {
-        navigate('/artist/dashboard/ProPlan');
-      } else {
-        alert('Failed to select plan. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error selecting plan:', error.message);
-      alert('An error occurred while selecting the plan. Please try again.');
-    } finally {
-      setLoading(false); // Reset loading state after mutation completes
+    // Navigate
+    console.log('📦 [STEP 9] Navigating to:', 
+      data.selectPlan.plan === "Free Plan" ? '/artist/studio/home' :
+      data.selectPlan.plan === "Premium Plan" ? '/artist/dashboard/premium' :
+      data.selectPlan.plan === "Pro Plan" ? '/artist/dashboard/ProPlan' : 'unknown'
+    );
+    
+    if (data.selectPlan.plan === "Free Plan") {
+      navigate('/artist/studio/home');
+    } else if (data.selectPlan.plan === "Premium Plan") {
+      navigate('/artist/dashboard/premium');
+    } else if (data.selectPlan.plan === "Pro Plan") {
+      navigate('/artist/dashboard/ProPlan');
     }
-  };
+    
+  } catch (error) {
+    console.error('❌ [ERROR] Error selecting plan:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // // Toggle logout display
   // function handleLogoutDisplay() {

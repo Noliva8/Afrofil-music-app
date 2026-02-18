@@ -1,7 +1,9 @@
-import { Navigate } from 'react-router-dom';
+
 import UserAuth from '../../utils/auth.js';
 import ArtistAuth from '../../utils/artist_auth.js';
 import { element } from 'prop-types';
+import { useEffect } from 'react';
+import { useSearchParams, Navigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ element }) => {
   const isLoggedIn = UserAuth.loggedIn();
@@ -41,10 +43,50 @@ export const VerifyGate = ({ element }) => {
   return element;
 }
 
+
+
+
+
+
+
+
+
+// export const PlanGate = ({ element }) => {
+//   const isArtistLoggedIn = ArtistAuth.isArtist();
+//   const profile = ArtistAuth.getProfile();
+//   const isVerified = profile?.data?.confirmed;
+//   const hasPlan = Boolean(profile?.data?.selectedPlan);
+
+//   if (!isArtistLoggedIn) {
+//     console.warn('Redirecting to /artist/login.');
+//     return <Navigate to="/artist/login" replace />;
+//   }
+
+//   if (!isVerified) {
+//     console.warn('Redirecting to /artist/verification.');
+//     return <Navigate to="/artist/verification" replace />;
+//   }
+
+//   if (hasPlan) {
+//     console.warn('Redirecting to /artist/studio/content.');
+//     return <Navigate to="/artist/studio/content" replace />;
+//   }
+
+//   return element;
+// }
+
+const getStoredArtistConfirmed = () => {
+  try {
+    return localStorage.getItem('artist_confirmed') === 'true';
+  } catch {
+    return false;
+  }
+};
+
 export const PlanGate = ({ element }) => {
   const isArtistLoggedIn = ArtistAuth.isArtist();
   const profile = ArtistAuth.getProfile();
-  const isVerified = profile?.data?.confirmed;
+  const isVerified = profile?.data?.confirmed || getStoredArtistConfirmed();
   const hasPlan = Boolean(profile?.data?.selectedPlan);
 
   if (!isArtistLoggedIn) {
@@ -58,18 +100,130 @@ export const PlanGate = ({ element }) => {
   }
 
   if (hasPlan) {
-    console.warn('Redirecting to /artist/studio/content.');
-    return <Navigate to="/artist/studio/content" replace />;
+    console.warn('Redirecting to /artist/studio/home.');
+    return <Navigate to="/artist/studio/home" replace />;
   }
 
   return element;
-}
+};
+
+
+
+
+
+// export const PlanGate = ({ element }) => {
+//   const [searchParams] = useSearchParams();
+//   const urlToken = searchParams.get('token');
+  
+//   useEffect(() => {
+//     if (urlToken) {
+//       console.log("Found token in URL, storing it...");
+//       // Store the new token with updated confirmation status
+//       localStorage.setItem('artistToken', urlToken);
+//       // Clear old profile so it gets fetched fresh
+//       localStorage.removeItem('artistProfile');
+//       // Remove token from URL without reloading
+//       window.history.replaceState({}, '', '/artist/plan');
+//     }
+//   }, [urlToken]);
+
+//   const isArtistLoggedIn = ArtistAuth.isArtist();
+//   const profile = ArtistAuth.getProfile();
+//   const isVerified = profile?.data?.confirmed;
+//   const hasPlan = Boolean(profile?.data?.selectedPlan);
+
+//   console.log("PlanGate check:", {
+//     isArtistLoggedIn,
+//     isVerified,
+//     hasPlan,
+//     hasUrlToken: !!urlToken,
+//     profile: profile?.data
+//   });
+
+//   if (!isArtistLoggedIn && !urlToken) {
+//     console.warn('No token found, redirecting to login');
+//     return <Navigate to="/artist/login" replace />;
+//   }
+
+//   if (isVerified === false) {
+//     console.warn('Email not verified, redirecting to verification');
+//     return <Navigate to="/artist/verification" replace />;
+//   }
+
+//   if (hasPlan) {
+//     console.warn('User has plan, redirecting to studio');
+//     return <Navigate to="/artist/studio/content" replace />;
+//   }
+
+//   console.log('Showing plan selection page');
+//   return element;
+// };
+
+
+
+
+
+
+
+// export const StudioGate = ({ element }) => {
+//   const isArtistLoggedIn = ArtistAuth.isArtist();
+//   const profile = ArtistAuth.getProfile();
+//   const isVerified = profile?.data?.confirmed;
+//   const hasPlan = Boolean(profile?.data?.selectedPlan);
+
+//   if (!isArtistLoggedIn) {
+//     console.warn('Redirecting to /artist/login.');
+//     return <Navigate to="/artist/login" replace />;
+//   }
+
+//   if (!isVerified) {
+//     console.warn('Redirecting to /artist/verification.');
+//     return <Navigate to="/artist/verification" replace />;
+//   }
+
+//   if (!hasPlan) {
+//     console.warn('Redirecting to /artist/plan.');
+//     return <Navigate to="/artist/plan" replace />;
+//   }
+
+//   return element;
+// };
+
 
 export const StudioGate = ({ element }) => {
   const isArtistLoggedIn = ArtistAuth.isArtist();
   const profile = ArtistAuth.getProfile();
-  const isVerified = profile?.data?.confirmed;
-  const hasPlan = Boolean(profile?.data?.selectedPlan);
+  const isVerified = profile?.data?.confirmed || getStoredArtistConfirmed();
+
+  // Check both sources for plan status
+  const profileHasPlan = Boolean(profile?.data?.selectedPlan);
+  
+  // Check localStorage directly for the temporary plan data
+  let tempHasPlan = false;
+  try {
+    const tempProfile = localStorage.getItem('artistProfile');
+    if (tempProfile) {
+      const parsed = JSON.parse(tempProfile);
+      tempHasPlan = Boolean(parsed?.data?.selectedPlan);
+    }
+  } catch (error) {
+    console.warn('Error checking temp profile:', error);
+  }
+
+  // hasPlan is true if EITHER source has it
+  const hasPlan = profileHasPlan || tempHasPlan;
+
+  // Add detailed logging
+  console.log('========== STUDIO GATE ==========');
+  console.log('Time:', new Date().toISOString());
+  console.log('isArtistLoggedIn:', isArtistLoggedIn);
+  console.log('isVerified:', isVerified);
+  console.log('profileHasPlan:', profileHasPlan);
+  console.log('tempHasPlan:', tempHasPlan);
+  console.log('hasPlan (combined):', hasPlan);
+  console.log('Profile data:', profile?.data);
+  console.log('Raw selectedPlan value:', profile?.data?.selectedPlan);
+  console.log('================================');
 
   if (!isArtistLoggedIn) {
     console.warn('Redirecting to /artist/login.');
@@ -86,5 +240,6 @@ export const StudioGate = ({ element }) => {
     return <Navigate to="/artist/plan" replace />;
   }
 
+  console.log('✅ StudioGate passed, rendering element');
   return element;
 };

@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import MuiCard from '@mui/material/Card';
 import { styled } from '@mui/material/styles';
+import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 // Icons pulled from brand set if needed later; kept minimal for now.
 import ArtistAuth from '../utils/artist_auth';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +28,9 @@ const Card = styled(MuiCard)(({ theme }) => ({
   alignSelf: 'center',
   width: '100%',
   padding: theme.spacing(4),
+  maxHeight: 'calc(100vh - 32px)',
+  overflowY: 'auto',
+  WebkitOverflowScrolling: 'touch',
   gap: theme.spacing(2),
   margin: 'auto',
   [theme.breakpoints.up('sm')]: {
@@ -50,6 +54,8 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
     padding: theme.spacing(4),
   },
   position: 'relative',
+  overflowY: 'auto',
+  WebkitOverflowScrolling: 'touch',
   backgroundColor: theme.palette.background.default,
   '&::before': {
     content: '""',
@@ -303,6 +309,10 @@ const handleFormSubmit = async (event) => {
       // Save the token using your artist_auth service
       ArtistAuth.login(artistToken);
 
+      // 🧹 CLEAN UP TEMPORARY CACHE
+      console.log('🧹 Cleaning up temporary plan data after login');
+      localStorage.removeItem('artistProfile');
+      
       // Fetch the profile to check the confirmed status
       const profile = ArtistAuth.getProfile();
 
@@ -350,16 +360,23 @@ const handleFormSubmit = async (event) => {
 
 
 
-
   return (
     <ArtistLoginContainer direction="column" justifyContent="space-between">
       <Card variant="outlined">
+        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start' }} />
         <Typography
           component="h1"
           variant="h4"
           sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
         >
           Sign in
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontFamily: (theme) => theme.typography.fontFamily, mb: 1 }}
+        >
+          For creators only—unlock your studio and artist tools.
         </Typography>
 
         <Box
@@ -414,6 +431,18 @@ const handleFormSubmit = async (event) => {
           >
             Sign in
           </Button>
+          <Button
+            type="button"
+            variant="text"
+            fullWidth
+            sx={{
+              textTransform: 'none',
+              justifyContent: 'flex-start',
+              color: (theme) => theme.palette.primary.main,
+            }}
+          >
+            Forgot password?
+          </Button>
 
           {/* Error Message */}
           {loginErrorMessage && (
@@ -437,13 +466,6 @@ const handleFormSubmit = async (event) => {
             onClick={() => alert('Sign in with Google')}
           >
             Sign in with Google
-          </Button>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={() => alert('Sign in with Facebook')}
-          >
-            Sign in with Facebook
           </Button>
 
           

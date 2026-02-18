@@ -24,7 +24,7 @@ import ListItemText from '@mui/material/ListItemText';
 
 
 const TERMS_META = {
-  appName: "Afrofeel",
+  appName: "Flolup",
   operator: "D Record Media LLC",
   registeredState: "Arizona, United States",
   lastUpdated: "February 4, 2026",
@@ -116,7 +116,7 @@ const TERMS_SECTIONS = [
   },
   {
     id: "service-options",
-    title: "The Afrofeel Service Provided by Us",
+    title: "The Flolup Service Provided by Us",
     body: (
       <Section>
         <Typography component="p">
@@ -259,7 +259,7 @@ const TERMS_SECTIONS = [
           We collect and use data as described in our Privacy Policy, including approximate location data to personalize ads and recommendations. We do not sell personal data. We may share aggregated, de-identified analytics.
         </Typography>
         <Typography component="p">
-          For full details (categories, purposes, retention, and user rights), see the Afrofeel Privacy Policy.
+          For full details (categories, purposes, retention, and user rights), see the Flolup Privacy Policy.
         </Typography>
       </Section>
     ),
@@ -491,9 +491,9 @@ export default function Terms() {
 
             <Divider sx={{ my: 3 }} />
 
-            <Alert severity="info">
+            {/* <Alert severity="info">
               This page is a starting template modeled after common streaming-platform structures. Before publishing, have counsel confirm arbitration choice, billing language, DMCA process, and AZ/U.S. consumer law compliance.
-            </Alert>
+            </Alert> */}
           </Stack>
         </Paper>
       </Container>

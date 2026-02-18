@@ -160,7 +160,7 @@ export default function ArtistRegister() {
       justifyContent="space-between"
     >
       <Card variant="outlined">
-        <SitemarkIcon />
+        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start' }} />
         <Typography
           component="h1"
           variant="h4"
@@ -168,6 +168,13 @@ export default function ArtistRegister() {
           
         >
           Sign up
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontFamily: (theme) => theme.typography.fontFamily, mb: 1 }}
+        >
+          For creators only—secure your artist dashboard and releases.
         </Typography>
 
         <Box

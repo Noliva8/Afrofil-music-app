@@ -1,4 +1,3 @@
-import logo from '../images/logo.png';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation} from "@apollo/client";
@@ -15,6 +14,7 @@ import MainMenu from '../components/MainMenu';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
 import { useTheme, alpha } from '@mui/material/styles';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 import { HORIZONTAL_LIMIT } from '../CommonSettings/songsRowNumberControl';
 
 import { TRENDING_SONGS_PUBLICV2 } from '../utils/queries';
@@ -328,17 +328,7 @@ const renderLogin = () => (
           fontFamily: theme.typography.fontFamily,
         }}
       >
-        <Box 
-          component="img" 
-          src={logo} 
-          alt="Logo" 
-          className="logo"
-          sx={{
-            height: 60,
-            mb: 2,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-          }}
-        />
+        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start', margin: '0 auto' }} />
         <Typography
           component="h2"
           variant="h4"
@@ -493,6 +483,35 @@ const renderLogin = () => (
           Forgot password?
         </button>
 
+      <button
+        onClick={() => alert('Sign in with Facebook')}
+        style={{
+          width: '100%',
+          padding: '12px',
+          borderRadius: '8px',
+          background: '#1877F2',
+          color: '#fff',
+          border: 'none',
+          fontSize: '16px',
+          fontWeight: '500',
+          fontFamily: theme.typography.fontFamily,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          marginBottom: '25px',
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <img 
+          src="https://upload.wikimedia.org/wikipedia/commons/0/05/Facebook_Logo_%282019%29.png"
+          alt="Facebook logo"
+          style={{ width: '20px', height: '20px' }}
+        />
+        Continue with Facebook
+      </button>
+
         {loginErrorMessage && (
           <p className="error-message" style={{
             color: '#FF4D4D',
@@ -621,17 +640,7 @@ const renderSignup = () => (
           fontFamily: theme.typography.fontFamily,
         }}
       >
-        <Box 
-          component="img" 
-          src={logo} 
-          alt="Logo" 
-          className="logo"
-          sx={{
-            height: 60,
-            mb: 2,
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-          }} 
-        />
+        <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start', margin: '0 auto' }} />
         <Typography
           component="h2"
           variant="h4"

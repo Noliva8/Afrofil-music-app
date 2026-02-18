@@ -140,155 +140,324 @@ const client = new ApolloClient({
 const LazyLoginSignin = lazy(() => import("./pages/LoginSignin"));
 
 
-function AppBody({ onCreatePlaylist }) {
-  const theme = useTheme();
-  const [isHydrated, setIsHydrated] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authAction, setAuthAction] = useState('login');
-  const [authIntent, setAuthIntent] = useState(null);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const pathname = location.pathname;
+// function AppBody({ onCreatePlaylist }) {
+//   const theme = useTheme();
+//   const [isHydrated, setIsHydrated] = useState(false);
+//   const [authModalOpen, setAuthModalOpen] = useState(false);
+//   const [authAction, setAuthAction] = useState('login');
+//   const [authIntent, setAuthIntent] = useState(null);
+//   const navigate = useNavigate();
+//   const location = useLocation();
+//   const pathname = location.pathname;
 
-  const [isPlayerActive, setIsPlayerActive] = useState(false);
-  const [playerHeight, setPlayerHeight] = useState(0);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [formDisplay, setFormDisplay] = useState('');
-  const [mobileTop, setMobileTop] = useState({ title: 'Home', showSearch: false });
-  const [adNoticeOpen, setAdNoticeOpen] = useState(false);
-  const [adNoticeMessage, setAdNoticeMessage] = useState('Playback will resume after the advertisement finishes.');
+//   const [isPlayerActive, setIsPlayerActive] = useState(false);
+//   const [playerHeight, setPlayerHeight] = useState(0);
+//   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+//   const [formDisplay, setFormDisplay] = useState('');
+//   const [mobileTop, setMobileTop] = useState({ title: 'Home', showSearch: false });
+//   const [adNoticeOpen, setAdNoticeOpen] = useState(false);
+//   const [adNoticeMessage, setAdNoticeMessage] = useState('Playback will resume after the advertisement finishes.');
 
-  const isUserLoggedIn = UserAuth.loggedIn();
-  const isArtistLoggedIn = ArtistAuth.isArtist();
+//   const isUserLoggedIn = UserAuth.loggedIn();
+//   const isArtistLoggedIn = ArtistAuth.isArtist();
 
-  const tabMetaFromPath = useCallback((path) => {
-    switch (true) {
-      case path.startsWith('/search'):
-        return { title: 'Explore', showSearch: true };
-      case path.startsWith('/library') || path.startsWith('/playlists'):
-        return { title: 'Library', showSearch: false };
-      case path.startsWith('/favorites'):
-        return { title: 'Favorites', showSearch: false };
-      case path.startsWith('/profile'):
-        return { title: 'Profile', showSearch: false };
-      default:
-        return { title: 'Home', showSearch: false };
-    }
-  }, []);
+//   const tabMetaFromPath = useCallback((path) => {
+//     switch (true) {
+//       case path.startsWith('/search'):
+//         return { title: 'Explore', showSearch: true };
+//       case path.startsWith('/library') || path.startsWith('/playlists'):
+//         return { title: 'Library', showSearch: false };
+//       case path.startsWith('/favorites'):
+//         return { title: 'Favorites', showSearch: false };
+//       case path.startsWith('/profile'):
+//         return { title: 'Profile', showSearch: false };
+//       default:
+//         return { title: 'Home', showSearch: false };
+//     }
+//   }, []);
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+//   useEffect(() => {
+//     const handleResize = () => {
+//       setIsMobile(window.innerWidth < 768);
+//     };
+//     window.addEventListener('resize', handleResize);
+//     return () => window.removeEventListener('resize', handleResize);
+//   }, []);
 
-  useEffect(() => {
-    setMobileTop(tabMetaFromPath(pathname));
-  }, [pathname, tabMetaFromPath]);
+//   useEffect(() => {
+//     setMobileTop(tabMetaFromPath(pathname));
+//   }, [pathname, tabMetaFromPath]);
 
-  useEffect(() => {
-    if (!pathname.startsWith('/loginSignin')) return;
-    const params = new URLSearchParams(location.search);
-    if (params.get('login') === '1' && formDisplay !== 'login') {
-      setFormDisplay('login');
-      return;
-    }
-    if (params.get('signup') === '1' && formDisplay !== 'signup') {
-      setFormDisplay('signup');
-    }
-  }, [formDisplay, location.search, pathname]);
+//   useEffect(() => {
+//     if (!pathname.startsWith('/loginSignin')) return;
+//     const params = new URLSearchParams(location.search);
+//     if (params.get('login') === '1' && formDisplay !== 'login') {
+//       setFormDisplay('login');
+//       return;
+//     }
+//     if (params.get('signup') === '1' && formDisplay !== 'signup') {
+//       setFormDisplay('signup');
+//     }
+//   }, [formDisplay, location.search, pathname]);
 
-  useEffect(() => {
-    const handleAdBlockNotice = (payload) => {
-      setAdNoticeMessage(payload?.message || 'Playback will resume after the advertisement finishes.');
-      setAdNoticeOpen(true);
-    };
-    eventBus.on("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
-    return () => eventBus.off("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
-  }, []);
+//   useEffect(() => {
+//     const handleAdBlockNotice = (payload) => {
+//       setAdNoticeMessage(payload?.message || 'Playback will resume after the advertisement finishes.');
+//       setAdNoticeOpen(true);
+//     };
+//     eventBus.on("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
+//     return () => eventBus.off("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
+//   }, []);
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+//   useEffect(() => {
+//     setIsHydrated(true);
+//   }, []);
 
-  if (!isHydrated) {
-    return null;
-  }
+//   if (!isHydrated) {
+//     return null;
+//   }
 
-  const isPublicArtistPage =
-    pathname.startsWith('/artist/register') ||
-    pathname.startsWith('/artist/login') ||
-    pathname.startsWith('/artist/verification') ||
-    pathname.startsWith('/artist/plan') ||
-    pathname.startsWith('/terms');
+//   const isPublicArtistPage =
+//     pathname.startsWith('/artist/register') ||
+//     pathname.startsWith('/artist/login') ||
+//     pathname.startsWith('/artist/verification') ||
+//     pathname.startsWith('/artist/plan') ||
+//     pathname.startsWith('/terms');
 
-  const shouldHideGuestChrome =
-    pathname.startsWith('/terms') || isPublicArtistPage;
+//   const shouldHideGuestChrome =
+//     pathname.startsWith('/terms') || isPublicArtistPage;
 
-  const isNotMediaPlayerAllowed =
-    pathname.startsWith('/artist/studio') ||
-    pathname.startsWith('/artist/dashboard') ||
-    pathname.startsWith('/checkout');
+//   const isNotMediaPlayerAllowed =
+//     pathname.startsWith('/artist/studio') ||
+//     pathname.startsWith('/artist/dashboard') ||
+//     pathname.startsWith('/checkout');
 
-  const handleArtistSignupFormDisplay = () => {
-    navigate('/artist/login');
-  };
+//   const handleArtistSignupFormDisplay = () => {
+//     navigate('/artist/login');
+//   };
 
-  const handleRequireAuth = (intent = 'play') => {
-    setTimeout(() => {
-      setAuthModalOpen(true);
-      setAuthIntent(intent);
-    }, 0);
-  };
+//   const handleRequireAuth = (intent = 'play') => {
+//     setTimeout(() => {
+//       setAuthModalOpen(true);
+//       setAuthIntent(intent);
+//     }, 0);
+//   };
 
-  const handleLoginFormDisplay = () => setFormDisplay('login');
-  const handleSignupFormDisplay = () => setFormDisplay('signup');
+//   const handleLoginFormDisplay = () => setFormDisplay('login');
+//   const handleSignupFormDisplay = () => setFormDisplay('signup');
 
-  const lastLogin = localStorage.getItem('lastLogin');
-  const showArtist = isArtistLoggedIn && lastLogin === 'artist';
-  const showUser = isUserLoggedIn && lastLogin === 'user';
+//   const lastLogin = localStorage.getItem('lastLogin');
+//   const showArtist = isArtistLoggedIn && lastLogin === 'artist';
+//   const showUser = isUserLoggedIn && lastLogin === 'user';
   
-  const bottomNavHeight = isUserLoggedIn && isMobile && !isNotMediaPlayerAllowed ? 82 : 0;
+//   const bottomNavHeight = isUserLoggedIn && isMobile && !isNotMediaPlayerAllowed ? 82 : 0;
 
-  return (
-    <BookingIdProvider>
-      <AdAudioProvider>
-        <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
-          <Orchestrator />
-          <AppUI
-            theme={theme}
-            isUserLoggedIn={isUserLoggedIn}
-            isArtistLoggedIn={isArtistLoggedIn}
-            isPublicArtistPage={isPublicArtistPage}
-            isNotMediaPlayerAllowed={isNotMediaPlayerAllowed}
-            isMobile={isMobile}
-            mobileTop={mobileTop}
-            setMobileTop={setMobileTop}
-            formDisplay={formDisplay}
-            setFormDisplay={setFormDisplay}
-            handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
-            handleLoginFormDisplay={handleLoginFormDisplay}
-            handleSignupFormDisplay={handleSignupFormDisplay}
-            authModalOpen={authModalOpen}
-            setAuthModalOpen={setAuthModalOpen}
-            authAction={authAction}
-            setAuthAction={setAuthAction}
-            authIntent={authIntent}
-            setIsPlayerActive={setIsPlayerActive}
-            setPlayerHeight={setPlayerHeight}
-            bottomNavHeight={bottomNavHeight}
-            adNoticeOpen={adNoticeOpen}
-            adNoticeMessage={adNoticeMessage}
-            setAdNoticeOpen={setAdNoticeOpen}
-            onCreatePlaylist={onCreatePlaylist}
-          />
-        </AudioPlayerProvider>
-      </AdAudioProvider>
-    </BookingIdProvider>
-  );
+//   return (
+//     <BookingIdProvider>
+//       <AdAudioProvider>
+//         <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
+//           <Orchestrator />
+//           <AppUI
+//             theme={theme}
+//             isUserLoggedIn={isUserLoggedIn}
+//             isArtistLoggedIn={isArtistLoggedIn}
+//             isPublicArtistPage={isPublicArtistPage}
+//             isNotMediaPlayerAllowed={isNotMediaPlayerAllowed}
+//             isMobile={isMobile}
+//             mobileTop={mobileTop}
+//             setMobileTop={setMobileTop}
+//             formDisplay={formDisplay}
+//             setFormDisplay={setFormDisplay}
+//             handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
+//             handleLoginFormDisplay={handleLoginFormDisplay}
+//             handleSignupFormDisplay={handleSignupFormDisplay}
+//             authModalOpen={authModalOpen}
+//             setAuthModalOpen={setAuthModalOpen}
+//             authAction={authAction}
+//             setAuthAction={setAuthAction}
+//             authIntent={authIntent}
+//             setIsPlayerActive={setIsPlayerActive}
+//             setPlayerHeight={setPlayerHeight}
+//             bottomNavHeight={bottomNavHeight}
+//             adNoticeOpen={adNoticeOpen}
+//             adNoticeMessage={adNoticeMessage}
+//             setAdNoticeOpen={setAdNoticeOpen}
+//             onCreatePlaylist={onCreatePlaylist}
+//           />
+//         </AudioPlayerProvider>
+//       </AdAudioProvider>
+//     </BookingIdProvider>
+//   );
+// }
+
+function AppBody({ onCreatePlaylist }) {
+  try {
+    console.log('🟢 AppBody starting');
+    
+    const theme = useTheme();
+    const [isHydrated, setIsHydrated] = useState(false);
+    const [authModalOpen, setAuthModalOpen] = useState(false);
+    const [authAction, setAuthAction] = useState('login');
+    const [authIntent, setAuthIntent] = useState(null);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const pathname = location.pathname;
+
+    console.log('🟢 AppBody hooks initialized');
+
+    const [isPlayerActive, setIsPlayerActive] = useState(false);
+    const [playerHeight, setPlayerHeight] = useState(0);
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [formDisplay, setFormDisplay] = useState('');
+    const [mobileTop, setMobileTop] = useState({ title: 'Home', showSearch: false });
+    const [adNoticeOpen, setAdNoticeOpen] = useState(false);
+    const [adNoticeMessage, setAdNoticeMessage] = useState('Playback will resume after the advertisement finishes.');
+
+    const isUserLoggedIn = UserAuth.loggedIn();
+    const isArtistLoggedIn = ArtistAuth.isArtist();
+
+    const tabMetaFromPath = useCallback((path) => {
+      switch (true) {
+        case path.startsWith('/search'):
+          return { title: 'Explore', showSearch: true };
+        case path.startsWith('/library') || path.startsWith('/playlists'):
+          return { title: 'Library', showSearch: false };
+        case path.startsWith('/favorites'):
+          return { title: 'Favorites', showSearch: false };
+        case path.startsWith('/profile'):
+          return { title: 'Profile', showSearch: false };
+        default:
+          return { title: 'Home', showSearch: false };
+      }
+    }, []);
+
+    useEffect(() => {
+      const handleResize = () => {
+        setIsMobile(window.innerWidth < 768);
+      };
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+      setMobileTop(tabMetaFromPath(pathname));
+    }, [pathname, tabMetaFromPath]);
+
+    useEffect(() => {
+      if (!pathname.startsWith('/loginSignin')) return;
+      const params = new URLSearchParams(location.search);
+      if (params.get('login') === '1' && formDisplay !== 'login') {
+        setFormDisplay('login');
+        return;
+      }
+      if (params.get('signup') === '1' && formDisplay !== 'signup') {
+        setFormDisplay('signup');
+      }
+    }, [formDisplay, location.search, pathname]);
+
+    useEffect(() => {
+      const handleAdBlockNotice = (payload) => {
+        setAdNoticeMessage(payload?.message || 'Playback will resume after the advertisement finishes.');
+        setAdNoticeOpen(true);
+      };
+      eventBus.on("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
+      return () => eventBus.off("AD_BLOCK_PLAY_ATTEMPT", handleAdBlockNotice);
+    }, []);
+
+    useEffect(() => {
+      setIsHydrated(true);
+    }, []);
+
+    if (!isHydrated) {
+      return null;
+    }
+
+    const isPublicArtistPage =
+      pathname.startsWith('/artist/register') ||
+      pathname.startsWith('/artist/login') ||
+      pathname.startsWith('/artist/verification') ||
+      pathname.startsWith('/artist/plan') ||
+      pathname.startsWith('/terms');
+
+    const shouldHideGuestChrome =
+      pathname.startsWith('/terms') || isPublicArtistPage;
+
+    const isNotMediaPlayerAllowed =
+      pathname.startsWith('/artist/studio') ||
+      pathname.startsWith('/artist/dashboard') ||
+      pathname.startsWith('/checkout');
+
+    const handleArtistSignupFormDisplay = () => {
+      navigate('/artist/login');
+    };
+
+    const handleRequireAuth = (intent = 'play') => {
+      setTimeout(() => {
+        setAuthModalOpen(true);
+        setAuthIntent(intent);
+      }, 0);
+    };
+
+    const handleLoginFormDisplay = () => setFormDisplay('login');
+    const handleSignupFormDisplay = () => setFormDisplay('signup');
+
+    const lastLogin = localStorage.getItem('lastLogin');
+    const showArtist = isArtistLoggedIn && lastLogin === 'artist';
+    const showUser = isUserLoggedIn && lastLogin === 'user';
+    
+    const bottomNavHeight = isUserLoggedIn && isMobile && !isNotMediaPlayerAllowed ? 82 : 0;
+
+    console.log('🟢 AppBody returning JSX');
+    
+    return (
+      <BookingIdProvider>
+        <AdAudioProvider>
+          <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
+            <Orchestrator />
+            <AppUI
+              theme={theme}
+              isUserLoggedIn={isUserLoggedIn}
+              isArtistLoggedIn={isArtistLoggedIn}
+              isPublicArtistPage={isPublicArtistPage}
+              isNotMediaPlayerAllowed={isNotMediaPlayerAllowed}
+              isMobile={isMobile}
+              mobileTop={mobileTop}
+              setMobileTop={setMobileTop}
+              formDisplay={formDisplay}
+              setFormDisplay={setFormDisplay}
+              handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
+              handleLoginFormDisplay={handleLoginFormDisplay}
+              handleSignupFormDisplay={handleSignupFormDisplay}
+              authModalOpen={authModalOpen}
+              setAuthModalOpen={setAuthModalOpen}
+              authAction={authAction}
+              setAuthAction={setAuthAction}
+              authIntent={authIntent}
+              setIsPlayerActive={setIsPlayerActive}
+              setPlayerHeight={setPlayerHeight}
+              bottomNavHeight={bottomNavHeight}
+              adNoticeOpen={adNoticeOpen}
+              adNoticeMessage={adNoticeMessage}
+              setAdNoticeOpen={setAdNoticeOpen}
+              onCreatePlaylist={onCreatePlaylist}
+            />
+          </AudioPlayerProvider>
+        </AdAudioProvider>
+      </BookingIdProvider>
+    );
+  } catch (error) {
+    console.error('❌ AppBody crashed:', error);
+    console.error('Stack:', error.stack);
+    return (
+      <div style={{ padding: '20px', color: 'red' }}>
+        <h2>AppBody Error</h2>
+        <pre>{error.message}</pre>
+        <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap' }}>{error.stack}</pre>
+      </div>
+    );
+  }
 }
+
 
 function AppUI({
   theme,
@@ -642,6 +811,7 @@ function AppUI({
   );
 }
 
+
 function App() {
   const [createPlaylistModalOpen, setCreatePlaylistModalOpen] = useState(false);
 
@@ -665,6 +835,7 @@ function App() {
     </ApolloProvider>
   );
 }
+
 
 export default App;
 

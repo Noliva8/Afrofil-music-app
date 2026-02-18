@@ -99,7 +99,7 @@ import { RADIO_TYPES } from '../../utils/radioTypes.js';
 import { createBookArtist } from './bookingArtist/createBookArtist.js';
 import { respondToBooking } from './bookingArtist/respondToBooking.js';
 import { sendMessage } from './MessagingSystem/Mutations/sendMessage.js';
-
+import jwt from 'jsonwebtoken';
 
 
 const pipe = util.promisify(pipeline);
@@ -1029,35 +1029,38 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
     // Send the verification email asynchronously
     await sendEmail(
       newArtist.email,
-      "Welcome to AfroFeel - Verify Your Email",
+      "Welcome to FloLup - Verify Your Email",
       `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; border-radius: 10px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #333; margin-bottom: 10px;">Welcome to AfroFeel! 🎵</h1>
-            <p style="color: #666; font-size: 16px;">Hi ${newArtist.fullName},</p>
+        <div style="font-family: 'Inter', system-ui; max-width: 600px; margin: 0 auto; padding: 20px; 
+                    background: linear-gradient(180deg, rgba(8,8,9,0.9), rgba(15,15,20,0.9)); border-radius: 16px; 
+                    border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 40px 60px rgba(0,0,0,0.25);">
+          <div style="text-align: left; margin-bottom: 24px;">
+            <h1 style="color: #fdf3e9; margin-bottom: 4px; font-size: 2.1rem;">Welcome to <span style="font-weight: 800;">FloLup</span>! 🎵</h1>
+            <p style="color: rgba(255,255,255,0.72); font-size: 16px;">Hi ${newArtist.fullName},</p>
           </div>
           
-          <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <p style="color: #555; font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
-              Thanks for joining AfroFeel! Please verify your email address to get started with your artist journey.
+          <div style=" padding: 32px;
+                    ">
+            <p style="color: rgba(255,255,255,0.92); font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+              Thanks for joining FloLup! Please verify your email address to keep building your creator profile and studio.
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
               <a href="${verificationLink}" 
-                 style="display: inline-block; background-color: #4CAF50; color: white; text-decoration: none; 
-                        padding: 14px 30px; border-radius: 5px; font-size: 16px; font-weight: bold;
-                        box-shadow: 0 2px 4px rgba(0,128,0,0.3); transition: background-color 0.3s;">
+                 style="display: inline-block; background: linear-gradient(90deg, #E4C421, #B25035); color: #000; text-decoration: none; 
+                        padding: 14px 30px; border-radius: 999px; font-size: 16px; font-weight: bold;
+                        box-shadow: 0 12px 30px rgba(0,0,0,0.35); transition: transform 0.2s;">
                 Verify Email Address
               </a>
             </div>
             
-            <p style="color: #777; font-size: 14px; line-height: 1.5; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px;">
-              This link will expire in 24 hours. If you didn't create an account with AfroFeel, please ignore this email.
+            <p style="color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.5; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+              This link will expire in 24 hours. If you didn't create an account with FloLup, please ignore this email.
             </p>
           </div>
           
-          <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
-            <p>© 2024 AfroFeel. All rights reserved.</p>
+          <div style="text-align: center; margin-top: 20px; color: rgba(255,255,255,0.6); font-size: 12px;">
+            <p>© 2024 FloLup. All rights reserved.</p>
           </div>
         </div>
       `
@@ -1091,41 +1094,195 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
 
 // resend verfication link
 // --------------------
+// resendVerificationEmail: async (parent, { email }) => {
+//   try {
+//     // Find the artist by email
+//     const artist = await Artist.findOne({ email });
+//     if (!artist) {
+//       throw new Error("Artist not found");
+//     }
+
+//     // Check if the email is already verified
+//     if (artist.confirmed) {
+//       return { success: false, message: "Email is already verified" };
+//     }
+
+//     // Generate a new token using signArtistToken
+//     const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
+
+//     // Construct the verification link
+//     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${artistToken}`;
+
+// //  console.log(process.env.FRONTEND_URL) ;
+//   // console.log(verificationLink) ;
+
+//     // Send the verification email
+//     await sendEmail(artist.email, "Verify Your Email", `
+//       <p>Hello, ${artist.fullName}!</p>
+//       <p>Please click the link below to verify your email:</p>
+//       <a href="${verificationLink}">Verify Email</a>
+//     `);
+
+//     return { success: true, message: "Verification email resent successfully" };
+//   } catch (error) {
+//     console.error("Failed to resend verification email:", error);
+//     throw new Error("Failed to resend verification email");
+//   }
+// },
+
+
+// resendVerificationEmail: async (parent, { email }) => {
+//   try {
+//     console.log("========== RESEND VERIFICATION EMAIL ==========");
+//     console.log("1. Email requested:", email);
+    
+//     // Find the artist by email
+//     const artist = await Artist.findOne({ email });
+//     if (!artist) {
+//       console.log("❌ Artist not found for email:", email);
+//       throw new Error("Artist not found");
+//     }
+
+//     console.log("2. Artist found:");
+//     console.log("   - ID:", artist._id.toString());
+//     console.log("   - Full Name:", artist.fullName);
+//     console.log("   - Current confirmed status:", artist.confirmed);
+
+//     // Check if the email is already verified
+//     if (artist.confirmed) {
+//       console.log("3. Artist already confirmed");
+//       return { success: false, message: "Email is already verified" };
+//     }
+
+//     console.log("3. Artist needs verification, generating token...");
+    
+//     // Generate a new token using signArtistToken
+//     const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
+//     console.log("4. Token generated:", artistToken.substring(0, 50) + "...");
+
+//     // USE SERVER_URL here (your backend)
+//     const verificationLink = `${process.env.SERVER_URL}/confirmation/${artistToken}`;
+    
+//     console.log("5. Verification link created:", verificationLink);
+//     console.log("   - This link points to your BACKEND server on port 3001");
+
+//     // Send the verification email
+//     console.log("6. Sending email to:", artist.email);
+//     await sendEmail(artist.email, "Verify Your Email", `
+//       <p>Hello, ${artist.fullName}!</p>
+//       <p>Please click the link below to verify your email:</p>
+//       <a href="${verificationLink}">Verify Email</a>
+//       <p>This link will expire in 24 hours.</p>
+//     `);
+
+//     console.log("7. Email sent successfully!");
+//     console.log("========== RESEND COMPLETE ==========");
+
+//     return { success: true, message: "Verification email resent successfully" };
+//   } catch (error) {
+//     console.error("❌ Failed to resend verification email:", error);
+//     throw new Error("Failed to resend verification email");
+//   }
+// },
+
+
 resendVerificationEmail: async (parent, { email }) => {
   try {
+    console.log("========== RESEND VERIFICATION EMAIL ==========");
+    console.log("1. Email requested:", email);
+    
     // Find the artist by email
     const artist = await Artist.findOne({ email });
     if (!artist) {
+      console.log("❌ Artist not found for email:", email);
       throw new Error("Artist not found");
     }
 
+    console.log("2. Artist found:");
+    console.log("   - ID:", artist._id.toString());
+    console.log("   - Full Name:", artist.fullName);
+    console.log("   - Current confirmed status:", artist.confirmed);
+
     // Check if the email is already verified
     if (artist.confirmed) {
+      console.log("3. Artist already confirmed");
       return { success: false, message: "Email is already verified" };
     }
 
+    console.log("3. Artist needs verification, generating token...");
+    
     // Generate a new token using signArtistToken
     const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
+    console.log("4. Token generated:", artistToken.substring(0, 50) + "...");
 
-    // Construct the verification link
-    const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${artistToken}`;
+    // USE SERVER_URL here (your backend)
+    const verificationLink = `${process.env.SERVER_URL}/confirmation/${artistToken}`;
+    
+    console.log("5. Verification link created:", verificationLink);
+    console.log("   - This link points to your BACKEND server on port 3001");
 
-//  console.log(process.env.FRONTEND_URL) ;
-  // console.log(verificationLink) ;
-
-    // Send the verification email
-    await sendEmail(artist.email, "Verify Your Email", `
-      <p>Hello, ${artist.fullName}!</p>
-      <p>Please click the link below to verify your email:</p>
-      <a href="${verificationLink}">Verify Email</a>
+    // Send the verification email with styled template
+    console.log("6. Sending email to:", artist.email);
+    const logoUrl = `${process.env.FRONTEND_URL || 'https://flolup.com'}/assets/logo.png`;
+    await sendEmail(artist.email, "Welcome to FloLup - Verify Your Email", `
+      <div style="font-family: 'Inter', system-ui; max-width: 600px; margin: 0 auto; padding: 20px;
+                  background: linear-gradient(180deg, rgba(8,8,9,0.9), rgba(15,15,20,0.9)); border-radius: 16px;
+                  border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 40px 60px rgba(0,0,0,0.25);">
+        <div style="text-align:center; margin-bottom:24px;">
+          <img src="${logoUrl}" alt="FloLup logo" style="width:72px; height:auto; margin-bottom:16px;" />
+        </div>
+        <div style="text-align: left; margin-bottom: 24px;">
+          <h1 style="color: #fdf3e9; margin-bottom: 4px; font-size: 2.1rem;">Welcome to <span style="font-weight: 800;">FloLup</span>! 🎵</h1>
+          <p style="color: rgba(255,255,255,0.72); font-size: 16px;">Hi ${artist.fullName},</p>
+        </div>
+        
+        <div style=" padding: 32px;" >
+                    
+          <p style="color: rgba(255,255,255,0.92); font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+            Thanks for joining FloLup! Please verify your email address to keep building your creative studio.
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationLink}" 
+               style="display: inline-block; background: linear-gradient(90deg, #E4C421, #B25035); color: #000; text-decoration: none;
+                      padding: 14px 30px; border-radius: 999px; font-size: 16px; font-weight: bold;
+                      box-shadow: 0 12px 30px rgba(0,0,0,0.35); transition: transform 0.2s;">
+              Verify Email Address
+            </a>
+          </div>
+          
+          <p style="color: rgba(255,255,255,0.7); font-size: 14px; line-height: 1.5; margin-top: 20px;
+                    border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+            This link will expire in <strong>24 hours</strong>. If you didn't create an account with FloLup, please ignore this email.
+          </p>
+          
+          <p style="color: rgba(255,255,255,0.6); font-size: 13px; line-height: 1.5; margin-top: 25px;
+                    border-top: 1px solid rgba(255,255,255,0.08); padding-top: 20px;">
+            If the button above doesn't work, copy and paste this link into your browser:<br>
+            <span style="color: #E4C421; word-break: break-all;">${verificationLink}</span>
+          </p>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: rgba(255,255,255,0.6); font-size: 12px;">
+          <p>© 2024 FloLup. All rights reserved.</p>
+          <p style="margin-top: 5px;">
+            <small>This is an automated message. Please do not reply to this email.</small>
+          </p>
+        </div>
+      </div>
     `);
+
+    console.log("7. Email sent successfully!");
+    console.log("========== RESEND COMPLETE ==========");
 
     return { success: true, message: "Verification email resent successfully" };
   } catch (error) {
-    console.error("Failed to resend verification email:", error);
+    console.error("❌ Failed to resend verification email:", error);
     throw new Error("Failed to resend verification email");
   }
 },
+
+
 
 createRadioStation: async (_parent, { input }, context) => {
   const normalizedType = normalizeRadioType(input?.type);
@@ -1213,6 +1370,8 @@ createRadioStation: async (_parent, { input }, context) => {
 
 verifyEmail: async (parent, { token }) => {
   try {
+
+    console.log('see the token sent on verification:', token)
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -1450,6 +1609,44 @@ console.error('Error in resolver:', error);
 // Select plan
 // -----------
 
+// selectPlan: async (parent, { artistId, plan }) => {
+//   try {
+//     const afroFeelPlans = ['Free Plan', 'Premium Plan', 'Pro Plan'];
+
+//     // Validate the plan type
+//     if (!afroFeelPlans.includes(plan)) {
+//       throw new Error('Invalid plan type selected.');
+//     }
+
+//     // Update the artist's plan in the database
+//     const artist = await Artist.findByIdAndUpdate(
+//       artistId,
+//       {
+//         selectedPlan: true,
+//         plan: plan,
+//       },
+//       { new: true }
+//     );
+
+// await artistUpdateRedis(artist); 
+
+//     if (!artist) {
+//       throw new Error('Artist not found.');
+//     }
+
+//     return artist;
+//   } catch (error) {
+//     console.error('Selecting plan failed:', error);
+//     throw new GraphQLError('Selecting plan failed.', {
+//       extensions: {
+//         code: 'UNAUTHENTICATED',
+//       },
+//     });
+//   }
+// },
+
+
+
 selectPlan: async (parent, { artistId, plan }) => {
   try {
     const afroFeelPlans = ['Free Plan', 'Premium Plan', 'Pro Plan'];
@@ -1469,11 +1666,28 @@ selectPlan: async (parent, { artistId, plan }) => {
       { new: true }
     );
 
-await artistUpdateRedis(artist); 
-
     if (!artist) {
       throw new Error('Artist not found.');
     }
+
+    // Check if artist already has albums using your Album model
+    const existingAlbums = await Album.find({ artist: artistId });
+    
+    // Create default album only if none exist
+    if (existingAlbums.length === 0) {
+      console.log('Creating default album for artist:', artistId);
+      
+      const defaultAlbum = await Album.create({
+        title: "Singles",
+        artist: artistId,
+        releaseDate: new Date(),
+        // Add any other fields your Album schema requires
+      });
+      
+      console.log('✅ Default album created:', defaultAlbum._id);
+    }
+
+    await artistUpdateRedis(artist);
 
     return artist;
   } catch (error) {
@@ -1485,6 +1699,8 @@ await artistUpdateRedis(artist);
     });
   }
 },
+
+
 
 
 updateArtistProfile: async (

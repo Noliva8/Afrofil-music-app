@@ -32,7 +32,7 @@ export const ArtistRoutes = [
             <LazyPlanSelection />
           </Suspense>
         }
-        redirectToVerification={true}
+        
       />
     ),
   },

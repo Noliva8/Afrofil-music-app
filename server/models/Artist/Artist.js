@@ -20,11 +20,23 @@ const artistSchema = new Schema({
   match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/ 
 },
 
-  password: {
+ password: {
   type: String,
   required: true,
-  match: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/ 
+  validate: {
+    validator: function(value) {
+      // Only validate if this is a new document or password is being changed
+      if (this.isNew || this.isModified('password')) {
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        return passwordRegex.test(value);
+      }
+      // Skip validation for existing passwords
+      return true;
+    },
+    message: 'Password must contain at least 8 characters, one uppercase, one lowercase, one number, and one special character'
+  }
 },
+
   confirmed: {
       type: Boolean,
       default: false
