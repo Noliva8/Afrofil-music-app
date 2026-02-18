@@ -521,37 +521,89 @@ const resolvers = {
 Query: {
 
 
-artistProfile: async (parent, args, context) => {
-  try {
-    // Debugging: Log the entire artistContext to see what it contains
-    // console.log('context in artist profile:', context);
+// artistProfile: async (parent, args, context) => {
+//   try {
+//     // Debugging: Log the entire artistContext to see what it contains
+//     // console.log('context in artist profile:', context);
 
-    // Check if the artist is authenticated
+//     // Check if the artist is authenticated
+//     if (!context.artist) {
+//       throw new Error("Unauthorized: You must be logged in to view your profile.");
+//     }
+
+//     // Debugging: Log the artist's ID from the context
+//     // console.log('Artist ID from Context:', context.artist._id);
+
+//     // Find the artist's profile using the artist's ID from the context
+//     const artist = await Artist.findById(context.artist._id)
+//       .populate("songs")
+//       .populate('followers');
+
+//     // Debugging: Check if the artist was found
+//     if (!artist) {
+//       console.error('Artist not found in the database.');
+//       throw new Error("Artist not found.");
+//     }
+
+//     // Return artist's data
+//     return artist;
+//   } catch (error) {
+//     // Log the error for debugging
+//     console.error('Error fetching artist profile:', error);
+
+//     // Throw a general error message for the GraphQL response
+//     throw new Error("Failed to fetch artist profile.");
+//   }
+// },
+
+
+
+artistProfile: async (parent, args, context) => {
+  console.log('\n🔍 ===== ARTIST PROFILE DEBUG =====');
+  
+  // SAFELY log context - don't stringify the whole thing!
+  console.log('1. context keys:', Object.keys(context));
+  console.log('2. context.artist:', context.artist);
+  console.log('3. context.artist?._id:', context.artist?._id);
+  
+  // Safely log headers if they exist
+  if (context.req) {
+    console.log('4. Headers present:', {
+      authorization: context.req.headers?.authorization ? '✅ Yes' : '❌ No',
+      'user-agent': context.req.headers?.['user-agent']?.substring(0, 50)
+    });
+  }
+  
+  try {
     if (!context.artist) {
+      console.error('❌ Step 5: No artist in context');
       throw new Error("Unauthorized: You must be logged in to view your profile.");
     }
 
-    // Debugging: Log the artist's ID from the context
-    // console.log('Artist ID from Context:', context.artist._id);
+    if (!context.artist._id) {
+      console.error('❌ Step 6: Artist has no ID:', context.artist);
+      throw new Error("Unauthorized: Invalid artist data.");
+    }
 
-    // Find the artist's profile using the artist's ID from the context
+    console.log('✅ Step 7: Looking up artist with ID:', context.artist._id);
+    
     const artist = await Artist.findById(context.artist._id)
       .populate("songs")
       .populate('followers');
 
-    // Debugging: Check if the artist was found
     if (!artist) {
-      console.error('Artist not found in the database.');
+      console.error('❌ Step 8: Artist not found in DB for ID:', context.artist._id);
       throw new Error("Artist not found.");
     }
 
-    // Return artist's data
+    console.log('✅ Step 9: Artist found:', artist.email);
+    console.log('✅ Step 10: Artist confirmed:', artist.confirmed);
+    console.log('✅ Step 11: Artist has plan:', artist.selectedPlan);
+    
     return artist;
+    
   } catch (error) {
-    // Log the error for debugging
-    console.error('Error fetching artist profile:', error);
-
-    // Throw a general error message for the GraphQL response
+    console.error('❌ Step 12: Error in artistProfile:', error.message);
     throw new Error("Failed to fetch artist profile.");
   }
 },

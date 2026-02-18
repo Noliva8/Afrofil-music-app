@@ -306,7 +306,7 @@ const handleFormSubmit = async (event) => {
     if (data && data.artist_login) {
       const { artistToken } = data.artist_login;
 
-      // Save the token using your artist_auth service
+    
       ArtistAuth.login(artistToken);
 
       // 🧹 CLEAN UP TEMPORARY CACHE

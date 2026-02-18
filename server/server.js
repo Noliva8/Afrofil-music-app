@@ -243,6 +243,40 @@ const httpServer = createServer(app);
 
 
 
+// // List of allowed origins
+// const allowedOrigins = [
+//   'http://localhost:3000',
+//   'http://localhost:3001',
+//   'http://localhost:3003',
+//   'http://localhost:5173',
+
+//   // ✅ add these
+//   'http://127.0.0.1:3000',
+//   'http://127.0.0.1:3001',
+//   'http://127.0.0.1:3003',
+//   'http://127.0.0.1:5173',
+
+//   'https://flolup.com',
+//   'https://www.flolup.com',
+// ];
+
+
+// app.use(cors({
+//   origin: allowedOrigins,
+//   credentials: true,
+//   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+//   allowedHeaders: ['Content-Type','Authorization','apollo-require-preflight'],
+// }));
+
+// // (optional) make OPTIONS succeed fast
+// app.options('*', cors({
+//   origin: allowedOrigins,
+//   credentials: true,
+//   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+//   allowedHeaders: ['Content-Type','Authorization','apollo-require-preflight'],
+// }));
+
+
 // List of allowed origins
 const allowedOrigins = [
   'http://localhost:3000',
@@ -250,7 +284,6 @@ const allowedOrigins = [
   'http://localhost:3003',
   'http://localhost:5173',
 
-  // ✅ add these
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'http://127.0.0.1:3003',
@@ -260,23 +293,30 @@ const allowedOrigins = [
   'https://www.flolup.com',
 ];
 
-
-app.use(cors({
-  origin: allowedOrigins,
+// Shared CORS config
+const corsOptions = {
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // allow curl/postman
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked for origin: ${origin}`));
+  },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','apollo-require-preflight'],
-}));
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'apollo-require-preflight',
+    'x-apollo-operation-name',
+    'x-user-authorization',
+    'x-artist-authorization',
+  ],
+};
 
-// (optional) make OPTIONS succeed fast
-app.options('*', cors({
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','apollo-require-preflight'],
-}));
+// Apply globally
+app.use(cors(corsOptions));
 
-
+// Make OPTIONS succeed fast
+app.options('*', cors(corsOptions));
 
 
 
@@ -700,7 +740,7 @@ const startApolloServer = async () => {
     //   }
     // });
 
-    
+
 
 app.get("/confirmation/:artist_id_token", async (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
