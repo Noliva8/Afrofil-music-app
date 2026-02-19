@@ -51,7 +51,13 @@ import ArtistGuestViewAppBar from "./components/AuthenticateCompos/ArtistGuestVi
 import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
 
 // Apollo Client setup remains the same...
-const httpLink = createUploadLink({ uri: "/graphql" });
+// const httpLink = createUploadLink({ uri: "/graphql" });
+
+const httpLink = createUploadLink({
+  uri: import.meta.env.VITE_HTTP_URL,
+  
+});
+
 
 import UserNavBar from "./components/AuthenticateCompos/UserNavBar.jsx";
 import UserSideBar from "./components/userComponents/Home/UserSideBar.jsx";
@@ -65,7 +71,7 @@ import { UserButtonMobileNavBar } from "./components/AuthenticateCompos/UserButt
 
 
 
-const wsUrl = import.meta.env.VITE_API_URL
+const wsUrl = import.meta.env.VITE_WS_UR
 
 
 
@@ -147,9 +153,10 @@ const client = new ApolloClient({
   cache: new InMemoryCache(),
 });
 
-const LazyLoginSignin = lazy(() =>
-  import("./pages/LoginSignin").then((module) => ({ default: module.LoginSignin }))
-);
+// const LazyLoginSignin = lazy(() =>
+//   import("./pages/LoginSignin").then((module) => ({ default: module.LoginSignin }))
+// );
+
 const LazyUserLoginPage = lazy(() =>
   import("./pages/LoginSignin").then((module) => ({ default: module.UserLoginPage }))
 );
