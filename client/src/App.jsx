@@ -60,6 +60,16 @@ import AddToPlaylistModal from "./components/AddToPlaylistModal.jsx";
 import { UserButtonMobileNavBar } from "./components/AuthenticateCompos/UserButtonMobileNavBar.jsx";
 
 
+
+
+
+
+
+const wsUrl = import.meta.env.VITE_API_URL
+
+
+
+
 const authLink = setContext((_, { headers }) => {
   const userToken = localStorage.getItem("user_id_token");
   const artistToken = localStorage.getItem("artist_id_token");
@@ -82,7 +92,7 @@ const authLink = setContext((_, { headers }) => {
 
 const wsLink = new GraphQLWsLink(
   createClient({
-    url: "ws://localhost:3001/graphql",
+    url: wsUrl,
     connectionParams: async () => {
       const artistToken = localStorage.getItem("artist_id_token");
       const userToken = localStorage.getItem("user_id_token");
