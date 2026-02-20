@@ -76,23 +76,45 @@ const wsUrl = import.meta.env.VITE_WS_UR
 
 
 
+// const authLink = setContext((_, { headers }) => {
+//   const userToken = localStorage.getItem("user_id_token");
+//   const artistToken = localStorage.getItem("artist_id_token");
+  
+//   const headersWithAuth = { ...headers };
+  
+//   // Set both headers, backend will use the valid one
+//   if (artistToken) {
+//     headersWithAuth['x-artist-authorization'] = `Bearer ${artistToken}`;
+//   }
+//   if (userToken) {
+//     headersWithAuth['x-user-authorization'] = `Bearer ${userToken}`;
+//   }
+  
+//   return { headers: headersWithAuth };
+// });
+
+
 const authLink = setContext((_, { headers }) => {
   const userToken = localStorage.getItem("user_id_token");
   const artistToken = localStorage.getItem("artist_id_token");
-  
+
   const headersWithAuth = { ...headers };
-  
+
+  // ✅ Apollo CSRF prevention bypass: force preflight / mark as safe
+  headersWithAuth["apollo-require-preflight"] = "true";
+  // Optional (but valid) additional header Apollo accepts:
+  // headersWithAuth["x-apollo-operation-name"] = "afrofeel-client";
+
   // Set both headers, backend will use the valid one
   if (artistToken) {
-    headersWithAuth['x-artist-authorization'] = `Bearer ${artistToken}`;
+    headersWithAuth["x-artist-authorization"] = `Bearer ${artistToken}`;
   }
   if (userToken) {
-    headersWithAuth['x-user-authorization'] = `Bearer ${userToken}`;
+    headersWithAuth["x-user-authorization"] = `Bearer ${userToken}`;
   }
-  
+
   return { headers: headersWithAuth };
 });
-
 
 
 
