@@ -1,4 +1,7 @@
+// import ffmpeg from "fluent-ffmpeg";
+
 import ffmpeg from "fluent-ffmpeg";
+ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH || "ffmpeg");
 
 export const extractDuration = (filePath) => {
   return new Promise((resolve, reject) => {

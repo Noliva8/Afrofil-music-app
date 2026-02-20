@@ -276,7 +276,9 @@
 
 import fs from 'fs/promises';
 import wavDecoder from 'wav-decoder';
-import ffmpeg from 'fluent-ffmpeg';
+
+import ffmpeg from "fluent-ffmpeg";
+ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH || "ffmpeg");
 
 // Simplified Configuration
 const CONFIG = {

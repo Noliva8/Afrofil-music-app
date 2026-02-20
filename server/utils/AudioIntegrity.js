@@ -1,4 +1,5 @@
-import ffmpeg from 'fluent-ffmpeg';
+import ffmpeg from "fluent-ffmpeg";
+ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH || "ffmpeg");
 import fs from 'fs/promises';
 
 // Function to process audio while maintaining quality
