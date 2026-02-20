@@ -292,6 +292,7 @@ const allowedOrigins = [
   'https://flolup.com',
   'https://www.flolup.com',
    'https://api.flolup.com',
+   'https://api.flolup.com/graphql'
 ];
 
 // Shared CORS config

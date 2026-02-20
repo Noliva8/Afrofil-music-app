@@ -115,6 +115,8 @@ export async function artistCreateRedis(artistData, options = {}) {
     serializedArtist.albums = (serializedArtist.albums || []).map(String);
 
     // Prepare hash payload (flatten complex arrays to JSON strings)
+    const createdAtValue = serializedArtist.createdAt ? new Date(serializedArtist.createdAt) : null;
+    const updatedAtValue = serializedArtist.updatedAt ? new Date(serializedArtist.updatedAt) : null;
     const hashPayload = {
       _id: serializedArtist._id,
       fullName: serializedArtist.fullName || '',
@@ -125,8 +127,8 @@ export async function artistCreateRedis(artistData, options = {}) {
       songs: JSON.stringify(serializedArtist.songs || []),
       albums: JSON.stringify(serializedArtist.albums || []),
       followers: JSON.stringify(serializedArtist.followers || []),
-      createdAt: serializedArtist.createdAt ? serializedArtist.createdAt.toISOString() : '',
-      updatedAt: serializedArtist.updatedAt ? serializedArtist.updatedAt.toISOString() : '',
+      createdAt: createdAtValue ? createdAtValue.toISOString() : '',
+      updatedAt: updatedAtValue ? updatedAtValue.toISOString() : '',
     };
 
     await withTimeout(redis.hSet(key, hashPayload), 3000, 'Redis hash set timeout');
