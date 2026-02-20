@@ -17,7 +17,9 @@ export const ARTIST_FOLLOWERS = (artistId) => `followere${artistId}`
 export const ARTIST_DOWNLOADS = (artistId) => `downloads${artistId}`
 export const ARTIST_SHARE = (artistId) => `shares${artistId}`
 export const ARTIST_SONGS = (artistId) => `artistSongs${artistId}`
+export const artistKey = (artistId) => `artist${artistId}`
 export const ARTIST_SONGS_EXPIRY = 24 * 60 * 60; 
+export const artistRecordExpiry = 24 * 60 * 60; 
 export const CLOUDFRONT_EXPIRATION = 3600
 
 export const TRENDING_WEIGHTS = {

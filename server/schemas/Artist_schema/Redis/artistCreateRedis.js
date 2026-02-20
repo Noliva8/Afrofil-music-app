@@ -1,6 +1,10 @@
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { usedMB, notifyAdmin } from "./songCreateRedis.js";
 import {Artist } from '../../../models/Artist/index_artist.js'
+import { artistKey } from "./keys.js";
+import { artistRecordExpiry } from "./keys.js";
+
+
 
 /** ---------- artist Config ---------- */
 const A = {
@@ -9,12 +13,12 @@ const A = {
   IDX_ALL_ARTIST: "index:artists:all",  
   IDX_TOP_ARTIST_SCORE: "index:artists:score",
   byCountry: (country) => `index:artist:${country}:artists`,
-  TTL: 24 * 60 * 60, // 24 hours in seconds
+  TTL: artistRecordExpiry, // 24 hours in seconds
 }
 
 
 
-const artistKey = (id) => `${A.ARTIST_PREFIX}${id}`;
+
 
 /** Timeout wrapper */
 const withTimeout = (promise, timeoutMs = 5000, errorMessage = "Operation timeout") =>
@@ -106,18 +110,27 @@ export async function artistCreateRedis(artistData, options = {}) {
     const serializedArtist = serializeArtist(artist);
     if (!serializedArtist) throw new Error('Failed to serialize artist data');
 
-    // Make sure ids in arrays are strings
+    // Ensure arrays use strings
     serializedArtist.songs = (serializedArtist.songs || []).map(String);
     serializedArtist.albums = (serializedArtist.albums || []).map(String);
 
-    // 🔁 Store canonical as JSON
-    const type = await redis.type(key);
-    if (type && type !== 'none' && type !== 'ReJSON-RL' && type !== 'json') {
-      await redis.unlink(key); // convert any legacy non-JSON
-    }
-    await withTimeout(redis.json.set(key, '$', serializedArtist), 3000, 'Redis JSON set timeout');
+    // Prepare hash payload (flatten complex arrays to JSON strings)
+    const hashPayload = {
+      _id: serializedArtist._id,
+      fullName: serializedArtist.fullName || '',
+      artistAka: serializedArtist.artistAka || '',
+      confirmed: serializedArtist.confirmed ? '1' : '0',
+      selectedPlan: serializedArtist.selectedPlan ? '1' : '0',
+      country: serializedArtist.country || '',
+      songs: JSON.stringify(serializedArtist.songs || []),
+      albums: JSON.stringify(serializedArtist.albums || []),
+      followers: JSON.stringify(serializedArtist.followers || []),
+      createdAt: serializedArtist.createdAt ? serializedArtist.createdAt.toISOString() : '',
+      updatedAt: serializedArtist.updatedAt ? serializedArtist.updatedAt.toISOString() : '',
+    };
 
-    // TTL at key-level (works for JSON)
+    await withTimeout(redis.hSet(key, hashPayload), 3000, 'Redis hash set timeout');
+
     if (Number.isFinite(ttl) && ttl > 0) {
       await withTimeout(redis.expire(key, ttl), 1500, 'Redis expire timeout');
     }
@@ -140,6 +153,9 @@ export async function artistCreateRedis(artistData, options = {}) {
 
 
 
+
+
+
 /** Update artist in Redis (alias for create with update flag) */
 export async function artistUpdateRedis(artistData, options = {}) {
   return artistCreateRedis(artistData, { ...options, updateExisting: true });
@@ -148,29 +164,35 @@ export async function artistUpdateRedis(artistData, options = {}) {
 
 
 
-/** Get artist from Redis (JSON-first) */
+/** Get artist from Redis (hash-first) */
+function artistDeserialization(hashData) {
+  if (!hashData || !hashData._id) return null;
+  return {
+    _id: hashData._id,
+    fullName: hashData.fullName,
+    artistAka: hashData.artistAka,
+    confirmed: hashData.confirmed === '1',
+    selectedPlan: hashData.selectedPlan === '1',
+    country: hashData.country || '',
+    createdAt: hashData.createdAt ? new Date(hashData.createdAt) : null,
+    updatedAt: hashData.updatedAt ? new Date(hashData.updatedAt) : null,
+    songs: hashData.songs ? JSON.parse(hashData.songs) : [],
+    albums: hashData.albums ? JSON.parse(hashData.albums) : [],
+    followers: hashData.followers ? JSON.parse(hashData.followers) : [],
+  };
+}
+
 export async function getArtistRedis(artistId) {
   try {
     const redis = await getRedis();
     const key = artistKey(artistId);
     const t = await withTimeout(redis.type(key), 1000, 'Type timeout');
 
-    if (t === 'ReJSON-RL' || t === 'json') {
-      const artist = await withTimeout(redis.json.get(key), 1500, 'JSON get timeout');
-      if (!artist) return null;
-      if (Number.isFinite(A.TTL) && A.TTL > 0) {
-        redis.expire(key, A.TTL).catch(()=>{});
-      }
-      return artist;
-    }
-
-    if (t === 'string') {
-      // legacy fallback (you were doing redis.get)
-      const raw = await withTimeout(redis.get(key), 1500, 'GET timeout');
-      if (!raw) return null;
-      const artist = JSON.parse(raw);
-      if (Number.isFinite(A.TTL) && A.TTL > 0) redis.expire(key, A.TTL).catch(()=>{});
-      return artist;
+    if (t === 'hash') {
+      const hash = await withTimeout(redis.hGetAll(key), 1500, 'HGETALL timeout');
+      if (!hash || !hash._id) return null;
+      if (Number.isFinite(A.TTL) && A.TTL > 0) redis.expire(key, A.TTL).catch(() => {});
+      return artistDeserialization(hash);
     }
 
     return null;
@@ -180,32 +202,19 @@ export async function getArtistRedis(artistId) {
   }
 }
 
-/** Get multiple artists (JSON-first). NOTE: pass `redis` (like your song helper). */
+
 export async function getMultipleArtistsRedis(redis, artistIds = [], { touchTTL = true } = {}) {
   if (!artistIds?.length) return [];
   const keys = artistIds.map(artistKey);
   const out = new Array(keys.length).fill(null);
-
   const p1 = redis.multi();
-  for (const k of keys) p1.json.get(k);
+  for (const k of keys) p1.hGetAll(k);
   const res1 = await p1.exec();
 
-  const fallbackIdxs = [];
   for (let i = 0; i < res1.length; i++) {
-    const [, val] = res1[i] || [];
-    if (val) out[i] = val; else fallbackIdxs.push(i);
-  }
-
-  // Fallback to legacy string values (pre-JSON)
-  if (fallbackIdxs.length) {
-    const p2 = redis.multi();
-    for (const i of fallbackIdxs) p2.get(keys[i]);
-    const res2 = await p2.exec();
-    for (let j = 0; j < res2.length; j++) {
-      const [, raw] = res2[j] || [];
-      if (!raw) continue;
-      try { out[fallbackIdxs[j]] = JSON.parse(raw); } catch {}
-    }
+    const [, hash] = res1[i] || [];
+    if (!hash || !hash._id) continue;
+    out[i] = artistDeserialization(hash);
   }
 
   if (touchTTL && Number.isFinite(A.TTL) && A.TTL > 0) {
@@ -282,11 +291,8 @@ async function updateArtistIndexes(redis, artist) {
 async function removeFromIndexes(redis, artistId) {
   try {
     const key = artistKey(artistId);
-    let artist = await redis.json.get(key).catch(()=>null);
-    if (!artist) {
-      const raw = await redis.get(key).catch(()=>null);
-      if (raw) { try { artist = JSON.parse(raw); } catch {} }
-    }
+    const hash = await redis.hGetAll(key);
+    const artist = artistDeserialization(hash);
 
     const pipeline = redis.multi();
     pipeline.zRem(A.IDX_ALL_ARTIST, artistId);

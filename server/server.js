@@ -291,6 +291,7 @@ const allowedOrigins = [
 
   'https://flolup.com',
   'https://www.flolup.com',
+   'https://api.flolup.com',
 ];
 
 // Shared CORS config
@@ -323,7 +324,15 @@ app.options('*', cors(corsOptions));
 // Body parsing middleware
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json({ limit: '2mb' }));
+// app.use(express.json({ limit: '2mb' }));
+
+app.use((req, res, next) => {
+  if (req.headers['content-type']?.startsWith('multipart/form-data')) {
+    return next();
+  }
+  return express.json({ limit: '2mb' })(req, res, next);
+});
+
 
 // File upload middleware
 app.use(graphqlUploadExpress({ maxFileSize: 1000000000, maxFiles: 10 }));

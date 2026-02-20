@@ -109,7 +109,11 @@ const wsLink = new GraphQLWsLink(
       };
     },
     connectionAckWaitTimeout: 10000,
-    shouldRetry: (err) => !err.message.includes("Authentication failed"),
+    shouldRetry: (err) => {
+  if (!err || typeof err.message !== 'string') return true;
+  return !err.message.includes('Authentication failed');
+},
+
   })
 );
 
