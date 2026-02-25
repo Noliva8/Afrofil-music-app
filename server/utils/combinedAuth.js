@@ -176,9 +176,7 @@ import { getAdvertizerFromToken } from './advertizer_auth.js';
 export const combinedAuthMiddleware = async ({ req }) => {
   const authHeader = req.headers.authorization || req.headers['x-artist-authorization'] || '';
   
-  console.log('\n🔐 COMBINED AUTH STARTED');
-  console.log('📨 Auth header present:', !!authHeader);
-  console.log('🔍 Auth header preview:', authHeader.substring(0, 50) + '...');
+ 
 
   if (!authHeader) {
     console.log('❌ No authorization header');

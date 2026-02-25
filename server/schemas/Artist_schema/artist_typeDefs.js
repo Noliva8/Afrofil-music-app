@@ -44,7 +44,11 @@ type Song {
   title: String
   artist: Artist       
   featuringArtist: [String]  
-  album: Album        
+  album: Album 
+    bucket: String 
+    S3Key: String 
+    songUploadStatus: String 
+
   trackNumber: Int
   genre: String
   mood: [String]
@@ -68,6 +72,7 @@ type Song {
   lyrics: String
   artwork: String
   streamAudioFileUrl: String
+  premiumStreamAudioFileUrl: String
   audioFileUrl: String
   artworkKey: String
   audioStreamKey: String
@@ -79,16 +84,33 @@ type Song {
  timeSignature: Float
 keyConfidence: Float
 createdAt: Date!
+
+processingStartedAt: Date
+processingFinishedAt: Date
+processingError: String
+processingAttempts: Int
+
   artworkPresignedUrl: String       
   audioPresignedUrl: String          
 }
 
 
+type SongUploadInit{
+song: Song!
+url: String!
+ key: String!
+}
 
 
 
-
-
+enum songUploadStatus {
+UPLOADING
+UPLOADED
+PROCESSING
+READY
+FAILED
+DUPLICATE
+}
 
 
 # ---------------------------
@@ -846,13 +868,14 @@ addArtwork(
 ): Song
 
 
-  songUpload(
-    file: Upload
-    tempo: Float
-    beats: [Float]
-    timeSignature: Float
-  ): Song!
 
+  
+  newSongUpload(
+  filename: String!, 
+  mimetype: String!, 
+  region: String!, 
+  bucket: String!
+  ): SongUploadInit!
 
 toggleVisibility(songId: ID!, visibility: String!): Song
 
@@ -930,6 +953,8 @@ handleArtistDownloadCounts(
 
   createBookArtist(input: CreateBookArtistInput!): CreateBookArtistPayload!
   respondToBooking(input: RespondToBookingInput!): RespondToBookingPayload!
+
+  
 
 
 }

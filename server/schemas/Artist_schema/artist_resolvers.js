@@ -1,8 +1,6 @@
 
 import fs from 'fs'
-import { pipeline } from 'stream';
 import { ApolloError } from 'apollo-server-express';
-import util from 'util';
 import  { Artist, Album, Song, User, Fingerprint, RadioStation , Message} from '../../models/Artist/index_artist.js';
 import BookArtist from '../../models/Artist/bookArtist.js';
 import { getMessages } from './MessagingSystem/Queries/getmessages.js';
@@ -45,23 +43,21 @@ import FingerprintMatcher from '../../utils/factory/fingerprintMatcher.js'
 import extractFeatures from '../../utils/DuplicateAndCopyrights/detectChroma.js';
 import generateHarmonicFingerprint from '../../utils/Covers/Indicators/harmonicFingerprint.js';
 import generateStructureHash from '../../utils/Covers/Indicators/similalityHashGenerator.js';
-import generateSimilarityFingerprint from '../../utils/Covers/Indicators/similalityFingerprints.js';
+
 import detectKey from '../../utils/Covers/Indicators/keyGenerator.js';
 import tempoDetect from '../../utils/Covers/Indicators/tempoDetection.js';
-import { title } from 'process';
-// import kMeans from 'kmeans-js';
 
-import { upsertSongMeta } from '../../utils/AdEngine/redis/redisSchema.js';
-import { recommendNextAfterFull } from '../../utils/AdEngine/nextSong.js';
+
+
 
 // import SimHash from 'simhash';
 // cache
-import { createSongRedis, getSongRedis, updateSongRedis, incrementPlayCount, deleteSongRedis, redisTrending, searchSongsRedis } from './Redis/songCreateRedis.js';
-import { checkRedisHealth } from '../../utils/AdEngine/redis/redisClient.js';
-import { ensureSongCached } from '../../utils/doesSongExistInCache.js';
-import { artistCreateRedis, artistUpdateRedis, deleteArtistRedis,getArtistRedis, getArtistsByCountryRedis, getTopArtistsRedis, searchArtistsRedis,} from './Redis/artistCreateRedis.js';
+import { updateSongRedis, incrementPlayCount, deleteSongRedis, redisTrending, searchSongsRedis } from './Redis/songCreateRedis.js';
 
-import { albumCreateRedis, albumUpdateRedis, deleteAlbumRedis, getLatestAlbumsRedis,getAlbumsByReleaseDateRedis, getAlbumsBySongCountRedis, searchAlbumsRedis,getMultipleAlbumsRedis, addSongToAlbumRedis,getAlbumRedis, removeSongFromAlbumRedis } from './Redis/albumCreateRedis.js';
+import { ensureSongCached } from '../../utils/doesSongExistInCache.js';
+import { artistCreateRedis, artistUpdateRedis, searchArtistsRedis,} from './Redis/artistCreateRedis.js';
+
+import { albumCreateRedis, albumUpdateRedis, searchAlbumsRedis } from './Redis/albumCreateRedis.js';
 
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import { processedTrendingSongs } from './trendingSongs/trendings.js';
@@ -92,7 +88,7 @@ import { handleFollowers } from './followers/handleFollowers.js';
 import { handleArtistDownloadCounts } from './downloads/handleArtistDownloadCounts.js';
 import { getArtistSongs } from './getArtistSongs/getArtistSongs.js';
 import{getAlbum, otherAlbumsByArtist} from '../Artist_schema/songsOfAlbum.js'
-import { CLOUDFRONT_EXPIRATION } from './Redis/keys.js';
+
 import { getPresignedUrlDownload, getPresignedUrlDownloadAudio } from '../../utils/cloudFrontUrl.js';
 import { getFallbackArtworkUrl } from './similarSongs/similasongResolver.js';
 import { RADIO_TYPES } from '../../utils/radioTypes.js';
@@ -101,8 +97,13 @@ import { respondToBooking } from './bookingArtist/respondToBooking.js';
 import { sendMessage } from './MessagingSystem/Mutations/sendMessage.js';
 import jwt from 'jsonwebtoken';
 
+import { newSongUpload } from './newSongUpload/newSongUpload.js';
 
-const pipe = util.promisify(pipeline);
+
+
+
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -2536,315 +2537,321 @@ return updatedSong;
 
 
 
+// DEPLICATED
 
-songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
-  // Initialize with proper directory setup
-  const __dirname = path.dirname(new URL(import.meta.url).pathname);
-  const uploadsDir = path.join(__dirname, "uploads");
+// songUpload: async (parent, { file, tempo, beats, timeSignature }, context) => {
+//   // Initialize with proper directory setup
+//   const __dirname = path.dirname(new URL(import.meta.url).pathname);
+//   const uploadsDir = path.join(__dirname, "uploads");
   
-  if (!context.artist) {
-    throw new Error("Unauthorized: You must be logged in to create a song.");
-  }
+//   if (!context.artist) {
+//     throw new Error("Unauthorized: You must be logged in to create a song.");
+//   }
 
-  const loggedInArtistId = context.artist._id;
-  let tempFilePath, processedFilePath;
-  let songData;
+//   const loggedInArtistId = context.artist._id;
+//   let tempFilePath, processedFilePath;
+//   let songData;
 
-  // Enhanced cleanup function
-  const cleanupFiles = async () => {
-    const cleanupTasks = [];
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
-      cleanupTasks.push(
-        fs.promises.unlink(tempFilePath)
-          .catch(err => console.error(`Error deleting temp file: ${err.message}`))
-      );
-    }
-    if (processedFilePath && fs.existsSync(processedFilePath)) {
-      cleanupTasks.push(
-        fs.promises.unlink(processedFilePath)
-          .catch(err => console.error(`Error deleting processed file: ${err.message}`))
-      );
-    }
-    await Promise.allSettled(cleanupTasks);
-  };
+//   // Enhanced cleanup function
+//   const cleanupFiles = async () => {
+//     const cleanupTasks = [];
+//     if (tempFilePath && fs.existsSync(tempFilePath)) {
+//       cleanupTasks.push(
+//         fs.promises.unlink(tempFilePath)
+//           .catch(err => console.error(`Error deleting temp file: ${err.message}`))
+//       );
+//     }
+//     if (processedFilePath && fs.existsSync(processedFilePath)) {
+//       cleanupTasks.push(
+//         fs.promises.unlink(processedFilePath)
+//           .catch(err => console.error(`Error deleting processed file: ${err.message}`))
+//       );
+//     }
+//     await Promise.allSettled(cleanupTasks);
+//   };
 
-  const updateProgress = async (step, status, message, percent, isComplete = false) => {
-    try {
-      await pubsub.publish(SONG_UPLOAD_UPDATE, {
-        songUploadProgress: {
-          artistId: loggedInArtistId.toString(),
-          step,
-          status,
-          message,
-          percent,
-          isComplete,
-          timestamp: Date.now()
-        }
-      });
-    } catch (pubError) {
-      // Don't throw - continue upload even if progress fails
-    }
-  };
+//   const updateProgress = async (step, status, message, percent, isComplete = false) => {
+//     try {
+//       await pubsub.publish(SONG_UPLOAD_UPDATE, {
+//         songUploadProgress: {
+//           artistId: loggedInArtistId.toString(),
+//           step,
+//           status,
+//           message,
+//           percent,
+//           isComplete,
+//           timestamp: Date.now()
+//         }
+//       });
+//     } catch (pubError) {
+//       // Don't throw - continue upload even if progress fails
+//     }
+//   };
 
-  try {
-    await updateProgress('INITIATED', 'IN_PROGRESS', 'Starting upload process...', 5);
+//   try {
+//     await updateProgress('INITIATED', 'IN_PROGRESS', 'Starting upload process...', 5);
 
-    // ===== FILE UPLOAD HANDLING =====
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+//     // ===== FILE UPLOAD HANDLING =====
+//     if (!fs.existsSync(uploadsDir)) {
+//       fs.mkdirSync(uploadsDir, { recursive: true });
+//     }
 
-    if (!file) {
-      throw new Error("No file provided for upload.");
-    }
+//     if (!file) {
+//       throw new Error("No file provided for upload.");
+//     }
 
-    const { createReadStream, filename, mimetype } = await file;
-    if (!createReadStream || !filename) {
-      throw new Error("Invalid file input.");
-    }
+//     const { createReadStream, filename, mimetype } = await file;
+//     if (!createReadStream || !filename) {
+//       throw new Error("Invalid file input.");
+//     }
 
-    // Validate file type
-    const allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mp3'];
-    if (mimetype && !allowedMimeTypes.includes(mimetype)) {
-      throw new Error("Invalid file type. Please upload an audio file (MP3 or WAV).");
-    }
+//     // Validate file type
+//     const allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/wave', 'audio/x-wav', 'audio/mp3'];
+//     if (mimetype && !allowedMimeTypes.includes(mimetype)) {
+//       throw new Error("Invalid file type. Please upload an audio file (MP3 or WAV).");
+//     }
 
-    const sanitizedFilename = filename.replace(/[^\w.-]/g, '_');
-    tempFilePath = path.join(uploadsDir, `${Date.now()}_${sanitizedFilename}`);
+//     const sanitizedFilename = filename.replace(/[^\w.-]/g, '_');
+//     tempFilePath = path.join(uploadsDir, `${Date.now()}_${sanitizedFilename}`);
 
-    // Save uploaded file
-    await new Promise((resolve, reject) => {
-      const writeStream = fs.createWriteStream(tempFilePath);
-      const readStream = createReadStream();
+//     // Save uploaded file
+//     await new Promise((resolve, reject) => {
+//       const writeStream = fs.createWriteStream(tempFilePath);
+//       const readStream = createReadStream();
       
-      readStream.on('error', reject);
-      writeStream.on('error', reject);
-      writeStream.on('finish', resolve);
-      readStream.pipe(writeStream);
-    });
+//       readStream.on('error', reject);
+//       writeStream.on('error', reject);
+//       writeStream.on('finish', resolve);
+//       readStream.pipe(writeStream);
+//     });
 
-    // Verify file
-    const stats = fs.statSync(tempFilePath);
-    if (stats.size === 0) throw new Error("Uploaded file is empty");
+//     // Verify file
+//     const stats = fs.statSync(tempFilePath);
+//     if (stats.size === 0) throw new Error("Uploaded file is empty");
 
-    // ===== DUPLICATE CHECK =====
-    await updateProgress('CHECKING_DUPLICATES', 'IN_PROGRESS', 'Checking for duplicate songs...', 25);
+//     // ===== DUPLICATE CHECK =====
+//     await updateProgress('CHECKING_DUPLICATES', 'IN_PROGRESS', 'Checking for duplicate songs...', 25);
 
-    // Use streaming for fingerprint generation to avoid loading entire file
-    const fingerprint = await FingerprintGenerator(fs.createReadStream(tempFilePath, { highWaterMark: 64 * 1024 }));
+//     // Use streaming for fingerprint generation to avoid loading entire file
+//     const fingerprint = await FingerprintGenerator(fs.createReadStream(tempFilePath, { highWaterMark: 64 * 1024 }));
     
-    const matchingResults = await FingerprintMatcher.findMatches(fingerprint, loggedInArtistId, { minMatches: 5 });
+//     const matchingResults = await FingerprintMatcher.findMatches(fingerprint, loggedInArtistId, { minMatches: 5 });
 
-    if (matchingResults.finalDecision) {
-      const { status } = matchingResults.finalDecision;
-      const publishStatus = status === 'artist_duplicate' ? 'DUPLICATE' : 
-                          status === 'copyright_issue' ? 'COPYRIGHT_ISSUE' : 
-                          status.toUpperCase();
+//     if (matchingResults.finalDecision) {
+//       const { status } = matchingResults.finalDecision;
+//       const publishStatus = status === 'artist_duplicate' ? 'DUPLICATE' : 
+//                           status === 'copyright_issue' ? 'COPYRIGHT_ISSUE' : 
+//                           status.toUpperCase();
 
-      await updateProgress('CHECKING_DUPLICATES', publishStatus, matchingResults.finalDecision.message, 30);
-      await updateProgress('COMPLETED', publishStatus, matchingResults.finalDecision.message, 100, true);
+//       await updateProgress('CHECKING_DUPLICATES', publishStatus, matchingResults.finalDecision.message, 30);
+//       await updateProgress('COMPLETED', publishStatus, matchingResults.finalDecision.message, 100, true);
       
-      await cleanupFiles();
-      return {
-        status: publishStatus,
-        ...matchingResults.finalDecision,
-        _id: "BLOCKED",
-        title: matchingResults.finalDecision.title || 'Untitled',
-      };
-    }
+//       await cleanupFiles();
+//       return {
+//         status: publishStatus,
+//         ...matchingResults.finalDecision,
+//         _id: "BLOCKED",
+//         title: matchingResults.finalDecision.title || 'Untitled',
+//       };
+//     }
 
-    // ===== AUDIO PROCESSING =====
-    await updateProgress('PROCESSING', 'IN_PROGRESS', 'Analyzing audio features...', 40);
+//     // ===== AUDIO PROCESSING =====
+//     await updateProgress('PROCESSING', 'IN_PROGRESS', 'Analyzing audio features...', 40);
 
-    // Process sequentially to reduce memory pressure
-    const [resultFromTempoDetect, duration] = await Promise.all([
-      tempoDetect(tempFilePath),
-      extractDuration(tempFilePath)
-    ]);
+//     // Process sequentially to reduce memory pressure
+//     const [resultFromTempoDetect, duration] = await Promise.all([
+//       tempoDetect(tempFilePath),
+//       extractDuration(tempFilePath)
+//     ]);
 
-    // Stream process features to avoid loading everything
-    const features = await extractFeatures(tempFilePath);
+//     // Stream process features to avoid loading everything
+//     const features = await extractFeatures(tempFilePath);
     
-    // Process in chunks to avoid memory buildup
-    const chunkSize = 100;
-    const allChroma = [];
-    const allMfcc = [];
-    const chromaPeaks = [];
+//     // Process in chunks to avoid memory buildup
+//     const chunkSize = 100;
+//     const allChroma = [];
+//     const allMfcc = [];
+//     const chromaPeaks = [];
     
-    // Helper functions for feature processing
-    const processChroma = (chromaData) => {
-      if (!chromaData) return Array(12).fill(0);
-      const chroma = chromaData.map(Number);
-      const norm = Math.sqrt(chroma.reduce((sum, x) => sum + x * x, 0));
-      return norm > 0 ? chroma.map(x => x / norm) : chroma;
-    };
+//     // Helper functions for feature processing
+//     const processChroma = (chromaData) => {
+//       if (!chromaData) return Array(12).fill(0);
+//       const chroma = chromaData.map(Number);
+//       const norm = Math.sqrt(chroma.reduce((sum, x) => sum + x * x, 0));
+//       return norm > 0 ? chroma.map(x => x / norm) : chroma;
+//     };
 
-    const processMfcc = (mfccData) => {
-      if (!mfccData) return Array(13).fill(0);
-      const mfcc = mfccData.map(Number);
-      const norm = Math.sqrt(mfcc.reduce((sum, x) => sum + x * x, 0));
-      return norm > 0 ? mfcc.map(x => x / norm) : mfcc;
-    };
+//     const processMfcc = (mfccData) => {
+//       if (!mfccData) return Array(13).fill(0);
+//       const mfcc = mfccData.map(Number);
+//       const norm = Math.sqrt(mfcc.reduce((sum, x) => sum + x * x, 0));
+//       return norm > 0 ? mfcc.map(x => x / norm) : mfcc;
+//     };
 
-    const getChromaPeaks = (chromaData) => {
-      if (!chromaData) return [];
-      return chromaData
-        .map((val, idx) => ({ val, idx }))
-        .sort((a, b) => b.val - a.val)
-        .slice(0, 2)
-        .map(entry => entry.idx);
-    };
+//     const getChromaPeaks = (chromaData) => {
+//       if (!chromaData) return [];
+//       return chromaData
+//         .map((val, idx) => ({ val, idx }))
+//         .sort((a, b) => b.val - a.val)
+//         .slice(0, 2)
+//         .map(entry => entry.idx);
+//     };
 
-    // Process features in chunks
-    for (let i = 0; i < features.length; i += chunkSize) {
-      const chunk = features.slice(i, i + chunkSize);
+//     // Process features in chunks
+//     for (let i = 0; i < features.length; i += chunkSize) {
+//       const chunk = features.slice(i, i + chunkSize);
       
-      for (const feature of chunk) {
-        allChroma.push(processChroma(feature.chroma));
-        allMfcc.push(processMfcc(feature.mfcc));
-        chromaPeaks.push(getChromaPeaks(feature.chroma));
-      }
+//       for (const feature of chunk) {
+//         allChroma.push(processChroma(feature.chroma));
+//         allMfcc.push(processMfcc(feature.mfcc));
+//         chromaPeaks.push(getChromaPeaks(feature.chroma));
+//       }
       
-      // Allow GC to run periodically
-      if (i % (chunkSize * 10) === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0));
-      }
-    }
+//       // Allow GC to run periodically
+//       if (i % (chunkSize * 10) === 0) {
+//         await new Promise(resolve => setTimeout(resolve, 0));
+//       }
+//     }
 
-    // Generate hash
-    const hash = generateStructureHash({ allMfcc, allChroma, tempo, beats });
+//     // Generate hash
+//     const hash = generateStructureHash({ allMfcc, allChroma, tempo, beats });
     
-    // Detect musical key
-    const { key, mode } = await detectKey(allChroma);
+//     // Detect musical key
+//     const { key, mode } = await detectKey(allChroma);
     
-    // Generate harmonic fingerprint
-    const harmonicFingerprint = await generateHarmonicFingerprint(allChroma, beats);
-    const maxHarmonic = Math.max(...harmonicFingerprint);
-    const normalizedHarmonic = maxHarmonic > 0 ? 
-      harmonicFingerprint.map(v => v / maxHarmonic) : 
-      harmonicFingerprint;
+//     // Generate harmonic fingerprint
+//     const harmonicFingerprint = await generateHarmonicFingerprint(allChroma, beats);
+//     const maxHarmonic = Math.max(...harmonicFingerprint);
+//     const normalizedHarmonic = maxHarmonic > 0 ? 
+//       harmonicFingerprint.map(v => v / maxHarmonic) : 
+//       harmonicFingerprint;
 
-    // ===== FILE PROCESSING =====
-    await updateProgress('FINALIZING', 'IN_PROGRESS', 'Preparing final files...', 70);
+//     // ===== FILE PROCESSING =====
+//     await updateProgress('FINALIZING', 'IN_PROGRESS', 'Preparing final files...', 70);
 
-    processedFilePath = path.join(uploadsDir, `${fingerprint[0].hash}_${path.basename(filename)}`);
-    await processAudio(tempFilePath, processedFilePath);
+//     processedFilePath = path.join(uploadsDir, `${fingerprint[0].hash}_${path.basename(filename)}`);
+//     await processAudio(tempFilePath, processedFilePath);
 
-    // ===== S3 UPLOAD =====
-    await updateProgress('UPLOADING', 'IN_PROGRESS', 'Uploading to cloud storage...', 80);
+//     // ===== S3 UPLOAD =====
+//     await updateProgress('UPLOADING', 'IN_PROGRESS', 'Uploading to cloud storage...', 80);
 
-    const fileKey = `for-streaming/${fingerprint[0].hash}_${path.basename(filename)}`;
-    const originalSongKey = `original_songs/${fingerprint[0].hash}_${path.basename(filename)}`;
+//     const fileKey = `for-streaming/${fingerprint[0].hash}_${path.basename(filename)}`;
+//     const originalSongKey = `original_songs/${fingerprint[0].hash}_${path.basename(filename)}`;
 
-    // Stream to S3
-    await Promise.all([
-      s3.send(new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME_STREAMING,
-        Key: fileKey,
-        Body: fs.createReadStream(processedFilePath, { highWaterMark: 1024 * 1024 }),
-        ContentType: "audio/mpeg"
-      })),
+//     // Stream to S3
+//     await Promise.all([
+//       s3.send(new PutObjectCommand({
+//         Bucket: process.env.BUCKET_NAME_STREAMING,
+//         Key: fileKey,
+//         Body: fs.createReadStream(processedFilePath, { highWaterMark: 1024 * 1024 }),
+//         ContentType: "audio/mpeg"
+//       })),
       
-      s3.send(new PutObjectCommand({
-        Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,
-        Key: originalSongKey,
-        Body: fs.createReadStream(tempFilePath, { highWaterMark: 1024 * 1024 }),
-        ContentType: "audio/mpeg"
-      }))
-    ]);
+//       s3.send(new PutObjectCommand({
+//         Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS,
+//         Key: originalSongKey,
+//         Body: fs.createReadStream(tempFilePath, { highWaterMark: 1024 * 1024 }),
+//         ContentType: "audio/mpeg"
+//       }))
+//     ]);
 
-    // ===== DATABASE RECORDS =====
-    await updateProgress('FINALIZING', 'IN_PROGRESS', 'Creating database record...', 90);
+//     // ===== DATABASE RECORDS =====
+//     await updateProgress('FINALIZING', 'IN_PROGRESS', 'Creating database record...', 90);
 
-    // Find or create album
-    let album = await Album.findOne({ artist: loggedInArtistId });
-    if (!album) {
-      album = await Album.create({
-        title: "Single",
-        artist: loggedInArtistId,
-        releaseDate: new Date()
-      });
-    }
+//     // Find or create album
+//     let album = await Album.findOne({ artist: loggedInArtistId });
+//     if (!album) {
+//       album = await Album.create({
+//         title: "Single",
+//         artist: loggedInArtistId,
+//         releaseDate: new Date()
+//       });
+//     }
 
-    // Clear large arrays to free memory before DB operation
-    const songTitle = path.basename(filename, path.extname(filename));
+//     // Clear large arrays to free memory before DB operation
+//     const songTitle = path.basename(filename, path.extname(filename));
     
-    // Allow GC to collect the large arrays
-    const chromaCopy = [...allChroma];
-    const mfccCopy = [...allMfcc];
-    const peaksCopy = [...chromaPeaks];
+//     // Allow GC to collect the large arrays
+//     const chromaCopy = [...allChroma];
+//     const mfccCopy = [...allMfcc];
+//     const peaksCopy = [...chromaPeaks];
     
-    // Clear original arrays
-    allChroma.length = 0;
-    allMfcc.length = 0;
-    chromaPeaks.length = 0;
+//     // Clear original arrays
+//     allChroma.length = 0;
+//     allMfcc.length = 0;
+//     chromaPeaks.length = 0;
 
-    songData = await Song.create({
-      title: songTitle,
-      album: album._id,
-      artist: loggedInArtistId,
-      audioFileUrl: `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`,
-      streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
-      visibility: "private",
-      timeSignature: timeSignature || "4/4",
-      key,
-      mode,
-      duration,
-      trendingScore: INITIAL_RECENCY_SCORE,
-      tempo: resultFromTempoDetect || tempo,
-      beats: beats || [],
-      releaseDate: new Date()
-    });
+//     songData = await Song.create({
+//       title: songTitle,
+//       album: album._id,
+//       artist: loggedInArtistId,
+//       audioFileUrl: `https://${process.env.BUCKET_NAME_ORIGINAL_SONGS}.s3.amazonaws.com/${originalSongKey}`,
+//       streamAudioFileUrl: `https://${process.env.BUCKET_NAME_STREAMING}.s3.amazonaws.com/${fileKey}`,
+//       visibility: "private",
+//       timeSignature: timeSignature || "4/4",
+//       key,
+//       mode,
+//       duration,
+//       trendingScore: INITIAL_RECENCY_SCORE,
+//       tempo: resultFromTempoDetect || tempo,
+//       beats: beats || [],
+//       releaseDate: new Date()
+//     });
 
-    // Handle trending
-    try {
-      await addSongToTrendingOnUpload(songData._id);
-    } catch (redisError) {
-      console.warn('Redis caching failed (continuing anyway):', redisError);
-    }
+//     // Handle trending
+//     try {
+//       await addSongToTrendingOnUpload(songData._id);
+//     } catch (redisError) {
+//       console.warn('Redis caching failed (continuing anyway):', redisError);
+//     }
 
-    // Create fingerprint
-    await Fingerprint.create({
-      song: songData._id,
-      audioHash: fingerprint,
-      structureHash: hash,
-      chromaPeaks: peaksCopy,
-      harmonicFingerprint: normalizedHarmonic,
-      beats: beats || []
-    });
+//     // Create fingerprint
+//     await Fingerprint.create({
+//       song: songData._id,
+//       audioHash: fingerprint,
+//       structureHash: hash,
+//       chromaPeaks: peaksCopy,
+//       harmonicFingerprint: normalizedHarmonic,
+//       beats: beats || []
+//     });
 
-    // Final steps
-    await updateProgress('FINALIZING', 'IN_PROGRESS', 'Finalizing upload...', 95);
-    await new Promise(resolve => setTimeout(resolve, 200));
-    await cleanupFiles();
-    await updateProgress('COMPLETED', 'SUCCESS', 'Upload completed successfully!', 100, true);
+//     // Final steps
+//     await updateProgress('FINALIZING', 'IN_PROGRESS', 'Finalizing upload...', 95);
+//     await new Promise(resolve => setTimeout(resolve, 200));
+//     await cleanupFiles();
+//     await updateProgress('COMPLETED', 'SUCCESS', 'Upload completed successfully!', 100, true);
 
-    return {
-      status: 'SUCCESS',
-      _id: songData._id,
-      title: songData.title
-    };
+//     return {
+//       status: 'SUCCESS',
+//       _id: songData._id,
+//       title: songData.title
+//     };
 
-  } catch (error) {
-    console.error('Upload failed:', error);
+//   } catch (error) {
+//     console.error('Upload failed:', error);
     
-    try {
-      if (songData?._id) await Song.deleteOne({ _id: songData._id });
-      await cleanupFiles();
-    } catch (cleanupError) {
-      console.error('Cleanup failed:', cleanupError);
-    }
+//     try {
+//       if (songData?._id) await Song.deleteOne({ _id: songData._id });
+//       await cleanupFiles();
+//     } catch (cleanupError) {
+//       console.error('Cleanup failed:', cleanupError);
+//     }
 
-    await updateProgress('FAILED', 'FAILED', error.message, 100, true);
+//     await updateProgress('FAILED', 'FAILED', error.message, 100, true);
     
-    return {
-      status: 'FAILED',
-      _id: songData?._id || `FAILED-${Date.now()}`,
-      title: songData?.title || 'Untitled',
-      message: error.message
-    };
-  }
-},
+//     return {
+//       status: 'FAILED',
+//       _id: songData?._id || `FAILED-${Date.now()}`,
+//       title: songData?.title || 'Untitled',
+//       message: error.message
+//     };
+//   }
+// },
+
+newSongUpload,
+
+
+
 
 addLyrics:  async (_parent, { songId, lyrics }, context) => {
       try {

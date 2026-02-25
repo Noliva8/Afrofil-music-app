@@ -392,6 +392,20 @@ mutation songUpload($file: Upload, $tempo: Float, $beats: [Float], $timeSignatur
 `
 
 
+export const NEW_SONG_UPLOAD = gql`
+mutation newSongUpload($filename: String!, $mimetype: String!, $region: String!, $bucket: String!) {
+  newSongUpload(filename: $filename, mimetype: $mimetype, region: $region, bucket: $bucket) {
+    key
+    url
+    song {
+      _id
+      title
+    }
+  }
+}
+`
+
+
 export const TOGGLE_VISIBILITY = gql`
   mutation toggleVisibility($songId: ID!, $visibility: String!) {
     toggleVisibility(songId: $songId, visibility: $visibility) {

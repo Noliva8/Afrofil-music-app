@@ -127,6 +127,8 @@ const handleProfileImageUpload = async (e) => {
       toast.error("File upload failed.");
       return;
     }
+
+    
   } catch (error) {
     console.error("Error during upload process:", error);
     toast.error("Error uploading image.");

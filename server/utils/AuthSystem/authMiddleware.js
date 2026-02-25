@@ -58,14 +58,14 @@ export const combinedAuthMiddleware = async ({ req }) => {
         const extracted = tokenUtils.extractToken(value);
         if (extracted) {
           try {
-console.log('auth header present', header);
+
 
 
 
 
             const decoded = tokenUtils.verifyByKind(extracted);
 
-            console.log('decoded artist id', decoded.data._id);
+           
             
             validTokens.push({
               token: extracted,

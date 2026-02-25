@@ -23,6 +23,28 @@ const songSchema = new Schema({
     required: true
   },
 
+  bucket: {
+    type: String
+  },
+S3Key : {
+    type: String
+  },
+
+  songUploadStatus: {
+  type: String,
+  enum: [
+    "UPLOADING",
+    "UPLOADED",
+    "PROCESSING",
+    "READY",
+    "FAILED",
+    "DUPLICATE"
+  ],
+  default: "UPLOADING",
+   index: true
+},
+  
+
   trackNumber: {
     type: Number
   },
@@ -217,6 +239,9 @@ composer: [
    streamAudioFileUrl: {
     type: String,
   },
+  premiumStreamAudioFileUrl: {
+    type: String,
+  },
 
   artwork: {
     type: String,
@@ -245,6 +270,10 @@ timeSignature: {
   beats: {
     type: [Number]
   },
+  processingStartedAt: { type: Date, default: null },
+processingFinishedAt: { type: Date, default: null },
+processingError: { type: String, default: null },
+processingAttempts: { type: Number, default: 0 },
 
   createdAt: {
     type: Date,

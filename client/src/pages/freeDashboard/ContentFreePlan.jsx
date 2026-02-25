@@ -17,8 +17,10 @@ import {
   UPDATE_SONG,
   GET_PRESIGNED_URL,
   GET_PRESIGNED_URL_DOWNLOAD,
-  GET_PRESIGNED_URL_DELETE
+  GET_PRESIGNED_URL_DELETE,
+   NEW_SONG_UPLOAD
 } from "../../utils/mutations";
+
 import { GET_ALBUM } from "../../utils/queries";
 import { SONG_UPLOAD_UPDATE } from "../../utils/subscription";
 
@@ -78,6 +80,9 @@ export default function ContentFreePlan() {
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
   const [getPresignedUrlDelete] = useMutation(GET_PRESIGNED_URL_DELETE);
   const [songUpload] = useMutation(SONG_UPLOAD);
+
+
+const [newSongUpload] = useMutation( NEW_SONG_UPLOAD);
 
   // Form handling
   const { register, control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
@@ -259,27 +264,150 @@ const navigate = useNavigate();
 
 
 
+// deplecated
+
+// const handleSongUpload = async (event) => {
+//   event.preventDefault();
+
+//   if (!isProfileComplete) {
+//     showProfileBlockMessage();
+//     return;
+//   }
+
+//   setIsSongLoading(true);
+//   setUploadProgress(10); 
+
+//   const songFile = event.target.files[0];
+//   if (!songFile) {
+//     Swal.fire({ icon: "error", title: "Oops...", text: "No song selected!" });
+//     setIsSongLoading(false);
+//     return;
+//   }
+
+//   setUploadProgress(20); 
+//   const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
+//   if (!allowedFormats.includes(songFile.type)) {
+//     Swal.fire({
+//       icon: "error",
+//       title: "Invalid Format",
+//       text: "Only MP3, WAV, and FLAC are allowed.",
+//     });
+//     setIsSongLoading(false);
+//     return;
+//   }
+
+//   if (songFile.size > 10 * 1024 * 10240) {
+//     Swal.fire({
+//       icon: "error",
+//       title: "File too large",
+//       text: "Please upload a file smaller than 100MB.",
+//     });
+//     setIsSongLoading(false);
+//     return;
+//   }
+
+//    setActiveStep(1)
 
 
-const handleSongUpload = async (event) => {
-  event.preventDefault();
 
-  if (!isProfileComplete) {
+// // ===================
+
+// // CALCULATE TEMPO, BEATS, TIME SIGNATURE BEFORE UPLOADING
+// // -----------------------------------------------------
+
+// const context = new AudioContext();
+// const reader = new FileReader();
+
+// reader.onload = async function (e) {
+//   try {
+//     const decodedBuffer = await context.decodeAudioData(e.target.result);
+//     const sampleRate = decodedBuffer.sampleRate;
+//     let audioData = [];
+
+//     // Mix down to mono
+//     if (decodedBuffer.numberOfChannels === 2) {
+//       const channel1 = decodedBuffer.getChannelData(0);
+//       const channel2 = decodedBuffer.getChannelData(1);
+//       audioData = channel1.map((val, i) => (val + channel2[i]) / 2);
+//     } else {
+//       audioData = decodedBuffer.getChannelData(0);
+//     }
+
+//     // 🎯 Use the full audio buffer here (no trimming)
+//     const mt = new MusicTempo(audioData);
+//     console.log('🎵 Full Audio BPM:', mt.tempo);
+//     console.log('🕒 Beats:', mt.beats);
+
+//     // Detect time signature
+//     const timeSignature = detectTimeSignature(mt.beats, mt.tempo);
+//     console.log('🧭 Detected Time Signature:', timeSignature);
+
+//     // Upload to server
+//     const { data } = await songUpload({
+//       variables: {
+//         file: songFile,
+//         tempo: Number(mt.tempo),
+//         beats: mt.beats.map(Number),
+//         timeSignature: parseInt(timeSignature),
+//       },
+//     });
+
+
+
+//     console.log('✅ Upload successful:', data);
+//     const songId = data.songUpload._id;
+//     console.log('the song id from server:', songId);
+
+//     setSongId(songId)
+//   } catch (error) {
+//      Swal.fire({
+//       icon: "error",
+//       title: "audio corrupted",
+//       text: "Please play your song first and confirm if it works .",
+//     }
+//     );
+//     console.error('❌ Error during full audio analysis:', error);
+//     setActiveStep(0)
+//      setIsSongLoading(false);
+//   }
+
+
+
+
+// };
+
+// reader.readAsArrayBuffer(songFile);
+
+// };
+
+
+
+
+const handleNewSongUpload = async (event) => {
+
+
+
+try {
+
+if (!isProfileComplete) {
     showProfileBlockMessage();
     return;
   }
 
-  setIsSongLoading(true);
-  setUploadProgress(10); 
-
   const songFile = event.target.files[0];
+
   if (!songFile) {
     Swal.fire({ icon: "error", title: "Oops...", text: "No song selected!" });
     setIsSongLoading(false);
     return;
   }
 
-  setUploadProgress(20); 
+ setIsSongLoading(true);
+
+    const filename = songFile.name;
+const mimetype = songFile.type;
+
+
   const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
   if (!allowedFormats.includes(songFile.type)) {
     Swal.fire({
@@ -291,7 +419,7 @@ const handleSongUpload = async (event) => {
     return;
   }
 
-  if (songFile.size > 10 * 1024 * 10240) {
+  if (songFile.size > 100 * 1024 * 1024) {
     Swal.fire({
       icon: "error",
       title: "File too large",
@@ -301,61 +429,48 @@ const handleSongUpload = async (event) => {
     return;
   }
 
-   setActiveStep(1)
+//  const bucket = import.meta.env.VITE_FLOLUP_ORIGINAL_SONGS_INPUT_BUCKET;
+//  const region = import.meta.env.VITE_FLOLUP_REGION;
+
+//   if (!bucket || !region) {
+//     Swal.fire({
+//       icon: "error",
+//       title: "Configuration error",
+//       text: "Upload bucket or region is missing. Please contact support.",
+//     });
+//     setIsSongLoading(false);
+//     return;
+//   }
+
+const { data } = await newSongUpload({
+  variables: {
+    filename: filename ,
+    mimetype: mimetype,
+    region: 'us-east-2',
+    bucket: 'flolup-original-songs'
+  }
+})
+console.log('what is the data?', data)
+const { url, key, song } = data.newSongUpload;
 
 
-
-// ===================
-
-// CALCULATE TEMPO, BEATS, TIME SIGNATURE BEFORE UPLOADING
-// -----------------------------------------------------
-
-const context = new AudioContext();
-const reader = new FileReader();
-
-reader.onload = async function (e) {
-  try {
-    const decodedBuffer = await context.decodeAudioData(e.target.result);
-    const sampleRate = decodedBuffer.sampleRate;
-    let audioData = [];
-
-    // Mix down to mono
-    if (decodedBuffer.numberOfChannels === 2) {
-      const channel1 = decodedBuffer.getChannelData(0);
-      const channel2 = decodedBuffer.getChannelData(1);
-      audioData = channel1.map((val, i) => (val + channel2[i]) / 2);
-    } else {
-      audioData = decodedBuffer.getChannelData(0);
-    }
-
-    // 🎯 Use the full audio buffer here (no trimming)
-    const mt = new MusicTempo(audioData);
-    console.log('🎵 Full Audio BPM:', mt.tempo);
-    console.log('🕒 Beats:', mt.beats);
-
-    // Detect time signature
-    const timeSignature = detectTimeSignature(mt.beats, mt.tempo);
-    console.log('🧭 Detected Time Signature:', timeSignature);
-
-    // Upload to server
-    const { data } = await songUpload({
-      variables: {
-        file: songFile,
-        tempo: Number(mt.tempo),
-        beats: mt.beats.map(Number),
-        timeSignature: parseInt(timeSignature),
+// Now upload file to S3
+    const response = await fetch(url, {
+      method: "PUT",
+      body: songFile,
+      headers: {
+        "Content-Type": songFile.type,
       },
     });
 
 
+    //   if (!response.ok) {
+    //   throw new Error("Upload failed");
+    // }
 
-    console.log('✅ Upload successful:', data);
-    const songId = data.songUpload._id;
-    console.log('the song id from server:', songId);
 
-    setSongId(songId)
-  } catch (error) {
-     Swal.fire({
+}catch(error){
+Swal.fire({
       icon: "error",
       title: "audio corrupted",
       text: "Please play your song first and confirm if it works .",
@@ -365,17 +480,19 @@ reader.onload = async function (e) {
     setActiveStep(0)
      setIsSongLoading(false);
   }
-
-
-
-
-};
-
-reader.readAsArrayBuffer(songFile);
-
   
- 
-};
+
+
+   setActiveStep(1)
+
+
+
+
+
+}
+
+
+
 
 
 // Centralized data processing from server
@@ -710,10 +827,12 @@ try {
             mb: 3,
             width: "100%"
           }}>
+
+
             <SongUpload
               isSongLoading={isSongLoading}
               setIsSongLoading={setIsSongLoading}
-              handleSongUpload={handleSongUpload}
+              handleSongUpload={handleNewSongUpload}
               activeStep={activeStep}
               setActiveStep={setActiveStep}
               setValue={setValue}
@@ -724,6 +843,9 @@ try {
               subscriptionLoading={subscriptionLoading}
               subscriptionError={subscriptionError}
             />
+
+
+
           </Paper>
         )}
 
