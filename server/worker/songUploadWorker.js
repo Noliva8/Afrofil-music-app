@@ -6,7 +6,7 @@ import {
   DeleteMessageCommand,
 } from "@aws-sdk/client-sqs";
 
-import Song from "../models/Artist/index_artist.js";
+import {Song} from '../models/Artist/index_artist.js'
 import { processOriginalSong } from "./processOriginalSong.js";
 
 // =====================
