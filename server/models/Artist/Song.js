@@ -286,9 +286,9 @@ processingAttempts: { type: Number, default: 0 },
 // Add indexes for frequently queried fields
 // Add these indexes to your songSchema (before creating the model)
 songSchema.index({ artist: 1, album: 1, genre: 1, tempo: 1 });
-songSchema.index({ genre: 1, mood: 1, subMoods: 1, tempo: 1 });
-songSchema.index({ mood: 1, subMoods: 1, tempo: 1 });
+songSchema.index({ genre: 1, mood: 1, tempo: 1 });
 songSchema.index({ subMoods: 1, tempo: 1 });
+
 songSchema.index({ tempo: 1 });
 songSchema.index({ releaseDate: -1, trendingScore: -1 });
 
