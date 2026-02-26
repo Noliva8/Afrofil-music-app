@@ -32,16 +32,28 @@ const sqs = new SQSClient({ region: PROCESSING_REGION });
 // =====================
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+
+
 function parseS3Event(body) {
   const payload = JSON.parse(body);
-  const rec = payload?.Records?.[0];
 
-  if (!rec?.s3?.bucket?.name || !rec?.s3?.object?.key) {
+  // SNS -> SQS case: S3 event is in payload.Message
+  const maybeS3 = payload?.Records ? payload : payload?.Message ? JSON.parse(payload.Message) : null;
+
+  const rec = maybeS3?.Records?.[0];
+  if (!rec?.s3?.bucket?.name || rec?.s3?.object?.key == null) {
     throw new Error("Invalid S3 event payload (missing bucket/key)");
   }
 
   const bucket = rec.s3.bucket.name;
-  const key = decodeURIComponent(rec.s3.object.key.replace(/\+/g, " "));
+
+  // S3 key is URL-encoded; '+' can mean space
+  const key = decodeURIComponent(String(rec.s3.object.key).replace(/\+/g, " "));
+
+  // Ignore "folder" placeholder events like originalSongUploads/
+  if (key.endsWith("/")) {
+    return { ignore: true, bucket, key, reason: "folder-key" };
+  }
 
   return {
     bucket,
@@ -53,14 +65,25 @@ function parseS3Event(body) {
   };
 }
 
+
+
+
 async function acquireProcessingLock({ bucket, key }) {
   const now = new Date();
+
+  // normalize: your resolver safeName uses underscores
+  const keyUnderscored = key.replace(/[^\w.\-\/]+/g, "_");
 
   return Song.findOneAndUpdate(
     {
       bucket,
-      s3Key: key,
       songUploadStatus: { $in: ["UPLOADING", "RECEIVED", "FAILED"] },
+      $or: [
+        { s3Key: key },
+        { S3key: key }, // legacy field
+        { s3Key: keyUnderscored },
+        { S3key: keyUnderscored },
+      ],
     },
     {
       $set: {
@@ -73,6 +96,7 @@ async function acquireProcessingLock({ bucket, key }) {
     { new: true }
   );
 }
+
 
 async function markCompleted(songId, updates = {}) {
   await Song.findByIdAndUpdate(songId, {
@@ -105,6 +129,11 @@ async function handleMessage(msg) {
   if (!body) throw new Error("SQS message missing Body");
 
   const s3Info = parseS3Event(body);
+  if (s3Info.ignore) {
+  console.log(`[worker] Ignoring ${s3Info.reason} bucket=${s3Info.bucket} key=${s3Info.key}`);
+  await sqs.send(new DeleteMessageCommand({ QueueUrl: SQS_QUEUE_URL, ReceiptHandle: receiptHandle }));
+  return;
+}
   const { bucket, key } = s3Info;
 
   console.log(`[worker] S3 event: ${s3Info.eventName} bucket=${bucket} key=${key}`);
