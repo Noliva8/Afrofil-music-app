@@ -128,20 +128,20 @@ export async function processOriginalSong(songDoc, s3Info) {
       minMatches: 5,
     });
 
-    if (matchingResults?.finalDecision) {
-      const { status, message } = matchingResults.finalDecision;
-
+    const status = matchingResults?.finalDecision?.status;
+    if (status && status !== "no_matches") {
       const publishStatus =
         status === "artist_duplicate"
           ? "DUPLICATE"
           : status === "copyright_issue"
           ? "COPYRIGHT_ISSUE"
-          : String(status || "BLOCKED").toUpperCase();
+          : String(status).toUpperCase();
+      const processingMessage = matchingResults.finalDecision.message || "Blocked by fingerprint checks";
 
       return {
         processingOutcome: "BLOCKED",
         publishStatus,
-        processingMessage: message || "Blocked by fingerprint checks",
+        processingMessage,
       };
     }
 

@@ -177,10 +177,15 @@ async function handleMessage(msg) {
 
     // 3) Persist result safely
     if (result?.processingOutcome === "BLOCKED") {
-      await markCompleted(song._id, {
-        publishStatus: result.publishStatus,
-        processingMessage: result.processingMessage,
-      });
+      if (result.publishStatus === "DUPLICATE") {
+        await Song.findByIdAndDelete(song._id);
+        console.log(`[worker] Removed duplicate songId=${song._id}`);
+      } else {
+        await markCompleted(song._id, {
+          publishStatus: result.publishStatus,
+          processingMessage: result.processingMessage,
+        });
+      }
     } else {
       // PROCESSED
       await markCompleted(song._id, {
