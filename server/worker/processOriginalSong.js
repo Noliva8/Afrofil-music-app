@@ -145,11 +145,12 @@ export async function processOriginalSong(songDoc, s3Info) {
       };
     }
 
+
     // 4) Save fingerprint model, reference in Song
     const fpDoc = await Fingerprint.create({
       artist: artistId,
       song: songId,
-      fingerprint,
+      audioHash: fingerprint,
     });
 
     // 5) Tempo + Duration
@@ -179,11 +180,15 @@ export async function processOriginalSong(songDoc, s3Info) {
       contentType: "audio/mpeg",
     });
 
+
+    // we need to update the song collection with fingerprint id, tempo, streamAudioFileUrl: regular and premiumStreamAudioFileUrl: premium
+
     // 8) Return DB-safe updates
     return {
       processingOutcome: "PROCESSED",
       fingerprintRef: fpDoc._id,
       bpm,
+      tempo: bpm,
       duration,
       streamingBucket: STREAMING_BUCKET,
       regularKey,

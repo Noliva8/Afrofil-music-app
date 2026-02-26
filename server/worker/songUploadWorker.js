@@ -108,6 +108,11 @@ async function markCompleted(songId, updates = {}) {
   });
 }
 
+function buildS3Url(bucket, key) {
+  if (!bucket || !key) return null;
+  return `https://${bucket}.s3.amazonaws.com/${encodeURI(key)}`;
+}
+
 async function markFailed(songId, error) {
   await Song.findByIdAndUpdate(songId, {
     $set: {
@@ -181,10 +186,13 @@ async function handleMessage(msg) {
       await markCompleted(song._id, {
         fingerprintRef: result.fingerprintRef,
         bpm: result.bpm,
+        tempo: result.tempo ?? result.bpm,
         duration: result.duration,
         streamingBucket: result.streamingBucket,
         regularKey: result.regularKey,
         premiumKey: result.premiumKey,
+        streamAudioFileUrl: buildS3Url(result.streamingBucket, result.regularKey),
+        premiumStreamAudioFileUrl: buildS3Url(result.streamingBucket, result.premiumKey),
         publishStatus: "OK",
       });
     }
