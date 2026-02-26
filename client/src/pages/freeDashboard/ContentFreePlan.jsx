@@ -468,6 +468,8 @@ const { url, key, song } = data.newSongUpload;
     //   throw new Error("Upload failed");
     // }
 
+const songId = data.newSongUpload._id;
+    setSongId(songId)
 
 }catch(error){
 Swal.fire({

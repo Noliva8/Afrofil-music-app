@@ -98,6 +98,7 @@ import { sendMessage } from './MessagingSystem/Mutations/sendMessage.js';
 import jwt from 'jsonwebtoken';
 
 import { newSongUpload } from './newSongUpload/newSongUpload.js';
+import { notifySongUploadProgress } from './uploadNotification/notifySongUploadProgress.js';
 
 
 
@@ -2849,6 +2850,7 @@ return updatedSong;
 // },
 
 newSongUpload,
+    notifySongUploadProgress,
 
 
 
