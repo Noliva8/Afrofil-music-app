@@ -59,7 +59,7 @@ if (!context.artist) throw new Error('Unauthorized: You are not logged in.');
     artist: loggedInArtistId,
     bucket: bucket,
     visibility: "private",
-    S3Key: key,
+    s3Key: key,
     songUploadStatus: "UPLOADING",
     duration: 0,
     releaseDate: new Date(),

@@ -80,7 +80,7 @@ async function acquireProcessingLock({ bucket, key }) {
       songUploadStatus: { $in: ["UPLOADING", "RECEIVED", "FAILED"] },
       $or: [
         { s3Key: key },
-        { S3key: key }, // legacy field
+        { s3key: key }, // legacy field
         { s3Key: keyUnderscored },
         { S3key: keyUnderscored },
       ],

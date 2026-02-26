@@ -46,7 +46,7 @@ type Song {
   featuringArtist: [String]  
   album: Album 
     bucket: String 
-    S3Key: String 
+    s3Key: String 
     songUploadStatus: String 
 
   trackNumber: Int

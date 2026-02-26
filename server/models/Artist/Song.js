@@ -26,7 +26,7 @@ const songSchema = new Schema({
   bucket: {
     type: String
   },
-S3Key : {
+s3Key : {
     type: String
   },
 
