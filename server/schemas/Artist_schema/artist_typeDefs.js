@@ -877,16 +877,6 @@ addArtwork(
   bucket: String!
   ): SongUploadInit!
 
-  notifySongUploadProgress(
-    artistId: ID!
-    songId: ID!
-    status: UploadStatus!
-    step: UploadStep!
-    message: String
-    percent: Float
-    isComplete: Boolean
-  ): UploadProgress
-
 toggleVisibility(songId: ID!, visibility: String!): Song
 
 deleteSong(

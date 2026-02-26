@@ -1,6 +1,5 @@
 import "dotenv/config";
 import mongoose from "mongoose";
-import fetch from "node-fetch";
 import {
   SQSClient,
   ReceiveMessageCommand,
@@ -25,8 +24,6 @@ const {
   WORKER_MAX_MESSAGES = "5",
   WORKER_VISIBILITY_TIMEOUT = "600", // ✅ safer for fingerprint + 2x ffmpeg
   WORKER_SLEEP_EMPTY_MS = "1000",
-  WORKER_NOTIFICATION_TOKEN,
-  SERVER_URL,
 } = process.env;
 
 if (!MONGODB_URI) throw new Error("Missing MONGODB_URI");
@@ -120,82 +117,6 @@ function buildS3Url(bucket, key) {
   return `https://${bucket}.s3.amazonaws.com/${encodeURI(key)}`;
 }
 
-const notificationEndpoint = SERVER_URL
-  ? `${SERVER_URL.replace(/\/$/, "")}/graphql`
-  : undefined;
-
-async function sendUploadProgressNotification({
-  artistId,
-  songId,
-  status,
-  step,
-  message,
-  percent,
-  isComplete,
-}) {
-  if (!artistId || !songId || !status || !step) return;
-  if (!notificationEndpoint) return;
-
-  const payload = {
-    query: `
-      mutation NotifySongUploadProgress(
-        $artistId: ID!
-        $songId: ID!
-        $status: UploadStatus!
-        $step: UploadStep!
-        $message: String
-        $percent: Float
-        $isComplete: Boolean
-      ) {
-        notifySongUploadProgress(
-          artistId: $artistId
-          songId: $songId
-          status: $status
-          step: $step
-          message: $message
-          percent: $percent
-          isComplete: $isComplete
-        ) {
-          step
-          status
-        }
-      }
-    `,
-    variables: {
-      artistId,
-      songId,
-      status,
-      step,
-      message,
-      percent,
-      isComplete,
-    },
-  };
-
-  try {
-    const response = await fetch(notificationEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(WORKER_NOTIFICATION_TOKEN
-          ? { Authorization: `Bearer ${WORKER_NOTIFICATION_TOKEN}` }
-          : {}),
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      console.warn(
-        "[worker] Upload notification failed with status",
-        response.status,
-        await response.text()
-      );
-    }
-  } catch (err) {
-    console.error("[worker] Upload notification error:", err);
-  }
-}
-
 async function markFailed(songId, error) {
   await Song.findByIdAndUpdate(songId, {
     $set: {
@@ -259,21 +180,10 @@ async function handleMessage(msg) {
     const result = await processOriginalSong(song, s3Info);
 
     // 3) Persist result safely
-    const artistIdStr = song.artist?.toString?.() || String(song.artist);
-
     if (result?.processingOutcome === "BLOCKED") {
       if (result.publishStatus === "DUPLICATE") {
         await Song.findByIdAndDelete(song._id);
         console.log(`[worker] Removed duplicate songId=${song._id}`);
-        await sendUploadProgressNotification({
-          artistId: artistIdStr,
-          songId: song._id.toString(),
-          status: "DUPLICATE",
-          step: "CHECKING_DUPLICATES",
-          message: result.processingMessage,
-          percent: 100,
-          isComplete: true,
-        });
       } else {
         await markCompleted(song._id, {
           publishStatus: result.publishStatus,
@@ -293,14 +203,6 @@ async function handleMessage(msg) {
         streamAudioFileUrl: buildS3Url(result.streamingBucket, result.regularKey),
         premiumStreamAudioFileUrl: buildS3Url(result.streamingBucket, result.premiumKey),
         publishStatus: "OK",
-      });
-      await sendUploadProgressNotification({
-        artistId: artistIdStr,
-        songId: song._id.toString(),
-        status: "COMPLETED",
-        step: "FINALIZING",
-        percent: 100,
-        isComplete: true,
       });
     }
 
