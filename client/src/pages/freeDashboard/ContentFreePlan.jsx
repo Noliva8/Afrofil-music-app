@@ -383,118 +383,201 @@ const navigate = useNavigate();
 
 
 
-const handleNewSongUpload = async (event) => {
+// const handleNewSongUpload = async (event) => {
 
 
 
-try {
+// try {
 
-if (!isProfileComplete) {
-    showProfileBlockMessage();
-    return;
-  }
+// if (!isProfileComplete) {
+//     showProfileBlockMessage();
+//     return;
+//   }
 
-  const songFile = event.target.files[0];
+//   const songFile = event.target.files[0];
 
-  if (!songFile) {
-    Swal.fire({ icon: "error", title: "Oops...", text: "No song selected!" });
-    setIsSongLoading(false);
-    return;
-  }
+//   if (!songFile) {
+//     Swal.fire({ icon: "error", title: "Oops...", text: "No song selected!" });
+//     setIsSongLoading(false);
+//     return;
+//   }
 
- setIsSongLoading(true);
+//  setIsSongLoading(true);
 
-    const filename = songFile.name;
-const mimetype = songFile.type;
+//     const filename = songFile.name;
+// const mimetype = songFile.type;
 
 
-  const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
-  if (!allowedFormats.includes(songFile.type)) {
-    Swal.fire({
-      icon: "error",
-      title: "Invalid Format",
-      text: "Only MP3, WAV, and FLAC are allowed.",
-    });
-    setIsSongLoading(false);
-    return;
-  }
-
-  if (songFile.size > 100 * 1024 * 1024) {
-    Swal.fire({
-      icon: "error",
-      title: "File too large",
-      text: "Please upload a file smaller than 100MB.",
-    });
-    setIsSongLoading(false);
-    return;
-  }
-
-//  const bucket = import.meta.env.VITE_FLOLUP_ORIGINAL_SONGS_INPUT_BUCKET;
-//  const region = import.meta.env.VITE_FLOLUP_REGION;
-
-//   if (!bucket || !region) {
+//   const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
+//   if (!allowedFormats.includes(songFile.type)) {
 //     Swal.fire({
 //       icon: "error",
-//       title: "Configuration error",
-//       text: "Upload bucket or region is missing. Please contact support.",
+//       title: "Invalid Format",
+//       text: "Only MP3, WAV, and FLAC are allowed.",
 //     });
 //     setIsSongLoading(false);
 //     return;
 //   }
 
-const { data } = await newSongUpload({
-  variables: {
-    filename: filename ,
-    mimetype: mimetype,
-    region: 'us-east-2',
-    bucket: 'flolup-original-songs'
-  }
-})
-console.log('what is the data?', data)
-const { url, key, song } = data.newSongUpload;
+//   if (songFile.size > 100 * 1024 * 1024) {
+//     Swal.fire({
+//       icon: "error",
+//       title: "File too large",
+//       text: "Please upload a file smaller than 100MB.",
+//     });
+//     setIsSongLoading(false);
+//     return;
+//   }
+
+// //  const bucket = import.meta.env.VITE_FLOLUP_ORIGINAL_SONGS_INPUT_BUCKET;
+// //  const region = import.meta.env.VITE_FLOLUP_REGION;
+
+// //   if (!bucket || !region) {
+// //     Swal.fire({
+// //       icon: "error",
+// //       title: "Configuration error",
+// //       text: "Upload bucket or region is missing. Please contact support.",
+// //     });
+// //     setIsSongLoading(false);
+// //     return;
+// //   }
+
+// const { data } = await newSongUpload({
+//   variables: {
+//     filename: filename ,
+//     mimetype: mimetype,
+//     region: 'us-east-2',
+//     bucket: 'flolup-original-songs'
+//   }
+// })
+// console.log('what is the data?', data)
+// const songId = data?.newSongUpload?.song?._id
+
+// console.log('SONG ID AFTER UPLOAD:',songId)
+//     setSongId(songId)
+
+// const { url, key, song } = data?.newSongUpload;
 
 
-// Now upload file to S3
-    const response = await fetch(url, {
-      method: "PUT",
-      body: songFile,
-      headers: {
-        "Content-Type": songFile.type,
-      },
-    });
+// // Now upload file to S3
+//     const response = await fetch(url, {
+//       method: "PUT",
+//       body: songFile,
+//       headers: {
+//         "Content-Type": songFile.type,
+//       },
+//     });
 
 
-    //   if (!response.ok) {
-    //   throw new Error("Upload failed");
-    // }
+//     //   if (!response.ok) {
+//     //   throw new Error("Upload failed");
+//     // }
 
-const songId = data.newSongUpload._id;
-    setSongId(songId)
 
-}catch(error){
-Swal.fire({
-      icon: "error",
-      title: "audio corrupted",
-      text: "Please play your song first and confirm if it works .",
-    }
-    );
-    console.error('❌ Error during full audio analysis:', error);
-    setActiveStep(0)
-     setIsSongLoading(false);
-  }
+
+// }catch(error){
+// Swal.fire({
+//       icon: "error",
+//       title: "audio corrupted",
+//       text: "Please play your song first and confirm if it works .",
+//     }
+//     );
+//     console.error('❌ Error during full audio analysis:', error);
+//     setActiveStep(0)
+//      setIsSongLoading(false);
+//   }
   
 
 
-   setActiveStep(1)
+//    setActiveStep(1)
 
 
 
 
 
-}
+// }
 
+const handleNewSongUpload = async (event) => {
+  setIsSongLoading(true);
 
+  try {
+    if (!isProfileComplete) {
+      showProfileBlockMessage();
+      return;
+    }
 
+    const songFile = event.target.files?.[0];
+    if (!songFile) {
+      Swal.fire({ icon: "error", title: "Oops...", text: "No song selected!" });
+      return;
+    }
+
+    const allowedFormats = ["audio/mpeg", "audio/wav", "audio/flac"];
+    if (!allowedFormats.includes(songFile.type)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Format",
+        text: "Only MP3, WAV, and FLAC are allowed.",
+      });
+      return;
+    }
+
+    if (songFile.size > 100 * 1024 * 1024) {
+      Swal.fire({
+        icon: "error",
+        title: "File too large",
+        text: "Please upload a file smaller than 100MB.",
+      });
+      return;
+    }
+
+    // 1) Create DB record + presigned URL
+    const { data } = await newSongUpload({
+      variables: {
+        filename: songFile.name,
+        mimetype: songFile.type,
+        region: "us-east-2",
+        bucket: "flolup-original-songs",
+      },
+    });
+
+    const songId = data?.newSongUpload?.song?._id;
+    const url = data?.newSongUpload?.url;
+
+    if (!songId || !url) {
+      throw new Error("Missing songId or presigned url from newSongUpload");
+    }
+
+    setSongId(songId);
+
+    // 2) Upload to S3
+    const response = await fetch(url, {
+      method: "PUT",
+      body: songFile,
+      headers: { "Content-Type": songFile.type },
+    });
+
+    if (!response.ok) {
+      throw new Error(`S3 upload failed: ${response.status} ${response.statusText}`);
+    }
+
+    // 3) (Recommended) Tell API upload finished so status becomes UPLOADED
+    // await confirmSongUpload({ variables: { songId } });
+
+    // 4) Now it’s safe to proceed to metadata step
+    setActiveStep(1);
+  } catch (error) {
+    console.error("❌ Upload flow error:", error);
+    Swal.fire({
+      icon: "error",
+      title: "Upload failed",
+      text: error?.message || "Please try again.",
+    });
+    setActiveStep(0);
+  } finally {
+    setIsSongLoading(false);
+  }
+};
 
 
 // Centralized data processing from server
