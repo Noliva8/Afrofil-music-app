@@ -11,6 +11,19 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation } from "@apollo/client";
 import { TOGGLE_VISIBILITY, GET_PRESIGNED_URL_DELETE, DELETE_SONG } from "../../../../utils/mutations";
 
+const decodeFilenameFromUrl = (value) => {
+  if (!value || typeof value !== "string") return null;
+  try {
+    const pathname = new URL(value).pathname;
+    const candidate = pathname.split("/").pop();
+    return candidate ? decodeURIComponent(candidate) : null;
+  } catch {
+    const segments = String(value).split("/");
+    const candidate = segments[segments.length - 1];
+    return candidate ? decodeURIComponent(candidate) : null;
+  }
+};
+
 
 export default function SongRowActions({ song, onDelete, refetch }) {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -60,8 +73,8 @@ const handleDelete = async () => {
 
   try {
     // 1. Delete AUDIO
-    if (song.audio) {
-      const audioKey = decodeURIComponent(new URL(song.audio).pathname.split("/").pop());
+    const audioKey = decodeFilenameFromUrl(song.audio);
+    if (audioKey) {
       const { data } = await getDeleteUrl({
         variables: {
           bucket: "afrofeel-audio-files",
@@ -73,8 +86,8 @@ const handleDelete = async () => {
     }
 
     // 2. Delete ARTWORK
-    if (song.artwork) {
-      const artworkKey = decodeURIComponent(new URL(song.artwork).pathname.split("/").pop());
+    const artworkKey = decodeFilenameFromUrl(song.artwork);
+    if (artworkKey) {
       const { data } = await getDeleteUrl({
         variables: {
           bucket: "afrofeel-cover-images-for-songs",

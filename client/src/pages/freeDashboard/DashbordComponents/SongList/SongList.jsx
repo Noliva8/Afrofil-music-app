@@ -62,6 +62,15 @@ useEffect(() => {
 
 
 useEffect(() => {
+  const decodeS3Path = (value) => {
+    if (!value || typeof value !== "string") return null;
+    try {
+      return decodeURIComponent(new URL(value).pathname.replace(/^\/+/, ""));
+    } catch {
+      return null;
+    }
+  };
+
   async function runPresign() {
     const artUrls = {};
     const audUrls = {};
@@ -80,7 +89,7 @@ useEffect(() => {
               variables: {
                 bucket: 'afrofeel-cover-images-for-songs',
                 key: typeof song.artwork === 'string'
-                  ? decodeURIComponent(new URL(song.artwork).pathname.replace(/^\/+/, ''))
+                  ? decodeS3Path(song.artwork)
                   : song.artwork,
                 region: 'us-east-2',
               },
@@ -91,11 +100,11 @@ useEffect(() => {
           }
         }
 
-        const key = decodeURIComponent(new URL(song.streamAudioFileUrl).pathname.replace(/^\/+/, ''));
+        const key = decodeS3Path(song.streamAudioFileUrl);
 
         // Audio presign
         let audUrl = null;
-        if (song.streamAudioFileUrl) {
+        if (song.streamAudioFileUrl && key) {
           try {
             const { data } = await getPresignedUrlDownloadAudio({
               variables: {

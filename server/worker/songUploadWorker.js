@@ -190,7 +190,7 @@ async function acquireProcessingLock({ bucket, key }) {
 async function markCompleted(songId, updates = {}) {
   await Song.findByIdAndUpdate(songId, {
     $set: {
-      songUploadStatus: "COMPLETED",
+      songUploadStatus: "READY",
       ...updates,
       processingFinishedAt: new Date(),
     },
@@ -243,7 +243,7 @@ async function handleMessage(msg) {
       throw new Error(`Song not found for bucket/key (will retry): ${bucket}/${key}`);
     }
 
-    if (existing.songUploadStatus === "COMPLETED") {
+    if (existing.songUploadStatus === "READY") {
       console.log(`[worker] Song already completed, deleting message. songId=${existing._id}`);
       await sqs.send(
         new DeleteMessageCommand({ QueueUrl: SQS_QUEUE_URL, ReceiptHandle: receiptHandle })

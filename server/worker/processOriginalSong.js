@@ -82,7 +82,8 @@ function buildAudioKey({ version, songId, title }) {
   const safeTitle = sanitizeForKey(title);
   const segments = [songId];
   if (safeTitle) segments.push(safeTitle);
-  return `${version}/${segments.join("-")}.mp3`;
+  const prefix = version === "regular" ? "for-streaming" : version;
+  return `${prefix}/${segments.join("-")}.mp3`;
 }
 
 async function transcodeRegularMp3(inputPath, outputPath) {

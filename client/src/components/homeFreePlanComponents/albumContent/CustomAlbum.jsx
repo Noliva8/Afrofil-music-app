@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect, useRef } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -51,6 +51,7 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
   const [createCustomAlbum] = useMutation(CUSTOM_ALBUM);
   const [albumId, setAlbumId] = useState('');
   const artistId = profile?.data?._id;
+  const closeButtonRef = useRef(null);
 
   const {
     register,
@@ -87,6 +88,12 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
       });
     }
   };
+
+  useEffect(() => {
+    if (albumOpen && closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+  }, [albumOpen]);
 
   const onSubmit = async (data) => {
     try {
@@ -156,7 +163,13 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
         aria-describedby="modal-modal-description"
       >
         <Box sx={style}>
-          <Button variant="contained" size={"small"} onClick={handleClose} sx={{ position: "absolute", top: "10px", right: "10px" }}>
+          <Button
+            variant="contained"
+            size={"small"}
+            onClick={handleClose}
+            sx={{ position: "absolute", top: "10px", right: "10px" }}
+            ref={closeButtonRef}
+          >
             <CloseIcon />
           </Button>
 
@@ -183,6 +196,7 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
                     id="title"
                     name="title"
                     variant="outlined"
+                    autoFocus
                     {...register("title")}
                     sx={{
                       bgcolor: "#2f3e46",
