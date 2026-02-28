@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { pipeline } from "stream/promises";
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { spawn } from "child_process";
 
 import FingerprintGenerator from "../utils/factory/generateFingerPrint2.js";
@@ -35,6 +35,14 @@ async function uploadFileToS3({ bucket, key, filePath, contentType = "audio/mpeg
   );
 }
 
+async function deleteS3Object({ bucket, key }) {
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch (err) {
+    console.warn(`[worker] Failed to delete original upload ${bucket}/${key}:`, err);
+  }
+}
+
 async function safeUnlink(filePath) {
   try {
     await fs.promises.unlink(filePath);
@@ -61,41 +69,72 @@ function runFfmpeg(args) {
   });
 }
 
+function sanitizeForKey(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+}
+
+function buildAudioKey({ version, songId, title }) {
+  const safeTitle = sanitizeForKey(title);
+  const segments = [songId];
+  if (safeTitle) segments.push(safeTitle);
+  return `${version}/${segments.join("-")}.mp3`;
+}
+
 async function transcodeRegularMp3(inputPath, outputPath) {
   await runFfmpeg([
     "-y",
-    "-i",
-    inputPath,
+    "-i", inputPath,
     "-vn",
-    "-ar",
-    "44100",
-    "-ac",
-    "2",
-    "-b:a",
-    "128k",
-    "-codec:a",
-    "libmp3lame",
-    outputPath,
+    "-ar", "44100",
+    "-ac", "2",
+    "-b:a", "128k",
+    "-codec:a", "libmp3lame",
+    "-f", "mp3",       
+    "-write_xing", "1", 
+    "-id3v2_version", "3", 
+    outputPath
   ]);
 }
+
+// async function transcodePremiumMp3(inputPath, outputPath) {
+//   await runFfmpeg([
+//     "-y",
+//     "-i",
+//     inputPath,
+//     "-vn",
+//     "-ar",
+//     "44100",
+//     "-ac",
+//     "2",
+//     "-b:a",
+//     "320k",
+//     "-codec:a",
+//     "libmp3lame",
+//     outputPath,
+//   ]);
+// }
 
 async function transcodePremiumMp3(inputPath, outputPath) {
   await runFfmpeg([
     "-y",
-    "-i",
-    inputPath,
+    "-i", inputPath,
     "-vn",
-    "-ar",
-    "44100",
-    "-ac",
-    "2",
-    "-b:a",
-    "320k",
-    "-codec:a",
-    "libmp3lame",
+    "-ar", "44100",
+    "-ac", "2",
+    "-q:a", "0",              // High quality VBR
+    "-codec:a", "libmp3lame",
+    "-write_xing", "1",
+    "-id3v2_version", "3",
     outputPath,
   ]);
 }
+
+
 
 export async function processOriginalSong(songDoc, s3Info) {
   const { bucket, key } = s3Info;
@@ -108,8 +147,16 @@ export async function processOriginalSong(songDoc, s3Info) {
   const tempPremiumPath = makeTempPath("premium", key, ".mp3");
 
   // ✅ Your required prefixes
-  const regularKey = `regular/${songId}.mp3`;
-  const premiumKey = `premium/${songId}.mp3`;
+  const regularKey = buildAudioKey({
+    version: "regular",
+    songId,
+    title: songDoc.title,
+  });
+  const premiumKey = buildAudioKey({
+    version: "premium",
+    songId,
+    title: songDoc.title,
+  });
 
   try {
     // 1) Download original to /tmp
@@ -159,7 +206,11 @@ export async function processOriginalSong(songDoc, s3Info) {
       extractDuration(tempOriginalPath),
     ]);
 
-    const bpm = tempoResult?.tempo ?? tempoResult?.bpm ?? null;
+    const resolvedTempo =
+      typeof tempoResult === "number"
+        ? tempoResult
+        : tempoResult?.tempo ?? tempoResult?.bpm ?? null;
+    const bpm = Number.isFinite(resolvedTempo) ? Math.round(resolvedTempo) : null;
 
     // 6) Transcode both versions
     await transcodeRegularMp3(tempOriginalPath, tempRegularPath);
@@ -179,6 +230,8 @@ export async function processOriginalSong(songDoc, s3Info) {
       filePath: tempPremiumPath,
       contentType: "audio/mpeg",
     });
+
+    await deleteS3Object({ bucket, key });
 
 
     // we need to update the song collection with fingerprint id, tempo, streamAudioFileUrl: regular and premiumStreamAudioFileUrl: premium

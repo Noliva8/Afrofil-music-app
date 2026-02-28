@@ -22,10 +22,10 @@ import {
 } from "../../utils/mutations";
 
 import { GET_ALBUM } from "../../utils/queries";
-import { SONG_UPLOAD_UPDATE } from "../../utils/subscription";
+// import { SONG_UPLOAD_UPDATE } from "../../utils/subscription";
 
 // Components
-import SongUploadProgressComponent from "../../components/songContentPart/inputsForSong/songUploadUpdates";
+// import SongUploadProgressComponent from "../../components/songContentPart/inputsForSong/songUploadUpdates";
 import SongCover from "../../components/songContentPart/SongCover";
 import SongUpload from "../../components/songContentPart/SongUpload";
 import Metadata from "../../components/songContentPart/Metadata";
@@ -73,7 +73,8 @@ export default function ContentFreePlan() {
   // GraphQL operations
   const { loading: albumLoading, error: albumError, data: albumData, refetch: refetchAlbums } = useQuery(GET_ALBUM);
   const { loading: artistLoading, data: artistData } = useQuery(ARTIST_PROFILE);
-  const { data: subscriptionData, loading: subscriptionLoading, error: subscriptionError } = useSubscription(SONG_UPLOAD_UPDATE);
+
+  // const { data: subscriptionData, loading: subscriptionLoading, error: subscriptionError } = useSubscription(SONG_UPLOAD_UPDATE);
   
   const [updateSong] = useMutation(UPDATE_SONG);
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
@@ -152,11 +153,21 @@ const [newSongUpload] = useMutation( NEW_SONG_UPLOAD);
 
 console.log('the data produced from song image upload:', data);
 
-      await fetch(data.getPresignedUrl.url, {
-        method: "PUT",
-        body: optimizedFile,
-        headers: { "Content-Type": file.type },
-      });
+
+
+
+    const res = await fetch(data.getPresignedUrl.url, {
+  method: "PUT",
+  body: optimizedFile,
+  headers: { "Content-Type": file.type || "application/octet-stream" },
+});
+
+if (!res.ok) {
+  const text = await res.text().catch(() => "");
+  throw new Error(`S3 PUT failed: ${res.status} ${res.statusText} ${text}`);
+}
+
+
 
       // 3. Get downloadable URL
       const { data: downloadData } = await getPresignedUrlDownload({
@@ -164,11 +175,12 @@ console.log('the data produced from song image upload:', data);
           bucket: "afrofeel-cover-images-for-songs",
           key: objectKey,
           region: "us-east-2",
-          expiresIn: 604800 // 7 days (preview only)
+          
         },
       });
 
       const imageUrlToDisplay = downloadData.getPresignedUrlDownload.url;
+
       const s3ObjectUrl = `https://afrofeel-cover-images-for-songs.s3.us-east-2.amazonaws.com/${objectKey}`;
 
       console.log('the link to display the image', imageUrlToDisplay);
@@ -582,128 +594,131 @@ const handleNewSongUpload = async (event) => {
 
 // Centralized data processing from server
 
-useEffect(() => {
-  if (subscriptionData?.songUploadProgress) {
-    const { step, status, message, percent, isComplete } = subscriptionData.songUploadProgress;
+// useEffect(() => {
+//   if (subscriptionData?.songUploadProgress) {
+//     const { step, status, message, percent, isComplete } = subscriptionData.songUploadProgress;
     
-    const isFailureState = status === 'DUPLICATE' || status === 'COPYRIGHT_ISSUE';
-    const isSuccessState = (status === 'COMPLETED' || status === 'SUCCESS') && isComplete;
+//     const isFailureState = status === 'DUPLICATE' || status === 'COPYRIGHT_ISSUE';
+//     const isSuccessState = (status === 'COMPLETED' || status === 'SUCCESS') && isComplete;
 
   
 
-    setUploadState(prev => ({
-      ...prev,
-      progress: percent || 0,
-      step,
-      status: isSuccessState ? 'COMPLETED' : status,
-      message,
-      ...(isFailureState && {
-        isValid: false,
-        ...(status === 'DUPLICATE' && { duplicate: { message } }),
-        ...(status === 'COPYRIGHT_ISSUE' && { copyright: { message } })
-      }),
-      ...(isSuccessState && { isValid: true }),
-      isComplete: isComplete || false
-    }));
+//     setUploadState(prev => ({
+//       ...prev,
+//       progress: percent || 0,
+//       step,
+//       status: isSuccessState ? 'COMPLETED' : status,
+//       message,
+//       ...(isFailureState && {
+//         isValid: false,
+//         ...(status === 'DUPLICATE' && { duplicate: { message } }),
+//         ...(status === 'COPYRIGHT_ISSUE' && { copyright: { message } })
+//       }),
+//       ...(isSuccessState && { isValid: true }),
+//       isComplete: isComplete || false
+//     }));
 
-    setUploadFailed(isFailureState);
+//     setUploadFailed(isFailureState);
 
-    if (isFailureState) {
-      handleUploadFailure(status, message);
-      return;
-    }
+//     if (isFailureState) {
+//       handleUploadFailure(status, message);
+//       return;
+//     }
 
-    // ✅ Proceed to metadata when validation passes
-    const safeToProceed = !isFailureState && status !== 'UPLOADING' && !uploadState.isValid;
+//     // ✅ Proceed to metadata when validation passes
+//     const safeToProceed = !isFailureState && status !== 'UPLOADING' && !uploadState.isValid;
     
-    if (safeToProceed) {
+//     if (safeToProceed) {
       
-      setIsSongLoading(false);
-      // setActiveStep(1); // Go to metadata step
-    }
-  }
-}, [subscriptionData]);
+//       setIsSongLoading(false);
+//       // setActiveStep(1); // Go to metadata step
+//     }
+//   }
+// }, [subscriptionData]);
+
 
 
 
 
 
 // Updated failure handler
-const handleUploadFailure = (status, message) => {
-  // Reset upload state immediately
-  const resetUploadState = () => {
-    setIsSongLoading(false);
+// const handleUploadFailure = (status, message) => {
+//   // Reset upload state immediately
+//   const resetUploadState = () => {
+//     setIsSongLoading(false);
 
   
 
-    setUploadProgress(0);
-    setUploadState({
-      progress: 0,
-      isValid: null,
-      duplicate: null,
-      copyright: null,
-      step: null,
-      status: null,
-      message: null
-    });
-  };
+//     setUploadProgress(0);
+//     setUploadState({
+//       progress: 0,
+//       isValid: null,
+//       duplicate: null,
+//       copyright: null,
+//       step: null,
+//       status: null,
+//       message: null
+//     });
+//   };
 
-  const isCopyrightIssue = status === 'COPYRIGHT_ISSUE';
+//   const isCopyrightIssue = status === 'COPYRIGHT_ISSUE';
 
-  Swal.fire({
-    icon: 'error',
-    title: isCopyrightIssue ? 'Copyright Concern' : 'Duplicate Song',
-    html: `<div style="margin-bottom: 1rem; text-align: left;">
-            <p>${message}</p>
-            <small style="color: #666;">
-              ${isCopyrightIssue ? 'If you believe this is a mistake' : ''}
-            </small>
-          </div>`,
-    showCancelButton: true,
-    confirmButtonText: 'Upload New Song',
-    cancelButtonText: isCopyrightIssue ? 'Report Issue' : 'Go to Dashboard',
-    focusConfirm: false,
-    allowOutsideClick: false,
-    customClass: {
-      actions: 'swal-actions',
-      cancelButton: isCopyrightIssue ? 'swal-report-button' : ''
-    }
-  }).then((result) => {
-    resetUploadState();
+//   Swal.fire({
+//     icon: 'error',
+//     title: isCopyrightIssue ? 'Copyright Concern' : 'Duplicate Song',
+//     html: `<div style="margin-bottom: 1rem; text-align: left;">
+//             <p>${message}</p>
+//             <small style="color: #666;">
+//               ${isCopyrightIssue ? 'If you believe this is a mistake' : ''}
+//             </small>
+//           </div>`,
+//     showCancelButton: true,
+//     confirmButtonText: 'Upload New Song',
+//     cancelButtonText: isCopyrightIssue ? 'Report Issue' : 'Go to Dashboard',
+//     focusConfirm: false,
+//     allowOutsideClick: false,
+//     customClass: {
+//       actions: 'swal-actions',
+//       cancelButton: isCopyrightIssue ? 'swal-report-button' : ''
+//     }
+//   }).then((result) => {
+//     resetUploadState();
     
-    if (result.isConfirmed) {
-      // Upload new song flow
-      setActiveStep(0);
-      setTimeout(() => document.getElementById('song-upload-input')?.click(), 100);
-    } else if (result.dismiss === Swal.DismissReason.cancel) {
-      if (isCopyrightIssue) {
-        // Handle copyright report flow
-        handleCopyrightReport();
-      } else {
-        navigate('/artist/studio/dashboard');
-      }
-    }
-  });
-};
+//     if (result.isConfirmed) {
+//       // Upload new song flow
+//       setActiveStep(0);
+//       setTimeout(() => document.getElementById('song-upload-input')?.click(), 100);
+//     } else if (result.dismiss === Swal.DismissReason.cancel) {
+//       if (isCopyrightIssue) {
+//         // Handle copyright report flow
+//         handleCopyrightReport();
+//       } else {
+//         navigate('/artist/studio/dashboard');
+//       }
+//     }
+//   });
+// };
+
+
 
 // Copyright report handler
-const handleCopyrightReport = () => {
-  Swal.fire({
-    title: 'Report Copyright Issue',
-    input: 'textarea',
-    inputLabel: 'Please explain why you believe this is a mistake',
-    inputPlaceholder: 'Describe your concerns...',
-    showCancelButton: true,
-    confirmButtonText: 'Submit Report',
-    preConfirm: (reportText) => {
-      // Add your report submission logic here
-      console.log('Copyright report submitted:', reportText);
-    }
-  }).then(() => {
-    // After reporting, keep user on upload screen
-    setActiveStep(0);
-  });
-};
+// const handleCopyrightReport = () => {
+//   Swal.fire({
+//     title: 'Report Copyright Issue',
+//     input: 'textarea',
+//     inputLabel: 'Please explain why you believe this is a mistake',
+//     inputPlaceholder: 'Describe your concerns...',
+//     showCancelButton: true,
+//     confirmButtonText: 'Submit Report',
+//     preConfirm: (reportText) => {
+//       // Add your report submission logic here
+//       console.log('Copyright report submitted:', reportText);
+//     }
+//   }).then(() => {
+//     // After reporting, keep user on upload screen
+//     setActiveStep(0);
+//   });
+// };
 
 
 
@@ -879,11 +894,11 @@ try {
         overflowX: "hidden"
       }}
     >
-      <SongUploadProgressComponent
+      {/* <SongUploadProgressComponent
         uploadState={uploadState}
         subscriptionLoading={subscriptionLoading}
         subscriptionError={subscriptionError}
-      />
+      /> */}
 
       {/* Responsive Step Title */}
       <Typography
@@ -925,8 +940,7 @@ try {
               missingProfileFields={missingProfileFields}
               onBlockedUpload={showProfileBlockMessage}
               uploadState={uploadState}
-              subscriptionLoading={subscriptionLoading}
-              subscriptionError={subscriptionError}
+            
             />
 
 
@@ -977,7 +991,7 @@ try {
               setActiveStep={setActiveStep}
               songId={songId}
               watch={watch}
-              currentImageUrl={displayUrl || songCoverImage}
+              currentImageUrl={songCoverImage}
               onUpload={handleSongImageUpload}
               onDelete={deleteSongCoverImage}
               isLoading={isCoverUploading}

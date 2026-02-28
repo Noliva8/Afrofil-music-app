@@ -3036,7 +3036,7 @@ createAlbum: async (parent, { title }, context) => {
         title: title || "Single",
         artist: artistId,
       });
-      await albumCreateRedis(defaultAlbum);
+      // await albumCreateRedis(defaultAlbum);
       return defaultAlbum;
     }
 
@@ -3077,7 +3077,7 @@ createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, conte
       createdAt: new Date().toISOString(), // Automatically set created date
     });
 
-  await albumCreateRedis(customAlbum);
+  // await albumCreateRedis(customAlbum);
     // Return the created album
     return customAlbum;
 
@@ -3119,7 +3119,7 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
       throw new Error("Album not found or unauthorized.");
     }
 
-await albumUpdateRedis(updatedAlbum);
+// await albumUpdateRedis(updatedAlbum);
     return updatedAlbum;
   } catch (error) {
     console.error("Failed to update album:", error);

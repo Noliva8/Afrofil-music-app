@@ -15,6 +15,7 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from "@mui/material/Button";
 import ArtistAuth from '../../utils/artist_auth';
+import { resizeImageFile } from '../../utils/ResizeImageFile';
 
 // Keep folder path when extracting keys from URLs/keys
 const deriveKeyFromUrl = (url) => {
@@ -77,14 +78,21 @@ const handleProfileImageUpload = async (e) => {
     return;
   }
 
+  let optimizedFile = file;
+  try {
+    optimizedFile = await resizeImageFile(file, 600, 0.85);
+  } catch (resizeError) {
+    console.warn("Image optimization failed, uploading original instead.", resizeError);
+  }
+
   // Validate file type and size
   const allowedTypes = ["image/jpeg", "image/png"];
   const maxSize = 5 * 1024 * 1024; // 5 MB
-  if (!allowedTypes.includes(file.type)) {
+  if (!allowedTypes.includes(optimizedFile.type)) {
     toast.error("Invalid file type. Please upload an image file (JPEG, PNG).");
     return;
   }
-  if (file.size > maxSize) {
+  if (optimizedFile.size > maxSize) {
     toast.error("File size exceeds the maximum limit of 5 MB.");
     return;
   }
@@ -113,7 +121,7 @@ const handleProfileImageUpload = async (e) => {
     // Step 3: Upload the file to S3
     const response = await fetch(presignedUrl, {
       method: "PUT",
-      body: file,
+      body: optimizedFile,
       headers: {
         "Content-Type": file.type,
       },
@@ -308,6 +316,7 @@ return (
           <Typography variant="h6" sx={{ fontWeight: 700, color: "#ffffff" }}>
             Profile image
           </Typography>
+
           <Button
             onClick={handleUploadButtonClick}
             variant="contained"
@@ -316,7 +325,9 @@ return (
           >
             {artistData.artistProfile.profileImage ? "Edit image" : "Add image"}
           </Button>
+
         </Box>
+        
         <Box
           sx={{
             display: "flex",

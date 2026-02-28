@@ -91,6 +91,8 @@ useEffect(() => {
           }
         }
 
+        const key = decodeURIComponent(new URL(song.streamAudioFileUrl).pathname.replace(/^\/+/, ''));
+
         // Audio presign
         let audUrl = null;
         if (song.streamAudioFileUrl) {
@@ -98,7 +100,7 @@ useEffect(() => {
             const { data } = await getPresignedUrlDownloadAudio({
               variables: {
                 bucket: 'afrofeel-songs-streaming',
-                key: `for-streaming/${decodeURIComponent(new URL(song.streamAudioFileUrl).pathname.split('/').pop())}`,
+                key: key,
                 region: 'us-west-2',
               },
             });

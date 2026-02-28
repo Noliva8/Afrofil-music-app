@@ -5,10 +5,11 @@ import {
   ReceiveMessageCommand,
   DeleteMessageCommand,
 } from "@aws-sdk/client-sqs";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
-import {Song} from '../models/Artist/index_artist.js'
+import { Song, Album } from "../models/Artist/index_artist.js";
 import { processOriginalSong } from "./processOriginalSong.js";
-import { getRedis } from "../utils/AdEngine/redis/redisClient.js";
+// import { getRedis } from "../utils/AdEngine/redis/redisClient.js";
 
 
 
@@ -24,17 +25,101 @@ const {
   WORKER_MAX_MESSAGES = "5",
   WORKER_VISIBILITY_TIMEOUT = "600", // ✅ safer for fingerprint + 2x ffmpeg
   WORKER_SLEEP_EMPTY_MS = "1000",
+  BUCKET_NAME_COVER_IMAGE_SONG,
+  BUCKET_ALBUM_COVER_IMAGE,
 } = process.env;
 
 if (!MONGODB_URI) throw new Error("Missing MONGODB_URI");
 if (!SQS_QUEUE_URL) throw new Error("Missing SQS_QUEUE_URL");
 
 const sqs = new SQSClient({ region: PROCESSING_REGION });
+const s3 = new S3Client({ region: PROCESSING_REGION });
+const ARTWORK_BUCKET = BUCKET_NAME_COVER_IMAGE_SONG || "afrofeel-cover-images-for-songs";
+const ALBUM_COVER_BUCKET = BUCKET_ALBUM_COVER_IMAGE || "afrofeel-album-covers";
 
 // =====================
 // Utils
 // =====================
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function parseS3TargetFromUrl(rawUrl) {
+  if (!rawUrl) return null;
+  try {
+    const parsed = new URL(String(rawUrl));
+    const key = parsed.pathname.replace(/^\/+/, "");
+    const hostname = parsed.hostname || "";
+    const isS3Host = hostname.includes(".s3.");
+    const bucket = isS3Host ? hostname.split(".")[0] : null;
+    return { bucket, key };
+  } catch {
+    return null;
+  }
+}
+
+function getArtworkUrl(songDoc) {
+  if (!songDoc) return null;
+  if (typeof songDoc.artwork === "string" && songDoc.artwork.trim()) {
+    return songDoc.artwork.trim();
+  }
+  if (songDoc.artwork && typeof songDoc.artwork.url === "string" && songDoc.artwork.url.trim()) {
+    return songDoc.artwork.url.trim();
+  }
+  return null;
+}
+
+async function deleteS3ObjectSafe(bucket, key, label = "S3 object") {
+  if (!bucket || !key) return;
+  try {
+    await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+  } catch (error) {
+    console.warn(`[worker] Failed to delete ${label} ${bucket}/${key}:`, error?.message || error);
+  }
+}
+
+async function cleanupDuplicateSong(songDoc, s3Info) {
+  const albumId = songDoc?.album;
+  const albumDoc = albumId ? await Album.findById(albumId).lean() : null;
+  const albumCoverUrl = albumDoc?.albumCoverImage ? String(albumDoc.albumCoverImage).trim() : null;
+  const artworkUrl = getArtworkUrl(songDoc);
+
+  const originalBucket = s3Info?.bucket || songDoc?.bucket;
+  const originalKey = s3Info?.key || songDoc?.s3Key;
+
+  await Song.deleteOne({ _id: songDoc._id });
+
+  const cleanupTasks = [];
+
+  if (originalBucket && originalKey) {
+    cleanupTasks.push(deleteS3ObjectSafe(originalBucket, originalKey, "original upload"));
+  }
+
+  if (albumCoverUrl) {
+    const target = parseS3TargetFromUrl(albumCoverUrl);
+    const bucket = target?.bucket || ALBUM_COVER_BUCKET;
+    const key = target?.key;
+    if (bucket && key) {
+      cleanupTasks.push(deleteS3ObjectSafe(bucket, key, "album cover"));
+    }
+  }
+
+  if (artworkUrl) {
+    const target = parseS3TargetFromUrl(artworkUrl);
+    const bucket = target?.bucket || ARTWORK_BUCKET;
+    const key = target?.key;
+    if (bucket && key) {
+      cleanupTasks.push(deleteS3ObjectSafe(bucket, key, "artwork"));
+    }
+  }
+
+  await Promise.allSettled(cleanupTasks);
+
+  if (albumId) {
+    const remaining = await Song.countDocuments({ album: albumId });
+    if (remaining === 0) {
+      await Album.deleteOne({ _id: albumId });
+    }
+  }
+}
 
 
 
@@ -182,7 +267,11 @@ async function handleMessage(msg) {
     // 3) Persist result safely
     if (result?.processingOutcome === "BLOCKED") {
       if (result.publishStatus === "DUPLICATE") {
-        await Song.findByIdAndDelete(song._id);
+        try {
+          await cleanupDuplicateSong(song, s3Info);
+        } catch (error) {
+          console.error(`[worker] Duplicate cleanup failed for songId=${song._id}:`, error);
+        }
         console.log(`[worker] Removed duplicate songId=${song._id}`);
       } else {
         await markCompleted(song._id, {
