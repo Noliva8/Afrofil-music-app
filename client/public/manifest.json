@@ -1,7 +1,7 @@
 {
-  "name": "Afrofeel - Feel the music",
-  "short_name": "Afrofeel",
-  "description": "Stream African music, discover new artists, and create playlists",
+  "name": "Flolup - Feel the music",
+  "short_name": "Flolup",
+  "description": "Stream African music, discover new artists, and create playlists on Flolup",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

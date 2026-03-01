@@ -1731,7 +1731,7 @@ selectPlan: async (parent, { artistId, plan }) => {
       console.log('Creating default album for artist:', artistId);
       
       const defaultAlbum = await Album.create({
-        title: "Singles",
+        title: "Single",
         artist: artistId,
         releaseDate: new Date(),
         // Add any other fields your Album schema requires

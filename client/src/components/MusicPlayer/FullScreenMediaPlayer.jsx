@@ -27,7 +27,7 @@ import {
   Shuffle,
   Repeat,
   RepeatOne,
-  ArrowDownward,
+
   Person,
   Share,
   Download,
@@ -36,6 +36,8 @@ import {
   ExpandMore,
   PersonAdd
 } from '@mui/icons-material';
+
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { useNowPlayingArtwork } from '../../utils/Contexts/useNowPlayingArtwork';
 import { useArtistFollowers } from '../../utils/Contexts/followers/useArtistFollowers';
 import { useUser } from '../../utils/Contexts/userContext';
@@ -117,11 +119,19 @@ const [showReadMore, setShowReadMore] = useState(false);
 
 
 
-  const sanitizeCover = (src) => {
-    if (!src) return null;
-    if (/placehold\.co/i.test(src)) return null;
-    return src;
-  };
+const sanitizeCover = (src) => {
+  if (!src) return null;
+  if (/placehold\.co/i.test(src)) return null;
+  return src;
+};
+
+const formatStatNumber = (value, fallback = "0") => {
+  const num = Number.isFinite(Number(value)) ? Number(value) : null;
+  if (num === null) return fallback;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return String(num);
+};
 
   const displayImageSrc =
     sanitizeCover(artworkUrl) ||
@@ -151,7 +161,22 @@ const [showReadMore, setShowReadMore] = useState(false);
   const displayTitle = currentSong?.title || currentSong?.name || 'No song playing';
   const displayArtist = resolveArtistText(currentSong?.artist) || currentSong?.artistName || 'Unknown Artist';
   const displayAlbum = currentSong?.albumName || 'Single';
-  const download = currentSong.artistDownloadCounts || 0
+  const download = currentSong.artistDownloadCounts || 0;
+  const likesCount = Number(
+    currentSong?.likesCount ??
+      currentSong?.fullOriginal?.likesCount ??
+      currentSong?.fullOriginal?.likedByUsers?.length ??
+      0
+  );
+  const formattedPlayCount = formatStatNumber(
+    currentSong?.playCount ?? currentSong?.fullOriginal?.playCount,
+    "1.2M"
+  );
+  const formattedLikesCount = formatStatNumber(likesCount, "0");
+  const formattedDownloadCount = formatStatNumber(
+    download > 0 ? download : currentSong?.downloadCount ?? 0,
+    "0"
+  );
   const artistBio = currentSong?.artistBio || `${displayArtist} is an acclaimed artist blending traditional African rhythms with contemporary sounds.`;
   const artistId = currentSong?.artistId || currentSong?.artist?._id || currentSong?.artistId;
 
@@ -227,14 +252,46 @@ const [showReadMore, setShowReadMore] = useState(false);
     } catch (err) {
       console.error('Share song mutation failed', err);
     }
+
+    const shareImageUrl =
+      currentSong?.artist?.coverImage ||
+      currentSong?.artist?.cover ||
+      currentSong?.artworkUrl ||
+      currentSong?.artwork ||
+      currentSong?.cover ||
+      null;
+
+    const buildSharePayload = async () => {
+      const payload = { title: displayTitle, url: shareUrl };
+
+      if (navigator?.canShare && shareImageUrl) {
+        try {
+          const response = await fetch(shareImageUrl, { mode: 'cors' });
+          if (response.ok) {
+            const blob = await response.blob();
+            const ext = blob.type.split('/').pop() || 'png';
+            const safeName =
+              displayTitle?.replace(/\s+/g, '_').replace(/[^\w.-]/g, '') || 'flolup-share';
+            const file = new File([blob], `${safeName}.${ext}`, { type: blob.type });
+            if (navigator.canShare({ files: [file] })) {
+              payload.files = [file];
+            }
+          }
+        } catch (imgErr) {
+          console.debug('Share image fetch failed', imgErr);
+        }
+      }
+
+      return payload;
+    };
+
     if (navigator?.share) {
-      navigator
-        .share({
-          title: displayTitle,
-          text: `Listen to ${displayTitle} by ${displayArtist}`,
-          url: shareUrl
-        })
-        .catch(() => {});
+      try {
+        const payload = await buildSharePayload();
+        await navigator.share(payload);
+      } catch (err) {
+        console.debug('Navigator share failed', err);
+      }
     } else if (navigator?.clipboard?.writeText) {
       try {
         await navigator.clipboard.writeText(shareUrl);
@@ -496,7 +553,7 @@ const [showReadMore, setShowReadMore] = useState(false);
             '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
           }}
         >
-          <ArrowDownward />
+          <ArrowDownwardIcon/>
         </IconButton>
 
         <Box sx={{ textAlign: 'center', mx: 2 }}>
@@ -771,12 +828,7 @@ const [showReadMore, setShowReadMore] = useState(false);
             fontWeight: 700,
             fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
           }}>
-            {currentSong?.playCount ? (currentSong.playCount > 1000000 
-              ? `${(currentSong.playCount / 1000000).toFixed(1)}M` 
-              : currentSong.playCount > 1000 
-              ? `${(currentSong.playCount / 1000).toFixed(1)}K`
-              : currentSong.playCount
-            ) : '1.2M'}
+            {formattedPlayCount}
           </Typography>
           <Typography variant="caption" sx={{ 
             color: alpha('#fff', 0.6), 
@@ -792,7 +844,7 @@ const [showReadMore, setShowReadMore] = useState(false);
             fontWeight: 700,
             fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
           }}>
-            {currentSong?.likesCount || '45K'}
+            {formattedLikesCount}
           </Typography>
           <Typography variant="caption" sx={{ 
             color: alpha('#fff', 0.6), 
@@ -822,12 +874,7 @@ const [showReadMore, setShowReadMore] = useState(false);
             fontWeight: 700,
             fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
           }}>
-            {download ? (download > 1000000 
-              ? `${(download / 1000000).toFixed(1)}M` 
-              : download > 1000 
-              ? `${(download / 1000).toFixed(1)}K`
-              : download
-            ) : 0}
+            {formattedDownloadCount}
           </Typography>
           <Typography variant="caption" sx={{ 
             color: alpha('#fff', 0.6), 

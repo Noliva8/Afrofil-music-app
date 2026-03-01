@@ -105,38 +105,41 @@ console.log(chartData)
 
 
   return (
-<Box
-  sx={{
-    width: "100%",
-    height: "100vh",
-    marginTop: { xs: "4rem", lg: "2.5rem" },
-  }}
->
-  <Typography variant="h4" gutterBottom color="white">
-    Dashboard
-  </Typography>
+    <Box
+      sx={{
+        width: "100%",
+        minHeight: "100vh",
+        marginTop: { xs: "4rem", lg: "2.5rem" },
+        px: { xs: 1, sm: 2, md: 4 },
+        pb: { xs: 4, md: 6 },
+      }}
+    >
+      <Typography variant="h4" gutterBottom color="white" sx={{ fontWeight: 700 }}>
+        Dashboard
+      </Typography>
 
 
 {/* Grid system 1 */}
 {/* -------------- */}
 
-  <Grid2 container spacing={2}>
+      <Grid2 container spacing={2} alignItems="stretch">
 
     {/* Total Songs */}
-    <Grid2 size={{ sm: 12, md: 6, lg: 4 }}>
+        <Grid2 xs={12} sm={12} md={6} lg={4}>
 
-   <Paper
-        elevation={3}
-        sx={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "var(--secondary-background-color)",
-          p: 3,
-          borderRadius: "10px",
-          gap: "1rem",
-        }}
-      >
+          <Paper
+            elevation={3}
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "var(--secondary-background-color)",
+              p: { xs: 2, md: 3 },
+              borderRadius: "10px",
+              gap: "1rem",
+              minHeight: 360,
+            }}
+          >
         <Typography variant="h5" gutterBottom color="white" sx={{ fontWeight: 600 }}>
           Total songs :
         </Typography>
@@ -180,20 +183,21 @@ console.log(chartData)
 
 
     {/* Total Play Counts */}
-    <Grid2 size={{ sm: 12, md: 6, lg: 4 }}>
+        <Grid2 xs={12} sm={12} md={6} lg={4}>
 
-      <Paper
-        elevation={3}
-        sx={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "var(--secondary-background-color)",
-          p: 3,
-          borderRadius: "10px",
-          gap: "1rem",
-        }}
-      >
+          <Paper
+            elevation={3}
+            sx={{
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "var(--secondary-background-color)",
+              p: { xs: 2, md: 3 },
+              borderRadius: "10px",
+              gap: "1rem",
+              minHeight: 260,
+            }}
+          >
         <Typography variant="h5" gutterBottom color="white" sx={{ fontWeight: 600 }}>
           Total play counts :
         </Typography>
@@ -221,7 +225,7 @@ console.log(chartData)
     </Grid2>
 
     {/* Total Likes */}
-    <Grid2 size={{ sm: 12, md: 6, lg: 4 }}>
+        <Grid2 xs={12} sm={12} md={6} lg={4}>
       <Paper
         elevation={3}
         sx={{

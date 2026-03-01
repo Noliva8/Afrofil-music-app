@@ -1,4 +1,4 @@
-import { useState, startTransition } from 'react';
+import { useState, useRef, useEffect, startTransition } from 'react';
 import Button from '@mui/material/Button';
 import { useForm } from "react-hook-form";
 import { useMutation } from "@apollo/client";
@@ -35,6 +35,7 @@ const {  handleSubmit, formState: { errors } } = useForm();
 
 
   const [tempPreview, setTempPreview] = useState('');
+  const previewRef = useRef('');
 
 
   const handleFileChange = (e) => {
@@ -43,22 +44,25 @@ const {  handleSubmit, formState: { errors } } = useForm();
 
     // Create and set temporary preview
     const previewUrl = URL.createObjectURL(file);
+    previewRef.current = previewUrl;
     setTempPreview(previewUrl);
 
     // Upload to S3
-    onUpload(file)
-      .then(() => {
-        // Clean up temporary preview after successful upload
-        URL.revokeObjectURL(previewUrl);
-        setTempPreview('');
-      })
-      .catch(() => {
-        // Keep preview on error
-      });
+    onUpload(file).catch(() => {
+      // Keep preview on error
+    });
   };
 
   // Display priority: Final URL > Temporary preview
   const displayUrl = currentImageUrl || tempPreview;
+
+  useEffect(() => {
+    if (tempPreview && currentImageUrl) {
+      URL.revokeObjectURL(previewRef.current);
+      previewRef.current = "";
+      setTempPreview("");
+    }
+  }, [currentImageUrl, tempPreview]);
 
 
 

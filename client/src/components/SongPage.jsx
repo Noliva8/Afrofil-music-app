@@ -515,12 +515,16 @@ useEffect(() => {
   const albumName = song?.albumName || song?.album?.title || null;
 
 
-  const isSingle = useMemo(() =>
-    !albumName ||
-    String(albumName).toLowerCase() === "unknown" ||
-    String(albumName).toLowerCase() === "single",
-    [albumName]
-  );
+ const isSingle = useMemo(() => {
+  const normalized = String(albumName || "")
+    .trim()
+    .toLowerCase();
+
+  const allowed = new Set(["single", "singles", "unknown"]);
+
+  return !normalized || allowed.has(normalized);
+}, [albumName]);
+
 
   const displayText = isSingle ? "Single" : albumName;
   const subtitleValue = isSingle

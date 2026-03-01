@@ -17,6 +17,7 @@ import { usePlayCount } from "../utils/handlePlayCount";
 import { useApolloClient } from "@apollo/client";
 import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
 import { handleTrendingSongPlay } from "../utils/plabackUtls/handleSongPlayBack";
+import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
 
 
 const MainMenu = ({
@@ -86,6 +87,11 @@ const MainMenu = ({
 
 
 
+  const processedNewUploads = useMemo(
+    () => processSongs(Array.isArray(newUploadsWithArtwork) ? newUploadsWithArtwork : []),
+    [newUploadsWithArtwork]
+  );
+
   return (
   <Box
        sx={{
@@ -150,7 +156,7 @@ const MainMenu = ({
       <SongRowContainer
         header="Just Released"
         subHeader="The Latest Songs, Right Now"
-        songsWithArtwork={newUploadsWithArtwork}
+        songsWithArtwork={processedNewUploads}
         onCardClick={handleCardClick}
         refetch={refetch}
         rowCode="newUpload"

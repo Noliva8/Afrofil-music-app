@@ -577,7 +577,7 @@ function AppUI({
       <div
         className="app-container public-artist-shell"
         style={{
-          minHeight: '100vh',
+          minHeight: '100dvh',
           backgroundColor: theme.palette.background.paper,
         }}
       >

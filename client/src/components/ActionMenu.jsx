@@ -10,20 +10,26 @@ import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import { useTheme, alpha } from '@mui/material/styles';
 
-const renderMenuItems = (items, onItemClick, isMobile) =>
-  items.map((item, index) => {
+const renderMenuItems = (items, onItemClick, isMobile, theme) => {
+  const resolvedTheme = theme.vars || theme;
+  const textPrimary = resolvedTheme.palette.text.primary;
+  const dividerColor = alpha(textPrimary, theme.palette.mode === "dark" ? 0.25 : 0.35);
+  const hoverDefault = alpha(textPrimary, theme.palette.mode === "dark" ? 0.08 : 0.05);
+
+  return items.map((item, index) => {
     if (item.type === "divider") {
       return (
         <Divider
           key={item.key || `divider-${index}`}
-          sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }}
+          sx={{ borderColor: dividerColor, my: 0.5 }}
         />
       );
     }
     return (
       <React.Fragment key={item.key || index}>
-        {item.dividerBefore && <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />}
+        {item.dividerBefore && <Divider sx={{ borderColor: dividerColor, my: 0.5 }} />}
         <MenuItem
           onClick={() => onItemClick(item)}
           disabled={item.disabled}
@@ -32,15 +38,17 @@ const renderMenuItems = (items, onItemClick, isMobile) =>
             px: 2,
             fontSize: isMobile ? "1rem" : "0.95rem",
             fontWeight: item.fontWeight ?? 500,
-            color: item.color || "#fff",
-            "&:hover": { backgroundColor: item.hoverBg || "rgba(255,255,255,0.05)" },
+            color: item.color || textPrimary,
+            "&:hover": {
+              backgroundColor: item.hoverBg || hoverDefault,
+            },
             ...item.sx,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
             <Box
               sx={{
-                color: item.iconColor || item.color || "rgba(255,255,255,0.7)",
+                color: item.iconColor || item.color || alpha(textPrimary, 0.7),
                 display: "flex",
                 alignItems: "center",
                 minWidth: 30,
@@ -51,24 +59,30 @@ const renderMenuItems = (items, onItemClick, isMobile) =>
             {item.label}
           </Box>
         </MenuItem>
-        {item.dividerAfter && <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />}
+        {item.dividerAfter && <Divider sx={{ borderColor: dividerColor, my: 0.5 }} />}
       </React.Fragment>
     );
   });
+};
 
-const renderDrawerItems = (items, onItemClick) =>
-  items.map((item, index) => {
+const renderDrawerItems = (items, onItemClick, theme) => {
+  const resolvedTheme = theme.vars || theme;
+  const textPrimary = resolvedTheme.palette.text.primary;
+  const dividerColor = alpha(textPrimary, theme.palette.mode === "dark" ? 0.25 : 0.35);
+  const hoverDefault = alpha(textPrimary, theme.palette.mode === "dark" ? 0.12 : 0.08);
+
+  return items.map((item, index) => {
     if (item.type === "divider") {
       return (
         <Divider
           key={item.key || `divider-${index}`}
-          sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }}
+          sx={{ borderColor: dividerColor, my: 0.5 }}
         />
       );
     }
     return (
       <React.Fragment key={item.key || index}>
-        {item.dividerBefore && <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />}
+        {item.dividerBefore && <Divider sx={{ borderColor: dividerColor, my: 0.5 }} />}
         <ListItem
           component="button"
           onClick={() => onItemClick(item)}
@@ -76,13 +90,15 @@ const renderDrawerItems = (items, onItemClick) =>
           sx={{
             borderRadius: 2,
             mb: 0.5,
-            "&:hover": { backgroundColor: item.hoverBg || "rgba(255,255,255,0.08)" },
+            "&:hover": {
+              backgroundColor: item.hoverBg || hoverDefault,
+            },
             ...item.drawerSx,
           }}
         >
           <ListItemIcon
             sx={{
-              color: item.iconColor || item.color || "rgba(255,255,255,0.75)",
+              color: item.iconColor || item.color || alpha(textPrimary, 0.75),
               minWidth: 40,
             }}
           >
@@ -91,14 +107,15 @@ const renderDrawerItems = (items, onItemClick) =>
           <ListItemText
             primary={item.label}
             primaryTypographyProps={{
-              sx: { color: item.color || "#fff", fontWeight: item.fontWeight ?? 600 },
+              sx: { color: item.color || textPrimary, fontWeight: item.fontWeight ?? 600 },
             }}
           />
         </ListItem>
-        {item.dividerAfter && <Divider sx={{ borderColor: "rgba(255,255,255,0.1)", my: 0.5 }} />}
+        {item.dividerAfter && <Divider sx={{ borderColor: dividerColor, my: 0.5 }} />}
       </React.Fragment>
     );
   });
+};
 
 export const ActionMenu = ({
   isMobile,
@@ -114,6 +131,14 @@ export const ActionMenu = ({
   showCancel = true,
   cancelLabel = "Cancel",
 }) => {
+  const theme = useTheme();
+  const resolvedTheme = theme.vars || theme;
+  const menuBackground = resolvedTheme.palette.background.paper;
+  const textPrimary = resolvedTheme.palette.text.primary;
+  const borderColor = alpha(textPrimary, 0.2);
+  const cancelBorderColor = alpha(textPrimary, 0.4);
+  const cancelHoverBackground = alpha(textPrimary, 0.08);
+
   const handleItemClick = (item) => {
     item.onClick?.();
     onClose?.();
@@ -132,19 +157,19 @@ export const ActionMenu = ({
         onClose={onClose}
         PaperProps={{
           sx: {
-            backgroundColor: "#181818",
-            color: "#fff",
+            backgroundColor: menuBackground,
+            color: textPrimary,
             minWidth: 220,
             borderRadius: 2,
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            border: `1px solid ${borderColor}`,
             ...menuPaperSx,
           },
         }}
         transformOrigin={{ horizontal: "right", vertical: "top" }}
         anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
       >
-        {renderMenuItems(items, handleItemClick, isMobile)}
+        {renderMenuItems(items, handleItemClick, isMobile, theme)}
       </Menu>
 
       {isMobile && (
@@ -157,8 +182,8 @@ export const ActionMenu = ({
               maxHeight: "70vh",
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
-              backgroundColor: "#181818",
-              color: "#fff",
+              backgroundColor: menuBackground,
+              color: textPrimary,
             },
           }}
         >
@@ -190,7 +215,7 @@ export const ActionMenu = ({
             )}
 
             <List sx={{ py: 0 }}>
-              {renderDrawerItems(items, handleDrawerItemClick)}
+              {renderDrawerItems(items, handleDrawerItemClick, theme)}
             </List>
 
             {showCancel && (
@@ -200,14 +225,14 @@ export const ActionMenu = ({
                 onClick={onCloseDrawer}
                 sx={{
                   mt: 1.5,
-                  color: "rgba(255,255,255,0.85)",
-                  borderColor: "rgba(255,255,255,0.3)",
+                  color: resolvedTheme.palette.text.secondary,
+                  borderColor: cancelBorderColor,
                   borderRadius: 2,
                   textTransform: "none",
                   fontWeight: 600,
                   "&:hover": {
-                    borderColor: "rgba(255,255,255,0.5)",
-                    backgroundColor: "rgba(255,255,255,0.06)",
+                    borderColor: alpha(textPrimary, 0.6),
+                    backgroundColor: cancelHoverBackground,
                   },
                 }}
               >

@@ -33,7 +33,7 @@ import { useAudioPlayer } from '../utils/Contexts/AudioPlayerContext.jsx';
 import { useArtistFollowers } from '../utils/Contexts/followers/useArtistFollowers.js';
 import { useUser } from '../utils/Contexts/userContext.jsx';
 import { GET_SONGS_ARTIST } from '../utils/queries.js';
-import { useApolloClient, useQuery } from '@apollo/client';
+import { useApolloClient, useMutation, useQuery } from '@apollo/client';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook.js';
 import { processSongs } from '../utils/someSongsUtils/someSongsUtils.js';
 
@@ -44,6 +44,8 @@ import { ActionButtonsGroup } from './ActionButtonsGroup.jsx';
 import { ActionMenu } from './ActionMenu.jsx';
 import { TrackListSection } from './TrackListSection.jsx';
 import AddToPlaylistModal from './AddToPlaylistModal.jsx';
+import { CREATE_BOOK_ARTIST } from '../utils/mutations';
+import { useBookingId } from '../utils/contexts/bookingIdContext.jsx';
 
   export const formatDuration = (seconds) => {
     if (seconds == null) return '0:00';
@@ -131,6 +133,27 @@ const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [adNoticeOpen, setAdNoticeOpen] = useState(false);
   const [adNoticeMessage] = useState('Playback will resume after the advertisement finishes.');
+  const [createBooking] = useMutation(CREATE_BOOK_ARTIST);
+  const { setBookingId } = useBookingId();
+  const handleCreateBooking = useCallback(
+    async (payload) => {
+      const resolvedPayload = {
+        ...payload,
+        artistId: payload?.artistId ?? artist?._id ?? artist?.id,
+      };
+      const { data } = await createBooking({
+        variables: {
+          input: resolvedPayload,
+        },
+      });
+      const booking = data?.createBookArtist?.booking;
+      if (booking?._id) {
+        setBookingId(booking._id);
+      }
+      return booking;
+    },
+    [artist?._id, artist?.id, createBooking, setBookingId]
+  );
   
   const derivedArtistId = useMemo(() => {
     const stateSong = location?.state?.song || null;
@@ -860,6 +883,7 @@ console.log('top track processesd:', limitedSongs)
             supportArtistId={artist?._id}
             supportArtistName={artist?.artistAka || artist?.name}
             isBookingEnabled={artist?.bookingAvailability ?? true}
+            onBookingSubmit={handleCreateBooking}
           />
         </Box>
       </Box>
