@@ -592,7 +592,7 @@ export default function Explore() {
             sx={{
               position: "sticky",
               top: 0,
-              zIndex: 1250,
+              zIndex: theme.zIndex.drawer - 1,
               py: 1.5,
               px: { xs: 1, sm: 2 },
               mb: 2,

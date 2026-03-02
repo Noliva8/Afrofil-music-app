@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { CREATE_ARTIST } from "../utils/mutations";
 import artist_auth from "../utils/artist_auth";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faEyeSlash } from "@fortawesome/free-solid-svg-icons";
+import InputAdornment from "@mui/material/InputAdornment";
+import PasswordVisibilityToggle from "../components/PasswordVisibilityToggle.jsx";
 
 // Material UI
 import Box from "@mui/material/Box";
@@ -272,14 +272,15 @@ export default function ArtistRegister() {
               type={showPasswordSignup ? "text" : "password"}
               onChange={handleSignupChange}
               value={signupFormState.password}
-              placeholder="••••••"
               InputProps={{
                 endAdornment: (
-                  <FontAwesomeIcon
-                    icon={showPasswordSignup ? faEye : faEyeSlash}
-                    style={{ cursor: "pointer", marginRight: "10px" }}
-                    onClick={toggleSignupPasswordVisibility}
-                  />
+                  <InputAdornment position="end">
+                    <PasswordVisibilityToggle
+                      show={showPasswordSignup}
+                      onClick={toggleSignupPasswordVisibility}
+                      sx={{ color: "inherit" }}
+                    />
+                  </InputAdornment>
                 ),
               }}
             />

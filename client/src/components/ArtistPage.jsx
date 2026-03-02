@@ -884,6 +884,9 @@ console.log('top track processesd:', limitedSongs)
             supportArtistName={artist?.artistAka || artist?.name}
             isBookingEnabled={artist?.bookingAvailability ?? true}
             onBookingSubmit={handleCreateBooking}
+            showFavoriteButton={false}
+            showShareButton={false}
+            showMoreButton={false}
           />
         </Box>
       </Box>

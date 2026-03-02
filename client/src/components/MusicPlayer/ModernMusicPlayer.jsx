@@ -223,7 +223,7 @@ const effectiveRepeatMode =
       playIconSize: 22,
       showTimeLabels: true,
       showShuffleRepeat: true,
-      showFavoritePlaylist: true,
+      showFavoritePlaylist: false,
       compactVolume: false,
       progressHeight: 4
     },
@@ -236,7 +236,7 @@ const effectiveRepeatMode =
       playIconSize: 24,
       showTimeLabels: true,
       showShuffleRepeat: true,
-      showFavoritePlaylist: true,
+      showFavoritePlaylist: false,
       compactVolume: false,
       progressHeight: 4
     },
@@ -249,7 +249,7 @@ const effectiveRepeatMode =
       playIconSize: 26,
       showTimeLabels: true,
       showShuffleRepeat: true,
-      showFavoritePlaylist: true,
+      showFavoritePlaylist: false,
       compactVolume: false,
       progressHeight: 5
     }

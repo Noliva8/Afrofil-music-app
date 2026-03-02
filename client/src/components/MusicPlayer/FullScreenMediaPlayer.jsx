@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNowPlayingArtwork } from '../../utils/Contexts/useNowPlayingArtwork';
 import { useArtistFollowers } from '../../utils/Contexts/followers/useArtistFollowers';
 import { useUser } from '../../utils/Contexts/userContext';
@@ -480,8 +481,11 @@ const formatStatNumber = (value, fallback = "0") => {
 
   if (!isOpen) return null;
 
+
+
   return createPortal(
     <>
+
     <Box
       sx={{
         position: 'fixed',
@@ -519,6 +523,7 @@ const formatStatNumber = (value, fallback = "0") => {
             left: 0,
             right: 0,
             bottom: 0,
+            
             backgroundImage: `url(${displayImageSrc})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -553,25 +558,25 @@ const formatStatNumber = (value, fallback = "0") => {
             '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.2) },
           }}
         >
-          <ArrowDownwardIcon/>
+          <ExpandMoreIcon />
         </IconButton>
 
         <Box sx={{ textAlign: 'center', mx: 2 }}>
           <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
             {displayTitle}
           </Typography>
-          <Typography variant="caption" sx={{ color: alpha('#fff', 0.7), fontSize: '0.75rem' }}>
-            {displayArtist}
-          </Typography>
+          
         </Box>
 
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <IconButton size="small" onClick={handleShare} sx={{ color: 'white' }}>
             <Share fontSize="small" />
           </IconButton>
-          <IconButton size="small" sx={{ color: 'white' }}>
+
+          {/* <IconButton size="small" sx={{ color: 'white' }}>
             <MoreVert fontSize="small" />
-          </IconButton>
+          </IconButton> */}
+
         </Box>
       </Box>
 
@@ -588,6 +593,7 @@ const formatStatNumber = (value, fallback = "0") => {
           overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'thin',
+       
           scrollbarColor: `${alpha(theme.palette.primary.main, 0.5)} ${alpha('#000', 0.2)}`,
           '&::-webkit-scrollbar': { 
             width: '6px',
@@ -607,11 +613,10 @@ const formatStatNumber = (value, fallback = "0") => {
 
 
 
-        
-        {/* Hero Section - Fixed height viewport */}
-    <Box
+{/* Hero Section - Responsive */}
+<Box
   sx={{
-    minHeight: '100vh',
+    minHeight: { xs: 'auto', md: '100vh' },
     display: 'grid',
     gridTemplateAreas: {
       xs: `"art"
@@ -628,53 +633,41 @@ const formatStatNumber = (value, fallback = "0") => {
     },
     gridTemplateColumns: { 
       xs: '1fr', 
-      sm: '1fr',
       md: 'minmax(300px, 1fr) minmax(0, 1.2fr)',
-      lg: 'minmax(350px, 1fr) minmax(0, 1.2fr)',
-      xl: 'minmax(400px, 1fr) minmax(0, 1.2fr)'
     },
-    alignItems: 'center',
-    gap: { xs: 4, md: 6, lg: 8 },
+    alignItems: { xs: 'flex-start', md: 'center' },
+    gap: { xs: 2, md: 6 },
     width: '100%',
-    maxWidth: { xs: '100%', md: '1400px', lg: '1600px' },
+    maxWidth: { xs: '100%', md: '1400px' },
     mx: 'auto',
-    p: { xs: 3, sm: 4, md: 5, lg: 6 },
+    p: { xs: 2, md: 5 },
     position: 'relative',
   }}
 >
-  {/* Album Art - Responsive container */}
+  {/* Album Art - Compact on mobile */}
   <Box
     sx={{
       position: 'relative',
       width: '100%',
-      maxWidth: { xs: '85vw', sm: '70vw', md: '100%' },
+      maxWidth: { xs: '200px', sm: '250px', md: '100%' }, // Fixed max width on mobile
       height: { 
-        xs: '85vw', 
-        sm: '70vw', 
+        xs: 'auto',
         md: 'calc(100vh - 200px)',
-        lg: 'calc(100vh - 180px)',
-        xl: 'calc(100vh - 160px)' 
       },
-      maxHeight: { md: '600px', lg: '700px', xl: '800px' },
       justifySelf: 'center',
       alignSelf: 'center',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gridArea: 'art',
+      mx: 'auto', // Center on mobile
     }}
   >
-    {/* Dynamic aspect ratio container */}
     <Box
       sx={{
         width: '100%',
-        height: '100%',
-        maxWidth: '100%',
-        maxHeight: '100%',
+        height: { xs: 'auto', md: '100%' },
         position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
       }}
     >
       {/* Album Art Image */}
@@ -682,100 +675,66 @@ const formatStatNumber = (value, fallback = "0") => {
         component="img"
         src={displayImageSrc}
         alt={displayTitle}
-         
-  loading="eager"           
-  decoding="sync"          
-  fetchpriority="high"
-
-
+        loading="eager"
         sx={{
           width: '100%',
-          height: '100%',
+          height: 'auto',
+          aspectRatio: '1/1', // Keep square aspect ratio
           objectFit: 'cover',
-          borderRadius: { xs: 3, md: 4, lg: 5 },
+          borderRadius: { xs: 2, md: 4 },
           boxShadow: `0 24px 60px ${alpha('#000', 0.7)}`,
-          transition: 'transform 0.3s ease',
-          '&:hover': {
-            transform: 'scale(1.02)',
-          },
-           display: 'block'   
         }}
       />
       
-
-      
-      {/* Floating Play Button */}
+      {/* Floating Play Button - Smaller on mobile */}
       <Fab
         onClick={controlsDisabled ? undefined : onPlayPause}
         disabled={controlsDisabled}
+        size="medium"
         sx={{
           position: 'absolute',
-          bottom: { xs: -25, md: -30, lg: -35 },
-          right: { xs: 'calc(50% - 35px)', md: 30, lg: 40 },
+          bottom: { xs: -15, md: -30 },
+          right: { xs: -10, md: 30 },
           bgcolor: theme.palette.primary.main,
           color: theme.palette.getContrastText(theme.palette.primary.main),
-          width: { xs: 70, md: 72, lg: 80 },
-          height: { xs: 70, md: 72, lg: 80 },
-          '&:hover': {
-            bgcolor: theme.palette.primary.dark,
-            transform: 'scale(1.05)',
-          },
+          width: { xs: 48, md: 72 },
+          height: { xs: 48, md: 72 },
+          '&:hover': { bgcolor: theme.palette.primary.dark },
           boxShadow: `0 15px 40px ${alpha(theme.palette.primary.main, 0.45)}`,
-          zIndex: 10,
         }}
       >
         {isPlaying ? 
-          <Pause sx={{ fontSize: { xs: 32, md: 36, lg: 40 } }} /> : 
-          <PlayArrow sx={{ fontSize: { xs: 32, md: 36, lg: 40 } }} />
+          <Pause sx={{ fontSize: { xs: 24, md: 36 } }} /> : 
+          <PlayArrow sx={{ fontSize: { xs: 24, md: 36 } }} />
         }
       </Fab>
     </Box>
   </Box>
 
-  {/* Right Column - Song Info & Controls */}
+  {/* Right Column - Compact on mobile */}
   <Box
     sx={{
       display: 'flex',
       flexDirection: 'column',
-      gap: { xs: 3, md: 4, lg: 5 },
-      height: '100%',
-      minWidth: 0,
-      justifyContent: { xs: 'flex-start', md: 'center' },
-      alignSelf: { xs: 'flex-start', md: 'center' },
-      pt: { xs: 0, md: 0 },
+      gap: { xs: 1.5, md: 4 },
       gridArea: 'info',
     }}
   >
-    {/* Song Info */}
+    {/* Song Info - Smaller text on mobile */}
     <Box sx={{ 
       textAlign: { xs: 'center', md: 'left' }, 
       color: 'white',
-      flex: 1,
-      minWidth: 0,
-      mx: { xs: 'auto', md: 0 },
-      display: 'flex',
-      flexDirection: 'column',
-      gap: { xs: 2, md: 2.5, lg: 3 },
-      justifyContent: 'center',
     }}>
       <Typography
         variant="h1"
         sx={{
           fontWeight: 900,
-          fontSize: { 
-            xs: '2.2rem', 
-            sm: '2.8rem', 
-            md: '3.2rem', 
-            lg: '3.8rem', 
-            xl: '4.2rem' 
-          },
+          fontSize: { xs: '1.5rem', sm: '2rem', md: '3.2rem' },
           lineHeight: 1.1,
           background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          letterSpacing: '-0.5px',
-          wordBreak: 'break-word',
-          overflowWrap: 'break-word',
+          mb: 0.5,
         }}
       >
         {displayTitle}
@@ -785,252 +744,140 @@ const formatStatNumber = (value, fallback = "0") => {
         variant="h4"
         sx={{
           fontWeight: 500,
-          fontSize: { 
-            xs: '1.3rem', 
-            sm: '1.6rem', 
-            md: '1.9rem', 
-            lg: '2.2rem' 
-          },
+          fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.9rem' },
           color: alpha('#fff', 0.9),
-          lineHeight: 1.2,
+          mb: 0.5,
         }}
       >
         {displayArtist}
       </Typography>
 
       <Typography
-        variant="h6"
+        variant="body2"
         sx={{
-          fontWeight: 400,
           color: alpha('#fff', 0.7),
-          fontSize: { 
-            xs: '1rem', 
-            sm: '1.1rem', 
-            md: '1.2rem', 
-            lg: '1.3rem' 
-          },
+          fontSize: { xs: '0.9rem', md: '1.2rem' },
+          mb: 1,
         }}
       >
-        Album: {displayAlbum} • {currentSong?.releaseYear || '-'}
+        {displayAlbum} • {currentSong?.releaseYear || '-'}
       </Typography>
 
-      {/* Stats */}
+      {/* Stats - Compact on mobile */}
       <Box sx={{ 
         display: 'flex', 
         justifyContent: { xs: 'center', md: 'flex-start' }, 
-        gap: { xs: 3, md: 4, lg: 5 },
+        gap: { xs: 2, md: 4 },
         flexWrap: 'wrap',
-        mt: { xs: 1, md: 2 }
       }}>
-        <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-          <Typography variant="h5" sx={{ 
-            color: theme.palette.primary.main, 
-            fontWeight: 700,
-            fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
-          }}>
-            {formattedPlayCount}
-          </Typography>
-          <Typography variant="caption" sx={{ 
-            color: alpha('#fff', 0.6), 
-            fontSize: { xs: '0.75rem', md: '0.8rem', lg: '0.85rem' }
-          }}>
-            Plays
-          </Typography>
-        </Box>
-        
-        <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-          <Typography variant="h5" sx={{ 
-            color: theme.palette.primary.main, 
-            fontWeight: 700,
-            fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
-          }}>
-            {formattedLikesCount}
-          </Typography>
-          <Typography variant="caption" sx={{ 
-            color: alpha('#fff', 0.6), 
-            fontSize: { xs: '0.75rem', md: '0.8rem', lg: '0.85rem' }
-          }}>
-            Likes
-          </Typography>
-        </Box>
-        <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-          <Typography variant="h5" sx={{ 
-            color: theme.palette.primary.main, 
-            fontWeight: 700,
-            fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
-          }}>
-            {typeof currentSong?.shareCount === 'number' ? currentSong.shareCount : 0}
-          </Typography>
-          <Typography variant="caption" sx={{ 
-            color: alpha('#fff', 0.6), 
-            fontSize: { xs: '0.75rem', md: '0.8rem', lg: '0.85rem' }
-          }}>
-            Shares
-          </Typography>
-        </Box>
-        <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-          <Typography variant="h5" sx={{ 
-            color: theme.palette.primary.main, 
-            fontWeight: 700,
-            fontSize: { xs: '1.4rem', md: '1.6rem', lg: '1.8rem' }
-          }}>
-            {formattedDownloadCount}
-          </Typography>
-          <Typography variant="caption" sx={{ 
-            color: alpha('#fff', 0.6), 
-            fontSize: { xs: '0.75rem', md: '0.8rem', lg: '0.85rem' }
-          }}>
-            Downloads
-          </Typography>
-        </Box>
+        {[
+          { label: 'Plays', value: formattedPlayCount },
+          { label: 'Likes', value: formattedLikesCount },
+          { label: 'Shares', value: currentSong?.shareCount || 0 },
+          { label: 'Downloads', value: formattedDownloadCount },
+        ].map((stat) => (
+          <Box key={stat.label} sx={{ textAlign: 'center' }}>
+            <Typography sx={{ 
+              color: theme.palette.primary.main, 
+              fontWeight: 700,
+              fontSize: { xs: '1rem', md: '1.6rem' }
+            }}>
+              {stat.value}
+            </Typography>
+            <Typography variant="caption" sx={{ 
+              color: alpha('#fff', 0.6),
+              fontSize: { xs: '0.65rem', md: '0.8rem' }
+            }}>
+              {stat.label}
+            </Typography>
+          </Box>
+        ))}
       </Box>
     </Box>
   </Box>
 
-  {/* Action Buttons (Favorite, Download, PlaylistAdd) - ABOVE SLIDER */}
+  {/* Action Buttons - Centered on mobile */}
   <Box
     sx={{
       gridArea: 'actions',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'flex-end',
+      justifyContent: { xs: 'center', md: 'flex-end' },
       gap: { xs: 1.5, md: 2 },
-      width: '100%',
-      mb: { xs: 1, md: 2 }
+      mt: { xs: 1, md: 0 },
     }}
   >
     <IconButton
       onClick={controlsDisabled ? undefined : onToggleFavorite}
       disabled={controlsDisabled}
+      size="small"
       sx={{
         color: isFavorite ? '#ff4081' : alpha('#fff', 0.8),
-        fontSize: { xs: '1.8rem', md: '2rem', lg: '2.2rem' },
-        '&:hover': { 
-          color: '#ff4081',
-          transform: 'scale(1.1)'
-        }
+        fontSize: { xs: '1.5rem', md: '2rem' },
       }}
     >
       {isFavorite ? <Favorite /> : <FavoriteBorder />}
     </IconButton>
 
     <IconButton
-      sx={{
-        color: '#fff',
-        fontSize: { xs: '1.8rem', md: '2rem' },
-        '&:hover': { 
-          color: theme.palette.primary.main,
-          transform: 'scale(1.1)'
-        },
-        '&.Mui-disabled': { color: alpha('#fff', 0.3) }
-      }}
-      aria-label="Download"
       onClick={controlsDisabled ? undefined : handleDownload}
       disabled={controlsDisabled || downloading || downloadInFlight || !user?._id}
+      size="small"
+      sx={{ color: '#fff', fontSize: { xs: '1.5rem', md: '2rem' } }}
     >
-      {downloadInFlight ? (
-        <CircularProgress size={24} sx={{ color: '#fff' }} />
-      ) : (
-        <Download />
-      )}
+      {downloadInFlight ? <CircularProgress size={20} /> : <Download />}
     </IconButton>
 
     <IconButton
       disabled={controlsDisabled}
-      sx={{
-        color: '#fff',
-        fontSize: { xs: '1.8rem', md: '2rem' },
-        '&:hover': { 
-          color: theme.palette.primary.main,
-          transform: 'scale(1.1)'
-        },
-        '&.Mui-disabled': { color: alpha('#fff', 0.3) }
-      }}
-      aria-label="Add to playlist"
+      size="small"
+      sx={{ color: '#fff', fontSize: { xs: '1.5rem', md: '2rem' } }}
     >
       <PlaylistAdd />
     </IconButton>
   </Box>
 
   {/* Progress Bar */}
-    <Box sx={{ 
-    gridArea: 'slider',
-    width: '100%',
-    maxWidth: '100%',
-    mx: 'auto',
-    mt: { xs: 0, md: 0 } // Reduced margin since buttons are now above
-  }}>
+  <Box sx={{ gridArea: 'slider', width: '100%', mt: { xs: 1, md: 0 } }}>
     <Slider
       value={Math.min(sliderValue, effectiveDuration || teaserDuration)}
       max={effectiveDuration || 100}
-      onChange={isAdPlaying ? undefined : onSliderChange || onSeek}
+      onChange={isAdPlaying ? undefined : onSliderChange}
       onChangeCommitted={controlsDisabled ? undefined : handleSliderCommit}
       disabled={controlsDisabled}
+      size="small"
       sx={{
         color: theme.palette.primary.main,
-        height: { xs: 5, md: 6 },
-        '& .MuiSlider-track': { 
-          height: { xs: 5, md: 6 } 
-        },
-        '& .MuiSlider-thumb': {
-          width: { xs: 14, md: 16 },
-          height: { xs: 14, md: 16 },
-          '&:hover, &.Mui-focusVisible': {
-            boxShadow: `0 0 0 8px ${alpha(theme.palette.primary.main, 0.3)}`,
-          }
-        },
-        '& .MuiSlider-rail': {
-          height: { xs: 5, md: 6 },
-          bgcolor: alpha('#fff', 0.15),
-        }
+        height: { xs: 4, md: 6 },
+        '& .MuiSlider-thumb': { width: { xs: 12, md: 16 }, height: { xs: 12, md: 16 } },
       }}
     />
-    <Box sx={{ 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      mt: 1 
-    }}>
-      <Typography variant="body2" sx={{ 
-        color: alpha('#fff', 0.8), 
-        fontWeight: 500,
-        fontSize: { xs: '0.85rem', md: '0.9rem' }
-      }}>
-        {formatTime(
-          isTeaser
-            ? Math.min(sliderValue, effectiveDuration || teaserDuration)
-            : sliderValue
-        )}
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+      <Typography variant="caption" sx={{ color: alpha('#fff', 0.8) }}>
+        {formatTime(sliderValue)}
       </Typography>
-      <Typography variant="body2" sx={{ 
-        color: alpha('#fff', 0.8), 
-        fontWeight: 500,
-        fontSize: { xs: '0.85rem', md: '0.9rem' }
-      }}>
+      <Typography variant="caption" sx={{ color: alpha('#fff', 0.8) }}>
         {formatTime(effectiveDuration || duration)}
       </Typography>
     </Box>
   </Box>
 
-  {/* Main Controls */}
+  {/* Main Controls - Compact on mobile */}
   <Box sx={{ 
     gridArea: 'controls',
     display: 'flex', 
     alignItems: 'center',
-    justifyContent: { xs: 'center', md: 'center' },
-    gap: { xs: 2, sm: 3, md: 4, lg: 5 },
-    flexWrap: 'wrap',
-    mt: { xs: 3, md: 4 }
+    justifyContent: 'center',
+    gap: { xs: 1.5, sm: 2, md: 4 },
+    mt: { xs: 1, md: 4 },
   }}>
     <IconButton
       onClick={controlsDisabled ? undefined : onToggleShuffle}
       disabled={controlsDisabled}
+      size="small"
       sx={{
         color: isShuffled ? theme.palette.primary.main : alpha('#fff', 0.8),
-        fontSize: { xs: '1.6rem', md: '1.8rem', lg: '2rem' },
-        '&:hover': { 
-          color: theme.palette.primary.main,
-          transform: 'scale(1.1)'
-        }
+        fontSize: { xs: '1.2rem', md: '1.8rem' },
       }}
     >
       <Shuffle />
@@ -1039,15 +886,8 @@ const formatStatNumber = (value, fallback = "0") => {
     <IconButton
       onClick={controlsDisabled ? undefined : onPrev}
       disabled={controlsDisabled || queueLength <= 1}
-      sx={{
-        color: '#fff',
-        fontSize: { xs: '2.2rem', md: '2.5rem', lg: '2.8rem' },
-        '&:hover': { 
-          color: theme.palette.primary.main,
-          transform: 'scale(1.1)'
-        },
-        '&.Mui-disabled': { color: alpha('#fff', 0.3) }
-      }}
+      size="small"
+      sx={{ color: '#fff', fontSize: { xs: '1.8rem', md: '2.5rem' } }}
     >
       <SkipPrevious />
     </IconButton>
@@ -1058,33 +898,23 @@ const formatStatNumber = (value, fallback = "0") => {
       sx={{
         bgcolor: theme.palette.primary.main,
         color: theme.palette.getContrastText(theme.palette.primary.main),
-        width: { xs: 70, md: 80, lg: 90 },
-        height: { xs: 70, md: 80, lg: 90 },
-        '&:hover': {
-          bgcolor: theme.palette.primary.dark,
-          transform: 'scale(1.05)',
-        },
+        width: { xs: 48, md: 80 },
+        height: { xs: 48, md: 80 },
+        '&:hover': { bgcolor: theme.palette.primary.dark },
         boxShadow: `0 15px 35px ${alpha(theme.palette.primary.main, 0.4)}`,
       }}
     >
       {isPlaying ? 
-        <Pause sx={{ fontSize: { xs: 32, md: 36, lg: 40 } }} /> : 
-        <PlayArrow sx={{ fontSize: { xs: 32, md: 36, lg: 40 } }} />
+        <Pause sx={{ fontSize: { xs: 24, md: 36 } }} /> : 
+        <PlayArrow sx={{ fontSize: { xs: 24, md: 36 } }} />
       }
     </IconButton>
 
     <IconButton
       onClick={controlsDisabled ? undefined : onNext}
       disabled={controlsDisabled || queueLength <= 1}
-      sx={{
-        color: '#fff',
-        fontSize: { xs: '2.2rem', md: '2.5rem', lg: '2.8rem' },
-        '&:hover': { 
-          color: theme.palette.primary.main,
-          transform: 'scale(1.1)'
-        },
-        '&.Mui-disabled': { color: alpha('#fff', 0.3) }
-      }}
+      size="small"
+      sx={{ color: '#fff', fontSize: { xs: '1.8rem', md: '2.5rem' } }}
     >
       <SkipNext />
     </IconButton>
@@ -1092,44 +922,37 @@ const formatStatNumber = (value, fallback = "0") => {
     <IconButton
       onClick={controlsDisabled ? undefined : onToggleRepeat}
       disabled={controlsDisabled}
+      size="small"
       sx={{
         color: repeatMode !== 'none' ? theme.palette.primary.main : alpha('#fff', 0.8),
-        fontSize: { xs: '1.6rem', md: '1.8rem', lg: '2rem' },
-        '&:hover': { 
-          color: theme.palette.primary.main,
-          transform: 'scale(1.1)'
-        }
+        fontSize: { xs: '1.2rem', md: '1.8rem' },
       }}
     >
       {repeatMode === 'one' ? <RepeatOne /> : <Repeat />}
     </IconButton>
   </Box>
 
-  {/* Scroll Indicator - Only show on mobile/tablet */}
+  {/* Scroll Indicator */}
   <Box sx={{ 
     gridArea: 'hint',
-    textAlign: { xs: 'center', md: 'left' },
+    textAlign: 'center',
     display: { xs: 'block', lg: 'none' },
-    mt: { xs: 4, md: 5 }
+    mt: { xs: 2, md: 5 }
   }}>
-    <Typography variant="caption" sx={{ 
-      color: alpha('#fff', 0.6), 
-      mb: 1, 
-      display: 'block',
-      fontSize: { xs: '0.8rem', md: '0.9rem' }
-    }}>
+    <Typography variant="caption" sx={{ color: alpha('#fff', 0.6), fontSize: '0.75rem' }}>
       Scroll for lyrics, credits, and more
     </Typography>
-    <ExpandMore sx={{ 
-      color: alpha('#fff', 0.6), 
-      fontSize: { xs: '1.8rem', md: '2rem' } 
-    }} />
+    <ExpandMore sx={{ color: alpha('#fff', 0.6), fontSize: '1.5rem' }} />
   </Box>
 </Box>
 
 
 
 
+
+
+
+{/* ----------------------------- */}
 
         {/* Content Section */}
         <Box sx={{ 
@@ -1854,6 +1677,9 @@ const formatStatNumber = (value, fallback = "0") => {
     document.body
   );
 };
+
+
+
 
 export const useFullScreenPlayer = () => {
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);

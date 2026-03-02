@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
 import UserAuth from '../utils/auth';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import PasswordVisibilityToggle from '../components/PasswordVisibilityToggle.jsx';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
@@ -309,29 +308,20 @@ const LoginForm = ({
                 paddingRight: '40px'
               }}
             />
-            <Box
-              component="button"
-              type="button"
+            <PasswordVisibilityToggle
+              show={showPasswordLogin}
               onClick={toggleShowPasswordLogin}
               sx={{
                 position: 'absolute',
                 top: '50%',
                 transform: 'translateY(-50%)',
                 right: '10px',
-                background: 'none',
-                border: 'none',
                 color: '#000',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
                 ':hover': {
                   color: '#E4C421'
                 }
               }}
-            >
-              <FontAwesomeIcon icon={showPasswordLogin ? faEyeSlash : faEye} />
-            </Box>
+            />
           </Box>
         </Box>
 
@@ -355,10 +345,12 @@ const LoginForm = ({
           </Typography>
         </Divider>
 
-        <Box component="button" type="button" onClick={handleGoogleLogin} sx={{ width: '100%', padding: '12px', borderRadius: '8px', background: theme.palette.google?.main || '#4285F4', color: theme.palette.google?.contrastText || '#fff', border: 'none', fontSize: '16px', fontWeight: '500', fontFamily: theme.typography.fontFamily, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', mb: 2.5, transition: 'all 0.3s ease', '&:hover': { background: '#3367D6', transform: 'translateY(-2px)' } }}>
-          <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google logo" sx={{ width: 20, height: 20 }} />
-          Continue with Google
-        </Box>
+          {/*
+          <Box component="button" type="button" onClick={handleGoogleLogin} sx={{ width: '100%', padding: '12px', borderRadius: '8px', background: theme.palette.google?.main || '#4285F4', color: theme.palette.google?.contrastText || '#fff', border: 'none', fontSize: '16px', fontWeight: '500', fontFamily: theme.typography.fontFamily, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', mb: 2.5, transition: 'all 0.3s ease', '&:hover': { background: '#3367D6', transform: 'translateY(-2px)' } }}>
+            <Box component="img" src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google logo" sx={{ width: 20, height: 20 }} />
+            Continue with Google
+          </Box>
+          */}
 
         <Box sx={{ textAlign: 'center', mb: 2 }}>
           <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
@@ -424,9 +416,18 @@ const SignupForm = ({
           </Typography>
           <Box sx={{ position: 'relative' }}>
             <Box component="input" type={showPasswordSignup ? 'text' : 'password'} id="password" name="password" onChange={handleSignupChange} value={signupFormState.password} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily, paddingRight: '40px' }} />
-            <Box component="button" type="button" onClick={toggleShowPasswordSignup} sx={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: '10px', background: 'none', border: 'none', color: '#000', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', ':hover': { color: '#E4C421' } }}>
-              <FontAwesomeIcon icon={showPasswordSignup ? faEyeSlash : faEye} />
-            </Box>
+            <PasswordVisibilityToggle
+              show={showPasswordSignup}
+              onClick={toggleShowPasswordSignup}
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                right: '10px',
+                color: '#000',
+                ':hover': { color: '#E4C421' }
+              }}
+            />
           </Box>
         </Box>
 

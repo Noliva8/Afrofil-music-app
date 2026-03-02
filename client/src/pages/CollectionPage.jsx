@@ -623,6 +623,7 @@ const selectedPlaylist = useMemo(
                   onToggleFavorite={handleToggleFavorite}
                   onShare={handleSharePlaylist}
                   onMore={handleOpenPlaylistMenu}
+                  showFavoriteButton={false}
                 />
               </Box>
             )}

@@ -569,6 +569,7 @@ query songById($songId: ID!) {
       bio
       country
       bookingAvailability
+profileImage
     }
     album {
       _id

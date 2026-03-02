@@ -18,6 +18,15 @@ import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 // Icons pulled from brand set if needed later; kept minimal for now.
 import ArtistAuth from '../utils/artist_auth';
 import { useNavigate } from 'react-router-dom';
+import InputAdornment from '@mui/material/InputAdornment';
+import PasswordVisibilityToggle from '../components/PasswordVisibilityToggle.jsx';
+
+import { useApolloClient } from '@apollo/client';
+
+
+
+
+
 
 
 
@@ -281,7 +290,11 @@ export default function ArtistLogin() {
   const navigate = useNavigate(); 
   const [formState, setFormState] = useState({ email: '', password: '' });
   const [loginErrorMessage, setLoginErrorMessage] = useState('');
-  const [login] = useMutation(ARTIST_LOGIN); // Assuming you have the ARTIST_LOGIN mutation defined
+  const [showPassword, setShowPassword] = useState(false);
+  const [login, { reset }] = useMutation(ARTIST_LOGIN); // Assuming you have the ARTIST_LOGIN mutation defined
+
+  // Inside your component:
+const client = useApolloClient();
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -290,41 +303,129 @@ export default function ArtistLogin() {
       [name]: value,
     });
   };
+
+  const toggleShowPassword = () => {
+    setShowPassword((prev) => !prev);
+  };
   
+// const handleFormSubmit = async (event) => {
+//   event.preventDefault();
+//   reset();
+//   setLoginErrorMessage('');
+
+//   try {
+//     // Log the formState to ensure the data is correct
+//     // console.log('Form State:', formState);
+    
+//     const { data } = await login({
+//       variables: { ...formState },
+//         fetchPolicy: 'network-only',
+//     });
+
+//     // Check if the login was successful
+//     if (data && data.artist_login) {
+//       const { artistToken } = data.artist_login;
+
+    
+//       ArtistAuth.login(artistToken);
+
+//       // 🧹 CLEAN UP TEMPORARY CACHE
+//       console.log('🧹 Cleaning up temporary plan data after login');
+//       localStorage.removeItem('artistProfile');
+      
+//       // Fetch the profile to check the confirmed status
+//       const profile = ArtistAuth.getProfile();
+
+//       if (profile && profile.data && profile.data.confirmed) {
+//         setLoginErrorMessage('');
+//         navigate('/artist/studio/home');
+//       } else {
+//         // console.log('Artist is NOT confirmed or profile data is missing');
+//         navigate('/artist/verification');
+//       }
+//     } else {
+//       setLoginErrorMessage('Login failed. Please check your credentials.');
+//     }
+
+//     } catch (e) {
+//     console.error('ApolloError:', e.message);
+    
+//     // Log specific GraphQL errors
+//     if (e.graphQLErrors) {
+//       e.graphQLErrors.forEach((error) => {
+//         console.error('GraphQL Error:', error.message);
+//       });
+//       setLoginErrorMessage('Invalid email or password. Please try again.');
+//     }
+    
+//     // Log network errors
+//     if (e.networkError) {
+//       console.error('Network Error:', e.networkError.message);
+//       setLoginErrorMessage('Network error. Please check your connection and try again.');
+//     }
+    
+//     // Handle any general errors
+//     if (!e.graphQLErrors && !e.networkError) {
+//       console.error('Unexpected Error:', e);
+//       setLoginErrorMessage('An unexpected error occurred. Please try again later.');
+//     }
+//   }
+
+//   // Clear form values only if the login was successful
+//   setFormState({
+//     email: '',
+//     password: '',
+//   });
+// };
+
+
 const handleFormSubmit = async (event) => {
   event.preventDefault();
+  reset();
+  setLoginErrorMessage('');
 
   try {
-    // Log the formState to ensure the data is correct
-    // console.log('Form State:', formState);
-    
     const { data } = await login({
       variables: { ...formState },
+      // Add this to prevent caching of failed attempts
+      fetchPolicy: 'network-only',
     });
 
     // Check if the login was successful
     if (data && data.artist_login) {
       const { artistToken } = data.artist_login;
 
-    
       ArtistAuth.login(artistToken);
 
       // 🧹 CLEAN UP TEMPORARY CACHE
       console.log('🧹 Cleaning up temporary plan data after login');
       localStorage.removeItem('artistProfile');
       
+      // Clear Apollo cache for sensitive queries
+      await client.clearStore();
+      
       // Fetch the profile to check the confirmed status
       const profile = ArtistAuth.getProfile();
 
       if (profile && profile.data && profile.data.confirmed) {
         setLoginErrorMessage('');
+        // Clear form state on success
+        setFormState({
+          email: '',
+          password: '',
+        });
         navigate('/artist/studio/home');
       } else {
-        // console.log('Artist is NOT confirmed or profile data is missing');
         navigate('/artist/verification');
       }
     } else {
       setLoginErrorMessage('Login failed. Please check your credentials.');
+      // Don't clear form on failure - let user see what they typed
+      // Only clear password for security
+      setFormState(prev => ({
+        ...prev,
+        password: '',
+      }));
     }
 
   } catch (e) {
@@ -349,15 +450,17 @@ const handleFormSubmit = async (event) => {
       console.error('Unexpected Error:', e);
       setLoginErrorMessage('An unexpected error occurred. Please try again later.');
     }
+    
+    // Clear only the password field on error
+    setFormState(prev => ({
+      ...prev,
+      password: '',
+    }));
+    
+    // Optionally, reset the Apollo store to clear any cached state
+    await client.resetStore();
   }
-
-  // Clear form values only if the login was successful
-  setFormState({
-    email: '',
-    password: '',
-  });
 };
-
 
 
   return (
@@ -413,13 +516,24 @@ const handleFormSubmit = async (event) => {
             <TextField
               onChange={handleChange}
               id="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               placeholder="......"
               autoComplete="current-password"
               required
               fullWidth
               variant="outlined"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <PasswordVisibilityToggle
+                      show={showPassword}
+                      onClick={toggleShowPassword}
+                      sx={{ color: "inherit" }}
+                    />
+                  </InputAdornment>
+                ),
+              }}
             />
           </FormControl>
 
@@ -460,6 +574,7 @@ const handleFormSubmit = async (event) => {
 
         {/* Other login options */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/*
           <Button
             fullWidth
             variant="outlined"
@@ -467,6 +582,7 @@ const handleFormSubmit = async (event) => {
           >
             Sign in with Google
           </Button>
+          */}
 
           
               <Typography

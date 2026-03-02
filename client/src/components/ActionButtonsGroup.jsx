@@ -23,6 +23,9 @@ export const ActionButtonsGroup = ({
   onBookingSubmit,
   showBookingButton = true,
   isBookingEnabled,
+  showFavoriteButton = true,
+  showShareButton = true,
+  showMoreButton = true,
   sx = {},
 }) => {
 
@@ -69,6 +72,7 @@ export const ActionButtonsGroup = ({
         />
       )}
 
+      {showFavoriteButton && (
         <IconButton
           onClick={onToggleFavorite}
           aria-label="Add to Favorites"
@@ -107,9 +111,11 @@ export const ActionButtonsGroup = ({
             {isFavorite ? "Added" : "Add"}
           </Typography>
         </IconButton>
+      )}
 
-        <ShareButton handleShare={onShare} />
+      {showShareButton && <ShareButton handleShare={onShare} />}
 
+      {showMoreButton && (
         <IconButton
           aria-label="More options"
           onClick={onMore}
@@ -143,6 +149,7 @@ export const ActionButtonsGroup = ({
             More
           </Typography>
         </IconButton>
+      )}
       </Box>
       <BookingArtistModal
         open={bookingOpen}

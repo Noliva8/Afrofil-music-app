@@ -211,6 +211,7 @@ export const SongPage = () => {
   const fallbackSong = data?.publicSong ?? null;
   const fallbackSongs = useMemo(() => (fallbackSong ? [fallbackSong] : []), [fallbackSong]);
 
+
   // -----------------------
   // 3) Process song with presigned URLs
   // -----------------------
@@ -329,6 +330,7 @@ export const SongPage = () => {
   // 6) Final song for rendering
   // -----------------------
   const song = processedSongFetched || songFromState || null;
+  
   const artistBookingAvailability = useMemo(
     () => getArtistBookingAvailability(song),
     [song, getArtistBookingAvailability]
@@ -350,12 +352,24 @@ export const SongPage = () => {
     );
   }, [song]);
 
+  const artistProfileImageUrl = useMemo(() => {
+    if (!song) return null;
+    
+    return (
+      song.artist.profileImage||
+      song.profilePictureUrl ||
+      song.artist?.profileImage ||
+      song.artist?.profilePictureUrl ||
+      null
+    );
+  }, [song]);
+
   // -----------------------
   // 8) Playable track
   // -----------------------
   const playableTrack = useMemo(() => {
     if (!song) return null;
-// console.log('see song again:,', song)
+
     const id = getId(song);
     const artistId = String(song.artistId || song.artist?._id || song.artist || "");
     const resolvedAlbumId = String(song.albumId || song.album?._id || song.album || albumId || "");
@@ -1008,19 +1022,21 @@ useEffect(() => {
   return (
     <>
       {/* Hero Section */}
-      <Box
+
+     <Box
         sx={{
           width: "100%",
-          height: { xs: "auto", md: "40vh", lg: "35vh" },
-          minHeight: { xs: 400, md: 450, lg: 500 },
+          height: { xs: "auto", sm: "auto", md: "45vh", lg: "50vh" },
+          minHeight: { xs: 380, sm: 420, md: 450, lg: 500 },
+          maxHeight: { xs: 600, md: 700 },
           position: "relative",
           overflow: "hidden",
           backgroundColor: theme.palette.background.paper,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          px: { xs: 1, sm: 2, md: 3 },
-          py: { xs: 3, sm: 4, md: 5, lg: 6 },
+          px: { xs: 2, sm: 3, md: 4 },
+          py: { xs: 3, sm: 4, md: 5 },
         }}
       >
         {/* Blurred Background */}
@@ -1044,7 +1060,7 @@ useEffect(() => {
         )}
 
         {/* Gradient Overlay */}
-        <Box
+  <Box
           sx={{
             position: "absolute",
             top: 0,
@@ -1052,8 +1068,8 @@ useEffect(() => {
             width: "100%",
             height: "100%",
             background: {
-              xs: "linear-gradient(to bottom, rgba(18, 18, 18, 0.95) 0%, rgba(18, 18, 18, 0.85) 100%)",
-              md: "linear-gradient(to right, rgba(18, 18, 18, 0.95) 0%, rgba(18, 18, 18, 0.85) 40%, rgba(18, 18, 18, 0.4) 100%)",
+              xs: "linear-gradient(to bottom, rgba(18, 18, 18, 0.98) 0%, rgba(18, 18, 18, 0.9) 70%, rgba(18, 18, 18, 0.85) 100%)",
+              sm: "linear-gradient(to right, rgba(18, 18, 18, 0.95) 0%, rgba(18, 18, 18, 0.85) 50%, rgba(18, 18, 18, 0.6) 100%)",
             },
             zIndex: 1,
           }}
@@ -1120,7 +1136,71 @@ useEffect(() => {
               paddingRight: { md: 2, lg: 4 },
             }}
           >
-            <Typography
+
+
+
+{isSingle && (
+  <>
+
+  <Typography
+  variant="h5"
+  >
+Song:
+  </Typography>
+
+
+
+<Typography
+ variant="h2"
+   sx={{
+                 fontSize: {
+                  xs: "2rem",
+                  sm: "2.5rem",
+                  md: "3.2rem",
+                  lg: "4rem",
+                  xl: "4.5rem",
+                },
+                fontWeight: 800,
+                mb: { xs: 1.5, md: 2 },
+                lineHeight: 1.1,
+                letterSpacing: "0.1em",
+                background: "linear-gradient(45deg, #fff 20%, #E4C421 80%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                textShadow: "0 4px 20px rgba(0, 0, 0, 0.4)",
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: { xs: 2, md: 2 },
+                overflowWrap: "anywhere",
+                textAlign: { xs: "center", md: "left" },
+                width: "100%",
+                cursor: !isSingle && resolvedAlbumId ? "pointer" : "default",
+                "&:hover": {
+                  textDecoration: !isSingle && resolvedAlbumId ? "underline" : "none",
+                },
+              }}
+>
+  
+    {song.title}
+</Typography>
+
+  
+  
+  
+  </>
+)
+
+}
+
+{!isSingle && (
+  <>
+  
+  
+    <Typography
               variant="overline"
               sx={{
                 display: "block",
@@ -1132,23 +1212,23 @@ useEffect(() => {
                 textTransform: "uppercase",
               }}
             >
-              {isSingle ? "SINGLE" : "ALBUM"}
+             ALBUM:
             </Typography>
 
             <Typography
-              variant="h1"
+              variant="h2"
               onClick={() => {
                 if (!isSingle && resolvedAlbumId) {
                   navigate(`/album/${resolvedAlbumId}`);
                 }
               }}
               sx={{
-                fontSize: {
-                  xs: "3.2rem",
-                  sm: "3.8rem",
-                  md: "4.2rem",
-                  lg: "4.8rem",
-                  xl: "5.2rem",
+                 fontSize: {
+                  xs: "2rem",
+                  sm: "2.5rem",
+                  md: "3.2rem",
+                  lg: "4rem",
+                  xl: "4.5rem",
                 },
                 fontWeight: 800,
                 mb: { xs: 1.5, md: 2 },
@@ -1179,6 +1259,8 @@ useEffect(() => {
             </Typography>
 
             <Box sx={{ width: "100%", mb: { xs: 2, md: 3 }, maxWidth: { xs: "100%", md: "90%" } }}>
+
+              
               <MarqueeText
                 text={subtitleValue}
                 hovered={isSubtitleHovered}
@@ -1189,7 +1271,23 @@ useEffect(() => {
                   textAlign: { xs: "center", md: "left" },
                 }}
               />
+
+
             </Box>
+  
+  
+  </>
+)}
+
+
+
+
+          
+
+
+
+
+
           </Box>
 
           {/* Artist Info */}
@@ -1213,18 +1311,18 @@ useEffect(() => {
                 border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              {song?.artistProfileImage ? (
-                <Box
-                  component="img"
-                  src={song.artistProfileImage}
-                  alt={song.artistName || "Artist"}
-                  sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem" }}>
-                  N/A
-                </Typography>
-              )}
+            {artistProfileImageUrl ? (
+              <Box
+                component="img"
+                src={artistProfileImageUrl}
+                alt={song.artistName || "Artist"}
+                sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem" }}>
+                N/A
+              </Typography>
+            )}
             </Box>
 
             <Typography
@@ -1284,6 +1382,7 @@ useEffect(() => {
           supportSongId={song?.id || song?._id}
           isBookingEnabled={artistBookingAvailability}
           onBookingSubmit={handleCreateBooking}
+          showFavoriteButton={false}
         />
       </Box>
 
@@ -2050,4 +2149,5 @@ sx={{
       </Snackbar>
     </>
   );
+  
 };

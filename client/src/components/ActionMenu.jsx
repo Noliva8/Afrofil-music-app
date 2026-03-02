@@ -15,6 +15,8 @@ import { useTheme, alpha } from '@mui/material/styles';
 const renderMenuItems = (items, onItemClick, isMobile, theme) => {
   const resolvedTheme = theme.vars || theme;
   const textPrimary = resolvedTheme.palette.text.primary;
+  const menuTextColor =
+    resolvedTheme.palette.mode === "dark" ? "#fff" : textPrimary;
   const dividerColor = alpha(textPrimary, theme.palette.mode === "dark" ? 0.25 : 0.35);
   const hoverDefault = alpha(textPrimary, theme.palette.mode === "dark" ? 0.08 : 0.05);
 
@@ -38,7 +40,7 @@ const renderMenuItems = (items, onItemClick, isMobile, theme) => {
             px: 2,
             fontSize: isMobile ? "1rem" : "0.95rem",
             fontWeight: item.fontWeight ?? 500,
-            color: item.color || textPrimary,
+            color: item.color || menuTextColor,
             "&:hover": {
               backgroundColor: item.hoverBg || hoverDefault,
             },
@@ -48,7 +50,10 @@ const renderMenuItems = (items, onItemClick, isMobile, theme) => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
             <Box
               sx={{
-                color: item.iconColor || item.color || alpha(textPrimary, 0.7),
+                color:
+                  item.iconColor ||
+                  item.color ||
+                  alpha(menuTextColor, resolvedTheme.palette.mode === "dark" ? 0.9 : 0.7),
                 display: "flex",
                 alignItems: "center",
                 minWidth: 30,
@@ -68,6 +73,9 @@ const renderMenuItems = (items, onItemClick, isMobile, theme) => {
 const renderDrawerItems = (items, onItemClick, theme) => {
   const resolvedTheme = theme.vars || theme;
   const textPrimary = resolvedTheme.palette.text.primary;
+  const menuTextColor = resolvedTheme.palette.mode === "dark" ? "#fff" : textPrimary;
+  const defaultListItemBg =
+    resolvedTheme.palette.mode === "dark" ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.04)";
   const dividerColor = alpha(textPrimary, theme.palette.mode === "dark" ? 0.25 : 0.35);
   const hoverDefault = alpha(textPrimary, theme.palette.mode === "dark" ? 0.12 : 0.08);
 
@@ -83,13 +91,17 @@ const renderDrawerItems = (items, onItemClick, theme) => {
     return (
       <React.Fragment key={item.key || index}>
         {item.dividerBefore && <Divider sx={{ borderColor: dividerColor, my: 0.5 }} />}
-        <ListItem
-          component="button"
-          onClick={() => onItemClick(item)}
-          disabled={item.disabled}
-          sx={{
-            borderRadius: 2,
-            mb: 0.5,
+        
+          <ListItem
+            component="button"
+            onClick={() => onItemClick(item)}
+            disabled={item.disabled}
+
+            sx={{
+              borderRadius: 2,
+              mb: 0.5,
+              backgroundColor: item.drawerSx?.backgroundColor || defaultListItemBg,
+
             "&:hover": {
               backgroundColor: item.hoverBg || hoverDefault,
             },
@@ -98,7 +110,10 @@ const renderDrawerItems = (items, onItemClick, theme) => {
         >
           <ListItemIcon
             sx={{
-              color: item.iconColor || item.color || alpha(textPrimary, 0.75),
+              color:
+                item.iconColor ||
+                item.color ||
+                alpha(menuTextColor, resolvedTheme.palette.mode === "dark" ? 0.95 : 0.75),
               minWidth: 40,
             }}
           >
@@ -107,10 +122,14 @@ const renderDrawerItems = (items, onItemClick, theme) => {
           <ListItemText
             primary={item.label}
             primaryTypographyProps={{
-              sx: { color: item.color || textPrimary, fontWeight: item.fontWeight ?? 600 },
+              sx: {
+                color: item.color || menuTextColor,
+                fontWeight: item.fontWeight ?? 600,
+              },
             }}
           />
         </ListItem>
+
         {item.dividerAfter && <Divider sx={{ borderColor: dividerColor, my: 0.5 }} />}
       </React.Fragment>
     );

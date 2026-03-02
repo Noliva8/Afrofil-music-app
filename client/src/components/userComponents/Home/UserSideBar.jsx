@@ -298,6 +298,7 @@ const SortableSongItem = ({ song, playlistId, artworkById, onRemove }) => {
 
 // Playlist Song List Component
 const PlaylistSongList = ({ playlist, artworkById, playlistId, onSongsReordered }) => {
+  const theme = useTheme();
   const [songs, setSongs] = useState(playlist.songs || []);
   const [removeSongFromPlaylist] = useMutation(REMOVE_SONG_FROM_PLAYLIST, {
     refetchQueries: [

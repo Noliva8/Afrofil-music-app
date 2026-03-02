@@ -707,7 +707,7 @@ publicSong: async (_parent, { songId }) => {
     const song = await Song.findById(songId)
       .populate({
         path: 'artist',
-        select: 'artistAka bio country bookingAvailability',
+        select: 'artistAka bio country bookingAvailability profileImage',
       })
       .populate({ path: 'album', select: 'title releaseDate' })
       .lean();

@@ -266,7 +266,8 @@ export function SongRowContainerHero({
 
   // ✅ Base songs: trust parent (already 10 + presigned + processed)
   const baseSongs = useMemo(() => {
-    return Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
+    const items = Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
+    return processSongs(items);
   }, [songsWithArtwork]);
 
 
@@ -505,7 +506,6 @@ export function SongRowContainerHero({
     </Box>
   );
 }
-
 
 
 
