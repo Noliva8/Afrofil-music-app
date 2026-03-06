@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Grid from "@mui/material/Grid2";
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
@@ -554,6 +554,22 @@ export default function Explore() {
 
   const [tabValue, setTabValue] = useState(0);
 
+  useEffect(() => {
+    if (!location.hash) return;
+    const targetId = location.hash.replace('#', '').trim();
+    if (!targetId) return;
+    if (targetId.toLowerCase().includes("genre")) {
+      setTabValue(1);
+    }
+    setTimeout(() => {
+      if (typeof document === "undefined") return;
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 0);
+  }, [location.hash]);
+
   const [dialogs, setDialogs] = useState({
     africaCountries: false,
     diaspora: false,
@@ -769,7 +785,7 @@ export default function Explore() {
 
         {/* TAB 1: GENRES */}
         {tabValue === 1 && (
-          <Box sx={{ mb: { xs: 5, sm: 6, md: 7 } }}>
+          <Box id="genres-section" sx={{ mb: { xs: 5, sm: 6, md: 7 } }}>
             <SectionHeader
               title="Genres"
               subtitle="Tap a genre to open a dedicated discovery page or build a queue."

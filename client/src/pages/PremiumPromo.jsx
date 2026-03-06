@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -27,7 +27,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import PremiumCheckout from '../components/userComponents/Home/Premium/PremiumCheckout';
 
 import PremiumInfo from './PremiumInfo';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 import UserAuth from '../utils/auth.js'
 import { useStripePromise } from '../utils/stripeLoader.js';
 
@@ -164,6 +164,7 @@ export default function PremiumPromo() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(pricingPlans[0].id);
   const navigate = useNavigate();
+  const location = useLocation();
   const stripePromise = useStripePromise();
   const isPremiumUser = (profile?.data?.role || '').toLowerCase() === 'premium';
   if (isPremiumUser) {
@@ -187,6 +188,18 @@ export default function PremiumPromo() {
     setShowCheckout(true);
   };
   const handleCloseCheckout = () => setShowCheckout(false);
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const targetId = location.hash.replace('#', '').trim();
+    if (!targetId) return;
+    setTimeout(() => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 0);
+  }, [location.hash]);
 
 
 
@@ -420,7 +433,7 @@ export default function PremiumPromo() {
 
         {/* Pricing Section */}
     
-<Box sx={{ mb: 12 }}>
+        <Box id="pricing-plans" sx={{ mb: 12 }}>
   <Typography
     variant="h3"
     sx={{

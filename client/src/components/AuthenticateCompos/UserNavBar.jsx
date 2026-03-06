@@ -294,6 +294,22 @@ export default function UserNavBar() {
     }
   };
 
+  const handleSettingsNavigate = () => {
+    navigate('/user/settings#user-settings-page');
+    handleMenuClose();
+    handleCloseMobileDrawer();
+  };
+
+
+ const handleSubscriptionNavigate = () => {
+    navigate('/premium');
+    handleMenuClose();
+    handleCloseMobileDrawer();
+  };
+
+
+
+
 
 const handlePremiumNavigate = () => {
   if(isPremiumUser){
@@ -329,7 +345,7 @@ const handlePremiumNavigate = () => {
         }
       }}
     >
-      <MenuItem onClick={handleMenuClose}>
+      <MenuItem onClick={handleSettingsNavigate}>
         <ListItemIcon>
           <PersonIcon fontSize="small" />
         </ListItemIcon>
@@ -341,7 +357,7 @@ const handlePremiumNavigate = () => {
         <ListItemIcon>
           <SitemarkIcon fontSize="small" />
         </ListItemIcon>
-        <ListItemText> Subscription</ListItemText>
+        <ListItemText onClick={handleSubscriptionNavigate}> Subscription</ListItemText>
       </MenuItem>
 
 )}
@@ -352,7 +368,7 @@ const handlePremiumNavigate = () => {
         <ListItemIcon>
           <SettingsIcon fontSize="small" />
         </ListItemIcon>
-        <ListItemText>Settings</ListItemText>
+        <ListItemText onClick={handleSettingsNavigate}>Settings</ListItemText>
       </MenuItem>
 
       <MenuItem onClick={handleLogout}>

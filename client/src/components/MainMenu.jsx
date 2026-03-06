@@ -1,5 +1,5 @@
 // MainMenu.jsx
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import Box from '@mui/material/Box';
 import { SongRowContainer } from './otherSongsComponents/SongsRow';
 import { SongRowContainerHero } from "./otherSongsComponents/SongRowHero";
@@ -9,7 +9,7 @@ import TopAlbum from "./homeFreePlanComponents/TopAlbum";
 import SongList from "./otherSongsComponents/ListSong";
 import SongOfMonth from "./homeFreePlanComponents/SongOfMonth";
 import RadioStations from "./homeFreePlanComponents/RadioStations";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useTheme from '@mui/material/styles/useTheme';
 import { alpha } from '@mui/material/styles';
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
@@ -31,6 +31,7 @@ const MainMenu = ({
 }) => {
 
   const navigate = useNavigate();
+  const location = useLocation();
   const client = useApolloClient();
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
@@ -91,6 +92,18 @@ const MainMenu = ({
     () => processSongs(Array.isArray(newUploadsWithArtwork) ? newUploadsWithArtwork : []),
     [newUploadsWithArtwork]
   );
+
+  useEffect(() => {
+    if (!location.hash) return;
+    const targetId = location.hash.replace('#', '').trim();
+    if (!targetId) return;
+    setTimeout(() => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 0);
+  }, [location.hash]);
 
   return (
   <Box
@@ -153,14 +166,16 @@ const MainMenu = ({
 
 
 
-      <SongRowContainer
-        header="Just Released"
-        subHeader="The Latest Songs, Right Now"
-        songsWithArtwork={processedNewUploads}
-        onCardClick={handleCardClick}
-        refetch={refetch}
-        rowCode="newUpload"
-      />
+      <Box id="new-releases" component="section" >
+        <SongRowContainer
+          header="Just Released"
+          subHeader="The Latest Songs, Right Now"
+          songsWithArtwork={processedNewUploads}
+          onCardClick={handleCardClick}
+          refetch={refetch}
+          rowCode="newUpload"
+        />
+      </Box>
 
 
 
@@ -189,7 +204,9 @@ const MainMenu = ({
      songOfMonthWithArtwork={songOfMonthWithArtwork}
      onCardClick={handleCardClick}
    />
-   <RadioStations stations={radioStations} />
+   <Box id="radio-section" component="section" sx={{ mt: 6 }}>
+     <RadioStations stations={radioStations} />
+   </Box>
 
    <Box sx={{ px: { xs: 1, sm: 2, md: 3 } }}>
      <TopProducer songsWithArtwork={songsWithArtwork} />

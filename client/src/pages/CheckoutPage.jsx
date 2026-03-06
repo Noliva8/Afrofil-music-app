@@ -133,7 +133,7 @@ const CheckoutPage = () => {
               <Button
                 variant="text"
                 sx={{ mt: 2, textTransform: 'none', fontWeight: 700 }}
-                onClick={() => window.location.assign('mailto:support@afrofeel.com')}
+                onClick={() => window.location.assign('mailto:support@flolup.com')}
               >
                 Contact support
               </Button>

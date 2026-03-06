@@ -5,32 +5,219 @@ import Link from '@mui/material/Link';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import { Facebook, Twitter, Instagram, YouTube } from '@mui/icons-material';
+import { Link as RouterLink } from 'react-router-dom';
+import { usePWAInstall } from '../PWAInstall/pwaInstall';
+import { getClientDeviceInfo } from '../utils/detectDevice/getClientDeviceInfo';
+
+const DOWNLOAD_CONFIG_KEYS = [
+  'FLOOLUP_APP_DOWNLOAD',
+  'FLOOLUP_DOWNLOAD',
+  'AFROFEEL_APP_DOWNLOAD',
+  'AFROFEEL_DOWNLOAD',
+  'APP_DOWNLOAD_CONFIG',
+  'DOWNLOAD_CONFIG',
+  'APP_DOWNLOAD',
+  'DOWNLOAD_APP',
+  '__APP_DOWNLOAD_CONFIG__',
+  '__DOWNLOAD_CONFIG__',
+];
+
+const openExternalUrl = (url) => {
+  if (!url || typeof window === 'undefined') {
+    return false;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return true;
+};
+
+const dispatchDownloadEvent = (eventName, detail = {}) => {
+  if (typeof window === 'undefined' || !eventName) {
+    return false;
+  }
+  try {
+    const event = new CustomEvent(eventName, { detail, bubbles: true });
+    window.dispatchEvent(event);
+    return true;
+  } catch (error) {
+    console.error('Download event dispatch failed', error);
+    return false;
+  }
+};
+
+const normalizePlatformKey = (platformName = '', isMobile = false) => {
+  const normalized = String(platformName || '').toLowerCase();
+
+  if (/android/.test(normalized)) return 'android';
+  if (/ios|iphone|ipad|ipod|ipados/.test(normalized)) return 'ios';
+  if (/windows|win32|win64/.test(normalized)) return 'desktop';
+  if (/mac|macintosh|macintel|macppc/.test(normalized)) return 'desktop';
+  if (/linux/.test(normalized)) return 'desktop';
+  if (/cros|chromeos/.test(normalized)) return 'desktop';
+  if (normalized) return normalized;
+  return isMobile ? 'mobile' : 'desktop';
+};
+
+const getDownloadConfig = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  for (const candidate of DOWNLOAD_CONFIG_KEYS) {
+    const value = window[candidate];
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+};
+
+const triggerDownloadTarget = (target, platformKey) => {
+  if (!target) {
+    return false;
+  }
+  if (typeof target === 'string') {
+    return openExternalUrl(target);
+  }
+  if (typeof target === 'function') {
+    target(platformKey);
+    return true;
+  }
+
+  if (typeof target === 'object' && target !== null && 'platforms' in target) {
+    return false;
+  }
+
+  const { url, handler, action, modalHandler, eventName, event, modalId } = target;
+
+  if (typeof url === 'string') {
+    return openExternalUrl(url);
+  }
+  if (typeof handler === 'function') {
+    handler(platformKey);
+    return true;
+  }
+  if (typeof action === 'function') {
+    action(platformKey);
+    return true;
+  }
+  if (typeof modalHandler === 'function') {
+    modalHandler({ platform: platformKey });
+    return true;
+  }
+  if (typeof eventName === 'string') {
+    return dispatchDownloadEvent(eventName, { platform: platformKey, target });
+  }
+  if (typeof event === 'string') {
+    return dispatchDownloadEvent(event, { platform: platformKey, target });
+  }
+  if (typeof modalId === 'string') {
+    return dispatchDownloadEvent('open-modal', { modalId, platform: platformKey });
+  }
+  return false;
+};
 
 const Footer = () => {
+  const { isInstallable, triggerInstall } = usePWAInstall();
+  
+  const handleDownloadApp = () => {
+    if (isInstallable) {
+      triggerInstall();
+      return;
+    }
+
+    const downloadConfig = getDownloadConfig();
+    if (!downloadConfig) {
+      return;
+    }
+
+    const client = getClientDeviceInfo();
+    const platformKey = normalizePlatformKey(client.platform, client.isMobile);
+
+    if (typeof downloadConfig !== 'object' || Array.isArray(downloadConfig)) {
+      triggerDownloadTarget(downloadConfig, platformKey);
+      return;
+    }
+
+    const platforms = downloadConfig.platforms || {};
+    const targets = [
+      platforms[platformKey],
+      platforms[client.platform],
+      platforms[client.device],
+      platforms.mobile,
+      platforms.desktop,
+      platforms.default,
+      downloadConfig.link,
+      downloadConfig.url,
+      downloadConfig.download,
+      downloadConfig.modal,
+      downloadConfig.handler,
+      downloadConfig.action,
+      downloadConfig.install,
+      downloadConfig.open,
+      downloadConfig.default,
+      downloadConfig.defaultUrl,
+      downloadConfig.defaultLink,
+      downloadConfig.prompt,
+      downloadConfig.dialog,
+    ];
+
+    for (const target of targets) {
+      if (triggerDownloadTarget(target, platformKey)) {
+        return;
+      }
+    }
+
+    if (downloadConfig.defaultAction) {
+      triggerDownloadTarget(downloadConfig.defaultAction, platformKey);
+      return;
+    }
+
+    if (downloadConfig.modalAction) {
+      triggerDownloadTarget(downloadConfig.modalAction, platformKey);
+    }
+  };
+
   const footerLinks = [
     {
       title: 'Get Started',
-      links: ['Sign Up', 'Download App', 'Pricing', 'Features']
+      links: [
+        { label: 'Sign Up', to: '/user/signup' },
+        { label: 'Download App', handler: handleDownloadApp },
+        { label: 'Pricing', to: '/premium#pricing-plans' },
+      
+      ]
     },
     {
       title: 'Discover',
-      links: ['Genres', 'Charts', 'New Releases', 'Radio']
+      links: [
+        { label: 'Genres', to: '/explore#genres-section' },
+       
+        { label: 'New Releases', to: '/welcome#new-releases' },
+        { label: 'Radio', to: '/welcome#radio-section' }
+      ]
     },
     {
       title: 'Account',
-      links: ['Profile', 'Settings', 'Subscription', 'Help']
+      links: [
+    { label: 'Settings', to: '/user/settings#user-settings-page' },
+        { label: 'Subscription', to: '/premium' },
+        { label: 'Help', to: '/support#contact-support' }
+      ]
     },
     {
       title: 'Company',
-      links: ['About', 'Careers', 'Press', 'Legal']
+      links: [
+        { label: 'About', to: '#' },
+        { label: 'Careers', to: '#' },
+        { label: 'Legal', to: '/terms#legal' }
+      ]
     }
   ];
 
   const legalLinks = [
-    'Privacy',
-    'Terms and Conditions',
-    'Accessibility Statement',
-    'Contact'
+    { label: 'Privacy', to: '/terms#privacy' },
+    { label: 'Terms and Conditions', to: '/terms' },
+  
+    { label: 'Contact', to: '/support#contact-support' }
   ];
 
   const socialIcons = [
@@ -39,6 +226,34 @@ const Footer = () => {
     { icon: <Instagram />, color: '#E1306C', label: 'Instagram' },
     { icon: <YouTube />, color: '#FF0000', label: 'YouTube' }
   ];
+
+  const getLinkProps = (link) => {
+    const props = {};
+    if (link.to) {
+      props.component = RouterLink;
+      props.to = link.to;
+    } else {
+      props.href = link.href || '#';
+    }
+
+    if (link.handler) {
+      props.onClick = (event) => {
+        if (!link.href) {
+          event.preventDefault();
+        }
+        link.handler(event);
+      };
+    }
+
+    if (link.target) {
+      props.target = link.target;
+    }
+    if (link.rel) {
+      props.rel = link.rel;
+    }
+
+    return props;
+  };
 
   return (
     <Box sx={{
@@ -63,20 +278,23 @@ const Footer = () => {
             </Typography>
             <Box component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
               {column.links.map((link) => (
-                <li key={link}>
-                  <Link href="#" sx={{
-                    display: 'inline-block',
-                    color: 'rgba(255,255,255,0.75)',
-                    mb: 1,
-                    fontSize: '0.95rem',
-                    textDecoration: 'none',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      color: '#E4C421',
-                      transform: 'translateX(4px)'
-                    }
-                  }}>
-                    {link}
+                <li key={link.label}>
+                  <Link
+                    {...getLinkProps(link)}
+                    sx={{
+                      display: 'inline-block',
+                      color: 'rgba(255,255,255,0.75)',
+                      mb: 1,
+                      fontSize: '0.95rem',
+                      textDecoration: 'none',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        color: '#E4C421',
+                        transform: 'translateX(4px)'
+                      }
+                    }}
+                  >
+                    {link.label}
                   </Link>
                 </li>
               ))}
@@ -150,8 +368,8 @@ const Footer = () => {
         }}>
           {legalLinks.map((link) => (
             <Link
-              key={link}
-              href="#"
+              {...getLinkProps(link)}
+              key={link.label}
               sx={{
                 color: 'rgba(255,255,255,0.6)',
                 fontSize: '0.85rem',
@@ -161,7 +379,7 @@ const Footer = () => {
                 }
               }}
             >
-              {link}
+              {link.label}
             </Link>
           ))}
         </Box>

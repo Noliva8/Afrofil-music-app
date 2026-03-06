@@ -44,6 +44,10 @@ const LazyFeed = lazy(() => import('../pages/Feed.jsx'));
 const LazyPremiumPromo = lazy(() => import('../pages/PremiumPromo.jsx'));
 const LazyVerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
 import { VerifyGate } from '../components/AuthenticateCompos/routeProtection.jsx';
+import { element } from 'prop-types';
+
+const LazyUserSettings = lazy(() => import('../pages/userSettings.jsx')); 
+
 
 
 export const PublicRoutes = [
@@ -242,4 +246,12 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+  {
+    path: 'user/settings',
+   element: (
+      <Suspense fallback={<div />}>
+        <LazyUserSettings />
+      </Suspense>
+   )  }
 ];

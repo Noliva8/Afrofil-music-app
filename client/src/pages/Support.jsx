@@ -222,9 +222,11 @@ export const Support = () => {
 
 
 
-    <Typography variant="h4" gutterBottom>
-          Contact Support
-        </Typography>
+    <Box id="contact-support">
+      <Typography variant="h4" gutterBottom>
+        Contact Support
+      </Typography>
+    </Box>
 
       {/* Contact Form */}
       <Paper

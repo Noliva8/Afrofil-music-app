@@ -1,7 +1,7 @@
 import sendEmail from '../../../utils/emailTransportation.js';
 
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || process.env.EMAIL_USER || 'support@afrofeel.com';
-const SUPPORT_NAME = process.env.SUPPORT_NAME || 'Afrofeel Support';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || process.env.EMAIL_USER || 'support@flolup.com';
+const SUPPORT_NAME = process.env.SUPPORT_NAME || 'Flolup Support';
 
 const createSupportHtml = ({ name, email, category, message }) => `
   <h2>New support request</h2>

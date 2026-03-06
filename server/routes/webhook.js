@@ -304,9 +304,9 @@ async function sendPaymentFailedEmail(email, amount, attempt, resolutionDate) {
         </a>
       </div>
       
-      <p>Need immediate help? Contact <a href="mailto:support@afrofeel.com">support@afrofeel.com</a></p>
+      <p>Need immediate help? Contact <a href="mailto:support@flolup.com">support@flolup.com</a></p>
       <br/>
-      <p>– Afrofeel Billing Team</p>
+      <p>– Flolup Billing Team</p>
     </div>
     `
   );
@@ -411,9 +411,9 @@ async function sendSubscriptionCancelledEmail(email, wasScheduledCancellation) {
       </div>
       
       <p>Your playlists and favorites remain intact.</p>
-      <p>Want feedback? <a href="mailto:feedback@afrofeel.com">Tell us why you left</a></p>
+      <p>Want feedback? <a href="mailto:feedback@flolup.com">Tell us why you left</a></p>
       <br/>
-      <p>– The Afrofeel Team</p>
+      <p>– The Flolup Team</p>
     </div>
     `
   );
@@ -621,9 +621,9 @@ async function sendSubscriptionUpdatedEmail(email, newStatus, planId, periodEnd,
       </div>
       ` : ''}
       
-      <p>Need help? Contact <a href="mailto:support@afrofeel.com">support@afrofeel.com</a></p>
+      <p>Need help? Contact <a href="mailto:support@flolup.com">support@flolup.com</a></p>
       <br/>
-      <p>– Afrofeel Team</p>
+      <p>– Flolup Team</p>
     </div>
     `
   );
@@ -744,7 +744,7 @@ export async function handlePaymentIntentSucceeded(paymentIntent) {
     </p>
 
     <div style="margin: 20px 0;">
-      <a href="${process.env.DASHBOARD_URL || 'https://afrofeel.com/dashboard/ads'}"
+      <a href="${process.env.DASHBOARD_URL || 'https://flolup.com/dashboard/ads'}"
          style="background-color: #441a49; color: white; padding: 12px 24px; border-radius: 4px;
                 text-decoration: none; display: inline-block;">
         View your ad
@@ -769,9 +769,9 @@ export async function handlePaymentIntentSucceeded(paymentIntent) {
         </a>
       </div>` : ''}
 
-    <p>Need help? Contact <a href="mailto:support@afrofeel.com">support@afrofeel.com</a></p>
+    <p>Need help? Contact <a href="mailto:support@flolup.com">support@flolup.com</a></p>
     <br/>
-    <p>– Afrofeel Team</p>
+    <p>– Flolup Team</p>
   </div>
   `
 );
@@ -858,7 +858,7 @@ export async function handlePaymentIntentFailed(pi) {
       const subject = 'Payment failed — please try again';
       const retryUrl =
         (process.env.AD_PAYMENT_RETRY_URL && `${process.env.AD_PAYMENT_RETRY_URL}?adId=${encodeURIComponent(adId)}`) ||
-        `${(process.env.DASHBOARD_URL || 'https://afrofeel.com/dashboard/ads')}?adId=${encodeURIComponent(adId)}`;
+        `${(process.env.DASHBOARD_URL || 'https://flolup.com/dashboard/ads')}?adId=${encodeURIComponent(adId)}`;
 
       const content = `
         Hi${advertiserName ? ` ${escapeHtml(advertiserName)}` : ''},<br/><br/>
@@ -886,9 +886,9 @@ export async function handlePaymentIntentFailed(pi) {
 
           <p>If the issue persists, try a different card or contact our team.</p>
 
-          <p>Need help? Contact <a href="mailto:support@afrofeel.com">support@afrofeel.com</a></p>
+          <p>Need help? Contact <a href="mailto:support@flolup.com">support@flolup.com</a></p>
           <br/>
-          <p>– Afrofeel Team</p>
+          <p>– Flolup Team</p>
         </div>
         `
       );

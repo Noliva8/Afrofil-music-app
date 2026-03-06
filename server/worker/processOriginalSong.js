@@ -31,6 +31,7 @@ async function uploadFileToS3({ bucket, key, filePath, contentType = "audio/mpeg
       Key: key,
       Body: fs.createReadStream(filePath),
       ContentType: contentType,
+       
     })
   );
 }
@@ -232,7 +233,7 @@ export async function processOriginalSong(songDoc, s3Info) {
       contentType: "audio/mpeg",
     });
 
-    await deleteS3Object({ bucket, key });
+    // await deleteS3Object({ bucket, key });
 
 
     // we need to update the song collection with fingerprint id, tempo, streamAudioFileUrl: regular and premiumStreamAudioFileUrl: premium

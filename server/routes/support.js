@@ -6,8 +6,8 @@ const router = express.Router();
 const SUPPORT_EMAIL =
   process.env.SUPPORT_EMAIL ||
   process.env.EMAIL_USER ||
-  'support@afrofeel.com';
-const SUPPORT_NAME = process.env.SUPPORT_NAME || 'Afrofeel Support';
+  'support@flolup.com';
+const SUPPORT_NAME = process.env.SUPPORT_NAME || 'Flolup Support';
 
 const createSupportHtml = ({ name, email, category, message, ip }) => `
   <h2>New support request</h2>
