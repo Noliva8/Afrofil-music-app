@@ -41,9 +41,13 @@ getProfile() {
     window.location.assign("/"); // Redirect to home
   }
 
-  logout() {
+  logout(redirectTo) {
     localStorage.removeItem("user_id_token");
-      sessionManager.endSession();
+    sessionManager.endSession();
+    if (redirectTo) {
+      window.location.assign(redirectTo);
+      return;
+    }
     window.location.reload(); // Reload to reset state
   }
 }

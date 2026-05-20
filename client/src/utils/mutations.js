@@ -11,6 +11,7 @@ export const CREATE_USER = gql`
         username
         email
         role
+        usageType
         isPremium
         shouldSeeAds
       }
@@ -30,6 +31,7 @@ export const LOGIN_USER = gql`
         username
         email
         role
+        usageType
         isPremium
         shouldSeeAds
       }

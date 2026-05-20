@@ -27,7 +27,7 @@ import stream from "stream";
 import path from 'path';
 import crypto from "crypto";
 import { createHash } from 'crypto';
-import { CreatePresignedUrl, CreatePresignedUrlDelete } from '../../utils/awsS3.js';
+import { CreatePresignedUrl, CreatePresignedUrlDelete, CreatePresignedUrlDownload } from '../../utils/awsS3.js';
 
 
 import Fingerprinting from '../../utils/DuplicateAndCopyrights/fingerPrinting.js'
@@ -106,6 +106,13 @@ import { newSongUpload } from './newSongUpload/newSongUpload.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const BUSINESS_IMAGE_BUCKET = 'business-licencing';
+const BUSINESS_IMAGE_PRESIGNED_TTL_SECONDS = 30 * 60;
+const CATALOGUE_SONG_COUNT_CACHE_KEY = 'catalogue:song-count';
+const CATALOGUE_SONG_COUNT_CACHE_TTL_SECONDS = 20 * 60;
+
+const businessImagePresignedCacheKey = ({ bucket, key, region }) =>
+  `business:image:presigned:${bucket}:${region || 'us-east-2'}:${key}`;
 
 const normalizeBookingForResponse = (booking) => {
   if (!booking) return booking;
@@ -1030,6 +1037,26 @@ searchCatalog: async (_parent, { query, limit = 12 }) => {
   return { songs, artists, albums };
 },
 
+catalogueSongCount: async () => {
+  try {
+    const redis = await getRedis();
+    const cachedCount = await redis.get(CATALOGUE_SONG_COUNT_CACHE_KEY);
+
+    if (cachedCount !== null) {
+      return Number(cachedCount);
+    }
+
+    const count = await Song.countDocuments({ visibility: { $ne: "private" } });
+    await redis.set(CATALOGUE_SONG_COUNT_CACHE_KEY, String(count), {
+      EX: CATALOGUE_SONG_COUNT_CACHE_TTL_SECONDS,
+    });
+    return count;
+  } catch (error) {
+    console.warn("[catalogueSongCount] Redis cache skipped:", error?.message || error);
+    return Song.countDocuments({ visibility: { $ne: "private" } });
+  }
+},
+
 
     similarSongs,
     // similarSongsResolver,
@@ -1600,7 +1627,62 @@ getPresignedUrl: async (_, { bucket, key, region }) => {
 //   }
 // },
 
-getPresignedUrlDownload,
+getPresignedUrlDownload: async (_, args) => {
+  const { bucket, key, region } = args;
+
+  if (bucket === BUSINESS_IMAGE_BUCKET) {
+    const resolvedRegion = region || 'us-east-2';
+    const cacheKey = businessImagePresignedCacheKey({ bucket, key, region: resolvedRegion });
+    let redis = null;
+
+    try {
+      redis = await getRedis();
+    } catch {
+      redis = null;
+    }
+
+    if (redis) {
+      try {
+        const cachedUrl = await redis.get(cacheKey);
+        if (cachedUrl) {
+          return {
+            url: cachedUrl,
+            expiration: String(BUSINESS_IMAGE_PRESIGNED_TTL_SECONDS),
+          };
+        }
+      } catch (error) {
+        console.warn('Business image cache read failed:', error?.message || error);
+      }
+    }
+
+    try {
+      const url = await CreatePresignedUrlDownload({
+        bucket,
+        key,
+        region: resolvedRegion,
+        expiresIn: BUSINESS_IMAGE_PRESIGNED_TTL_SECONDS,
+      });
+
+      if (redis) {
+        try {
+          await redis.set(cacheKey, url, { EX: BUSINESS_IMAGE_PRESIGNED_TTL_SECONDS });
+        } catch (error) {
+          console.warn('Business image cache write failed:', error?.message || error);
+        }
+      }
+
+      return {
+        url,
+        expiration: String(BUSINESS_IMAGE_PRESIGNED_TTL_SECONDS),
+      };
+    } catch (error) {
+      console.error('Error in getPresignedUrlDownload resolver:', error);
+      throw new Error('Failed to fetch presigned URL');
+    }
+  }
+
+  return getPresignedUrlDownload(_, args);
+},
 
 getPresignedUrlDownloadAudio,
 

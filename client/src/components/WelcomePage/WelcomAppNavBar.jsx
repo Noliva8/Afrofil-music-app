@@ -237,6 +237,7 @@ const WelcomeAppNavBar = ({
                 >
                   Artist
                 </Button>
+                
                 <Button
                   size="small"
                   onClick={handleLoginFormDisplay}

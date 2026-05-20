@@ -1,10 +1,24 @@
 
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
+import { useLocation } from "react-router-dom";
 import { useLocationContext } from "./useLocationContext.jsx";
 
 export default function LocationGate({ children }) {
   const { loadingGeo, errorGeo } = useLocationContext();
+  const { pathname } = useLocation();
+  const shouldBypassGate =
+    pathname.startsWith("/artist/register") ||
+    pathname.startsWith("/artist/login") ||
+    pathname.startsWith("/artist/verification") ||
+    pathname.startsWith("/artist/plan") ||
+    pathname.startsWith("/terms") ||
+    pathname.startsWith("/user/login") ||
+    pathname.startsWith("/user/signup") ||
+    pathname.startsWith("/password-reset") ||
+    pathname.startsWith("/business/login") ||
+    pathname.startsWith("/business/pricing") ||
+    pathname.startsWith("/business/licensing/overview");
 
   if (errorGeo) {
     console.warn("Location error:", errorGeo);
@@ -13,7 +27,7 @@ export default function LocationGate({ children }) {
   return (
     <>
       {children}
-      {loadingGeo && (
+      {loadingGeo && !shouldBypassGate && (
         <Box
           sx={{
             position: "fixed",

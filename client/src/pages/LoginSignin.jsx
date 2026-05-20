@@ -104,7 +104,8 @@ const useAuthFormLogic = ({ onClose } = {}) => {
             username: signupFormState.username,
             email: signupFormState.email,
             password: signupFormState.password,
-            role: 'regular'
+            role: 'regular',
+            usageType: 'personal'
           }
         }
       });
@@ -179,17 +180,17 @@ const useAuthFormLogic = ({ onClose } = {}) => {
   };
 };
 
-const AuthFormContainer = ({ heroGradient, theme, children }) => (
+export const AuthFormContainer = ({ heroGradient, theme, children, compact = false }) => (
   <Box
     className="auth-container"
     sx={{
       background: heroGradient,
-      minHeight: '100vh',
+      minHeight: compact ? 'auto' : '100vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      px: { xs: 2, sm: 3 },
-      py: { xs: 4, sm: 6 },
+      px: compact ? 0 : { xs: 2, sm: 3 },
+      py: compact ? 0 : { xs: 4, sm: 6 },
       fontFamily: theme.typography.fontFamily,
     }}
   >
@@ -212,7 +213,7 @@ const AuthFormContainer = ({ heroGradient, theme, children }) => (
   </Box>
 );
 
-const LoginForm = ({
+export const LoginForm = ({
   heroGradient,
   theme,
   loginFormState,
@@ -222,11 +223,23 @@ const LoginForm = ({
   showPasswordLogin,
   toggleShowPasswordLogin,
   loginErrorMessage,
+  title = 'Log In',
+  subtitle,
+  submitLabel = 'Log In',
+  emailLabel = 'Email:',
+  emailReadOnly = false,
   onForgotPassword,
   onSwitchToSignup,
-  onBackHome
+  onBackHome,
+  showSignupPrompt = true,
+  showPasswordField = true,
+  showForgotPassword = true,
+  secondaryActionLabel,
+  onSecondaryAction,
+  backHomeLabel = '← Back to home',
+  compact = false
 }) => (
-  <AuthFormContainer heroGradient={heroGradient} theme={theme}>
+  <AuthFormContainer heroGradient={heroGradient} theme={theme} compact={compact}>
     <Box
       className="auth-content"
       sx={{
@@ -253,8 +266,13 @@ const LoginForm = ({
             fontFamily: theme.typography.fontFamily,
           }}
         >
-          Log In
+          {title}
         </Typography>
+        {subtitle && (
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1, fontFamily: theme.typography.fontFamily }}>
+            {subtitle}
+          </Typography>
+        )}
       </Box>
 
       <Divider sx={{ my: 0, borderColor: 'transparent' }} />
@@ -262,7 +280,7 @@ const LoginForm = ({
       <Box component="form" className="form" onSubmit={handleLoginSubmit}>
         <Box className="form-group" sx={{ mb: 2.5 }}>
           <Typography component="label" htmlFor="email" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
-            Email:
+            {emailLabel}
           </Typography>
           <Box component="input"
             type="email"
@@ -270,6 +288,7 @@ const LoginForm = ({
             name="email"
             onChange={handleLoginChange}
             value={loginFormState.email}
+            readOnly={emailReadOnly}
             required
             sx={{
               width: '100%',
@@ -280,54 +299,59 @@ const LoginForm = ({
               color: theme.palette.text.primary,
               fontSize: '16px',
               fontFamily: theme.typography.fontFamily,
+              cursor: emailReadOnly ? 'default' : 'text',
             }}
           />
         </Box>
 
-        <Box className="form-group" sx={{ mb: 3 }}>
-          <Typography component="label" htmlFor="password" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
-            Password:
-          </Typography>
-          <Box sx={{ position: 'relative' }}>
-            <Box component="input"
-              type={showPasswordLogin ? 'text' : 'password'}
-              id="password"
-              name="password"
-              onChange={handleLoginChange}
-              value={loginFormState.password}
-              required
-              sx={{
-                width: '100%',
-                padding: '12px 15px',
-                borderRadius: '8px',
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                background: 'rgba(255,255,255,0.05)',
-                color: theme.palette.text.primary,
-                fontSize: '16px',
-                fontFamily: theme.typography.fontFamily,
-                paddingRight: '40px'
-              }}
-            />
-            <PasswordVisibilityToggle
-              show={showPasswordLogin}
-              onClick={toggleShowPasswordLogin}
-              sx={{
-                position: 'absolute',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                right: '10px',
-                color: '#000',
-                ':hover': {
-                  color: '#E4C421'
-                }
-              }}
-            />
+        {showPasswordField && (
+          <Box className="form-group" sx={{ mb: 3 }}>
+            <Typography component="label" htmlFor="password" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
+              Password:
+            </Typography>
+            <Box sx={{ position: 'relative' }}>
+              <Box component="input"
+                type={showPasswordLogin ? 'text' : 'password'}
+                id="password"
+                name="password"
+                onChange={handleLoginChange}
+                value={loginFormState.password}
+                required
+                sx={{
+                  width: '100%',
+                  padding: '12px 15px',
+                  borderRadius: '8px',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  background: 'rgba(255,255,255,0.05)',
+                  color: theme.palette.text.primary,
+                  fontSize: '16px',
+                  fontFamily: theme.typography.fontFamily,
+                  paddingRight: '40px'
+                }}
+              />
+              <PasswordVisibilityToggle
+                show={showPasswordLogin}
+                onClick={toggleShowPasswordLogin}
+                sx={{
+                  position: 'absolute',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  right: '10px',
+                  color: '#000',
+                  ':hover': {
+                    color: '#E4C421'
+                  }
+                }}
+              />
+            </Box>
           </Box>
-        </Box>
+        )}
 
-        <Box component="button" type="button" onClick={onForgotPassword} sx={{ background: 'none', border: 'none', padding: 0, mb: 2.25, color: theme.palette.primary.main, fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>
-          Forgot password?
-        </Box>
+        {showForgotPassword && (
+          <Box component="button" type="button" onClick={onForgotPassword} sx={{ background: 'none', border: 'none', padding: 0, mb: 2.25, color: theme.palette.primary.main, fontSize: 14, cursor: 'pointer', textAlign: 'left' }}>
+            Forgot password?
+          </Box>
+        )}
 
         {loginErrorMessage && (
           <Typography className="error-message" sx={{ color: '#FF4D4D', mb: 1.5, fontSize: 14, textAlign: 'center' }}>
@@ -335,8 +359,15 @@ const LoginForm = ({
           </Typography>
         )}
 
-        <Box component="button" type="submit" sx={{ width: '100%', padding: '14px', borderRadius: '8px', background: 'linear-gradient(90deg, #E4C421, #B25035)', color: '#000', border: 'none', fontSize: '16px', fontWeight: 600, fontFamily: theme.typography.fontFamily, cursor: 'pointer', transition: 'all 0.3s ease', mb: 2, '&:hover': { background: 'linear-gradient(90deg, #F8D347, #C96146)', transform: 'translateY(-2px)' } }}>
-          Log In
+        <Box sx={{ display: 'flex', gap: 1.25, mb: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+          <Box component="button" type="submit" sx={{ flex: 1, width: '100%', padding: '14px', borderRadius: '8px', background: 'linear-gradient(90deg, #E4C421, #B25035)', color: '#000', border: 'none', fontSize: '16px', fontWeight: 600, fontFamily: theme.typography.fontFamily, cursor: 'pointer', transition: 'all 0.3s ease', '&:hover': { background: 'linear-gradient(90deg, #F8D347, #C96146)', transform: 'translateY(-2px)' } }}>
+            {submitLabel}
+          </Box>
+          {secondaryActionLabel && (
+            <Box component="button" type="button" onClick={onSecondaryAction} sx={{ flex: 1, width: '100%', padding: '14px', borderRadius: '8px', background: 'transparent', color: theme.palette.text.primary, border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`, fontSize: '16px', fontWeight: 600, fontFamily: theme.typography.fontFamily, cursor: 'pointer', transition: 'all 0.3s ease', '&:hover': { borderColor: theme.palette.primary.main, color: theme.palette.primary.main } }}>
+              {secondaryActionLabel}
+            </Box>
+          )}
         </Box>
 
         <Divider sx={{ my: 1, borderColor: alpha(theme.palette.text.secondary, 0.2) }}>
@@ -352,24 +383,26 @@ const LoginForm = ({
           </Box>
           */}
 
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
-            Don't have an account?
-          </Typography>
-          <Box component="button" type="button" onClick={onSwitchToSignup} sx={{ background: 'none', border: 'none', color: theme.palette.primary.main, cursor: 'pointer', fontSize: 14, fontWeight: 600, ml: 0.5, ':hover': { textDecoration: 'underline' } }}>
-            Sign up
+        {showSignupPrompt && (
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
+              Don't have an account?
+            </Typography>
+            <Box component="button" type="button" onClick={onSwitchToSignup} sx={{ background: 'none', border: 'none', color: theme.palette.primary.main, cursor: 'pointer', fontSize: 14, fontWeight: 600, ml: 0.5, ':hover': { textDecoration: 'underline' } }}>
+              Sign up
+            </Box>
           </Box>
-        </Box>
+        )}
 
         <Button onClick={onBackHome} variant="text" color="inherit" sx={{ fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mx: 'auto', color: theme.palette.text.primary, fontWeight: 600, '&:hover': { color: theme.palette.primary.main, background: 'transparent' } }}>
-          ← Back to home
+          {backHomeLabel}
         </Button>
       </Box>
     </Box>
   </AuthFormContainer>
 );
 
-const SignupForm = ({
+export const SignupForm = ({
   heroGradient,
   theme,
   signupFormState,
@@ -380,32 +413,39 @@ const SignupForm = ({
   showPasswordSignup,
   toggleShowPasswordSignup,
   signupErrorMessage,
+  title = 'Create Account',
+  subtitle = 'Join FloLup today',
+  submitLabel = 'Sign Up',
+  usernameLabel = 'Username:',
+  emailLabel = 'Email:',
   onSwitchToLogin,
-  onBackHome
+  onBackHome,
+  showLoginPrompt = true,
+  backHomeLabel = '← Back to home'
 }) => (
   <AuthFormContainer heroGradient={heroGradient} theme={theme}>
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Box sx={{ textAlign: 'center', mb: 3, fontFamily: theme.typography.fontFamily }}>
         <SitemarkIcon sx={{ width: 96, height: 96, mb: 2, alignSelf: 'flex-start' }} />
         <Typography variant="h4" sx={{ color: theme.palette.text.primary, fontWeight: 700, fontFamily: theme.typography.fontFamily }}>
-          Create Account
+          {title}
         </Typography>
         <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 1, fontFamily: theme.typography.fontFamily }}>
-          Join FloLup today
+          {subtitle}
         </Typography>
       </Box>
 
       <Box component="form" className="form" onSubmit={handleSignupSubmit}>
         <Box className="form-group" sx={{ mb: 2 }}>
           <Typography component="label" htmlFor="username" sx={{ display: 'block', color: 'rgba(255,255,255,0.8)', mb: 1, fontSize: 14 }}>
-            Username:
+            {usernameLabel}
           </Typography>
           <Box component="input" type="text" id="username" name="username" onChange={handleSignupChange} value={signupFormState.username} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily }} />
         </Box>
 
         <Box className="form-group" sx={{ mb: 2 }}>
           <Typography component="label" htmlFor="email" sx={{ display: 'block', color: theme.palette.text.secondary, mb: 1, fontSize: 14 }}>
-            Email:
+            {emailLabel}
           </Typography>
           <Box component="input" type="email" id="email" name="email" onChange={handleSignupChange} value={signupFormState.email} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily }} />
         </Box>
@@ -452,20 +492,22 @@ const SignupForm = ({
         )}
 
         <Box component="button" type="submit" sx={{ width: '100%', padding: '14px', borderRadius: '8px', background: 'linear-gradient(90deg, #E4C421, #B25035)', color: '#000', border: 'none', fontSize: 16, fontWeight: 600, cursor: 'pointer', transition: 'all 0.3s ease', mb: 2, '&:hover': { background: 'linear-gradient(90deg, #F8D347, #C96146)', transform: 'translateY(-2px)' } }}>
-          Sign Up
+          {submitLabel}
         </Box>
 
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
-            Already have an account?
-          </Typography>
-          <Box component="button" type="button" onClick={onSwitchToLogin} sx={{ background: 'none', border: 'none', color: theme.palette.primary.main, cursor: 'pointer', fontSize: 14, fontWeight: 600, ml: 0.5, ':hover': { textDecoration: 'underline' } }}>
-            Log in
+        {showLoginPrompt && (
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Typography sx={{ color: theme.palette.text.secondary, mb: 0 }}>
+              Already have an account?
+            </Typography>
+            <Box component="button" type="button" onClick={onSwitchToLogin} sx={{ background: 'none', border: 'none', color: theme.palette.primary.main, cursor: 'pointer', fontSize: 14, fontWeight: 600, ml: 0.5, ':hover': { textDecoration: 'underline' } }}>
+              Log in
+            </Box>
           </Box>
-        </Box>
+        )}
 
         <Box component="button" type="button" onClick={onBackHome} sx={{ background: 'none', border: 'none', color: theme.palette.text.primary, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mx: 'auto', ':hover': { color: '#E4C421' } }}>
-          ← Back to home
+          {backHomeLabel}
         </Box>
       </Box>
     </Box>

@@ -1,5 +1,6 @@
 // LocationContext.js
 import { createContext, useContext, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { userLocation as getBrowserLocation } from '../geoClient'; 
 import { useMutation } from '@apollo/client';
 import { USER_LOCATION_DETECT } from '../mutations';
@@ -116,9 +117,22 @@ export function useLocationContext() {
 
 
 export function LocationProvider({ children }) {
+  const { pathname } = useLocation();
+  const shouldBypassLocation =
+    pathname.startsWith('/artist/register') ||
+    pathname.startsWith('/artist/login') ||
+    pathname.startsWith('/artist/verification') ||
+    pathname.startsWith('/artist/plan') ||
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/user/login') ||
+    pathname.startsWith('/user/signup') ||
+    pathname.startsWith('/password-reset') ||
+    pathname.startsWith('/business/login') ||
+    pathname.startsWith('/business/pricing') ||
+    pathname.startsWith('/business/licensing/overview');
   const [detectUserLocation] = useMutation(USER_LOCATION_DETECT);
   const [geo, setGeo] = useState(null);
-  const [loadingGeo, setLoadingGeo] = useState(true);
+  const [loadingGeo, setLoadingGeo] = useState(!shouldBypassLocation);
   const [errorGeo, setErrorGeo] = useState(null);
 
   /**
@@ -234,6 +248,11 @@ export function LocationProvider({ children }) {
 
   // Keep your mount effect, but call refreshGeo with the new signature
   useEffect(() => {
+    if (shouldBypassLocation) {
+      setLoadingGeo(false);
+      return;
+    }
+
     (async () => {
       console.log('LocationProvider mounted, checking cache...');
       try {
@@ -257,7 +276,7 @@ export function LocationProvider({ children }) {
         setErrorGeo(error);
       }
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldBypassLocation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = {
     geo,

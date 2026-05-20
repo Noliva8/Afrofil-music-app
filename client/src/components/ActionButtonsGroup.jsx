@@ -45,9 +45,8 @@ export const ActionButtonsGroup = ({
     setBookingContext(null);
   };
 
-  const handleBookingSubmit = (data) => {
-    onBookingSubmit?.(data);
-    handleBookingClose();
+  const handleBookingSubmit = async (data) => {
+    return onBookingSubmit?.(data);
   };
 
   const theme = useTheme();

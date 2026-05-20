@@ -245,7 +245,8 @@ export function SongRowContainer({
 
   // ✅ Base songs: trust parent (already 10 + presigned + processed)
   const baseSongs = useMemo(() => {
-    return Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
+    const items = Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
+    return processSongs(items);
   }, [songsWithArtwork]);
 
   // ✅ Base IDs for trimming duplicates

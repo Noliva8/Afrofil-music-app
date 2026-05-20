@@ -195,14 +195,21 @@ const Footer = () => {
         { label: 'Radio', to: '/welcome#radio-section' }
       ]
     },
+
+
+
+
     {
       title: 'Account',
       links: [
-    { label: 'Settings', to: '/user/settings#user-settings-page' },
-        { label: 'Subscription', to: '/premium' },
-        { label: 'Help', to: '/support#contact-support' }
+        { label: 'Business', to: '/business/licensing/overview' },
+        { label: 'Artist', to: '/artist/login' },
+        { label: 'Advertiser', href: 'https://drecordmedia.com/', target: '_blank', rel: 'noopener noreferrer' }
       ]
     },
+
+
+
     {
       title: 'Company',
       links: [

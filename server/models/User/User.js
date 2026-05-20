@@ -33,6 +33,26 @@ const userSchema = new Schema({
     type: Date,
     select: false
   },
+  isUserEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  isUserBusinessPhoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  isBusinessProfileComplete: {
+    type: Boolean,
+    default: false
+  },
+  userEmailVerificationCode: {
+    type: String,
+    select: false
+  },
+  userEmailVerificationExpires: {
+    type: Date,
+    select: false
+  },
 
   // Monetization
  role: {
@@ -58,6 +78,48 @@ const userSchema = new Schema({
   }
 },
 
+// Business type user
+
+usageType: {
+  type: String,
+  enum: ['personal', 'business'],
+  default: 'personal'
+},
+
+businessProfile: {
+  businessName: {
+    type: String,
+    trim: true
+  },
+  businessType: {
+    type: String,
+    trim: true
+  },
+  country: {
+    type: String,
+    enum: ['USA', 'Rwanda']
+  },
+  phoneNumber: {
+    type: String,
+    trim: true
+  },
+  address: {
+    type: String,
+    trim: true
+  },
+  phoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  phoneVerificationCode: {
+    type: String,
+    select: false
+  },
+  phoneVerificationExpires: {
+    type: Date,
+    select: false
+  }
+},
 
   // Ad Tracking
   adLimits: {

@@ -77,6 +77,10 @@ export const generateToken = (entity, userType) => {
       typeSpecific = {
         username: entity.username,
         role: entity.role ?? 'regular',
+        usageType: entity.usageType ?? 'personal',
+        isBusinessProfileComplete: Boolean(entity.isBusinessProfileComplete),
+        isUserEmailVerified: Boolean(entity.isUserEmailVerified),
+        isUserBusinessPhoneVerified: Boolean(entity.isUserBusinessPhoneVerified),
         isPremium: Boolean(entity.isPremium),
       };
       break;

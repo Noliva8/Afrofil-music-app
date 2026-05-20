@@ -745,6 +745,7 @@ type Query {
  radioStationSongs(stationId: ID!): [Song!]!
  exploreSongs(type: String!, value: String!): [Song!]!
  searchCatalog(query: String!, limit: Int = 12): SearchResults!
+ catalogueSongCount: Int!
 
   songsLikedByMe(
     limit: Int = 20

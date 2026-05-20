@@ -24,7 +24,7 @@ export function SongCard({
   isPlayingThisSong,
   onPlayPause,
   onOpenArtist,
-  imgLoading = "eager",
+  imgLoading = "lazy",
 }) {
   const theme = useTheme();
   const background = theme.palette.primary.background;
@@ -390,7 +390,7 @@ export function CompactSongCard({
   onPlayPause = () => {},
   currentUserId,
   onOpenArtist,
-  imgLoading = 'eager',
+  imgLoading = 'lazy',
 }) {
   const navigate = useNavigate();
   const { isAdPlaying } = useAudioPlayer();
@@ -1097,7 +1097,7 @@ export function CompactSongCardHero({
   onPlayPause = () => {},
   currentUserId,
   onOpenArtist,
-  imgLoading = 'eager',
+  imgLoading = 'lazy',
   imgDecoding = 'async',
   imgFetchPriority = 'auto',
 }) {

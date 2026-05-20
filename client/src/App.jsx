@@ -71,7 +71,7 @@ import { UserButtonMobileNavBar } from "./components/AuthenticateCompos/UserButt
 
 
 
-const wsUrl = import.meta.env.VITE_WS_UR
+const wsUrl = import.meta.env.VITE_WS_URL
 
 
 
@@ -118,26 +118,27 @@ const authLink = setContext((_, { headers }) => {
 
 
 
-const wsLink = new GraphQLWsLink(
-  createClient({
-    url: wsUrl,
-    connectionParams: async () => {
-      const artistToken = localStorage.getItem("artist_id_token");
-      const userToken = localStorage.getItem("user_id_token");
-      return {
-        authorization: artistToken
-          ? `Bearer ${artistToken}`
-          : `Bearer ${userToken}`,
-      };
-    },
-    connectionAckWaitTimeout: 10000,
-    shouldRetry: (err) => {
-  if (!err || typeof err.message !== 'string') return true;
-  return !err.message.includes('Authentication failed');
-},
-
-  })
-);
+const wsLink = wsUrl
+  ? new GraphQLWsLink(
+      createClient({
+        url: wsUrl,
+        connectionParams: async () => {
+          const artistToken = localStorage.getItem("artist_id_token");
+          const userToken = localStorage.getItem("user_id_token");
+          return {
+            authorization: artistToken
+              ? `Bearer ${artistToken}`
+              : `Bearer ${userToken}`,
+          };
+        },
+        connectionAckWaitTimeout: 10000,
+        shouldRetry: (err) => {
+          if (!err || typeof err.message !== 'string') return true;
+          return !err.message.includes('Authentication failed');
+        },
+      })
+    )
+  : null;
 
 
 
@@ -153,7 +154,7 @@ const splitLink = split(
       definition.operation === "subscription"
     );
   },
-  wsLink,
+  wsLink || authLink.concat(httpLink),
   authLink.concat(httpLink)
 );
 
@@ -282,7 +283,13 @@ function AppBody({ onCreatePlaylist }) {
       pathname.startsWith('/artist/plan') ||
       pathname.startsWith('/terms') ||
       pathname.startsWith('/user/login') ||
-      pathname.startsWith('/user/signup');
+      pathname.startsWith('/user/signup') ||
+      pathname.startsWith('/password-reset') ||
+      pathname.startsWith('/business/login') ||
+      pathname.startsWith('/business/pricing') ||
+      pathname.startsWith('/business/licensing/overview') 
+      
+      ;
 
     const shouldHideGuestChrome =
       pathname.startsWith('/terms') || isPublicArtistPage;

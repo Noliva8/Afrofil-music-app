@@ -117,20 +117,23 @@ function clampExpires(expiresIn) {
 
 // deprecated
 
-// export const CreatePresignedUrlDownload = async ({ region, bucket, key }) => {
-//   try {
-//     const client = new S3Client({ region,
-//       credentials: {
-//     accessKeyId: process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM,
-//     secretAccessKey: process.env.JWT_SECRET_KEY_SONGS_TO_STREAM
-//   } });
-//     const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-//     return await getSignedUrl(client, command, { expiresIn: 18000 });
-//   } catch (error) {
-//     console.error('Error generating presigned URL for download:', error);
-//     throw new Error('Failed to generate presigned URL for download');
-//   }
-// };
+export const CreatePresignedUrlDownload = async ({ region, bucket, key, expiresIn = 18000 }) => {
+  try {
+    const accessKeyId = process.env.JWT_ACCESS_KEY_SONGS_TO_STREAM;
+    const secretAccessKey = process.env.JWT_SECRET_KEY_SONGS_TO_STREAM;
+    assertCreds({ accessKeyId, secretAccessKey }, `bucket ${bucket} download`);
+
+    const client = new S3Client({
+      region,
+      credentials: { accessKeyId, secretAccessKey },
+    });
+    const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+    return await getSignedUrl(client, command, { expiresIn: clampExpires(expiresIn) });
+  } catch (error) {
+    console.error('Error generating presigned URL for download:', error);
+    throw new Error('Failed to generate presigned URL for download');
+  }
+};
 
 
 // migration from streaming to s3 to cloudFront

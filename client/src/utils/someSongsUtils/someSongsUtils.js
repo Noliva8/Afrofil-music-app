@@ -1,12 +1,43 @@
 
 
 
-    // Format duration from seconds to MM:SS
-  export const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+// Format duration from seconds to MM:SS
+export const formatDuration = (seconds) => {
+    const safeSeconds = Number(seconds) || 0;
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = Math.floor(safeSeconds % 60);
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
+
+const parseDurationSeconds = (duration) => {
+  if (typeof duration === "number") {
+    return Number.isFinite(duration) ? duration : 0;
+  }
+
+  if (typeof duration === "string") {
+    const trimmed = duration.trim();
+    if (!trimmed) return 0;
+
+    if (trimmed.includes(":")) {
+      const parts = trimmed.split(":").map((part) => Number(part));
+      if (parts.some((part) => !Number.isFinite(part))) return 0;
+      return parts.reduce((total, part) => total * 60 + part, 0);
+    }
+
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  return 0;
+};
+
+const getDurationLabel = (duration, fallbackSeconds) => {
+  if (typeof duration === "string" && duration.includes(":")) {
+    return duration;
+  }
+
+  return formatDuration(fallbackSeconds);
+};
 
 const deriveArtworkKey = (artwork) => {
   if (!artwork) return null;
@@ -76,12 +107,27 @@ export const processSongs = (songs) => {
       });
     }
 
+    const playCount = Number(
+      song.playCount ??
+      song.plays ??
+      song.fullOriginal?.playCount ??
+      song.fullOriginal?.plays ??
+      0
+    ) || 0;
+    const durationSource =
+      song.durationSeconds ??
+      song.duration ??
+      song.fullOriginal?.durationSeconds ??
+      song.fullOriginal?.duration ??
+      0;
+    const durationSeconds = parseDurationSeconds(durationSource);
+
     return {
       id: String(song._id ?? song.id ?? song.songId),
       title: song.title,
-      artistName: song.artist?.artistAka || "Unknown Artist",
-      artistId: String(song.artist?._id ?? song.artist ?? ""),
-      albumId: String(song.album?._id ?? song.album ?? ""),
+      artistName: song.artist?.artistAka || song.artistName || "Unknown Artist",
+      artistId: String(song.artist?._id ?? song.artistId ?? song.artist ?? ""),
+      albumId: String(song.album?._id ?? song.albumId ?? song.album ?? ""),
       albumName: song.album?.title || song.albumTitle || "Single",
       releaseYear,
       genre: song.genre || "",
@@ -92,7 +138,7 @@ export const processSongs = (songs) => {
         ? song.subMoods.join(", ")
         : "Unknown Sub Mood",
 
-      plays: Number(song.playCount) || 0,
+      plays: playCount,
       downloadCount: Number(song.downloadCount) || 0,
       artistFollowers: Number(song.artistFollowers ?? song.fullOriginal?.artistFollowers ?? (song.artist?.followers?.length || 0)) || 0,
       artistDownloadCounts: Number(
@@ -101,7 +147,7 @@ export const processSongs = (songs) => {
         song.artist?.artistDownloadCounts ??
         0
       ),
-      playCount: Number(song.playCount) || 0,
+      playCount,
       shareCount: Number(song.shareCount) || 0,
 
       // ✅ use server scalars; do NOT derive from likedByUsers
@@ -112,8 +158,8 @@ export const processSongs = (songs) => {
 
       likedByMe: Boolean(song.likedByMe ?? false),
 
-      durationSeconds: Number(song.duration) || 0,
-      duration: formatDuration(Number(song.duration) || 0),
+      durationSeconds,
+      duration: getDurationLabel(durationSource, durationSeconds),
 
       // artwork + related images (keep presigned/fallback from hook)
       artworkUrl,

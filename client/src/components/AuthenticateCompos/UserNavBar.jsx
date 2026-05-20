@@ -520,7 +520,7 @@ const handlePremiumNavigate = () => {
                       },
                     }}
                   >
-                    AfroFeel
+                    Flolup
                   </Typography>
                 )}
               </Button>

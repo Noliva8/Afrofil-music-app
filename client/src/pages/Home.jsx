@@ -11,7 +11,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
 import useTheme from '@mui/material/styles/useTheme';
-import { alpha } from '@mui/material/styles';
 
 import { useQuery } from '@apollo/client';
 import {
@@ -57,6 +56,7 @@ const Home = ({ upgradeToPremium }) => {
   const [currentSong, setCurrentSong] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [loadDeferredHome, setLoadDeferredHome] = useState(false);
 
   // Checkout Visibility
   // ------------------
@@ -70,6 +70,18 @@ const Home = ({ upgradeToPremium }) => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    if ("requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(() => setLoadDeferredHome(true), { timeout: 1600 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(() => setLoadDeferredHome(true), 900);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
   const isMobile = windowWidth < 768;
   const togglePlay = () => setIsPlaying((prev) => !prev);
 
@@ -79,11 +91,10 @@ const Home = ({ upgradeToPremium }) => {
     error: dailyMixError,
   } = useQuery(QUERY_DAILY_MIX, {
     variables: { limit: HORIZONTAL_LIMIT },
+    skip: !loadDeferredHome,
     fetchPolicy: "cache-and-network",
     nextFetchPolicy: "cache-first",
   });
-
-  console.log("DEBUG HOME:", dailyMixData);
 
   const { data: recentPlayedData, loading: recentPlayedLoading } = useQuery(
     QUERY_RECENT_PLAYED,
@@ -99,11 +110,10 @@ const Home = ({ upgradeToPremium }) => {
     refetch: refetchTrendingV2,
   } = useQuery(TRENDING_SONGS_PUBLICV2, {
     variables: { limit: HORIZONTAL_LIMIT },
-    pollInterval: 30000,
     notifyOnNetworkStatusChange: true,
+    fetchPolicy: "cache-and-network",
+    nextFetchPolicy: "cache-first",
   });
-
-  console.log("does the error comes here?", trendingErrorV2);
 
   const {
     data: newUploadsData,
@@ -112,22 +122,27 @@ const Home = ({ upgradeToPremium }) => {
     refetch: newUploadRefetch,
   } = useQuery(NEW_UPLOADS_PUBLIC, {
     variables: { limit: HORIZONTAL_LIMIT },
-    pollInterval: 30000,
     notifyOnNetworkStatusChange: true,
+    fetchPolicy: "cache-and-network",
+    nextFetchPolicy: "cache-first",
   });
 
   const { data: suggestedData } = useQuery(SUGGESTED_SONGS_PUBLIC, {
-    pollInterval: 30000,
+    skip: !loadDeferredHome,
     notifyOnNetworkStatusChange: true,
     variables: { limit: COMPACT_LIMIT },
+    fetchPolicy: "cache-and-network",
+    nextFetchPolicy: "cache-first",
   });
 
   const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
+    skip: !loadDeferredHome,
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
   });
 
   const { data: radioStationsData } = useQuery(RADIO_STATIONS_PUBLIC, {
+    skip: !loadDeferredHome,
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
   });
@@ -137,7 +152,6 @@ const Home = ({ upgradeToPremium }) => {
   const recentSongs = recentPlayedData?.recentPlayedSongs ?? [];
 
   const mixTracks = dailyMixData?.AIDailyMix ?? [];
-  console.log("ai mix", mixTracks);
 
   const {
     songsWithArtwork: recentSongsWithArtwork,
@@ -148,10 +162,8 @@ const Home = ({ upgradeToPremium }) => {
     useSongsWithPresignedUrls(mixTracks);
 
   const { songsWithArtwork: dailyMixWithArtwork } = useSongsWithPresignedUrls(
-    dailyMixData?.dailyMix?.tracks,
+    loadDeferredHome ? dailyMixData?.dailyMix?.tracks : undefined,
   );
-
-  console.log("daily mix ", dailyMixWithArtwork);
 
   const { songsWithArtwork: trendingSongsWithArtworkV2 } =
     useSongsWithPresignedUrls(trendingDataV2?.trendingSongsV2);
@@ -160,14 +172,14 @@ const Home = ({ upgradeToPremium }) => {
     newUploadsData?.newUploads,
   );
   const { songsWithArtwork: suggestedSongsWithArtwork } =
-    useSongsWithPresignedUrls(suggestedData?.suggestedSongs);
+    useSongsWithPresignedUrls(loadDeferredHome ? suggestedData?.suggestedSongs : undefined);
 
   const songOfMonthSource = useMemo(
     () => (songOfMonthData?.songOfMonth ? [songOfMonthData.songOfMonth] : []),
     [songOfMonthData?.songOfMonth],
   );
   const { songsWithArtwork: songOfMonthWithArtwork } =
-    useSongsWithPresignedUrls(songOfMonthSource);
+    useSongsWithPresignedUrls(loadDeferredHome ? songOfMonthSource : undefined);
 
   const radioStations = radioStationsData?.radioStations || [];
 
@@ -193,10 +205,7 @@ const Home = ({ upgradeToPremium }) => {
       sx={{
         minHeight: "100vh",
         overflowX: "hidden",
-        background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${alpha(
-          theme.palette.background.paper,
-          0.82,
-        )} 100%)`,
+        bgcolor: "background.default",
         py: 5,
       }}
     >
@@ -231,52 +240,56 @@ const Home = ({ upgradeToPremium }) => {
                   emptyDescription="Start listening and we'll surface these tracks again."
                 />
 
-                <SongOfMonth
-                  songOfMonthWithArtwork={songOfMonthWithArtwork}
-                  onCardClick={handleCardClick}
-                />
+                {loadDeferredHome && (
+                  <>
+                    <SongOfMonth
+                      songOfMonthWithArtwork={songOfMonthWithArtwork}
+                      onCardClick={handleCardClick}
+                    />
 
-                <SongList
-                  title="Suggested songs"
-                  subtitle="Based on your listening history and trending songs"
-                  rowCode="suggestedSongs"
-                  songsList={suggestedSongsWithArtwork}
-                  onCardClick={handleCardClick}
-                  emptyMessage="No songs available"
-                  emptyDescription="Start listening to get recommendations"
-                />
+                    <SongList
+                      title="Suggested songs"
+                      subtitle="Based on your listening history and trending songs"
+                      rowCode="suggestedSongs"
+                      songsList={suggestedSongsWithArtwork}
+                      onCardClick={handleCardClick}
+                      emptyMessage="No songs available"
+                      emptyDescription="Start listening to get recommendations"
+                    />
 
-                <RadioStations stations={radioStations} />
+                    <RadioStations stations={radioStations} />
 
-                <RecommendedSongsRow
-                  recentSongs={recentSongs}
-                  existingTracks={
-                    songsWithArtwork.length ? songsWithArtwork : mixTracks
-                  }
-                  username={displayName}
-                />
+                    <RecommendedSongsRow
+                      recentSongs={recentSongs}
+                      existingTracks={
+                        songsWithArtwork.length ? songsWithArtwork : mixTracks
+                      }
+                      username={displayName}
+                    />
 
-                <SongsILike />
+                    <SongsILike />
 
-                {(dailyMixLoading || recentPlayedLoading || artworkLoading) && (
-                  <Box sx={{ px: 1, pt: 1 }}>
-                    <LinearProgress />
-                    <Typography variant="caption" sx={{ mt: 1 }}>
-                      Preparing a fresh mix for you...
-                    </Typography>
-                  </Box>
+                    {(dailyMixLoading || recentPlayedLoading || artworkLoading) && (
+                      <Box sx={{ px: 1, pt: 1 }}>
+                        <LinearProgress />
+                        <Typography variant="caption" sx={{ mt: 1 }}>
+                          Preparing a fresh mix for you...
+                        </Typography>
+                      </Box>
+                    )}
+
+                    <SongRowContainer
+                      header={
+                        dailyMixData?.dailyMix?.profileLabel ?? "AI Daily Mix"
+                      }
+                      subHeader="Daily AI mix"
+                      songsWithArtwork={dailyMixWithArtwork}
+                      onCardClick={handleCardClick}
+                    />
+
+                    <EventsSection />
+                  </>
                 )}
-
-                <SongRowContainer
-                  header={
-                    dailyMixData?.dailyMix?.profileLabel ?? "AI Daily Mix"
-                  }
-                  subHeader="Daily AI mix"
-                  songsWithArtwork={dailyMixWithArtwork}
-                  onCardClick={handleCardClick}
-                />
-
-                <EventsSection />
               </>
             )}
      

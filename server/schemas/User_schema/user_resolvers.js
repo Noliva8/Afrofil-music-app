@@ -72,6 +72,49 @@ const flattenSongs = (docs, field) =>
     return values.filter(Boolean);
   });
 
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+const generatePhoneVerificationCode = () => String(Math.floor(100000 + Math.random() * 900000));
+const generateUserEmailVerificationCode = () => String(Math.floor(1000 + Math.random() * 9000));
+
+const sendBusinessVerificationEmail = (email, verificationCode) => {
+  sendEmail(
+    email,
+    'Verify your FloLup business email',
+    `
+      <p>Your FloLup business email verification code is:</p>
+      <p style="font-size:24px;font-weight:700;letter-spacing:4px;">${verificationCode}</p>
+      <p>This code is valid for 10 minutes.</p>
+    `
+  ).catch((error) => {
+    console.error('Business email verification send failed:', error?.message || error);
+  });
+};
+
+const buildUserAuthPayload = (user) => {
+  const isPremium = user.role === 'premium' &&
+    user.subscription?.status === 'active' &&
+    (!user.subscription?.periodEnd || new Date(user.subscription.periodEnd) > new Date());
+
+  return {
+    _id: user._id,
+    username: user.username,
+    email: user.email,
+    role: user.role,
+    usageType: user.usageType,
+    isUserEmailVerified: user.isUserEmailVerified,
+    isUserBusinessPhoneVerified: user.isUserBusinessPhoneVerified,
+    isBusinessProfileComplete: user.isBusinessProfileComplete,
+    businessProfile: user.businessProfile,
+    isPremium,
+    shouldSeeAds: !isPremium,
+    canSkipAd: isPremium || (user.adLimits?.skipsAllowed > 0),
+    subscription: user.subscription,
+    adLimits: user.adLimits,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  };
+};
+
 
 
 const buildMixProfileFromSongs = (songs, userDoc) => {
@@ -247,6 +290,30 @@ userById: async (parent, { userId }) => {
   } catch (error) {
     throw new Error(error.message);
   }
+},
+
+businessAccountStatus: async (_, { email }) => {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    throw new GraphQLError('Email is required', {
+      extensions: { code: 'BAD_USER_INPUT' }
+    });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail }).select('email usageType isUserEmailVerified isBusinessProfileComplete businessProfile.businessName businessProfile.businessType').lean();
+  const usageTypes = Array.isArray(user?.usageType) ? user.usageType : [user?.usageType].filter(Boolean);
+  const hasBusinessUsage = usageTypes.includes('business');
+
+  return {
+    exists: Boolean(user),
+    email: normalizedEmail,
+    usageType: user?.usageType || null,
+    hasBusinessUsage,
+    isUserEmailVerified: Boolean(user?.isUserEmailVerified),
+    isBusinessProfileComplete: Boolean(user?.isBusinessProfileComplete),
+    businessName: user?.businessProfile?.businessName || null,
+    businessType: user?.businessProfile?.businessType || null
+  };
 },
 
     userSubscription: async (_, __, { user }) => {
@@ -730,10 +797,12 @@ commentsForSong: async (parent, { songId }) => {
     
 sendSupportMessage,
      markSeenUserNotification,
+
+
 // Create a new user
 createUser: async (_, { input }) => {
       try {
-        const { username, email, password, role = 'REGULAR' } = input;
+        const { username, email, password, role = 'regular', usageType = 'personal' } = input;
 
         // Validate input
         if (!username?.trim() || !email?.trim() || !password) {
@@ -759,6 +828,7 @@ createUser: async (_, { input }) => {
 
         // Normalize role to lowercase
         const normalizedRole = role.toLowerCase(); 
+        const normalizeUsageType = usageType.toLowerCase();
 
         // Check for existing non-artist user
         const existingUser = await User.findOne({
@@ -778,8 +848,9 @@ createUser: async (_, { input }) => {
           email: email.toLowerCase().trim(),
           password,
           role: normalizedRole,
+          usageType: normalizeUsageType,
           subscription: {
-            status: normalizedRole === 'premium' ? 'active' : 'trialing',
+            status: 'none',
             periodEnd: normalizedRole === 'premium'
               ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
               : null,
@@ -793,27 +864,9 @@ createUser: async (_, { input }) => {
 
            const token = signUserToken(newUser, USER_TYPES.USER);
 
-           const isPremium = normalizedRole === 'premium';
-
-
-
-      
-
         return {
           userToken: token,
-          user: {
-            _id: newUser._id,
-            username: newUser.username,
-            email: newUser.email,
-            role: newUser.role,
-            isPremium,
-            shouldSeeAds: !isPremium,
-            canSkipAd: true,
-            subscription: newUser.subscription,
-            adLimits: newUser.adLimits,
-            createdAt: newUser.createdAt,
-            updatedAt: newUser.updatedAt
-          }
+          user: buildUserAuthPayload(newUser)
         };
 
       } catch (error) {
@@ -830,6 +883,177 @@ createUser: async (_, { input }) => {
         }
 
         throw new GraphQLError('Failed to create user', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+createBusinessUser: async (_, { input }) => {
+      try {
+        const { username, email, password, role = 'regular' } = input;
+
+        if (!username?.trim() || !email?.trim() || !password) {
+          throw new GraphQLError('All fields are required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          throw new GraphQLError('Invalid email format', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        if (password.length < 8) {
+          throw new GraphQLError('Password must be at least 8 characters', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const normalizedRole = role.toLowerCase();
+        const normalizedEmail = email.toLowerCase().trim();
+        const verificationCode = generateUserEmailVerificationCode();
+
+        const existingUser = await User.findOne({
+          email: normalizedEmail,
+          role: { $ne: 'ARTIST' }
+        }).lean();
+
+        if (existingUser) {
+          throw new GraphQLError('Email already in use by a regular/premium user', {
+            extensions: { code: 'CONFLICT' }
+          });
+        }
+
+        const newUser = await User.create({
+          username: username.trim(),
+          email: normalizedEmail,
+          password,
+          role: normalizedRole,
+          usageType: 'business',
+          isUserEmailVerified: false,
+          userEmailVerificationCode: verificationCode,
+          userEmailVerificationExpires: new Date(Date.now() + 10 * 60 * 1000),
+          subscription: {
+            status: 'none',
+            periodEnd: normalizedRole === 'premium'
+              ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+              : null,
+            planId: null
+          },
+          adLimits: {
+            skipsAllowed: 5,
+            lastReset: new Date()
+          }
+        });
+
+        const token = signUserToken(newUser, USER_TYPES.USER);
+
+        sendBusinessVerificationEmail(normalizedEmail, verificationCode);
+
+        return {
+          userToken: token,
+          user: buildUserAuthPayload(newUser)
+        };
+      } catch (error) {
+        console.error('Business user creation error:', error);
+
+        if (error.code === 11000) {
+          throw new GraphQLError('User already exists', {
+            extensions: { code: 'CONFLICT' }
+          });
+        }
+
+        if (error.extensions?.code) {
+          throw error;
+        }
+
+        throw new GraphQLError('Failed to create business user', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    requestBusinessUserEmailVerification: async (_, { email }) => {
+      try {
+        const normalizedEmail = normalizeEmail(email);
+        const user = await User.findOne({ email: normalizedEmail });
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        const usageTypes = Array.isArray(user.usageType) ? user.usageType : [user.usageType].filter(Boolean);
+        if (!usageTypes.includes('business')) {
+          throw new GraphQLError('This account is not enabled for business access.', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        if (user.isUserEmailVerified) {
+          return {
+            success: true,
+            message: 'Business email is already verified.'
+          };
+        }
+
+        const verificationCode = generateUserEmailVerificationCode();
+        user.userEmailVerificationCode = verificationCode;
+        user.userEmailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save({ validateBeforeSave: false });
+
+        sendBusinessVerificationEmail(normalizedEmail, verificationCode);
+
+        return {
+          success: true,
+          message: 'Verification code sent.'
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('Business email verification request error:', error);
+        throw new GraphQLError('Failed to send verification code', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    verifyBusinessUserEmail: async (_, { email, code }) => {
+      try {
+        const normalizedEmail = normalizeEmail(email);
+        const user = await User.findOne({ email: normalizedEmail }).select('+userEmailVerificationCode +userEmailVerificationExpires');
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        const savedCode = user.userEmailVerificationCode;
+        const expiresAt = user.userEmailVerificationExpires;
+
+        if (!savedCode || savedCode !== String(code || '').trim() || !expiresAt || expiresAt < new Date()) {
+          throw new GraphQLError('Invalid or expired verification code', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        user.isUserEmailVerified = true;
+        user.userEmailVerificationCode = undefined;
+        user.userEmailVerificationExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        const token = signUserToken(user, USER_TYPES.USER);
+
+        return {
+          userToken: token,
+          user: buildUserAuthPayload(user)
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('Business user email verification error:', error);
+        throw new GraphQLError('Failed to verify business email', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
       }
@@ -866,25 +1090,9 @@ if (!isMatch) {
 
         const token = signUserToken(user, USER_TYPES.USER);
 
-        const isPremium = user.role === 'premium' &&
-          user.subscription?.status === 'active' &&
-          (!user.subscription?.periodEnd || new Date(user.subscription.periodEnd) > new Date());
-
         return {
           userToken: token,
-          user: {
-            _id: user._id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            isPremium,
-            shouldSeeAds: !isPremium,
-            canSkipAd: isPremium || (user.adLimits?.skipsAllowed > 0),
-            subscription: user.subscription,
-            adLimits: user.adLimits,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt
-          }
+          user: buildUserAuthPayload(user)
         };
 
       } catch (error) {
@@ -895,6 +1103,217 @@ if (!isMatch) {
         }
 
         throw new GraphQLError('Login failed', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    updateBusinessUserProfile: async (_, { input }) => {
+      try {
+        const email = normalizeEmail(input.email);
+        const { businessName, businessType, country, phoneNumber, address } = input;
+        const normalizedCountry = String(country || '').trim();
+        const eligibleCountries = ['USA', 'Rwanda'];
+
+        if (!email || !businessName?.trim() || !businessType?.trim() || !normalizedCountry || !phoneNumber?.trim() || !address?.trim()) {
+          throw new GraphQLError('All business fields are required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        if (!eligibleCountries.includes(normalizedCountry)) {
+          throw new GraphQLError('Business licensing is currently available only in USA and Rwanda.', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const user = await User.findOne({ email }).select('+businessProfile.phoneVerificationCode +businessProfile.phoneVerificationExpires');
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        user.businessProfile = {
+          ...(user.businessProfile?.toObject?.() || user.businessProfile || {}),
+          businessName: businessName.trim(),
+          businessType: businessType.trim(),
+          country: normalizedCountry,
+          phoneNumber: phoneNumber.trim(),
+          address: address.trim()
+        };
+
+        user.usageType = 'business';
+        user.isUserBusinessPhoneVerified = false;
+        user.isBusinessProfileComplete = true;
+
+        await user.save({ validateBeforeSave: false });
+
+        return {
+          success: true,
+          message: 'Business profile updated.',
+          email,
+          verificationCode: null,
+          user: buildUserAuthPayload(user)
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('Business profile update error:', error);
+        throw new GraphQLError('Failed to update business profile', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    startBusinessOnboarding: async (_, { input }) => {
+      try {
+        const email = normalizeEmail(input.email);
+        const { businessName, businessType, country, phoneNumber, address } = input;
+        const normalizedCountry = String(country || '').trim();
+        const eligibleCountries = ['USA', 'Rwanda'];
+
+        if (!email || !businessName?.trim() || !businessType?.trim() || !normalizedCountry || !phoneNumber?.trim() || !address?.trim()) {
+          throw new GraphQLError('All business fields are required', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        if (!eligibleCountries.includes(normalizedCountry)) {
+          throw new GraphQLError('Business licensing is currently available only in USA and Rwanda.', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const user = await User.findOne({ email }).select('+businessProfile.phoneVerificationCode +businessProfile.phoneVerificationExpires');
+
+        if (!user) {
+          throw new GraphQLError('Please create or log in to a personal account before starting business licensing.', {
+            extensions: { code: 'UNAUTHENTICATED' }
+          });
+        }
+
+        if (user.usageType === 'business' && user.businessProfile?.phoneVerified) {
+          return {
+            success: true,
+            message: 'Business account already exists for this email.',
+            email,
+            verificationCode: null,
+            user: buildUserAuthPayload(user)
+          };
+        }
+
+        const verificationCode = generatePhoneVerificationCode();
+        user.businessProfile = {
+          ...(user.businessProfile?.toObject?.() || user.businessProfile || {}),
+          businessName: businessName.trim(),
+          businessType: businessType.trim(),
+          country: normalizedCountry,
+          phoneNumber: phoneNumber.trim(),
+          address: address.trim(),
+          phoneVerified: false,
+          phoneVerificationCode: verificationCode,
+          phoneVerificationExpires: new Date(Date.now() + 10 * 60 * 1000)
+        };
+
+        await user.save({ validateBeforeSave: false });
+
+        return {
+          success: true,
+          message: 'Phone verification code generated.',
+          email,
+          verificationCode,
+          user: buildUserAuthPayload(user)
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('Business onboarding start error:', error);
+        throw new GraphQLError('Failed to start business onboarding', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    verifyBusinessPhone: async (_, { email, code }) => {
+      try {
+        const normalizedEmail = normalizeEmail(email);
+        const user = await User.findOne({ email: normalizedEmail }).select('+businessProfile.phoneVerificationCode +businessProfile.phoneVerificationExpires');
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        const savedCode = user.businessProfile?.phoneVerificationCode;
+        const expiresAt = user.businessProfile?.phoneVerificationExpires;
+
+        if (!savedCode || savedCode !== String(code || '').trim() || !expiresAt || expiresAt < new Date()) {
+          throw new GraphQLError('Invalid or expired verification code', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        user.businessProfile.phoneVerified = true;
+        user.businessProfile.phoneVerificationCode = undefined;
+        user.businessProfile.phoneVerificationExpires = undefined;
+        user.isUserBusinessPhoneVerified = true;
+        await user.save({ validateBeforeSave: false });
+
+        return {
+          success: true,
+          message: 'Phone number verified.',
+          email: normalizedEmail,
+          verificationCode: null,
+          user: buildUserAuthPayload(user)
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('Business phone verification error:', error);
+        throw new GraphQLError('Failed to verify phone number', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+    completeBusinessOnboarding: async (_, { email, password }) => {
+      try {
+        const normalizedEmail = normalizeEmail(email);
+
+        if (!password || password.length < 8) {
+          throw new GraphQLError('Password must be at least 8 characters', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        const user = await User.findOne({ email: normalizedEmail }).select('+password');
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        if (!user.businessProfile?.phoneVerified) {
+          throw new GraphQLError('Verify the business phone number before creating a password.', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        user.password = password;
+        user.usageType = 'business';
+        await user.save();
+
+        const token = signUserToken(user, USER_TYPES.USER);
+
+        return {
+          userToken: token,
+          user: buildUserAuthPayload(user)
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('Business onboarding completion error:', error);
+        throw new GraphQLError('Failed to complete business onboarding', {
           extensions: { code: 'INTERNAL_SERVER_ERROR' }
         });
       }

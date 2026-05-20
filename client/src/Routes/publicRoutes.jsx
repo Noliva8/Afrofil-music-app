@@ -48,6 +48,10 @@ import { element } from 'prop-types';
 
 const LazyUserSettings = lazy(() => import('../pages/userSettings.jsx')); 
 
+const LazyBusinessLicenseOverview = lazy(() => import('../pages/Business/BusinessLicenceOverview.jsx') )
+const LazyBusinessLogin = lazy(() => import('../pages/Business/BusinessLogin.jsx') )
+const LazyBusinessPricing = lazy(() => import('../pages/Business/BusinessPricing.jsx') )
+
 
 
 export const PublicRoutes = [
@@ -253,5 +257,35 @@ export const PublicRoutes = [
       <Suspense fallback={<div />}>
         <LazyUserSettings />
       </Suspense>
-   )  }
+   )  },
+
+   {
+    path: 'business/login',
+    element: (
+      <Suspense fallback={<div><h3>loading ...</h3></div>}>
+        <LazyBusinessLogin />
+      </Suspense>
+    )
+   },
+
+   {
+    path: 'business/pricing/:businessTypeSlug',
+    element: (
+      <Suspense fallback={<div><h3>loading ...</h3></div>}>
+        <LazyBusinessPricing />
+      </Suspense>
+    )
+   },
+
+   {
+    path: 'business/licensing/overview',
+    element: (
+      <Suspense fallback={<div><h3>loading ...</h3></div>}>
+<LazyBusinessLicenseOverview />
+      </Suspense>
+    )
+   }
+
+
+
 ];

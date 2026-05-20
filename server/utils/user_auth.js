@@ -205,6 +205,7 @@ export const signUserToken = (user) => {
       email: user.email,
       username: user.username,
        role: user.role || 'regular',
+       usageType: user.usageType || 'personal'
     },
     iss: JWT_CONFIG.issuer,
     aud: JWT_CONFIG.audience,

@@ -13,6 +13,11 @@ type User {
   following: [Artist!]!
   createdAt: Date!
   updatedAt: Date!
+  usageType: String
+  isUserEmailVerified: Boolean
+  isUserBusinessPhoneVerified: Boolean
+  isBusinessProfileComplete: Boolean
+  businessProfile: BusinessProfile
 
   # Computed/virtuals
   isPremium: Boolean!
@@ -20,6 +25,38 @@ type User {
   canSkipAd: Boolean!
 }
 
+type BusinessProfile {
+  businessName: String
+  businessType: String
+  country: String
+  phoneNumber: String
+  address: String
+  phoneVerified: Boolean
+}
+
+type BusinessAccountStatus {
+  exists: Boolean!
+  email: String!
+  usageType: String
+  hasBusinessUsage: Boolean
+  isUserEmailVerified: Boolean
+  isBusinessProfileComplete: Boolean
+  businessName: String
+  businessType: String
+}
+
+type BusinessOnboardingResponse {
+  success: Boolean!
+  message: String!
+  email: String!
+  verificationCode: String
+  user: User
+}
+
+enum UsageType {
+personal
+business
+}
 
 
 enum UserRole {
@@ -285,6 +322,7 @@ type Query {
   # Users
   users: [User]
   userById(userId: ID!): User
+  businessAccountStatus(email: String!): BusinessAccountStatus!
   userSubscription: Subscription
   dailyMix(profileInput: MixProfileInput, limit: Int = 20): DailyMix
   searchUser(username: String!): User
@@ -321,6 +359,7 @@ input CreateUserInput {
   email: String!
   password: String!
   role: UserRole = regular
+  usageType: UsageType = personal
 }
 
 type UserAuthPayload {
@@ -331,6 +370,15 @@ type UserAuthPayload {
 type PasswordResetResponse {
   success: Boolean!
   message: String!
+}
+
+input BusinessOnboardingInput {
+  email: String!
+  businessName: String!
+  businessType: String!
+  country: String!
+  phoneNumber: String!
+  address: String!
 }
 
 
@@ -345,6 +393,7 @@ isNotificationSeen: Boolean
 
 
  createUser(input: CreateUserInput!): UserAuthPayload
+ createBusinessUser(input: CreateUserInput!): UserAuthPayload
 
 
 
@@ -361,6 +410,12 @@ isNotificationSeen: Boolean
 
   requestPasswordReset(email: String!): PasswordResetResponse
   resetPassword(token: String!, newPassword: String!): PasswordResetResponse
+  requestBusinessUserEmailVerification(email: String!): PasswordResetResponse
+  updateBusinessUserProfile(input: BusinessOnboardingInput!): BusinessOnboardingResponse!
+  startBusinessOnboarding(input: BusinessOnboardingInput!): BusinessOnboardingResponse!
+  verifyBusinessUserEmail(email: String!, code: String!): UserAuthPayload!
+  verifyBusinessPhone(email: String!, code: String!): BusinessOnboardingResponse!
+  completeBusinessOnboarding(email: String!, password: String!): UserAuthPayload!
 
 
 
