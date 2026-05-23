@@ -54,9 +54,6 @@ export function SongRow({
   onCardClick,
 }) {
   const theme = useTheme();
-console.log("hello ...")
-
-
 
   const {
     scrollContainerRef,
@@ -506,7 +503,6 @@ export function SongRowContainerHero({
     </Box>
   );
 }
-
 
 
 

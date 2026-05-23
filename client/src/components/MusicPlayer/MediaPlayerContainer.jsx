@@ -69,9 +69,6 @@ const MediaPlayerContainer = () => {
 
 
   const handlePlayPause = () => {
-    console.log('play button is clicked in media player');
-    console.log('the current song is:', currentTrack);
-    console.log('check if playback context works:', playerState )
     
     if (!currentTrack || isAdPlaying) return;
     

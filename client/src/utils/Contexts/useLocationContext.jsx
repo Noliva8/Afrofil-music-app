@@ -141,7 +141,6 @@ export function LocationProvider({ children }) {
    * - forceServer: bypass cache checks and always call the mutation
    */
   const refreshGeo = async ({ withSpinner = true, forceServer = false } = {}) => {
-    console.log('refreshGeo called', { withSpinner, forceServer });
     setErrorGeo(null);
     if (withSpinner) setLoadingGeo(true);
 
@@ -154,26 +153,20 @@ export function LocationProvider({ children }) {
 
       if (!cachedAny) {
         needServer = true;
-        console.log('Need server: no cache');
       } else if (forceServer) {
         needServer = true;
-        console.log('Need server: forceServer=true');
       } else if (quick && cachedAny.lat != null && cachedAny.lon != null) {
         needServer = movedBeyondThreshold(cachedAny, quick);
         if (!needServer && cachedAny.monthKey !== nowMonth) needServer = true;
-        console.log('Need server based on movement/month:', needServer);
       } else {
         needServer = (cachedAny.monthKey !== nowMonth);
-        console.log('Need server based on month change:', needServer);
       }
 
       if (!needServer && cachedAny) {
-        console.log('Using cached data, no server call needed');
         setGeo(cachedAny);
         return cachedAny;
       }
 
-      console.log('Making server call for location data');
 
       // Try browser coords first (non-blocking; server can fallback to IP)
       let lat = null, lon = null, acc = 0;
@@ -190,7 +183,6 @@ export function LocationProvider({ children }) {
             lat = +_lat.toFixed(6);
             lon = +_lon.toFixed(6);
             acc = typeof pos.accuracy === 'number' ? pos.accuracy : 0;
-            console.log('Got browser location:', { lat, lon, acc });
           }
         }
       } catch (error) {
@@ -199,7 +191,6 @@ export function LocationProvider({ children }) {
 
       // 🚀 Always call the mutation here
       const { data, error } = await detectUserLocation({ variables: { lat, lon } });
-      console.log('Mutation response:', { data, error });
 
       if (error) {
         console.error('Mutation error:', error);
@@ -230,7 +221,6 @@ export function LocationProvider({ children }) {
       setErrorGeo(err);
       const cachedAny = loadGeoCacheLenient();
       if (cachedAny) {
-        console.log('Falling back to cached data after error');
         setGeo(cachedAny);
         return cachedAny;
       }
@@ -254,16 +244,12 @@ export function LocationProvider({ children }) {
     }
 
     (async () => {
-      console.log('LocationProvider mounted, checking cache...');
       try {
         const currentCache = loadGeoCache();
-        console.log('Current cache from localStorage:', currentCache);
 
         if (!currentCache) {
-          console.log('No valid cache, doing full refresh');
           await refreshGeo({ withSpinner: true, forceServer: true }); // ensures server hit on cold start
         } else {
-          console.log('Cache exists, setting state and doing background refresh');
           setGeo(currentCache);
           setLoadingGeo(false);
           refreshGeo({ withSpinner: false }).catch(err =>

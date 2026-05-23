@@ -65,7 +65,6 @@ export class PlayerManager {
         );
         this.ads = null;
       } else {
-        console.log("[PM] Ad adapter initialized with playAd");
       }
     } catch (error) {
       console.error("[PM] Failed to initialize ad adapter:", error);
@@ -168,11 +167,6 @@ export class PlayerManager {
     // Initialize
     this._startSessionTimer();
 
-    console.log("🎛️ PlayerManager initialized", {
-      policy: this.policy,
-      hasAds: !!this.ads,
-      midrollDelay: this.midrollDelayMs,
-    });
   }
 
   // ---------- PRIVATE UTILITIES ----------
@@ -180,9 +174,7 @@ export class PlayerManager {
   _debug(msg, payload) {
     if (!this._debugMode) return;
     if (payload !== undefined) {
-      console.log(`🔍 [PM DEBUG] ${msg}`, payload);
     } else {
-      console.log(`🔍 [PM DEBUG] ${msg}`);
     }
   }
 
@@ -193,7 +185,6 @@ export class PlayerManager {
     getNextAdIndex() {
     const nextIndex = this.adSequenceCounter;
     this.adSequenceCounter++;
-    console.log(`[PM] Next ad index: ${nextIndex} (sequence: ${this.adSequenceCounter})`);
     return nextIndex;
   }
 
@@ -242,7 +233,6 @@ export class PlayerManager {
     this.state.adRules.minInterval = 0;
     this.state.adRules.maxAdsPerHour = 999;
 
-    console.log("[PM] Test mode enabled (every", this._testEveryNSongs, "songs)");
   }
 
   disableTestMode() {
@@ -254,17 +244,14 @@ export class PlayerManager {
     this.state.adRules.minInterval = 5 * 60 * 1000;
     this.state.adRules.maxAdsPerHour = 4;
 
-    console.log("[PM] Test mode disabled");
   }
 
   enableDebugMode() {
     this._debugMode = true;
-    console.log("[PM] 🔍 DEBUG MODE ENABLED");
   }
 
   disableDebugMode() {
     this._debugMode = false;
-    console.log("[PM] 🔍 DEBUG MODE DISABLED");
   }
 
   // ---------- CONFIG UPDATES ----------
@@ -272,7 +259,6 @@ export class PlayerManager {
   setPolicy(next) {
     if (this._isDestroyed) return;
     this.policy = { ...this.policy, ...next };
-    console.log("[PM] Policy updated:", this.policy);
   }
 
   setMidrollDelay(ms) {
@@ -280,14 +266,12 @@ export class PlayerManager {
     if (this._isDestroyed) return;
     if (Number.isFinite(ms) && ms >= 0) {
       this.midrollDelayMs = ms;
-      console.log("[PM] Midroll delay:", this.midrollDelayMs);
     }
   }
 
   setAdRules(partial) {
     if (this._isDestroyed) return;
     this.state.adRules = { ...this.state.adRules, ...partial };
-    console.log("[PM] Ad rules updated:", this.state.adRules);
   }
 
   // ---------- IDENTITY + ENVIRONMENT ----------
@@ -305,12 +289,6 @@ export class PlayerManager {
       console.warn("[PM] Error updating ad identity:", error);
     }
 
-    console.log(
-      "[PM] Identity set:",
-      this.identity,
-      "isAdBlocked=",
-      this.state.isAdBlocked
-    );
   }
 
   setLocation(locationObj) {
@@ -325,7 +303,6 @@ export class PlayerManager {
       console.warn("[PM] Error updating ad environment:", error);
     }
 
-    console.log("📍 [PM] Location updated:", locationObj);
   }
 
   setRuntimeContext({ identity, location } = {}) {
@@ -451,7 +428,6 @@ export class PlayerManager {
       this._debug("No adSchedule available");
     }
 
-    console.log("🎵 [PM] Track started:", meta?.title || meta?.id);
   }
 
 
@@ -475,18 +451,11 @@ export class PlayerManager {
 async onTrackEnd(meta) {
   if (this._isDestroyed) return;
 
-  console.log("[PM] Track ended:", meta?.title || meta?.id, {
-    songsPlayed: this.state.userBehavior.songsPlayed,
-    owner: this.owner,
-    nextAdIndex: this.adSequenceCounter 
-  });
 
   if (!this.policy.midroll) {
-    console.log("[PM] Track-end midroll check skipped (policy.midroll=false)");
     return;
   }
   if (!this.ads) {
-    console.log("[PM] Track-end midroll check skipped (no ad player)");
     return;
   }
 
@@ -494,7 +463,6 @@ async onTrackEnd(meta) {
   if (this.adSchedule) {
     // Guests/premium: skip ad breaks entirely
     if (this.identity.userType !== "regular") {
-      console.log("[PM] Ads disabled for user type:", this.identity.userType);
       return;
     }
 
@@ -503,39 +471,28 @@ async onTrackEnd(meta) {
     
     // Get current metrics to see what's happening
     const metrics = this.adSchedule.getAdMetrics();
-    console.log("📅 AD SCHEDULE METRICS:", metrics);
     
     // Check if we should start an ad break
     const breakDecision = this.adSchedule.shouldStartBreak();
-    console.log("📅 AD SCHEDULE DECISION:", breakDecision);
 
     if (!breakDecision.shouldStart) {
-      console.log(`[PM] Ad schedule says no break: ${breakDecision.reason}`);
       return;
     }
 
     // Check user-level blocks
     if (this.identity.userType === "premium" || this.state.isAdBlocked) {
-      console.log("[PM] Ads blocked for premium user; skipping midroll.");
       return;
     }
 
     if (this.state.userBehavior.consecutiveAdErrors >= this.state.adRules.maxConsecutiveErrors) {
-      console.log("[PM] Too many consecutive ad errors; skipping midroll for now.");
       return;
     }
 
-    console.log(`[PM] 🎯 Starting ad break via schedule: ${breakDecision.expectedAds} ads expected`);
 
     // Start the ad break in the schedule
     this.adSchedule.onAdBreakStarted();
     
     const adType = this.selectOptimalAdType();
-    console.log(
-      "[PM] Starting midroll via playAd(). Type: %s, Next Index: %d",
-      adType,
-      this.adSequenceCounter
-    );
 
     try {
       await this.playAd(adType, this.getAdContext());
@@ -544,12 +501,10 @@ async onTrackEnd(meta) {
     }
   } else {
     // 🔥 FALLBACK: Original logic if no ad schedule
-    console.log("[PM] No ad schedule, using fallback logic");
 
     // Guests/premium: skip ad cadence
     if (this.identity.userType !== "regular" || this.state.isAdBlocked) {
       this._songsSinceLastBreak = 0;
-      console.log("[PM] Ads disabled for user type in fallback:", this.identity.userType);
       return;
     }
     
@@ -558,40 +513,29 @@ async onTrackEnd(meta) {
     const minAdInterval = 1 * 60 * 1000; // 1 minute between ads
     
     if (now - lastAdTime < minAdInterval) {
-      console.log(`[PM] Time cooldown active - ${Math.round((minAdInterval - (now - lastAdTime)) / 1000)}s remaining`);
       this._songsSinceLastBreak = (this._songsSinceLastBreak || 0) + 1;
       return;
     }
 
     this._songsSinceLastBreak = (this._songsSinceLastBreak || 0) + 1;
-    console.log("[PM] Songs since last ad break:", this._songsSinceLastBreak);
 
     const cadenceThreshold = this._isTestMode ? this._testEveryNSongs || 3 : 3; // Fixed 3 songs
 
     if (this._songsSinceLastBreak < cadenceThreshold) {
-      console.log(`[PM] < ${cadenceThreshold} completed songs since last break; no ad this time.`);
       return;
     }
 
     if (this.identity.userType === "premium" || this.state.isAdBlocked) {
-      console.log("[PM] Ads blocked for premium user; skipping midroll.");
       this._songsSinceLastBreak = 0;
       return;
     }
 
     if (this.state.userBehavior.consecutiveAdErrors >= this.state.adRules.maxConsecutiveErrors) {
-      console.log("[PM] Too many consecutive ad errors; skipping midroll for now.");
       this._songsSinceLastBreak = 0;
       return;
     }
 
     const adType = this.selectOptimalAdType();
-    console.log(
-      "[PM] Starting midroll via playAd() after %d completed songs. Type: %s, Next Index: %d",
-      cadenceThreshold,
-      adType,
-      this.adSequenceCounter
-    );
 
     this._songsSinceLastBreak = 0;
 
@@ -619,16 +563,11 @@ async onTrackEnd(meta) {
   updateCurrentGenre(genre) {
     if (this._isDestroyed) return;
     this.state.userBehavior.currentGenre = genre || null;
-    console.log("🎵 [PM] Current genre:", genre);
   }
 
   recordSkip() {
     if (this._isDestroyed) return;
     this.state.userBehavior.skipCount++;
-    console.log(
-      "⏭️ [PM] Skip recorded. Total skips:",
-      this.state.userBehavior.skipCount
-    );
   }
 
   // ===== DECISION ENGINE (still used for preroll, analytics, etc.) =====
@@ -636,28 +575,17 @@ async onTrackEnd(meta) {
   shouldPlayAd(adType = "midroll") {
     if (this._isDestroyed) return false;
 
-    console.log("[PM] shouldPlayAd called", {
-      adType,
-      userType: this.identity.userType,
-      isAdBlocked: this.state.isAdBlocked,
-      songsPlayed: this.state.userBehavior.songsPlayed,
-    });
 
     if (this.identity.userType !== "regular" || this.state.isAdBlocked) {
-      console.log("[PM] shouldPlayAd: 🔕 Ads blocked for user");
       return false;
     }
     if (!this.ads) {
-      console.log("[PM] shouldPlayAd: 🔕 No ad player available");
       return false;
     }
     if (
       this.state.userBehavior.consecutiveAdErrors >=
       this.state.adRules.maxConsecutiveErrors
     ) {
-      console.log(
-        "[PM] shouldPlayAd: 🔕 Too many consecutive ad errors"
-      );
       return false;
     }
 
@@ -667,7 +595,6 @@ async onTrackEnd(meta) {
 
     // Minimum interval
     if (now - behavior.lastAdPlayedAt < rules.minInterval) {
-      console.log("[PM] shouldPlayAd: ⏰ Too soon for next ad");
       return false;
     }
 
@@ -676,7 +603,6 @@ async onTrackEnd(meta) {
       (p) => p.adPlayed && now - p.timestamp < 3600000
     ).length;
     if (adsThisHour >= rules.maxAdsPerHour) {
-      console.log("[PM] shouldPlayAd: 🚫 Hourly ad limit reached");
       return false;
     }
 
@@ -688,7 +614,6 @@ async onTrackEnd(meta) {
         ? true
         : Math.random() < 0.3 * timeMultiplier;
       if (!passTime) {
-        console.log("[PM] shouldPlayAd: 🕒 Not optimal time for ad");
         return false;
       }
     }
@@ -696,29 +621,20 @@ async onTrackEnd(meta) {
     // Engagement
     const engagementScore = this._calculateEngagementScore();
     if (!this._testForceAdChance && engagementScore < 0.3) {
-      console.log("[PM] shouldPlayAd: 😴 Low engagement; defer ad");
       return false;
     }
 
     // High-value opportunities
     if (rules.genreSpecificAds && this._hasGenreAdOpportunity()) {
-      console.log("[PM] shouldPlayAd: 🎯 Genre-specific ad opportunity → YES");
       return true;
     }
     if (rules.locationBasedAds && this._hasLocationAdOpportunity()) {
-      console.log("[PM] shouldPlayAd: 🌍 Location-based ad opportunity → YES");
       return true;
     }
 
     // Cadence fallback (mainly for preroll / others now)
     const every = this._testEveryNSongs || 3;
     const cadenceOK = behavior.songsPlayed % every === 0;
-    console.log(
-      "[PM] shouldPlayAd cadence check:",
-      cadenceOK
-        ? `✅ Regular ad slot (every ${every} songs)`
-        : `➰ Not a cadence slot (every ${every} songs)`
-    );
     return cadenceOK;
   }
 
@@ -782,7 +698,6 @@ async onTrackEnd(meta) {
       adType = "premium_midroll";
     else if (this._calculateEngagementScore() > 0.8) adType = "interactive";
 
-    console.log(`🎯 [PM] Selected ad type: ${adType}`);
     return adType;
   }
 
@@ -808,14 +723,8 @@ async onTrackEnd(meta) {
       throw new Error("PlayerManager has been destroyed");
     }
 
-    console.log("[PM] playMusic called", {
-      owner: this.owner,
-      hasTrackMeta: !!trackMeta,
-      policy: this.policy,
-    });
 
     if (this.owner === "ad") {
-      console.log("[PM] playMusic: 🎧 Ad is playing. Music must wait.");
       return false;
     }
 
@@ -824,14 +733,12 @@ async onTrackEnd(meta) {
 
       // Optional preroll
       if (trackMeta && this.policy.preroll && this.shouldPlayAd("preroll")) {
-        console.log("[PM] playMusic: 🔄 Preroll ad detected...");
         const adType = this.selectOptimalAdType();
         await this._executeAdPlayback(adType, this.getAdContext());
       }
 
       await this.content.play?.();
       this.owner = "content";
-      console.log("[PM] 🎶 Music is playing");
 
       if (trackMeta) {
         this.onTrackStart(trackMeta);
@@ -849,7 +756,6 @@ async onTrackEnd(meta) {
     if (this._isDestroyed) {
       throw new Error("PlayerManager has been destroyed");
     }
-    console.log("[PM] playAd called", { adType, context });
     return this._executeAdPlayback(adType, context);
   }
 
@@ -857,10 +763,8 @@ async onTrackEnd(meta) {
     if (this._isDestroyed) return false;
     this.recordSkip();
     if (this.owner === "ad") {
-      console.log("[PM] skip: ❌ Cannot skip ads");
       return false;
     }
-    console.log("[PM] ⏭️ Skip executed");
     return true;
   }
 
@@ -871,17 +775,8 @@ async onTrackEnd(meta) {
       throw new Error("PlayerManager has been destroyed");
     }
 
-    console.log("[PM] _executeAdPlayback CALLED", {
-      adType,
-      identity: this.identity,
-      userType: this.identity.userType,
-      songsPlayed: this.state.userBehavior.songsPlayed,
-      owner: this.owner,
-      hasAds: !!this.ads,
-    });
 
     if (this.identity.userType === "premium" || this.state.isAdBlocked) {
-      console.log("[PM] _executeAdPlayback: ads blocked for user");
       this._emit("onAdBlocked", { reason: "premium_user" });
       return;
     }
@@ -892,7 +787,6 @@ async onTrackEnd(meta) {
     }
 
     if (this._adPlaybackPromise) {
-      console.log("[PM] _executeAdPlayback: ad already in progress, reusing promise");
       return this._adPlaybackPromise;
     }
 
@@ -928,7 +822,6 @@ async onTrackEnd(meta) {
         reason: "ad_break",
         adType,
       });
-      console.log("[PM] 🚦 Music paused for ad (owner was content)");
     }
 
     this.owner = "ad";
@@ -940,7 +833,6 @@ async onTrackEnd(meta) {
       context: enhancedContext,
     });
 
-    console.log(`📢 [PM] Playing ${adType} ad`, enhancedContext);
 
     this._emit("onAdDecision", {
       adType,
@@ -996,16 +888,10 @@ async onTrackEnd(meta) {
       wasPlayingBeforeAd: wasPlaying,
     };
 
-    console.log("[PM] Ad capping info:", this.getAdCappingInfo());
 
 
       const adIndex = this.getNextAdIndex();
 
-      console.log("[PM] Calling ads.playAd now →", {
-        adType,
-        adIndex,
-        hasAds: !!this.ads,
-      });
 
       // await this.ads.playAd(adType, context);
        await this.ads.playAd(adIndex, enhancedContext);
@@ -1033,7 +919,6 @@ async onTrackEnd(meta) {
       this.playedAdsHistory = this.playedAdsHistory.slice(-20);
     }
     
-    console.log(`[PM] Recorded ad play: "${adTitle}" (ID: ${adId})`);
   }
 
 
@@ -1053,7 +938,6 @@ async onTrackEnd(meta) {
                      sessionPlays >= this.adCappingRules.maxSameAdPerSession;
     
     if (shouldCap) {
-      console.log(`[PM] Ad capped: "${adId}" - recent plays: ${recentPlays.length}, session plays: ${sessionPlays}`);
     }
     
     return shouldCap;
@@ -1073,7 +957,6 @@ async onTrackEnd(meta) {
 _handleAdComplete() {
   if (this._isDestroyed || this.owner !== "ad") return;
 
-  console.log("✅ [PM] Ad completed - handling completion");
 
   this.owner = "idle";
   this._emit("onAdComplete", {});
@@ -1085,11 +968,9 @@ _handleAdComplete() {
   setTimeout(() => {
     if (this.adSchedule && this.adSchedule.isInAdBreak()) {
       const remaining = this.adSchedule.consumeAdSlot();
-      console.log("[PM] Ad break: adsRemainingInBreak after consume =", remaining);
 
       if (remaining > 0) {
         const adType = this.selectOptimalAdType();
-        console.log(`[PM] Playing follow-up ad, next index: ${this.adSequenceCounter}`);
         this.playAd(adType, this.getAdContext()).catch((error) => {
           console.error("[PM] Follow-up ad in break failed:", error);
         });
@@ -1098,7 +979,6 @@ _handleAdComplete() {
     }
 
     if (this.autoResume && this.state.isInterrupted) {
-      console.log("[PM] Notifying main audio to resume after ad");
       // Just reset the state, don't call _resumeContent()
       this.state.isInterrupted = false;
       this.state.interruptedPosition = 0;
@@ -1121,7 +1001,6 @@ _handleAdComplete() {
 //     // 🔥 GET THE AD INDEX AND LOG IT
 //     const adIndex = this.getNextAdIndex();
     
-//     console.log("[PM] Calling ads.playAd with index →", {
 //       adType,
 //       adIndex,
 //       sequenceCounter: this.adSequenceCounter,
@@ -1153,7 +1032,6 @@ _handleAdError(error, wasPlaying = this.state.isInterrupted) {
     this.owner = "idle";
     if (wasPlaying) {
       // 🔥 DON'T resume here - let main audio handle it
-      console.log("[PM] Ad error - notifying main audio to resume");
       this.state.isInterrupted = false;
     }
   }
@@ -1179,7 +1057,6 @@ _handleAdError(error, wasPlaying = this.state.isInterrupted) {
 
   //     this.owner = "content";
   //     this._emit("onContentResumed", { position });
-  //     console.log("▶️ [PM] Resumed content after ad");
   //   } catch (error) {
   //     console.error("[PM] Error resuming content after ad:", error);
   //   }
@@ -1246,7 +1123,6 @@ _handleAdError(error, wasPlaying = this.state.isInterrupted) {
   destroy() {
     if (this._isDestroyed) return;
 
-    console.log("🧹 [PM] PlayerManager destroying...");
 
     this._emit("onDestroy", {});
 
@@ -1273,7 +1149,6 @@ _handleAdError(error, wasPlaying = this.state.isInterrupted) {
 
     Object.values(this.events).forEach((set) => set.clear());
 
-    console.log("🧹 [PM] PlayerManager destroyed");
   }
 
   // ===== UTILITY METHODS =====

@@ -48,9 +48,7 @@ const registerAdvertizer = async (_, args) => {
       existing.confirmationTokenExpire = expire;
       await existing.save();
 
-      console.log('🔁 Token expired. New token generated and saved.');
     } else {
-      console.log('🔁 Reusing existing valid token.');
     }
 
     const verificationLink = `${process.env.SERVER_URL}/api/verify-advertizer-email?token=${token}`;

@@ -2,18 +2,14 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Example dummy data
-const dummyLikesData = [
-  { title: 'Song A', likes: 120 },
-  { title: 'Song B', likes: 98 },
-  { title: 'Song C', likes: 75 },
-  { title: 'Song D', likes: 66 },
-  { title: 'Song E', likes: 50 },
-];
+const truncateTitle = (value = '') => {
+  const title = String(value);
+  return title.length > 14 ? `${title.slice(0, 13)}...` : title;
+};
 
-const COLORS = ['#f07f21', '#FFBB28', '#00C49F', '#0088FE', '#FF6666'];
+export default function TopLikedSongs({ data = [] }) {
+  const hasData = data.length > 0;
 
-export default function TopLikedSongs({ data = dummyLikesData }) {
   return (
 
 <>
@@ -23,7 +19,8 @@ export default function TopLikedSongs({ data = dummyLikesData }) {
     Top 5 Most Liked Songs
   </Typography>
 
-        <ResponsiveContainer width="100%" height="100%">
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
           <BarChart
             layout="vertical"
             data={data}
@@ -40,15 +37,32 @@ export default function TopLikedSongs({ data = dummyLikesData }) {
             <YAxis
               dataKey="title"
               type="category"
-              
-              tick={{ fill: 'white', fontSize: 12, opacity: .5 }}
+              width={88}
+              tickFormatter={truncateTitle}
+              tick={{ fill: 'white', fontSize: 9, opacity: .65 }}
+              interval={0}
             />
             <Tooltip
-              
+              formatter={(value) => [value, 'Likes']}
+              labelFormatter={(label) => label}
             />
             <Bar dataKey="likes" type="monotone" fill="#f07f21" />
           </BarChart>
         </ResponsiveContainer>
+        ) : (
+          <Box
+            sx={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography color="white" sx={{ opacity: 0.5 }}>
+              No liked songs yet
+            </Typography>
+          </Box>
+        )}
   
 
  </Box>

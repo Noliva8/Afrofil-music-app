@@ -788,7 +788,7 @@ export function SongCardHero({
   const mergedImg = {
     loading: heroProps?.imgLoading ?? imgLoading,
     decoding: heroProps?.imgDecoding ?? imgDecoding,
-    fetchpriority: heroProps?.imgFetchPriority ?? imgFetchPriority,
+    fetchPriority: heroProps?.imgFetchPriority ?? imgFetchPriority,
   };
 
   const FALLBACK_SVG =
@@ -862,7 +862,7 @@ export function SongCardHero({
             height="100%"
             loading={mergedImg.loading}
             decoding={mergedImg.decoding}
-            fetchpriority={mergedImg.fetchpriority}
+            fetchPriority={mergedImg.fetchPriority}
             src={artworkUrl || FALLBACK_SVG}
             alt={song?.title || "Song artwork"}
             sx={{ objectFit: "cover", objectPosition: "center" }}
@@ -1214,7 +1214,7 @@ export function CompactSongCardHero({
             height="100%"
             loading={imgLoading}
             decoding={imgDecoding}
-            fetchpriority={imgFetchPriority}
+            fetchPriority={imgFetchPriority}
             src={artworkUrl || FALLBACK}
             alt={song.title}
             sx={{ objectFit: "cover", objectPosition: "center" }}

@@ -6,13 +6,11 @@ import Stripe from 'stripe';
 
 
 export function handlePaymentIntentSucceeded(paymentIntent){
-    console.log('check the structure ofthe paymentIntent:', paymentIntent)
 }
 
 
 
 export function  handlePaymentIntentFailed(paymentIntentFailed){
-    console.log('check the structure ofthe paymentIntent:', paymentIntentFailed)
 }
 
 

@@ -200,9 +200,6 @@ const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   fetchPolicy: 'cache-and-network',
   onCompleted: (data) => {
-    // console.log('✅ Query completed! Data:', data);
-    // console.log('🔍 getArtistSongs result:', data?.getArtistSongs);
-    // console.log('🔍 Array length:', data?.getArtistSongs?.length);
   },
   onError: (error) => {
     console.error('❌ Query error:', error);
@@ -226,8 +223,8 @@ const { songsWithArtwork: hydratedSongs } = useSongsWithPresignedUrls(rawSongs);
 const processedSongs = useMemo(() => processSongs(hydratedSongs), [hydratedSongs]);
 const secondarySongs = useMemo(() => processedSongs.slice(6, 12), [processedSongs]);
 
-if (songsError) console.log('songsError:', songsError);
-if (shouldSkipSongs) console.log('Skipping song query (no artist id)');
+if (songsError) undefined;
+if (shouldSkipSongs) undefined;
 
 const hasServerSongs = Boolean(songsData?.getArtistSongs?.length);
 
@@ -297,7 +294,6 @@ const handleCloseMenu = () => {
 
   const limitedSongs = songs.slice(0, 6);
 
-console.log('top track processesd:', limitedSongs)
   const mappedTracks = limitedSongs.map((song, idx) => {
     const hydrated = Array.isArray(hydratedSongs) ? hydratedSongs[idx] : null;
     const durationSeconds = Number(song.durationSeconds ?? song.duration ?? hydrated?.duration ?? hydrated?.durationSeconds ?? 0);
@@ -615,7 +611,7 @@ console.log('top track processesd:', limitedSongs)
       {
         icon: <Description />,
         label: 'Bio',
-        onClick: () => console.log('Bio clicked'),
+        onClick: () => undefined,
       },
       {
         icon: isFollowing ? <Person /> : <PersonAdd />,
@@ -625,7 +621,7 @@ console.log('top track processesd:', limitedSongs)
       {
         icon: <Radio />,
         label: 'Go to artist radio',
-        onClick: () => console.log('Radio clicked'),
+        onClick: () => undefined,
       },
       {
         icon: <Share />,
@@ -635,20 +631,20 @@ console.log('top track processesd:', limitedSongs)
       {
         icon: <DesktopWindows />,
         label: 'Open in Desktop app',
-        onClick: () => console.log('Desktop app clicked'),
+        onClick: () => undefined,
       },
       { type: 'divider' },
       {
         icon: <Block />,
         label: 'Block artist',
         color: '#ff4444',
-        onClick: () => console.log('Block clicked'),
+        onClick: () => undefined,
       },
       {
         icon: <Flag />,
         label: 'Report',
         color: '#ff4444',
-        onClick: () => console.log('Report clicked'),
+        onClick: () => undefined,
       },
     ],
     [handleFollowToggle, handleShareArtist, isFollowing]

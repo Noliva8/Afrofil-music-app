@@ -100,7 +100,6 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
 
 //   try {
 //     // Log the formState to ensure the data is correct
-//     // console.log('Form State:', formState);
     
 //     const { data } = await login({
 //       variables: { ...formState },
@@ -119,7 +118,6 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
 //       if (profile && profile.data && profile.data.confirmed) {
 //         setLoginErrorMessage('');
 //       } else {
-//         // console.log('Artist is NOT confirmed or profile data is missing');
 //       }
 //     } else {
 //       setLoginErrorMessage('Login failed. Please check your credentials.');
@@ -315,7 +313,6 @@ const client = useApolloClient();
 
 //   try {
 //     // Log the formState to ensure the data is correct
-//     // console.log('Form State:', formState);
     
 //     const { data } = await login({
 //       variables: { ...formState },
@@ -330,7 +327,6 @@ const client = useApolloClient();
 //       ArtistAuth.login(artistToken);
 
 //       // 🧹 CLEAN UP TEMPORARY CACHE
-//       console.log('🧹 Cleaning up temporary plan data after login');
 //       localStorage.removeItem('artistProfile');
       
 //       // Fetch the profile to check the confirmed status
@@ -340,7 +336,6 @@ const client = useApolloClient();
 //         setLoginErrorMessage('');
 //         navigate('/artist/studio/home');
 //       } else {
-//         // console.log('Artist is NOT confirmed or profile data is missing');
 //         navigate('/artist/verification');
 //       }
 //     } else {
@@ -398,7 +393,6 @@ const handleFormSubmit = async (event) => {
       ArtistAuth.login(artistToken);
 
       // 🧹 CLEAN UP TEMPORARY CACHE
-      console.log('🧹 Cleaning up temporary plan data after login');
       localStorage.removeItem('artistProfile');
       
       // Clear Apollo cache for sensitive queries

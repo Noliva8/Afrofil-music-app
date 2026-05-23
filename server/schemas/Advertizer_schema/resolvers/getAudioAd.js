@@ -240,10 +240,6 @@ export const getAudioAd = async (_, { userLocation }, context) => {
       };
     }
 
-    console.log('📍 Normalized Location:', {
-      original: userLocation,
-      normalized: normalizedLocation
-    });
 
     // 3.5. Try cache first – keyed by user + normalized location
     const userId = context?.user?._id || context?.req?.user?._id || null;
@@ -283,7 +279,6 @@ export const getAudioAd = async (_, { userLocation }, context) => {
       ? { ...baseConditions, $or: locationConditions }
       : baseConditions;
 
-    console.log('🔍 Final ad query:', JSON.stringify(finalConditions, null, 2));
 
     // 7. Execute query with prioritization
     const ads = await Ad.find(finalConditions)
@@ -331,7 +326,6 @@ const validAds = ads.filter(ad => {
 });
 
 
-    console.log(`✅ Found ${validAds.length} valid ads out of ${ads.length} total`);
 
     // 9. Format response EXACTLY as specified in query
     const formattedAds = validAds.map(ad => ({
@@ -427,7 +421,6 @@ export const normalizeExistingAds = async () => {
       updatedCount++;
     }
     
-    console.log(`✅ Normalized ${updatedCount} existing ads`);
     return { success: true, normalized: updatedCount };
   } catch (error) {
     console.error('Error normalizing ads:', error);

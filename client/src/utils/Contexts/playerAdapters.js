@@ -35,11 +35,6 @@ const createSafeAdAdapter = (adapter) => {
       }
 
       try {
-        console.log(`🎯 Playing ${adType} ad with context:`, {
-          identity: context.identity,
-          genre: context.genre,
-          location: context.location?.country
-        });
 
         const result = await adapter.playAd(adType, context);
         return result;
@@ -163,12 +158,6 @@ export const createMockAdAdapter = (config = {}) => {
       isPlaying = true;
 
       if (logEvents) {
-        console.log(`🎬 MockAd: Starting ${adType} ad`, {
-          duration: AD_DURATIONS[adType] || AD_DURATIONS.default,
-          identity,
-          genre: context.genre,
-          location: environment.location
-        });
       }
 
       // Simulate network delay before ad starts
@@ -187,7 +176,6 @@ export const createMockAdAdapter = (config = {}) => {
       return new Promise((resolve) => {
         timeoutId = setTimeout(() => {
           if (logEvents) {
-            console.log(`✅ MockAd: Completed ${adType} ad`);
           }
           clearPlayback();
           completeCallback?.();
@@ -198,7 +186,6 @@ export const createMockAdAdapter = (config = {}) => {
 
     stopAd() {
       if (logEvents) {
-        console.log('⏹️ MockAd: Stopped manually');
       }
       clearPlayback();
     },
@@ -214,14 +201,12 @@ export const createMockAdAdapter = (config = {}) => {
     updateIdentity(newIdentity) {
       identity = { ...identity, ...newIdentity };
       if (logEvents) {
-        console.log('👤 MockAd: Identity updated', identity);
       }
     },
 
     updateEnvironment(newEnvironment) {
       environment = { ...environment, ...newEnvironment };
       if (logEvents) {
-        console.log('🌍 MockAd: Environment updated', environment);
       }
     },
 
@@ -262,16 +247,13 @@ export const createRealAdAdapter = (adConfig = {}) => {
     try {
       // Example: Google IMA initialization
       // adManager = new google.ima.AdManager(...);
-      console.log('AdAdapter: Initializing real ad manager', config);
       
       // Mock implementation - replace with real SDK
       adManager = {
         playAd: async (adType) => {
-          console.log(`🎬 RealAd: Playing ${adType} via ${config.adTagUrl || config.adUnitPath}`);
           // Real ad playback implementation would go here
         },
         stopAd: () => {
-          console.log('⏹️ RealAd: Stopping current ad');
         }
       };
 
@@ -295,7 +277,6 @@ export const createRealAdAdapter = (adConfig = {}) => {
           ...context
         };
 
-        console.log('🎯 RealAd: Playing with targeting', targetingParams);
         
         await manager.playAd(adType, targetingParams);
         
@@ -367,10 +348,6 @@ export const attachAudioProviderToManager = (pm, identity, audioCtx) => {
       pm.updateCurrentGenre(genre);
     }
 
-    console.log('🔗 AudioProvider attached to PlayerManager', {
-      userType: safeIdentity.userType,
-      genre: genre || 'none'
-    });
   } catch (error) {
     console.error('attachAudioProviderToManager: Failed to attach', error);
   }
@@ -409,13 +386,7 @@ export const primeManagerFromAudioContext = (pm, audioCtx, geo) => {
         pm.onTrackLoaded(trackMeta);
       }
 
-      console.log('🎵 Primed PlayerManager with track', {
-        title: track.title,
-        genre: track.genre,
-        duration: track.duration
-      });
     } else {
-      console.log('🎵 No current track available for priming');
     }
   } catch (error) {
     console.error('primeManagerFromAudioContext: Failed to prime', error);
@@ -428,7 +399,6 @@ export const createEnvironmentAwareAdAdapter = () => {
   const useMockAds = process.env.REACT_APP_USE_MOCK_ADS === 'true';
   
   if (isDevelopment || useMockAds) {
-    console.log('🔧 Using mock ad adapter for development');
     return createMockAdAdapter({
       logEvents: true,
       failRate: 0.1, // 10% failure rate in development
@@ -436,7 +406,6 @@ export const createEnvironmentAwareAdAdapter = () => {
     });
   }
   
-  console.log('🚀 Using real ad adapter for production');
   return createRealAdAdapter({
     adTagUrl: process.env.REACT_APP_AD_TAG_URL,
     adUnitPath: process.env.REACT_APP_AD_UNIT_PATH

@@ -406,13 +406,11 @@ const toggleShuffle = useCallback(() => {
 
 
 const cycleRepeatMode = useCallback(() => {
-  console.log('cycleRepeatMode called, current mode:', playerState.repeatMode);
   setPlayerState(prev => {
     const next =
       prev.repeatMode === RepeatMode.OFF ? RepeatMode.ALL :
       prev.repeatMode === RepeatMode.ALL ? RepeatMode.ONE :
       RepeatMode.OFF;
-    console.log('Changing repeat mode from', prev.repeatMode, 'to', next);
     return { ...prev, repeatMode: next };
   });
 }, [playerState.repeatMode]);
@@ -463,32 +461,17 @@ const cycleRepeatMode = useCallback(() => {
 const pickNextIndex = useCallback((reason = "auto") => {
 
 
- console.log('=== pickNextIndex ===');
-  console.log('Reason:', reason);
-  console.log('Current repeatMode:', playerState.repeatMode);
-  console.log('Current shuffle:', playerState.shuffle);
-  console.log('Queue length:', canonicalQueueRef.current.length);
-  console.log('Current index:', currentIndexRef.current);
 
-    console.log('pickNextIndex called:', {
-    reason,
-    total: canonicalQueueRef.current.length,
-    current: currentIndexRef.current,
-    repeatMode: playerState.repeatMode,
-    shuffle: playerState.shuffle
-  });
 
 
   const total = canonicalQueueRef.current.length;
     if (!total) {
-    console.log('No tracks in queue');
     return -1;
   }
 
 
 
   const cur = currentIndexRef.current;
-   console.log('Current index:', cur, 'of', total);
 
   // Repeat ONE: stay on current track when auto-ended
   if (playerState.repeatMode === RepeatMode.ONE && reason === "ended") {
@@ -546,7 +529,6 @@ const pickNextIndex = useCallback((reason = "auto") => {
   // device info (one-time)
   useEffect(() => {
     const deviceInfo = getClientDeviceInfo();
-    console.log('the device the user is using:', deviceInfo);
   }, []);
 
   // Init audio element (one-time)
@@ -567,7 +549,6 @@ const pickNextIndex = useCallback((reason = "auto") => {
           case 4: console.error('MEDIA_ERR_SRC_NOT_SUPPORTED'); break;
           default: break;
         }
-        console.log('Audio src:', audio.src);
       }
     };
 
@@ -996,7 +977,6 @@ const pendingUserResumeRef = useRef(false);
 useEffect(() => {
   if (didResumeRef.current) return;
   const session = resumeData?.playbackSession;
-  console.log('check resumed data:', session);
   if (!session || !session.track) return;
 
   didResumeRef.current = true;
@@ -1012,11 +992,8 @@ useEffect(() => {
 
   (async () => {
     const current = normalizeForResume(session.track);
-    console.log('the song to play:', current);
-    console.log('URL signed?', current.url?.includes('Signature=') ? 'YES' : 'NO');
 
     const restRaw = Array.isArray(session.queue) ? session.queue : [];
-    console.log('see queue length:', restRaw.length);
     const rest = restRaw.map(normalizeForResume);
 
     // reconstruct canonical queue: currentTrack + remaining
@@ -1227,7 +1204,6 @@ try {
 //     // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
 //     const currentTrack = currentTrackRef.current;
 //   if (currentTrack && playerManagerRef.current) {
-//     console.log("[AUDIO] ⏭️ Manual skip, notifying track end");
 //     try {
 //       await playerManagerRef.current.onTrackEnd({
 //         id: currentTrack.id || currentTrack._id,
@@ -1236,7 +1212,6 @@ try {
 //         duration: currentTrack.duration,
 //         artist: currentTrack.artist,
 //       });
-//       console.log("[AUDIO] ✅ Track end notified to PlayerManager");
 //     } catch (error) {
 //       console.error("[AUDIO] Error notifying track end on skip:", error);
 //     }
@@ -1278,7 +1253,6 @@ const skipNext = useCallback(async () => {
   // 🔥 NOTIFY PlayerManager that current track ended (manual skip)
   const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
-    console.log("[AUDIO] ⏭️ Manual skip, notifying track end");
     try {
       await playerManagerRef.current.onTrackEnd({
         id: currentTrack.id || currentTrack._id,
@@ -1287,7 +1261,6 @@ const skipNext = useCallback(async () => {
         duration: currentTrack.duration,
         artist: currentTrack.artist,
       });
-      console.log("[AUDIO] ✅ Track end notified to PlayerManager");
     } catch (error) {
       console.error("[AUDIO] Error notifying track end on skip:", error);
     }
@@ -1374,7 +1347,6 @@ const skipNext = useCallback(async () => {
 //   // 🔥 ADD THIS: Notify PlayerManager that the current track ended
 //   const currentTrack = currentTrackRef.current;
 //   if (currentTrack && playerManagerRef.current) {
-//     console.log("[AUDIO] 🎵 Track ended naturally, notifying PlayerManager");
 //     try {
 //       await playerManagerRef.current.onTrackEnd({
 //         id: currentTrack.id || currentTrack._id,
@@ -1399,7 +1371,6 @@ const handleEnded = async () => {
   // 🔥 Notify PlayerManager that the current track ended
   const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
-    console.log("[AUDIO] 🎵 Track ended naturally, notifying PlayerManager");
     try {
       await playerManagerRef.current.onTrackEnd({
         id: currentTrack.id || currentTrack._id,
@@ -1416,12 +1387,10 @@ const handleEnded = async () => {
   const total = canonicalQueueRef.current.length;
   if (!total) return;
 
-  console.log('PICK INDEX IS CALLED IN HANDLEENDED ...');
   
   // ✅ Decide next index based on shuffle/repeat
   const nextIndex = pickNextIndex("ended");
 
-  console.log('Next index determined:', nextIndex);
   
   if (nextIndex < 0) {
     // Repeat OFF at end - stop playback
@@ -1431,7 +1400,6 @@ const handleEnded = async () => {
 
   // Special handling for repeat ONE
   if (playerState.repeatMode === RepeatMode.ONE && nextIndex === currentIndexRef.current) {
-    console.log('Repeat ONE mode: restarting current track');
     
     // Option 1: Seek to beginning and play again
     if (audioRef.current) {
@@ -1541,7 +1509,6 @@ const handleEnded = async () => {
     // 🔥 NOTIFY PlayerManager that current track ended (manual previous)
     const currentTrack = currentTrackRef.current;
   if (currentTrack && playerManagerRef.current) {
-    console.log("[AUDIO] ⏮️ Manual previous, notifying track end");
     try {
       await playerManagerRef.current.onTrackEnd({
         id: currentTrack.id || currentTrack._id,
@@ -1550,7 +1517,6 @@ const handleEnded = async () => {
         duration: currentTrack.duration,
         artist: currentTrack.artist,
       });
-      console.log("[AUDIO] ✅ Track end notified to PlayerManager");
     } catch (error) {
       console.error("[AUDIO] Error notifying track end on previous:", error);
     }
@@ -1596,17 +1562,14 @@ const handleEnded = async () => {
 // ----------------------
 
 const handleAdEnded = useCallback(async (adIndex) => {
-  console.log(`[AUDIO] ✅ Ad ${adIndex} completed, preparing to resume music`);
   
   const currentTrack = currentTrackRef.current;
   const currentIndex = currentIndexRef.current;
   
   if (!currentTrack) {
-    console.log("[AUDIO] No current track to resume after ad");
     return;
   }
 
-  console.log(`[AUDIO] Resuming music after ad: ${currentTrack.title}`);
 
   // Resume the existing audio element where it left off
   if (audioRef.current) {
@@ -1622,7 +1585,6 @@ const handleAdEnded = useCallback(async (adIndex) => {
         isLoading: false,
         isAdPlaying: false,
       }));
-      console.log("[AUDIO] ✅ Resumed main audio after ad");
       return;
     } catch (err) {
       console.warn("[AUDIO] Fallback resume after ad failed, trying fresh play", err);
@@ -1644,7 +1606,6 @@ const handleAdEnded = useCallback(async (adIndex) => {
       isAdPlaying: false,
       currentAd: null,
     }));
-    console.log(`[AUDIO] ✅ Started fresh playback after ad: ${currentTrack.title}`);
   } catch (error) {
     console.error("[AUDIO] ❌ Failed to restart after ad:", error);
   }
@@ -1659,18 +1620,15 @@ const handleAdEnded = useCallback(async (adIndex) => {
   const saveSnapshotForAd = useCallback(
   
     async (overrideWasPlaying = null) => {
-       console.log('hello 1 ..')
       if (!isUserLoggedIn) return;
       const audio = audioRef.current;
 
-     console.log('hello 2 ..')
       if (!audio || !playerState.currentTrack) return;
 
       const adState =
         playerManagerRef.current?.getAdResumeSnapshot?.() || null;
 
 
-     console.log('hello 3..')
 
       const trackInput = toPlaybackTrackInput(playerState.currentTrack);
       if (!trackInput?.id) {
@@ -1719,7 +1677,6 @@ const handleAdEnded = useCallback(async (adIndex) => {
 // Listen for ad completion events
 useEffect(() => {
   const handleAdPlaybackFinished = (payload) => {
-    console.log("[AUDIO] 🎯 Ad playback finished, resuming music");
     handleAdEnded(payload?.adIndex);
   };
 
@@ -1736,7 +1693,6 @@ useEffect(() => {
 // Listen for ad start to hard-pause main audio and flag ad state
 useEffect(() => {
   const handleAdStarted = async (payload) => {
-    console.log("[AUDIO] 🚦 AD_STARTED received, pausing main audio", payload);
     if (audioRef.current) {
       try {
         if (typeof audioRef.current.pauseAsync === "function") {
@@ -1767,7 +1723,6 @@ useEffect(() => {
 // useEffect to your main audio provider
 useEffect(() => {
   const handleAdPauseRequest = async (payload) => {
-    console.log("[AUDIO] Ad system requesting pause");
     if (audioRef.current && playerState.isPlaying) {
       try {
         if (typeof audioRef.current.pauseAsync === "function") {
@@ -1776,9 +1731,7 @@ useEffect(() => {
           audioRef.current.pause();
         }
         setPlayerState((prev) => ({ ...prev, isPlaying: false }));
-        console.log("[AUDIO] Paused main audio for ad");
       } catch (error) {
-        console.log("[AUDIO] Error pausing for ad:", error);
       }
     }
   };
@@ -1794,17 +1747,14 @@ useEffect(() => {
 // useEffect to coordinate ad completion
 useEffect(() => {
   const handleAdCompleted = async (payload) => {
-    console.log("[AUDIO] Received AD_COMPLETED, waiting before resuming...");
     
     // 🔥 Wait a bit to ensure ad system is fully cleaned up
     await new Promise(resolve => setTimeout(resolve, 400));
     
     // 🔥 Only resume if we're actually in an ad state
     if (playerState.isAdPlaying) {
-      console.log("[AUDIO] Triggering resume after ad completion");
       handleAdEnded(payload.adIndex);
     } else {
-      console.log("[AUDIO] Not in ad state, ignoring completion event");
     }
   };
 

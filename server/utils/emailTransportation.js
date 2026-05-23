@@ -28,7 +28,6 @@ const transporter = nodemailer.createTransport({
 if (emailUser && emailPass) {
   transporter.verify()
     .then(() => {
-      console.log("Email transport ready.");
     })
     .catch((error) => {
       console.error("Email transport verify failed:", {
@@ -45,7 +44,6 @@ async function sendEmail(to, subject, html) {
   }
 
   try {
-    console.log("Sending email:", { to, subject });
     const info = await transporter.sendMail({
       from: emailFrom,
       to,

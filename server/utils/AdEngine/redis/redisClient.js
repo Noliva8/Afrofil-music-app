@@ -19,14 +19,11 @@ function createRedisClient() {
     const redisUrl = process.env.REDIS_URL || 
         'redis://default:0mdu56G71eupxCZOzpMQYSRVVm6PFy2v@redis-17576.c1.us-west-2-2.ec2.redns.redis-cloud.com:17576';
 
-    // console.log('🔧 Redis Configuration:');
-    // console.log(' - URL:', redisUrl.replace(/:([^@]+)@/, ':***@'));
     
     return redis.createClient({
         url: redisUrl,
         socket: {
             reconnectStrategy: (retries) => {
-                console.log(`Redis reconnecting attempt ${retries}`);
                 return Math.min(retries * 100, 3000);
             },
             connectTimeout: 15000,
@@ -57,29 +54,23 @@ export async function initializeRedis() {
             });
 
             redisClient.on('connect', () => {
-                console.log('🔌 Connecting to Redis...');
             });
 
             redisClient.on('ready', () => {
-                console.log('✅ Redis Client Ready');
             });
 
             redisClient.on('end', () => {
-                console.log('🔴 Redis connection closed');
                 isConnecting = false;
                 connectionPromise = null;
             });
 
             redisClient.on('reconnecting', () => {
-                console.log('🔄 Redis reconnecting...');
             });
 
-            console.log('🚀 Attempting Redis connection...');
             await redisClient.connect();
             
             // Test connection immediately
             const pingResult = await redisClient.ping();
-            console.log('✅ Connected to Redis successfully! Ping:', pingResult);
             
             isConnecting = false;
             return redisClient;
@@ -92,21 +83,8 @@ export async function initializeRedis() {
             
             // // Provide detailed error information
             // if (error.message.includes('NOAUTH')) {
-            //     console.log('\n🔐 AUTHENTICATION TROUBLESHOOTING:');
-            //     console.log('1. Check if REDIS_PASSWORD is set in your .env file');
-            //     console.log('2. Verify the password matches your Redis Cloud dashboard');
-            //     console.log('3. Try the format: redis://:password@host:port');
-            //     console.log('4. Ensure your Redis Cloud subscription is active');
             // } else if (error.message.includes('ECONNREFUSED')) {
-            //     console.log('\n🌐 CONNECTION TROUBLESHOOTING:');
-            //     console.log('1. Check if the Redis Cloud instance is running');
-            //     console.log('2. Verify the host/port in REDIS_URL');
-            //     console.log('3. Check your network/firewall settings');
             // } else if (error.message.includes('ENOTFOUND')) {
-            //     console.log('\n🔍 DNS TROUBLESHOOTING:');
-            //     console.log('1. The Redis host cannot be found');
-            //     console.log('2. Check the hostname in REDIS_URL');
-            //     console.log('3. Verify DNS resolution');
             // }
             
             redisClient = null;
@@ -124,7 +102,6 @@ export async function getRedis(maxRetries = 3) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             if (!redisClient || !redisClient.isOpen) {
-                console.log(`🔄 Redis connection attempt ${attempt}/${maxRetries}`);
                 return await initializeRedis();
             }
             
@@ -157,7 +134,6 @@ export async function checkRedisHealth() {
         await client.ping();
         const responseTime = Date.now() - startTime;
         
-        console.log(`✅ Redis health check passed (${responseTime}ms)`);
         return { healthy: true, responseTime };
     } catch (error) {
         console.error('❌ Redis health check failed:', error.message);
@@ -170,7 +146,6 @@ export async function checkRedisHealth() {
 export async function closeRedis() {
     if (redisClient) {
         await redisClient.quit();
-        console.log('Redis connection closed gracefully');
         redisClient = null;
         isConnecting = false;
         connectionPromise = null;
@@ -182,7 +157,6 @@ export async function debugRedisKeys(pattern = '*') {
     const client = await getRedis();
     try {
         const keys = await client.keys(pattern);
-        // console.log('Redis keys matching pattern:', pattern);
         
         const results = [];
         for (const key of keys.slice(0, 20)) {
@@ -245,5 +219,4 @@ export async function populateTestData() {
     // Set TTL
     await client.expire('session:sess_abc', 48 * 3600);
     
-    console.log('Test data populated successfully');
 }

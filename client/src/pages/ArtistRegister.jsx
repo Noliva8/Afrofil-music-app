@@ -118,7 +118,6 @@ export default function ArtistRegister() {
       });
 
       artist_auth.login(data.createArtist.artistToken);
-      console.log('Email being passed to verification:', signupFormState.email);
 
       // navigate("/artist/login"); 
        navigate("/artist/verification", { state: { email: signupFormState.email } });

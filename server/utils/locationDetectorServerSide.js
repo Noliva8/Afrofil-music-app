@@ -33,7 +33,6 @@ export function extractIp(req) {
   if (req?.query?.ip) {
     const queryIp = normalizeIp(req.query.ip);
     if (queryIp) {
-      console.log('[extractIp] query ip =', queryIp);
       return queryIp;
     }
   }
@@ -57,7 +56,6 @@ export function extractIp(req) {
     if (val) {
       const ip = normalizeIp(val);
       if (ip) {
-        console.log('[extractIp] header', h, '=', ip);
         return ip;
       }
     }
@@ -70,7 +68,6 @@ export function extractIp(req) {
     normalizeIp(req.connection?.socket?.remoteAddress) ||
     null;
 
-  console.log('[extractIp] fallback ip =', fallback);
   return fallback;
 }
 
@@ -78,11 +75,9 @@ export function extractIp(req) {
 export function getGeo(req, specificIp = null) {
   try {
     const ip = specificIp || extractIp(req);
-    console.log('[getGeo] lookup for ip:', ip);
     if (!ip) return { country: null, state: null, city: null };
 
     const rec = geoip.lookup(ip);
-    console.log('[getGeo] geoip-lite result:', rec);
 
     if (!rec) return { country: null, state: null, city: null };
 

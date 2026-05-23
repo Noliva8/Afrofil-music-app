@@ -14,11 +14,8 @@ const dropCollection = async (modelName) => {
 
     // If the collection exists, drop it
     if (collections.length) {
-      console.log(`Dropping collection: ${collectionName}`);
       await db.db.dropCollection(collectionName);
-      console.log(`Collection ${collectionName} dropped.`);
     } else {
-      console.log(`Collection ${collectionName} does not exist.`);
     }
   } catch (err) {
     console.error(`Error dropping collection ${modelName}:`, err);

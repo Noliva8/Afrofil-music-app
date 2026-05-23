@@ -14,7 +14,6 @@ export default function ArtistBookingNotifications({
   setDetailBookingId,
 }) {
 
-  console.log('see bookings:', pendingBookings)
   const toggleDetailFor = (bookingId) => {
     setDetailBookingId((prev) => (prev === bookingId ? null : bookingId));
   };

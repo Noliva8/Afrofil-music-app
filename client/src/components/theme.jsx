@@ -10,7 +10,6 @@ export default function AppTheme(props) {
   const { children, disableCustomTheme, themeComponents } = props;
 
   // Debugging
-  // console.log('Customizations:', {
   //   inputsCustomizations,
   //   dataDisplayCustomizations,
   //   navigationCustomizations,

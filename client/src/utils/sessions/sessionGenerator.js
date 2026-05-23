@@ -43,7 +43,6 @@ class SessionManager {
     sessionStorage.setItem('sessionLastActivity', this.lastActivity.toString());
 
     this.resetInactivityTimer();
-    console.log('🎯 New session started:', this.sessionId);
     return this.sessionId;
   }
 
@@ -69,7 +68,6 @@ class SessionManager {
     }
 
     this.timeoutId = setTimeout(() => {
-      console.log('🛑 Session ended due to inactivity:', this.sessionId);
       this.endSession();
     }, this.inactivityTimeout);
   }

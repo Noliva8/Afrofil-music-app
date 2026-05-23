@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useApolloClient, useQuery } from "@apollo/client";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client";
 import { SongCard } from "./otherSongsComponents/songCard.jsx";
 
 
@@ -32,12 +32,13 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 // Hooks & Utils
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../utils/handlePlayCount";
-import { SONG_BY_ID, SONGS_OF_ALBUM } from "../utils/queries";
+import { SHARE_SONG, SONG_BY_ID, SONGS_OF_ALBUM } from "../utils/queries";
 import { useSongsWithPresignedUrls } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
 import { handleTrendingSongPlay } from "../utils/plabackUtls/handleSongPlayBack.js";
 import { useScrollNavigation } from "../utils/someSongsUtils/scrollHooks.js";
 import { similarSongsUtil } from "../utils/someSongsUtils/similarSongsHook.js";
+import { shareSongLink } from "../utils/shareSong";
 
 // Components
 import { PlayButton } from "./PlayButton";
@@ -60,6 +61,7 @@ export const SingleSongPage = () => {
   const navigate = useNavigate();
   const client = useApolloClient();
   const { incrementPlayCount } = usePlayCount();
+  const [shareSongMutation] = useMutation(SHARE_SONG);
 
   // State
   const [isSubtitleHovered, setIsSubtitleHovered] = useState(false);
@@ -317,7 +319,6 @@ const theme = useTheme();
   // -----------------------
   const playableTrack = useMemo(() => {
     if (!song) return null;
-// console.log('see song again:,', song)
     const id = getId(song);
     const artistId = String(song.artistId || song.artist?._id || song.artist || "");
     const resolvedAlbumId = String(song.albumId || song.album?._id || song.album || albumId || "");
@@ -465,35 +466,20 @@ useEffect(() => {
     });
   }, [client, handlePlaySong, incrementPlayCount, playContextSongs, getId, playingTrack, playerIsPlaying, pause]);
 
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(async () => {
     if (!songId) return;
 
-    const shareUrl = `${window.location.origin}/album/${albumId || "album"}/${songId}`;
-    const title = song?.title || "Song";
-    const text =  song?.artist?.artistAka || "Listen to this track";
-
-    const shareFallback = async () => {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        console.log("Link copied to clipboard");
-      } catch (err) {
-        console.warn("Share failed", err);
-      }
-    };
-
-    if (navigator?.share) {
-      navigator.share({ title, text, url: shareUrl }).catch((err) => {
-        console.warn("Native share failed", err);
-      });
-    } else {
-      shareFallback();
-    }
-  }, [songId, albumId, song]);
+    await shareSongLink({
+      songId,
+      title: song?.title || "Song",
+      text: song?.artist?.artistAka || "Listen to this track",
+      shareSongMutation,
+    });
+  }, [songId, song, shareSongMutation]);
 
   const handleAddToFavorites = useCallback(() => {
     if (!song) return;
     setIsFavorite(!isFavorite);
-    console.log("Add to favorites", getId(song));
   }, [song, getId, isFavorite]);
 
   const handleAddToPlaylist = useCallback((track) => {
@@ -503,17 +489,22 @@ useEffect(() => {
   }, []);
 
   const handlePlayNext = useCallback((track) => {
-    console.log('Play next:', track.title);
     // Implement play next logic
   }, []);
 
-  const handleShareTrack = useCallback((track) => {
-    console.log('Share track:', track.title);
-    // Implement track sharing logic
-  }, []);
+  const handleShareTrack = useCallback(async (track) => {
+    const trackId = getId(track);
+    if (!trackId) return;
+
+    await shareSongLink({
+      songId: trackId,
+      title: track?.title || "Song",
+      text: track?.artistName || track?.artist?.artistAka || "Listen to this track",
+      shareSongMutation,
+    });
+  }, [getId, shareSongMutation]);
 
   const handleReportTrack = useCallback((track) => {
-    console.log('Report track:', track.title);
     // Implement report logic
   }, []);
 
@@ -576,7 +567,7 @@ useEffect(() => {
   const mainMenuItems = useMemo(
     () => [
       { icon: <Description />, label: "Play now", onClick: handlePrimaryPlay, fontWeight: 400 },
-      { icon: <SkipNextIcon />, label: "Play next", onClick: () => console.log("Play next clicked"), fontWeight: 400 },
+      { icon: <SkipNextIcon />, label: "Play next", onClick: () => undefined, fontWeight: 400 },
       { icon: <ShareIcon />, label: "Share", onClick: handleShare, fontWeight: 400 },
     ],
     [handlePrimaryPlay, handleShare]
@@ -931,6 +922,21 @@ useEffect(() => {
             </Box>
           </Box>
 
+          <Box
+            sx={{
+              display: { xs: "flex", md: "none" },
+              justifyContent: "flex-start",
+              width: "100%",
+              mt: 1,
+            }}
+          >
+            <PlayButton
+              handlePrimaryPlay={handlePrimaryPlay}
+              isArtistTrackPlaying={isSongPlaying}
+              playableTrack={playableTrack}
+            />
+          </Box>
+
           {/* Artist Info */}
           <Box
             sx={{
@@ -1000,7 +1006,7 @@ useEffect(() => {
           backgroundColor: "#121212",
         }}
       >
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <Box sx={{ display: { xs: "none", md: "flex" }, gap: 2, flexWrap: "wrap" }}>
           <PlayButton
             handlePrimaryPlay={handlePrimaryPlay}
             isArtistTrackPlaying={isSongPlaying}

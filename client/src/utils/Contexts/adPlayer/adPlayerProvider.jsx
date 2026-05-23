@@ -212,13 +212,11 @@
 //     adapterRef.current = createAdPlayerAdapter({
 //       apolloClient, // ✅ inject here
 //     });
-//     console.log("🎧 AdAudioProvider: ad adapter created with Apollo client");
 //   }
 
 //   // ---------- EVENT SUBSCRIPTIONS (eventBus -> adState) ----------
 //   useEffect(() => {
 //     const handleMetadataLoaded = (payload) => {
-//       console.log("📡 UI: AD_METADATA_LOADED", payload);
 //       setAdState((s) => ({
 //         ...s,
 //         currentAd: payload,
@@ -227,7 +225,6 @@
 //     };
 
 //     const handleAdStarted = (payload) => {
-//       console.log("📡 UI: AD_STARTED", payload);
 //       setAdState((s) => ({
 //         ...s,
 //         isPlaying: true,
@@ -246,7 +243,6 @@
 //     };
 
 //     const handleCompleted = (payload) => {
-//       console.log("📡 UI: AD_COMPLETED", payload);
 //       setAdState((s) => ({
 //         ...s,
 //         isPlaying: false,
@@ -259,7 +255,6 @@
 //     };
 
 //     const handleError = ({ error }) => {
-//       console.log("📡 UI: AD_ERROR", error);
 //       setAdState((s) => ({
 //         ...s,
 //         isPlaying: false,
@@ -345,15 +340,11 @@ export function AdAudioProvider({ children }) {
   useEffect(() => {
     if (initializationRef.current) return;
     
-    console.log("🎧 AdAudioProvider: Creating ad adapter");
     adapterRef.current = createAdPlayerAdapter({
       apolloClient,
     });
     initializationRef.current = true;
     
-    console.log("🎧 AdAudioProvider: ad adapter created", {
-      hasClient: !!apolloClient,
-    });
   }, [apolloClient]); // Only recreate if apolloClient changes
 
   // Ensure the adapter always has the latest Apollo client
@@ -365,13 +356,11 @@ export function AdAudioProvider({ children }) {
     }
 
     adapterRef.current.setApolloClient(apolloClient);
-    console.log("🔗 AdAudioProvider: Apollo Client synced to ad adapter");
   }, [apolloClient]);
 
   // ---------- EVENT SUBSCRIPTIONS (eventBus -> adState) ----------
   useEffect(() => {
     const handleMetadataLoaded = (payload) => {
-      console.log("📡 UI: AD_METADATA_LOADED", payload);
       setAdState((s) => ({
         ...s,
         currentAd: payload,
@@ -380,7 +369,6 @@ export function AdAudioProvider({ children }) {
     };
 
     const handleAdStarted = (payload) => {
-      console.log("📡 UI: AD_STARTED", payload);
       setAdState((s) => ({
         ...s,
         isPlaying: true,
@@ -423,7 +411,6 @@ export function AdAudioProvider({ children }) {
     };
 
     const handleCompleted = (payload) => {
-      console.log("📡 UI: AD_COMPLETED", payload);
       
       setAdState((s) => ({
         ...s,
@@ -443,7 +430,6 @@ export function AdAudioProvider({ children }) {
     };
 
     const handleError = ({ error }) => {
-      console.log("📡 UI: AD_ERROR", error);
       setAdState((s) => ({
         ...s,
         isPlaying: false,

@@ -72,7 +72,6 @@ export default function ArtistStudio() {
 
   const handleshowAccountMenu = () => {
     setShowAccountMenu((prev) => !prev);
-    console.log("biteeee");
   };
 
   // Show profile image anytime this profile loads (keep folder path)
@@ -115,7 +114,6 @@ export default function ArtistStudio() {
         const presignedUrl = data.getPresignedUrlDownload.url;
 
 
-console.log('structure of url on artist side:', presignedUrl)
         // Fetch the image from S3 using the presigned URL
         // const imageResponse = await fetch(presignedUrl);
         // if (!imageResponse.ok) {

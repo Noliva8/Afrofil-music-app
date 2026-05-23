@@ -6,14 +6,12 @@ import { Artist } from '../models/Artist/index_artist.js';
 
 export const updateArtistProfileImageUrlsSimple = async () => {
   try {
-    console.log('=== SIMPLE ARTIST PROFILE IMAGE UPDATE ===');
     
     // Find all artists with profile images
     const artists = await Artist.find({ 
       profileImage: { $exists: true, $ne: null } 
     }).select('_id fullName profileImage');
     
-    console.log(`Found ${artists.length} artists with profile images`);
     
     let updatedCount = 0;
     const changes = [];
@@ -51,28 +49,20 @@ export const updateArtistProfileImageUrlsSimple = async () => {
           new: newUrl
         });
         
-        console.log(`Updated: ${artist.fullName}`);
-        console.log(`  FROM: ${oldUrl}`);
-        console.log(`  TO:   ${newUrl}\n`);
         
       } catch (error) {
         console.error(`Error for ${artist.fullName}:`, error.message);
       }
     }
     
-    console.log(`\n✅ Updated ${updatedCount} artists successfully!`);
     
     // Verify
     const updatedArtists = await Artist.find({ 
       profileImage: { $regex: '/profile-picture/', $options: 'i' } 
     }).select('fullName profileImage');
     
-    console.log('\n=== VERIFICATION ===');
-    console.log(`Artists with /profile-picture/ folder: ${updatedArtists.length}`);
     
     updatedArtists.forEach(artist => {
-      console.log(`\n${artist.fullName}:`);
-      console.log(`  ${artist.profileImage.substring(0, 80)}...`);
     });
     
     return {
@@ -90,17 +80,14 @@ export const updateArtistProfileImageUrlsSimple = async () => {
 // Even simpler - direct update
 export const updateSingleArtistProfileImage = async () => {
   try {
-    console.log('Updating noliva profile image...');
     
     const artist = await Artist.findOne({ fullName: 'noliva' });
     
     if (!artist) {
-      console.log('Artist not found');
       return { success: false, error: 'Artist not found' };
     }
     
     const oldUrl = artist.profileImage;
-    console.log('Current URL:', oldUrl);
     
     // Simple string manipulation
     const newUrl = oldUrl.replace(
@@ -108,7 +95,6 @@ export const updateSingleArtistProfileImage = async () => {
       'afrofeel-profile-picture.s3.us-west-2.amazonaws.com/profile-picture/'
     );
     
-    console.log('New URL:', newUrl);
     
     // Direct update without validation
     await Artist.updateOne(
@@ -116,11 +102,9 @@ export const updateSingleArtistProfileImage = async () => {
       { $set: { profileImage: newUrl } }
     );
     
-    console.log('✅ Updated successfully!');
     
     // Verify
     const updated = await Artist.findById(artist._id).select('profileImage');
-    console.log('Verified URL:', updated.profileImage);
     
     return { success: true, oldUrl, newUrl };
     
@@ -132,7 +116,6 @@ export const updateSingleArtistProfileImage = async () => {
 
 // Run this!
 export const fixAllArtistProfileImages = async () => {
-  console.log('=== FIXING ALL ARTIST PROFILE IMAGES ===\n');
   
   // Just update directly for all artists
   const result = await Artist.updateMany(
@@ -157,14 +140,10 @@ export const fixAllArtistProfileImages = async () => {
     ]
   );
   
-  console.log(`Matched: ${result.matchedCount}`);
-  console.log(`Modified: ${result.modifiedCount}`);
   
   // Show results
   const artists = await Artist.find({}).select('fullName profileImage').limit(5);
-  console.log('\n=== SAMPLE RESULTS ===');
   artists.forEach(artist => {
-    console.log(`${artist.fullName}: ${artist.profileImage.substring(0, 80)}...`);
   });
   
   return result;
@@ -178,7 +157,6 @@ export const fixAllArtistProfileImages = async () => {
 
 // // Preview function
 // export const previewAddCoverImagesFolder = async () => {
-//   console.log('=== PREVIEW: Adding /cover-images/ folder ===');
   
 //   const songs = await Song.find({ 
 //     artwork: { 
@@ -187,7 +165,6 @@ export const fixAllArtistProfileImages = async () => {
 //     } 
 //   }).limit(10);
   
-//   console.log(`Will update ${songs.length} songs (showing first 10):\n`);
   
 //   songs.forEach((song, i) => {
 //     const oldUrl = song.artwork;
@@ -198,20 +175,13 @@ export const fixAllArtistProfileImages = async () => {
 //       const filename = currentPath.split('?')[0];
 //       const newUrl = `https://${url.hostname}/cover-images/${filename}`;
       
-//       console.log(`${i + 1}. ${song.title || song._id}`);
-//       console.log(`   FROM: ${oldUrl.substring(0, 80)}...`);
-//       console.log(`   TO:   ${newUrl.substring(0, 80)}...`);
-//       console.log('');
 //     } catch (e) {
-//       console.log(`${i + 1}. Could not parse: ${oldUrl.substring(0, 80)}...\n`);
 //     }
 //   });
   
-//   console.log('To apply: run addCoverImagesFolderToSongs()');
 // };
 // // Quick test function to preview changes
 // export const previewSongArtworkChanges = async () => {
-//   console.log('=== PREVIEW CHANGES (Dry Run) ===');
   
 //   const songs = await Song.find({ 
 //     artwork: { 
@@ -220,25 +190,18 @@ export const fixAllArtistProfileImages = async () => {
 //     } 
 //   }).limit(10);
   
-//   console.log(`Will update ${songs.length} songs (showing first 10):\n`);
   
 //   songs.forEach((song, i) => {
 //     const oldUrl = song.artwork;
 //     const newUrl = oldUrl.replace(/\/cover-images\//g, '/').replace(/\/\//g, '/');
     
-//     console.log(`${i + 1}. ${song.title || song._id}`);
-//     console.log(`   FROM: ${oldUrl.substring(0, 80)}...`);
-//     console.log(`   TO:   ${newUrl.substring(0, 80)}...`);
-//     console.log('');
 //   });
   
-//   console.log('To apply changes, run: updateSongArtworkUrls()');
 // };
 
 // // API endpoint wrapper
 // export const runSongArtworkMigration = async (req, res) => {
 //   try {
-//     console.log('API: Starting song artwork migration...');
 //     const result = await updateSongArtworkUrls();
     
 //     if (result.success) {
@@ -265,11 +228,9 @@ export const fixAllArtistProfileImages = async () => {
 
 
 //   try {
-//     console.log('Starting album cover migration...');
     
 //     const albums = await Album.find({ albumCoverImage: { $exists: true, $ne: null } });
     
-//     console.log(`Found ${albums.length} albums with cover images`);
     
 //     let updatedCount = 0;
 //     let skippedCount = 0;
@@ -315,7 +276,6 @@ export const fixAllArtistProfileImages = async () => {
         
 //         // Log progress every 50 albums
 //         if (updatedCount % 50 === 0) {
-//           console.log(`Progress: Updated ${updatedCount} albums...`);
 //         }
         
 //       } catch (albumError) {
@@ -324,18 +284,11 @@ export const fixAllArtistProfileImages = async () => {
 //       }
 //     }
     
-//     console.log('\n=== Migration Summary ===');
-//     console.log(`Total albums processed: ${albums.length}`);
-//     console.log(`Updated: ${updatedCount}`);
-//     console.log(`Skipped (already correct): ${skippedCount}`);
-//     console.log(`Errors: ${errorCount}`);
     
 //     // Verify some samples
-//     console.log('\n=== Sample Verification ===');
 //     const sampleAlbums = await Album.find().limit(3);
 //     sampleAlbums.forEach((album, index) => {
 //       if (album.albumCoverImage) {
-//         console.log(`Album ${index + 1}: ${album.albumCoverImage.substring(0, 80)}...`);
 //       }
 //     });
     
@@ -380,13 +333,11 @@ export const fixAllArtistProfileImages = async () => {
 
 // export const rollbackAlbumCoverMigration = async () => {
 //   try {
-//     console.log('Starting rollback...');
     
 //     const albums = await Album.find({ 
 //       albumCoverImage: { $regex: '/album-covers/', $options: 'i' } 
 //     });
     
-//     console.log(`Found ${albums.length} albums with album-covers folder`);
     
 //     let rolledBackCount = 0;
     
@@ -406,7 +357,6 @@ export const fixAllArtistProfileImages = async () => {
 //       }
 //     }
     
-//     console.log(`Rolled back: ${rolledBackCount} albums`);
 //     return { success: true, rolledBack: rolledBackCount };
     
 //   } catch (error) {

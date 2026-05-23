@@ -166,13 +166,10 @@ export const run = async (id) => {
   try {
    
     const shaped = shapeForRedis(songDoc);
-    console.log("🔷 Shaped data:", JSON.stringify(shaped, null, 2));
     
     const redisSafe = serialize(shaped);
-    console.log("🔶 Serialized for Redis:", redisSafe);
 
     await client.hSet(songKey(id), redisSafe);
-    console.log("✅ Song saved to Redis from script.");
   } catch (error) {
     console.error("❌ Error saving to Redis:", error);
   }
@@ -181,13 +178,10 @@ export const run = async (id) => {
     const song = await client.hGetAll(songKey(id));
 
     if (!song || Object.keys(song).length === 0) {
-      console.log("🚫 Song not found in Redis.");
     } else {
-      console.log("🎵 Raw Redis hash:", song);
     }
     
     const deserialized = deserializeFromRedisStorage(song, fieldTypes);
-    console.log("🎵 Deserialized song:", JSON.stringify(deserialized, null, 2));
     
     return deserialized;
   } catch (error) {

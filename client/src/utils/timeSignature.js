@@ -4,7 +4,6 @@
 
 export default function detectTimeSignature(beats, bpm) {
   if (beats.length < 8) return "4/4 (Insufficient data)";
-console.log(beats)
 
   // --- Step 1: Normalize beat intervals ---
   const expectedBeatInterval = 60 / bpm; // Theoretical interval for the given BPM

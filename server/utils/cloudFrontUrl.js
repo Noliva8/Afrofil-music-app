@@ -7,8 +7,6 @@
 
 
 // export function getSignedUrlCf (filePath, expiresInSeconds = 18000) {
-//   console.log('[CloudFront] 🚀 Generating signed URL with AWS SDK');
-//   console.log('[CloudFront] Input filePath:', filePath);
   
 //   // Get environment variables
 //   const keypairId = process.env.CLOUDFRONT_PUBLIC_KEY_ID;
@@ -60,7 +58,6 @@
 //     // Special: & must be %26 for CloudFront
 //     const finalPath = encodedPath.replace(/&/g, '%26');
     
-//     console.log('[CloudFront] Path encoding:', {
 //       input: cleanPath,
 //       decoded: decodedPath,
 //       encoded: encodedPath,
@@ -73,7 +70,6 @@
 //   const preparedPath = prepareUrlForSigning(filePath);
 //   const urlToSign = `https://${domain}${preparedPath}`;
   
-//   console.log('[CloudFront] URL to sign:', urlToSign);
   
 //   // Verify & is properly encoded
 //   if (urlToSign.includes('&') && !urlToSign.includes('%26')) {
@@ -101,7 +97,6 @@
 //       privateKey: privateKey,
 //     });
     
-//     console.log('[CloudFront] ✅ Signed URL generated');
     
 //     // Final validation
 //     const urlObj = new URL(signedUrl);

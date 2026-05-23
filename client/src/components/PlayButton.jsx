@@ -7,7 +7,7 @@ import useTheme from '@mui/material/styles/useTheme';
 import {PlayArrow, Pause} from '@mui/icons-material';
 
 
-export const PlayButton = ({handlePrimaryPlay, isArtistTrackPlaying, playableTrack }) => {
+export const PlayButton = ({handlePrimaryPlay, isArtistTrackPlaying, playableTrack, sx }) => {
 
 
 const theme = useTheme();
@@ -36,6 +36,7 @@ const theme = useTheme();
                 '&:hover': { transform: 'scale(1.02)' },
                 '&:active': { transform: 'scale(0.98)' },
                 transition: 'transform 0.2s ease',
+                ...sx,
               }}
             >
               {isArtistTrackPlaying ? 'Playing' : 'Play'}

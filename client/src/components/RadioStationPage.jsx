@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useApolloClient, useQuery } from "@apollo/client";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client";
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
@@ -28,9 +28,10 @@ import PersonIcon from "@mui/icons-material/Person";
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../utils/handlePlayCount";
 import { handleTrendingSongPlay } from "../utils/plabackUtls/handleSongPlayBack.js";
-import { RADIO_STATION, RADIO_STATION_SONGS } from "../utils/queries";
+import { RADIO_STATION, RADIO_STATION_SONGS, SHARE_SONG } from "../utils/queries";
 import { useSongsWithPresignedUrls } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
+import { getShareableSongId, shareSongLink } from "../utils/shareSong";
 import { AddButton } from "./AddButton.jsx";
 import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
 
@@ -49,6 +50,7 @@ const formatTotalDuration = (seconds) => {
 export const RadioStationPage = () => {
   const theme = useTheme();
   const client = useApolloClient();
+  const [shareSongMutation] = useMutation(SHARE_SONG);
   const navigate = useNavigate();
   const { stationId } = useParams();
   const [emptyModalOpen, setEmptyModalOpen] = useState(false);
@@ -177,14 +179,25 @@ export const RadioStationPage = () => {
     setPlaylistDialogOpen(true);
   }, []);
 
-  const handleShareTrack = useCallback((track) => {
+  const handleShareTrack = useCallback(async (track) => {
     if (!track) return;
-    console.log("Share track:", track.title);
-  }, []);
+    const songId = getShareableSongId(track) || getId(track);
+    if (!songId) return;
+    const title = track.title || track.songTitle || "Song";
+    const artistName = track.artistName || track?.artist?.artistAka || track?.artist?.name || "";
+
+    await shareSongLink({
+      songId,
+      title,
+      text: artistName ? `${title} by ${artistName}` : title,
+      shareSongMutation,
+    });
+    setTrackMenuAnchor(null);
+    setTrackDrawerOpen(false);
+  }, [getId, shareSongMutation]);
 
   const handleReportTrack = useCallback((track) => {
     if (!track) return;
-    console.log("Report track:", track.title);
   }, []);
 
   const handleOpenTrackMenu = (event, track) => {

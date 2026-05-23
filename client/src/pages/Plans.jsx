@@ -23,7 +23,7 @@ const plans = [
       'Access educational tips to grow your music career',
       'Fan "like" system with monthly shoutouts to top listeners',
     ],
-    price: 'Free forever',
+    price: 'Free',
     locked: false,
   },
   {
@@ -105,7 +105,6 @@ const PlanSelection = () => {
 //         title: "Single",
 //       }
 //     });
-//     console.log('Default album created');
 //   }
 // } catch (error) {
 //   console.warn('Album check/create is still running, skipping:', error.message);
@@ -118,7 +117,6 @@ const PlanSelection = () => {
 //     variables: { artistId, plan },
 //   });
 
-//       // console.log(data);
 
 //       // Plan Selection Navigation
 //       if (data.selectPlan.plan === "Free Plan") {
@@ -142,7 +140,6 @@ const handlePlanSelection = async (plan) => {
   setLoading(true);
   
   // Log the profile before starting
-  console.log('📥 [STEP 1] Initial profile from ArtistAuth:', ArtistAuth.getProfile()?.data);
   
   const profile = ArtistAuth.getProfile();
   if (!profile || !profile.data._id) {
@@ -153,20 +150,13 @@ const handlePlanSelection = async (plan) => {
   }
   
   const artistId = profile.data._id;
-  console.log('📥 [STEP 2] Artist ID:', artistId);
-  console.log('📥 [STEP 3] Selected plan:', plan);
   
   try {
-    console.log('📤 [STEP 4] Sending mutation with variables:', { artistId, plan });
     
     const { data } = await selectPlan({
       variables: { artistId, plan },
     });
 
-    console.log('📦 [STEP 5] Raw mutation response:', data);
-    console.log('📦 [STEP 5a] selectPlan data:', data.selectPlan);
-    console.log('📦 [STEP 5b] Original selectedPlan value:', data.selectPlan?.selectedPlan);
-    console.log('📦 [STEP 5c] All fields received:', Object.keys(data.selectPlan));
 
     // Manually ensure selectedPlan is true
     const profileData = {
@@ -174,32 +164,21 @@ const handlePlanSelection = async (plan) => {
       selectedPlan: true  // Force it to true since we know it succeeded
     };
     
-    console.log('📦 [STEP 6] Profile data to store:', profileData);
 
     // Store in localStorage
     localStorage.setItem('artistProfile', JSON.stringify({ 
       data: profileData 
     }));
     
-    console.log('📦 [STEP 7] localStorage after setItem:');
     
     // Read back from localStorage to verify
     const storedRaw = localStorage.getItem('artistProfile');
-    console.log('📦 [STEP 7a] Raw localStorage value:', storedRaw);
     
     const storedParsed = JSON.parse(storedRaw);
-    console.log('📦 [STEP 7b] Parsed localStorage value:', storedParsed);
-    console.log('📦 [STEP 7c] selectedPlan in localStorage:', storedParsed?.data?.selectedPlan);
     
     // Check what ArtistAuth returns now
-    console.log('📦 [STEP 8] ArtistAuth.getProfile() after storage:', ArtistAuth.getProfile()?.data);
 
     // Navigate
-    console.log('📦 [STEP 9] Navigating to:', 
-      data.selectPlan.plan === "Free Plan" ? '/artist/studio/home' :
-      data.selectPlan.plan === "Premium Plan" ? '/artist/dashboard/premium' :
-      data.selectPlan.plan === "Pro Plan" ? '/artist/dashboard/ProPlan' : 'unknown'
-    );
     
     if (data.selectPlan.plan === "Free Plan") {
       navigate('/artist/studio/home');

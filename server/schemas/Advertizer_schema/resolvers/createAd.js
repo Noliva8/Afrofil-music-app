@@ -55,7 +55,7 @@ await cleanupDraftAds(advertiserId);
 
   const validAdTypes = ['audio', 'banner', 'overlay'];
   if (!validAdTypes.includes(adType)) {
-    console.log("Invalid adType received:", adType); // Log if adType is invalid
+// Log if adType is invalid
     throw new GraphQLError(`Unsupported adType. Allowed values: ${validAdTypes.join(', ')}`, {
       extensions: { code: 'BAD_USER_INPUT' }
     });
@@ -136,9 +136,7 @@ await cleanupDraftAds(advertiserId);
     isMajorCity: quote.basis.includes('major')
   };
 
-  // console.log('verify quote:', quote);
 
-  // console.log("Saving ad with adType:", adType);  
 
   // 5) Create the ad
   const ad = await Ad.create({
@@ -181,7 +179,6 @@ export const cleanupDraftAds = async (advertiserId) => {
       isCostConfirmed: false,
       
     });
-    console.log(`Cleaned up ${result.deletedCount} draft ads`);
     return result.deletedCount;
   } catch (error) {
     console.error('Error cleaning up draft ads:', error);

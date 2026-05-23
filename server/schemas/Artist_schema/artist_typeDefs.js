@@ -94,6 +94,39 @@ processingAttempts: Int
   audioPresignedUrl: String          
 }
 
+type ArtistSupport {
+  _id: ID!
+  songId: Song!
+  artistId: Artist!
+  userId: User!
+  grossAmount: Int!
+  currency: String!
+  stripeFee: Int!
+  platformFee: Int!
+  artistAmount: Int!
+  status: String!
+  stripeCheckoutSessionId: String
+  stripePaymentIntentId: String
+  supporterCountry: String
+  supporterCountryCode: String
+  artistCountry: String
+  platformCountry: String
+  paidAt: Date
+  createdAt: Date!
+  updatedAt: Date!
+}
+
+type ArtistSupportPaymentPayload {
+  supportId: ID!
+  clientSecret: String!
+}
+
+type ArtistSupportRevenue {
+  totalArtistAmount: Int!
+  paidSupportCount: Int!
+  currency: String!
+}
+
 
 type SongUploadInit{
 song: Song!
@@ -713,6 +746,7 @@ type Query {
   allArtists: [Artist]
   artistProfile: Artist
   songsOfArtist: [Song]
+  artistSupportRevenue: ArtistSupportRevenue!
  getArtistSongs(artistId: ID!): [Song]
   songHash(audioHash: String):Song
   albumOfArtist: [Album]
@@ -921,6 +955,11 @@ handlePlayCount(
 ):Song
 
  shareSong(songId: ID!): Song
+
+createArtistSupport(
+ songId: ID!
+ amount: Float!
+): ArtistSupportPaymentPayload!
 
 toggleLikeSong(songId: ID!): Song
 

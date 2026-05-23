@@ -76,7 +76,6 @@ export async function albumCreateRedis(albumData, options = {}) {
     if (!updateExisting) {
       const exists = await withTimeout(redis.exists(key), 1500, 'Exists timeout');
       if (exists) {
-        console.log(`Album ${albumId} already exists in Redis`);
         return { success: true, action: 'exists' };
       }
     }
@@ -116,7 +115,6 @@ export async function albumCreateRedis(albumData, options = {}) {
 
     await checkMemoryAndNotify(redis, `albumCreateRedis:${albumId}`);
 
-    console.log(`✅ Album ${albumId} ${updateExisting ? 'updated' : 'created'} in Redis`);
     return { success: true, action: updateExisting ? 'updated' : 'created' };
 
   } catch (error) {
@@ -199,7 +197,6 @@ export async function deleteAlbumRedis(albumId) {
       await withTimeout(redis.del(key), 1500, 'DEL timeout');
     }
 
-    console.log(`✅ Album ${albumId} deleted from Redis`);
     return { success: true };
 
   } catch (error) {

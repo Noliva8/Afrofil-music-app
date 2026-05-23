@@ -6,7 +6,7 @@ import useTheme from '@mui/material/styles/useTheme';
 import { alpha } from "@mui/material/styles";
 import { useNavigate, useParams } from "react-router-dom";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client";
-import { QUERY_USER_PLAYLISTS } from "../utils/queries";
+import { QUERY_USER_PLAYLISTS, SHARE_SONG } from "../utils/queries";
 import { REMOVE_SONG_FROM_PLAYLIST } from "../utils/mutations";
 import UserAuth from "../utils/auth";
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
@@ -20,6 +20,7 @@ import { ActionButtonsGroup } from "../components/ActionButtonsGroup";
 import { ActionMenu } from "../components/ActionMenu";
 import { TrackListSection } from "../components/TrackListSection";
 import AddToPlaylistModal from "../components/AddToPlaylistModal";
+import { shareSongLink } from "../utils/shareSong";
 
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -49,6 +50,7 @@ export default function CollectionPage() {
   const [favoritePlaylistIds, setFavoritePlaylistIds] = useState(() => new Set());
   const navigate = useNavigate();
   const client = useApolloClient();
+  const [shareSongMutation] = useMutation(SHARE_SONG);
 
   const { currentTrack, isPlaying, handlePlaySong, pause, playerState } = useAudioPlayer();
   const playingId = currentTrack?.id || currentTrack?._id || null;
@@ -292,7 +294,6 @@ const selectedPlaylist = useMemo(
 
   const handleReportTrack = useCallback((track) => {
     if (!track) return;
-    console.log("Report track:", track.title);
   }, []);
 
   const selectedTrackId = useMemo(() => getId(selectedTrack), [selectedTrack, getId]);
@@ -314,28 +315,18 @@ const selectedPlaylist = useMemo(
   }, [handleRemoveSong, selectedTrack]);
 
   const handleShareTrack = useCallback(
-    (track) => {
-      if (!track?._id) return;
-      const shareUrl = `${window.location.origin}/song/${track._id}`;
-      const title = track.title || "Song";
-      const text = track.artistName || track?.artist?.artistAka || "Listen to this track";
+    async (track) => {
+      const trackId = track?._id || track?.id;
+      if (!trackId) return;
 
-      const sharePayload = { title, text, url: shareUrl };
-      const shareFallback = async () => {
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-        } catch (err) {
-          console.warn("Share failed", err);
-        }
-      };
-
-      if (navigator?.share) {
-        navigator.share(sharePayload).catch(() => shareFallback());
-        return;
-      }
-      shareFallback();
+      await shareSongLink({
+        songId: trackId,
+        title: track.title || "Song",
+        text: track.artistName || track?.artist?.artistAka || "Listen to this track",
+        shareSongMutation,
+      });
     },
-    []
+    [shareSongMutation]
   );
 
   const playlistMenuItems = useMemo(

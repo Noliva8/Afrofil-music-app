@@ -254,7 +254,6 @@ function shouldUseCloudFront(bucket) {
 //       ResponseContentType: 'audio/mpeg',
 //     });
 
-//     // console.log("🔑 Audio key used for presigned URL:", key);
 
 //     return await getSignedUrl(client, command, { expiresIn: 18000 });
 //   } catch (error) {
@@ -322,7 +321,6 @@ function shouldUseCloudFront(bucket) {
 //   }
   
 //   // Fallback for unmapped buckets
-//   console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
 //   const client = new S3Client({ 
 //     region,
 //     credentials: {
@@ -388,7 +386,6 @@ function shouldUseCloudFront(bucket) {
 //   }
   
 //   // Fallback for unmapped buckets
-//   console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
 //   const client = new S3Client({ 
 //     region,
 //     credentials: {
@@ -456,7 +453,6 @@ function shouldUseCloudFront(bucket) {
 //   }
   
 //   // Fallback for unmapped buckets
-//   console.log(`⚠️ Using pre-signed for unmapped bucket: ${bucket}`);
 //   const client = new S3Client({ 
 //     region,
 //     credentials: {

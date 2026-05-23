@@ -7,7 +7,6 @@ export const usePWAInstall = () => {
 
   useEffect(() => {
     if (typeof window === 'undefined'){
-        console.log('type of window is undefined')
         return;
     } 
    
@@ -20,20 +19,17 @@ export const usePWAInstall = () => {
       setIsInstallable(true);
       
       // Optional: Log for debugging
-      console.log('PWA install prompt available');
     };
 
     // Check if app is already installed
     const checkIfInstalled = () => {
       if (window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('App is already installed');
         setIsInstallable(false);
       }
     };
 
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', () => {
-      console.log('App was successfully installed');
       setDeferredPrompt(null);
       setIsInstallable(false);
     });
@@ -50,7 +46,6 @@ export const usePWAInstall = () => {
   // Function to trigger the installation
   const triggerInstall = async () => {
     if (!deferredPrompt) {
-      console.log('No install prompt available');
       return false;
     }
 
@@ -65,10 +60,8 @@ export const usePWAInstall = () => {
       setDeferredPrompt(null);
       
       if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
         setIsInstallable(false);
       } else {
-        console.log('User dismissed the install prompt');
       }
       
       return outcome === 'accepted';

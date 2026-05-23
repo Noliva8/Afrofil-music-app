@@ -9,6 +9,7 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { ShareButton } from "./ShareButton.jsx";
 import BookingArtistButton from "./BookingArtistButton.jsx";
 import BookingArtistModal from "./BookingArtistModal.jsx";
+import ArtistSupportButton from "./ArtistSupportButton.jsx";
 
 export const ActionButtonsGroup = ({
   isFavorite,
@@ -33,16 +34,13 @@ export const ActionButtonsGroup = ({
 
 
   const [bookingOpen, setBookingOpen] = useState(false);
-  const [bookingContext, setBookingContext] = useState(null);
 
-  const handleBookingClick = (payload) => {
-    setBookingContext(payload);
+  const handleBookingClick = () => {
     setBookingOpen(true);
   };
 
   const handleBookingClose = () => {
     setBookingOpen(false);
-    setBookingContext(null);
   };
 
   const handleBookingSubmit = async (data) => {
@@ -112,7 +110,16 @@ export const ActionButtonsGroup = ({
         </IconButton>
       )}
 
-      {showShareButton && <ShareButton handleShare={onShare} />}
+      {showShareButton && (
+        <ShareButton
+          handleShare={onShare}
+          songId={supportSongId}
+          title={supportArtistName ? `Listen to ${supportArtistName}` : "Song"}
+          text="Listen to this track"
+        />
+      )}
+
+      <ArtistSupportButton songId={supportSongId} />
 
       {showMoreButton && (
         <IconButton

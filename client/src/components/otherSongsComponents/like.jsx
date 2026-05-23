@@ -1,5 +1,5 @@
 // LikesComponent.jsx
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
@@ -12,58 +12,49 @@ import Feedback from '../Feedback';
 import UserAuth from "../../utils/auth.js"
 import PanToolRoundedIcon from '@mui/icons-material/PanToolRounded';
 
+const getSongLikesCount = (song) => {
+  const value = song?.likesCount ?? song?.likedByUsers?.length ?? 0;
+  const count = Number(value);
+  return Number.isFinite(count) ? count : 0;
+};
 
 
-export function LikesComponent({ song, onRequireAuth }) {
+
+export function LikesComponent({ song, currentUserId, onRequireAuth }) {
 
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const isAuthenticated = Boolean(UserAuth.loggedIn?.());
   const profile = UserAuth.getProfile?.();
-  const userId = profile?.data?._id || null;
+  const userId = currentUserId || profile?.data?._id || null;
 
   const songId = useMemo(() => String(song?.id ?? song?._id ?? song?.songId ?? ''), [song]);
+  const previousSongIdRef = useRef(songId);
+  const isTogglingRef = useRef(false);
 
-  const [displayLikes, setDisplayLikes] = useState(Number(song?.likesCount ?? 0));
-  const [displayLikedByMe, setDisplayLikedByMe] = useState(Boolean(song?.likedByMe));
+  const [displayLikes, setDisplayLikes] = useState(getSongLikesCount(song));
+  const [displayLikedByMe, setDisplayLikedByMe] = useState(
+    Boolean(isAuthenticated && userId && song?.likedByMe)
+  );
 
   useEffect(() => {
-    setDisplayLikes(Number(song?.likesCount ?? 0));
-    setDisplayLikedByMe(Boolean(song?.likedByMe));
-  }, [song?.likesCount, song?.likedByMe]);
+    if (previousSongIdRef.current !== songId) {
+      previousSongIdRef.current = songId;
+      setDisplayLikes(getSongLikesCount(song));
+      setDisplayLikedByMe(Boolean(isAuthenticated && userId && song?.likedByMe));
+    }
+  }, [isAuthenticated, song, songId, userId]);
 
-  const likesCount = displayLikes;
-  const likedByMe = displayLikedByMe;
+  useEffect(() => {
+    if (isTogglingRef.current) return;
+    setDisplayLikes(getSongLikesCount(song));
+    setDisplayLikedByMe(Boolean(isAuthenticated && userId && song?.likedByMe));
+  }, [isAuthenticated, song, song?.likesCount, song?.likedByMe, userId]);
+
   const [toggleLike, { loading }] = useMutation(LIKES, {
-    variables: { songId },
-    // Instant UI update - but don't calculate likesCount optimistically
-    optimisticResponse: {
-      toggleLikeSong: {
-        __typename: 'Song',
-        _id: songId,
-        title: song?.title ?? '',
-        // DON'T calculate likesCount - let server determine the actual count
-        likesCount: likesCount, // Keep current count until server responds
-        likedByMe: !likedByMe, // Only toggle the boolean state
-        // provide required subfields to match selection set
-        streamAudioFileUrl: song?.streamAudioFileUrl ?? song?.audioUrl ?? null,
-        genre: song?.genre ?? null,
-        artwork: song?.artwork ?? song?.artworkUrl ?? null,
-        album: song?.album
-          ? { __typename: 'Album', _id: String(song.album._id ?? song.albumId ?? ''), title: song.album.title ?? '' }
-          : null,
-        artist: song?.artistId || song?.artist
-          ? {
-              __typename: 'Artist',
-              _id: String(song.artist?._id ?? song.artistId ?? ''),
-              artistAka: song.artist?.artistAka ?? song.artistName ?? ''
-            }
-          : null
-      }
-    },
     // Write the canonical Song entity so every list/card stays in sync
     update: (cache, { data }) => {
       const s = data?.toggleLikeSong;
-      console.log('likes data:', s)
       if (!s) return;
       cache.modify({
         id: cache.identify({ __typename: 'Song', _id: s._id }),
@@ -73,7 +64,7 @@ export function LikesComponent({ song, onRequireAuth }) {
         },
 
       });
-      setDisplayLikes(s.likesCount);
+      setDisplayLikes(getSongLikesCount(s));
       setDisplayLikedByMe(s.likedByMe);
       const dailyMixId = cache.identify({ __typename: 'DailyMixTrack', _id: s._id });
       if (dailyMixId) {
@@ -84,7 +75,7 @@ export function LikesComponent({ song, onRequireAuth }) {
             likedByMe: () => s.likedByMe,
           },
         });
-        setDisplayLikes(s.likesCount);
+        setDisplayLikes(getSongLikesCount(s));
         setDisplayLikedByMe(s.likedByMe);
       }
     },
@@ -97,21 +88,64 @@ export function LikesComponent({ song, onRequireAuth }) {
 
   const handleClick = async (e) => {
     e.stopPropagation();
-    if (!userId) {
+    if (!isAuthenticated || !userId) {
+      onRequireAuth?.();
       setFeedbackMessage('You need to login to like the song');
       setFeedbackOpen(true);
       return;
     }
     if (!songId) return;
 
+    const previousLikes = displayLikes;
+    const previousLikedByMe = displayLikedByMe;
+    const nextLikedByMe = !previousLikedByMe;
+    const nextLikes = Math.max(0, previousLikes + (nextLikedByMe ? 1 : -1));
+
+    isTogglingRef.current = true;
+    setDisplayLikes(nextLikes);
+    setDisplayLikedByMe(nextLikedByMe);
+
     try {
-      await toggleLike();
+      const { data } = await toggleLike({
+        variables: { songId },
+        optimisticResponse: {
+          toggleLikeSong: {
+            __typename: 'Song',
+            _id: songId,
+            title: song?.title ?? '',
+            likesCount: nextLikes,
+            likedByMe: nextLikedByMe,
+            streamAudioFileUrl: song?.streamAudioFileUrl ?? song?.audioUrl ?? null,
+            genre: song?.genre ?? null,
+            artwork: song?.artwork ?? song?.artworkUrl ?? null,
+            album: song?.album
+              ? { __typename: 'Album', _id: String(song.album._id ?? song.albumId ?? ''), title: song.album.title ?? '' }
+              : null,
+            artist: song?.artistId || song?.artist
+              ? {
+                  __typename: 'Artist',
+                  _id: String(song.artist?._id ?? song.artistId ?? ''),
+                  artistAka: song.artist?.artistAka ?? song.artistName ?? ''
+                }
+              : null
+          }
+        },
+      });
+      const updatedSong = data?.toggleLikeSong;
+      if (updatedSong) {
+        setDisplayLikes(getSongLikesCount(updatedSong));
+        setDisplayLikedByMe(Boolean(updatedSong.likedByMe));
+      }
     } catch (err) {
+      setDisplayLikes(previousLikes);
+      setDisplayLikedByMe(previousLikedByMe);
       if (err?.message?.includes('Unauthorized')) {
         // Already handled by modal — do nothing
       } else {
         console.error('[like] toggle failed:', err);
       }
+    } finally {
+      isTogglingRef.current = false;
     }
   };
 

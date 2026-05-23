@@ -97,7 +97,6 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
 
   const onSubmit = async (data) => {
     try {
-      console.log("Submitting album data:", data);
 
       const response = await createCustomAlbum({
         variables: {
@@ -112,9 +111,7 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
       // Refetch albums to ensure the dropdown reflects the new album
       await refetchAlbums();
 
-      console.log("Response:", response);
       const newAlbumId = response.data.createCustomAlbum._id;
-      console.log("New created album ID:", newAlbumId);
 
       if (response.data) {
         setAlbumId(newAlbumId);

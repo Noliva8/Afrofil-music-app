@@ -47,6 +47,7 @@ import { useBookingId } from "../utils/contexts/bookingIdContext";
 import { useArtistDownload } from "../utils/Contexts/artisDownload/useArtistDownload";
 import { useUser } from "../utils/Contexts/userContext";
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext.jsx";
+import { shareSongLink } from "../utils/shareSong";
 
 // Components
 import { ShuffleButton } from "./ShuffleButton.jsx";
@@ -612,35 +613,20 @@ useEffect(() => {
     });
   }, [client, handlePlaySong, incrementPlayCount, playContextSongs, getId, playingTrack, playerIsPlaying, pause]);
 
-  const handleShare = useCallback(() => {
+  const handleShare = useCallback(async () => {
     if (!songId) return;
 
-    const shareUrl = `${window.location.origin}/album/${albumId || "album"}/${songId}`;
-    const title = song?.title || "Song";
-    const text =  song?.artist?.artistAka || "Listen to this track";
-
-    const shareFallback = async () => {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-        console.log("Link copied to clipboard");
-      } catch (err) {
-        console.warn("Share failed", err);
-      }
-    };
-
-    if (navigator?.share) {
-      navigator.share({ title, text, url: shareUrl }).catch((err) => {
-        console.warn("Native share failed", err);
-      });
-    } else {
-      shareFallback();
-    }
-  }, [songId, albumId, song]);
+    await shareSongLink({
+      songId,
+      title: song?.title || "Song",
+      text: song?.artist?.artistAka || "Listen to this track",
+      shareSongMutation,
+    });
+  }, [songId, song, shareSongMutation]);
 
   const handleAddToFavorites = useCallback(() => {
     if (!song) return;
     setIsFavorite(!isFavorite);
-    console.log("Add to favorites", getId(song));
   }, [song, getId, isFavorite]);
 
 
@@ -655,25 +641,23 @@ useEffect(() => {
 
 
   const handlePlayNext = useCallback((track) => {
-    console.log('Play next:', track.title);
     // Implement play next logic
   }, []);
 
 
   const handleShareTrack = useCallback(
     async (track) => {
-      if (!track?._id) return;
-      try {
-        await shareSongMutation({ variables: { songId: track._id } });
-        alert("Share count updated. Link copied to clipboard.");
-        const url = `${window.location.origin}/song/${track._id}`;
-        await navigator.clipboard.writeText(url);
-      } catch (error) {
-        console.error("Share failed:", error);
-        alert("Unable to register the share. Try again.");
-      }
+      const trackId = getId(track);
+      if (!trackId) return;
+
+      await shareSongLink({
+        songId: trackId,
+        title: track?.title || "Song",
+        text: track?.artistName || track?.artist?.artistAka || "Listen to this track",
+        shareSongMutation,
+      });
     },
-    [shareSongMutation]
+    [getId, shareSongMutation]
   );
 
   const handleDownloadTrack = useCallback(
@@ -727,7 +711,6 @@ useEffect(() => {
   );
 
   const handleReportTrack = useCallback((track) => {
-    console.log('Report track:', track.title);
     // Implement report logic
   }, []);
 
@@ -832,8 +815,8 @@ useEffect(() => {
   const mainMenuItems = useMemo(() => {
     const items = [
       { icon: <Description />, label: "Play now", onClick: handlePrimaryPlay, fontWeight: 400 },
-      { icon: <Shuffle />, label: "Shuffle", onClick: () => console.log("Shuffle clicked"), fontWeight: 400 },
-      { icon: <SkipNextIcon />, label: "Play next", onClick: () => console.log("Play next clicked"), fontWeight: 400 },
+      { icon: <Shuffle />, label: "Shuffle", onClick: () => undefined, fontWeight: 400 },
+      { icon: <SkipNextIcon />, label: "Play next", onClick: () => undefined, fontWeight: 400 },
       { icon: <ShareIcon />, label: "Share", onClick: handleShare, fontWeight: 400 },
     ];
     if (bookingAllowed) {
@@ -1290,6 +1273,46 @@ Song:
 
           </Box>
 
+          <Box
+            sx={{
+              display: { xs: "grid", md: "none" },
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+              gap: 1,
+              width: "100%",
+              maxWidth: 360,
+              mt: 1,
+              "& .MuiButton-root": {
+                minWidth: 0,
+                width: "100%",
+              },
+              "& .MuiButton-startIcon": {
+                mr: 0.75,
+              },
+            }}
+          >
+            <PlayButton
+              handlePrimaryPlay={handlePrimaryPlay}
+              isArtistTrackPlaying={isSongPlaying}
+              playableTrack={playableTrack}
+              sx={{
+                px: 1,
+                minWidth: 0,
+                maxWidth: "none",
+                fontSize: { xs: "0.78rem", sm: "0.85rem" },
+              }}
+            />
+            <ShuffleButton
+              playableTrack={playableTrack}
+              isShuffled={isShuffled}
+              sx={{
+                px: 1,
+                minWidth: 0,
+                maxWidth: "none",
+                fontSize: { xs: "0.78rem", sm: "0.85rem" },
+              }}
+            />
+          </Box>
+
           {/* Artist Info */}
           <Box
             sx={{
@@ -1360,16 +1383,20 @@ Song:
         }}
       >
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-          <PlayButton
-            handlePrimaryPlay={handlePrimaryPlay}
-            isArtistTrackPlaying={isSongPlaying}
-            playableTrack={playableTrack}
-          />
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
+            <PlayButton
+              handlePrimaryPlay={handlePrimaryPlay}
+              isArtistTrackPlaying={isSongPlaying}
+              playableTrack={playableTrack}
+            />
+          </Box>
 
-          <ShuffleButton
-            playableTrack={playableTrack}
-            isShuffled={isShuffled}
-          />
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
+            <ShuffleButton
+              playableTrack={playableTrack}
+              isShuffled={isShuffled}
+            />
+          </Box>
         </Box>
 
         <ActionButtonsGroup

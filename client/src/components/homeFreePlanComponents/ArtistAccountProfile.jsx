@@ -65,7 +65,6 @@ const handleProfileImageUpload = async (e) => {
 
   // Get the current profile image URL from the database
   const profileImageUrl = artistData.artistProfile.profileImage;
-  console.log("Profile Image URL:", profileImageUrl);
 
   // Helper: derive full key (keeps folder path) from URL or key
   // If there is an existing image, prepare to delete it later
@@ -116,7 +115,6 @@ const handleProfileImageUpload = async (e) => {
     });
 
     const presignedUrl = data.getPresignedUrl.url;
-    console.log("Presigned URL for upload:", presignedUrl);
 
     // Step 3: Upload the file to S3
     const response = await fetch(presignedUrl, {
@@ -128,7 +126,6 @@ const handleProfileImageUpload = async (e) => {
     });
 
     if (response.ok) {
-      console.log("File uploaded successfully to S3");
       uploadedFileUrl = `https://afrofeel-profile-picture.s3.us-west-2.amazonaws.com/${uploadPrefix}${file.name}`;
     } else {
       console.error("File upload failed:", response.statusText, await response.text());
@@ -154,7 +151,6 @@ const handleProfileImageUpload = async (e) => {
       toast.error("Error updating profile with new image.");
       return;
     } else {
-      console.log("Artist profile updated successfully:", updatedArtistData.updateArtistProfile);
       // Optionally refetch the artist profile to update the UI
       refetch();
        toast.success("Profile image updated successfully!");
@@ -189,7 +185,6 @@ const handleProfileImageUpload = async (e) => {
       });
 
       if (deleteResponse.ok) {
-        console.log("Old file deleted successfully from S3");
       } else {
         console.error("File delete failed:", deleteResponse.statusText, await deleteResponse.text());
         toast.error("Error deleting the old file from S3.");

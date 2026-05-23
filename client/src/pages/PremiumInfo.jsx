@@ -101,7 +101,6 @@ export function PremiumInfo() {
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
   const profile = UserAuth.getProfile();
   const userId = profile?.data?._id || profile?._id;
-console.log('see id in promo:', userId)
 
 
   const { data, loading, error, refetch } = useQuery(USER_SUBSCRIPTION, {
@@ -112,7 +111,6 @@ console.log('see id in promo:', userId)
 
 
 
-console.log('data for subscription', data);
 
 
 

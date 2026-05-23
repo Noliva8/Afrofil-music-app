@@ -215,18 +215,22 @@ export const deserializeFromRedisStorage = (hash, typeMap) => {
 
 
 export const addSongRedis = async (id, client) => {
-  console.log('id sent to redis:', id);
 
   try {
+    const redisClient = client || await getRedis();
+    if (!redisClient) {
+      console.warn('⚠️ Redis unavailable; skipped song cache write:', id);
+      return false;
+    }
+
     const key = songKey(id);
 
     // 1️⃣ Check existence via canonical field
-    const exists = await client.hExists(key, '_id');
+    const exists = await redisClient.hExists(key, '_id');
 
     // 2️⃣ If exists → refresh TTL only
     if (exists) {
-      await client.expire(key, songHashExpiration);
-      console.log(`♻️ Refreshed TTL for song ${id}`);
+      await redisClient.expire(key, songHashExpiration);
       return false;
     }
 
@@ -244,13 +248,12 @@ export const addSongRedis = async (id, client) => {
     const redisSafe = serialize(shapeForRedis(songDoc));
 
     // 4️⃣ Write hash + TTL
-    await client
+    await redisClient
       .multi()
       .hSet(key, redisSafe)
       .expire(key, songHashExpiration)
       .exec();
 
-    console.log(`✅ Song ${id} saved to Redis with TTL refreshed.`);
     return true;
 
   } catch (error) {
@@ -270,11 +273,9 @@ export const getSongRedis = async (id, client) => {
     const song = await client.hGetAll(songKey(id));
 
     if (!song || Object.keys(song).length === 0) {
-      console.log(`🚫 Song ${id} not found in Redis.`);
       return null; // Explicitly return null
     }
     
-    // console.log(`🎵 Raw Redis hash for ${id}:`, Object.keys(song).length, "fields");
     
     const deserialized = deserializeFromRedisStorage(song, fieldTypes);
     
@@ -284,7 +285,6 @@ export const getSongRedis = async (id, client) => {
       return null;
     }
     
-    // console.log(`✅ Successfully retrieved song ${id} from Redis`);
     return deserialized;
     
   } catch (error) {
@@ -340,11 +340,9 @@ export const songsHashRepair = async (client) => {
     }
 
     if (ids.length === 0) {
-      console.log("[songsHashRepair] No song keys matched.", { pattern, prefix, suffix });
       return { inspected: 0, repaired: 0 };
     }
 
-    console.log(`[songsHashRepair] Found ${ids.length} song hashes. Repairing...`);
 
     const BATCH = 25;
     let repaired = 0;
@@ -361,13 +359,8 @@ export const songsHashRepair = async (client) => {
       }
       repaired += ok;
 
-      console.log(
-        `[songsHashRepair] Batch ${Math.floor(i / BATCH) + 1}/${Math.ceil(ids.length / BATCH)}: `
-        + `repaired ${ok}/${slice.length}`
-      );
     }
 
-    console.log(`[songsHashRepair] Done. Repaired ${repaired}/${ids.length}.`);
     return { inspected: ids.length, repaired };
   } catch (err) {
     console.error("[songsHashRepair] Failed:", err);

@@ -33,8 +33,9 @@ export const getFullKeyFromUrlOrKey = (value) => {
   }
 };
 
-export const useSongsWithPresignedUrls = (songsData) => {
+export const useSongsWithPresignedUrls = (songsData, options = {}) => {
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const includeRelatedImages = options.includeRelatedImages !== false;
 
 
 
@@ -54,7 +55,7 @@ export const useSongsWithPresignedUrls = (songsData) => {
 
       const signature = songsData
         .map((song) => song?._id ?? song?.id ?? song?.songId ?? '')
-        .join('|');
+        .join('|') + `|related:${includeRelatedImages ? '1' : '0'}`;
 
       if (signature === lastSignatureRef.current) {
         return;
@@ -121,12 +122,10 @@ export const useSongsWithPresignedUrls = (songsData) => {
             // -----------------------------
             // 3) Artist profile image (full key)
             // -----------------------------
-            const rawProfileImage = song?.artist?.profileImage || null;
-            const artistProfileKey = rawProfileImage
-              ? getFullKeyFromUrlOrKey(rawProfileImage)
-              : null;
+            const rawProfileImage = includeRelatedImages ? song?.artist?.profileImage || null : null;
+            const artistProfileKey = rawProfileImage ? getFullKeyFromUrlOrKey(rawProfileImage) : null;
 
-            if (artistProfileKey) {
+            if (includeRelatedImages && artistProfileKey) {
               try {
                 const { data } = await getPresignedUrlDownload({
                   variables: {
@@ -146,11 +145,11 @@ export const useSongsWithPresignedUrls = (songsData) => {
             // -----------------------------
             // 4) Artist cover image (full key)
             // -----------------------------
-            const artistCoverKey = song?.artist?.coverImage
+            const artistCoverKey = includeRelatedImages && song?.artist?.coverImage
               ? getFullKeyFromUrlOrKey(song.artist.coverImage)
               : null;
 
-            if (artistCoverKey) {
+            if (includeRelatedImages && artistCoverKey) {
               try {
                 const { data } = await getPresignedUrlDownload({
                   variables: {
@@ -170,11 +169,11 @@ export const useSongsWithPresignedUrls = (songsData) => {
             // -----------------------------
             // 5) Album cover image (full key)
             // -----------------------------
-            const albumCoverKey = song?.album?.albumCoverImage
+            const albumCoverKey = includeRelatedImages && song?.album?.albumCoverImage
               ? getFullKeyFromUrlOrKey(song.album.albumCoverImage)
               : null;
 
-            if (albumCoverKey) {
+            if (includeRelatedImages && albumCoverKey) {
               try {
                 const { data } = await getPresignedUrlDownload({
                   variables: {
@@ -226,7 +225,7 @@ export const useSongsWithPresignedUrls = (songsData) => {
     };
 
     fetchArtworksAndAudio();
-  }, [songsData]);
+  }, [songsData, includeRelatedImages]);
 
   return { songsWithArtwork, loading };
 };
@@ -248,7 +247,6 @@ export const useSongsWithPresignedUrlsMemoized = (songsData) => {
   useEffect(() => {
     const fetchArtworksAndAudio = async () => {
       if (!songsData || !Array.isArray(songsData)) {
-        console.log('No songs data available or not an array:', songsData);
         setSongsWithArtwork([]);
         setLoading(false);
         lastSignatureRef.current = '';

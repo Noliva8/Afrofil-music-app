@@ -76,7 +76,7 @@ const topGenresForUser = async (userId, n = 3) => {
 
 
 const LOG = (...args) => {
-  if (process.env.NODE_ENV !== 'test') console.log('[telemetry/trackStart]', ...args);
+  if (process.env.NODE_ENV !== 'test') undefined;
 };
 const WARN = (...args) => console.warn('[telemetry/trackStart]', ...args);
 
@@ -359,7 +359,6 @@ export const trackComplete = async (_p, { input }, ctx) => {
     if (input.eventId) {
       const fresh = await markEventSeen(input.eventId);
       if (!fresh) {
-        console.log('TrackComplete event deduplicated:', input.eventId);
         return { ok: true, deduped: true, ad: null };
       }
     }

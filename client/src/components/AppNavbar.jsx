@@ -36,7 +36,6 @@ const [showLogout, setShowLogout] = useState(false);
               <div className={`profileContainer ${showLogout ? 'show' : ''}`}>
                 <button
                   onClick={() => {
-                    console.log('Logged out');
                     ArtistAuth.logout(); // Handle logout logic
                   }}
                 >

@@ -1,3 +1,4 @@
+import './utils/silenceConsole.js';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -64,11 +65,10 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
-        console.log('Service Worker registered:', reg);
         reg.addEventListener('updatefound', () => {
           const installing = reg.installing;
           installing?.addEventListener('statechange', () =>
-            console.log('SW state:', installing.state)
+            undefined
           );
         });
       })

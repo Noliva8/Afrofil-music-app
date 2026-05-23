@@ -26,9 +26,7 @@ const resendAdvertizerVerificationEmail = async (_, { businessEmail }) => {
       advertizer.confirmationTokenExpire = expire;
       await advertizer.save();
 
-      console.log('🔄 New token generated and saved.');
     } else {
-      console.log('✅ Reusing existing token.');
     }
 
     // ✅ Send the email regardless

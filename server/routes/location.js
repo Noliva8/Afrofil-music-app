@@ -90,7 +90,6 @@ router.get('/', async (req, res) => {
     // cache
     const cached = ipCache.get(ip);
     if (cached) {
-      console.log('[location] cache hit for ip:', ip);
       return res.json(cached);
     }
 
@@ -179,16 +178,6 @@ router.get('/', async (req, res) => {
 
     // Cache + log + respond
     ipCache.set(ip, payload);
-    console.log('[location] ip:', ip);
-    console.log('[location] method:', payload.method);
-    console.log('[location] result:', {
-      countryCode: payload.countryCode,
-      region: payload.region,
-      city: payload.city,
-      lat: payload.latitude,
-      lon: payload.longitude,
-      accuracy: payload.accuracy
-    });
 
     return res.json(payload);
   } catch (e) {

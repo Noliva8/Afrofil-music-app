@@ -44,13 +44,11 @@
 //   const similarData = await similarSongsUtil(client, track.id);
 //   const similarSongs = similarData.songs || [];
   
-//   console.log(`🎵 Server similar songs: ${similarSongs.length}`);
 
 //   // Process both similar songs and trending songs
 //   const processedSimilarSongs = processSongs(similarSongs);
 //   const processedTrendingSongs = processSongs(trendingSongs || []);
   
-//   console.log(`🎵 Component trending songs: ${processedTrendingSongs.length}`);
 
 //   // COMBINE BOTH SOURCES for a longer queue
 //   const combinedSongs = [
@@ -63,7 +61,6 @@
 //     )
 //   ];
 
-//   // console.log(`🎵 Combined queue: ${combinedSongs.length} total songs`);
 
 //   // Build the queue from COMBINED sources
 //   const { queue: builtQueue, queueIds } = buildTrendingQueue(
@@ -77,7 +74,6 @@
 //     }
 //   );
 
-//   console.log(`🎵 Built queue: ${builtQueue.length} songs after filtering`);
 
 //   // Final queue - no need for supplement since we already combined sources
 //   const finalQueue = builtQueue;
@@ -223,7 +219,6 @@ export const deriveArtworkKey = (item = {}) => {
   const raw = item.artwork || item.artworkUrl || item.artworkPresignedUrl || item.cover || null;
   const key = getFullKeyFromUrlOrKey(raw);
 
-  console.log('the KEY:', key)
 
   // If the key includes folders like `cover-images/...` keep it
   return key || null;
@@ -233,7 +228,6 @@ export const deriveArtworkKey = (item = {}) => {
 
 export const deriveAudiokKey = (item = {}) => {
   // Prefer explicit key if present
-  console.log('does the key exist?', item.audioKey)
   if (item.audioKey) return item.audioKey;
 
   // Fallback: extract key from stored `streamAudioFileUrl` / `audioUrl`
@@ -259,7 +253,6 @@ if (!track?.audioUrl && !track?.audioStreamKey && !track?.streamAudioFileUrl) {
   
 
   const key = track?.audioStreamKey || deriveAudiokKey(track);
-  console.log('see the key extracted before playing:', key)
   if (!key) return track;
 
   try {
@@ -317,7 +310,6 @@ if (!track?.audioUrl && !track?.audioStreamKey && !track?.streamAudioFileUrl) {
 // };
 
 // const ensureArtworkPresigned = async (items, client) => {
-//   console.log('reaching here ...?', items)
 //   if (!client || !items?.length) return;
 //   const tasks = items.map(async (item) => {
 //     if (!item) return;
@@ -552,12 +544,10 @@ const normalizeQueueItem = (s) => {
 //   // Get similar songs from server (with presigned URLs)
 //   const similarData = await similarSongsUtil(client, track.id);
 //   const similarSongs = similarData.songs || [];
-//   console.log(`🎵 Server similar songs: ${similarSongs.length}`);
 
 //   // Process both similar songs and trending songs
 //   const processedSimilarSongs = processSongs(similarSongs);
 //   const processedTrendingSongs = processSongs(trendingSongs || []);
-//   console.log(`🎵 Component trending songs: ${processedTrendingSongs.length}`);
 
 //   // COMBINE BOTH SOURCES for a longer queue (dedupe by id)
 //   const similarIds = new Set(processedSimilarSongs.map(s => String(pickId(s))));
@@ -577,7 +567,6 @@ const normalizeQueueItem = (s) => {
 //       w1: 10, w2: 15, w3: 20, w4: 25
 //     }
 //   );
-//   console.log(`🎵 Built queue: ${builtQueue.length} songs after filtering`);
 
 //   // Final queue - no need for supplement since we already combined sources
 //   const finalQueue = builtQueue;
@@ -676,7 +665,6 @@ const normalizeQueueItem = (s) => {
 
 //   // Remaining queue must be items AFTER current
 //   const restQueue = queue.slice(currentIndex + 1);
-//   console.log('check queue in handle song playback:', restQueue)
 
 //   // Make sure current + next few have signed audio/artwork before playback (works with shuffle jumps).
 //   const PREFETCH_WINDOW = 6;
@@ -727,7 +715,6 @@ export const handleTrendingSongPlay = async ({
   incrementPlayCount(id);
 
 
-console.log('HOW SONG COMES ?', song)
   // guard against rapid clicks: only latest call can win
   const playToken = Symbol("playToken");
   handleTrendingSongPlay._token = playToken;
@@ -802,7 +789,6 @@ artworkUrl: song.artworkUrl,
   // 1) INSTANT PLAY: presign ONLY clicked track BEFORE doing anything else heavy
 
   const trackReady = await presignAudioForTrack(track, client);
-console.log('see track ready', trackReady)
 
   if (handleTrendingSongPlay._token !== playToken) return;
 
@@ -825,7 +811,6 @@ console.log('see track ready', trackReady)
   // 3) Process + combine sources (keys only; presign on play)
   const processedSimilarSongs = processSongs(similarSongs);
   const processedTrendingSongs = processSongs(trendingSongs || []);
-  console.log('see processed trendings:', processedTrendingSongs )
 
 
 
@@ -986,7 +971,6 @@ console.log('see track ready', trackReady)
     // expireAt: similarData?.expireAt || null,
   };
 
-console.log('check play load:,', prepared)
   const loaded = await handlePlaySong(trackReady, patchedRestQueue, context, { prepared });
   if (!loaded) console.error("[Trending] Failed to load and play song.");
 };

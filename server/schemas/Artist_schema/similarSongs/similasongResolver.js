@@ -39,8 +39,6 @@ const exactMatch = async ({ id, artist, mood, subMoods, genre, tempo, client }) 
     .limit(50)
     .lean();
 
-    // console.log(`Found ${exactSongsMatch.length} exact matches for song ${id}`);
-    // console.log(`Search criteria: artist=${artistId}, mood=${JSON.stringify(mood)}, subMoods=${JSON.stringify(subMoods)}, genre=${genre}`);
 
     // Add song IDs to Redis sorted set
     if (exactSongsMatch.length > 0) {
@@ -51,7 +49,6 @@ const exactMatch = async ({ id, artist, mood, subMoods, genre, tempo, client }) 
       
       await client.zAdd(similarSongsMatches(id), redisCommands, { GT: true, CH: true });
 
-      // console.log(`Added ${redisCommands.length} song IDs to exactSimilarSongs for song ${id}`);
     }
 
     return exactSongsMatch.length;
@@ -72,7 +69,6 @@ const highMatch = async ({ id, artist, mood, subMoods, genre, country, client })
     }
 
     if (!artistCountry) {
-      // console.log(`No country found for artist ${artist}, skipping highMatch`);
       return 0;
     }
 
@@ -113,7 +109,6 @@ const highMatch = async ({ id, artist, mood, subMoods, genre, country, client })
       }
     ]);
 
-    // console.log(`Found ${highMatchSongs.length} high similarity matches for song ${id} from country ${artistCountry}`);
 
     // Add to Redis
     if (highMatchSongs.length > 0) {
@@ -150,7 +145,6 @@ const mediumMatch = async ({ id, mood, subMoods, country, client }) => {
       song.artist && song.artist.country === country
     );
 
-    // console.log(`Found ${sameCountrySongs.length} medium similarity matches for song ${id} from country ${country}`);
 
     if (sameCountrySongs.length > 0) {
       const redisCommands = sameCountrySongs.map(song => ({
@@ -184,7 +178,6 @@ const basicMatch = async ({ id, mood, country, client }) => {
       song.artist && song.artist.country === country
     );
 
-    // console.log(`Found ${sameCountrySongs.length} basic similarity matches for song ${id} from country ${country}`);
 
     if (sameCountrySongs.length > 0) {
       const redisCommands = sameCountrySongs.map(song => ({
@@ -219,7 +212,6 @@ const minimalMatch = async ({ id, country, client, limit = 50 }) => {
       song.artist && song.artist.country === country
     );
 
-    // console.log(`Found ${sameCountrySongs.length} minimal similarity matches for song ${id} from country ${country}`);
 
     if (sameCountrySongs.length > 0) {
       const redisCommands = sameCountrySongs.map(song => ({
@@ -252,7 +244,6 @@ export const generateSimilarSongs = async (newSong) => {
   const safeMood = asArr(mood);
   const safeSub = asArr(subMoods);
 
-  console.log(`Preparing similar songs sets for: ${newSong.title} (${id}) from ${country}`);
 
   const [exactCount, highCount, mediumCount, basicCount, minimalCount] = await Promise.all([
     safeMood.length && safeSub.length ? exactMatch({ id, artist, mood: safeMood, subMoods: safeSub, genre, country, client }) : 0,
@@ -271,7 +262,6 @@ export const generateSimilarSongs = async (newSong) => {
     totalSongs: exactCount + highCount + mediumCount + basicCount + minimalCount
   };
 
-  console.log(`Similar songs sets prepared for ${newSong.title}:`, results);
   return results;
 };
 
@@ -291,7 +281,6 @@ export const similarSongsRepair = async (client) => {
     let lastId = null;
     let total = 0, repaired = 0, skipped = 0, failed = 0;
 
-    console.log('[similarRepair] start');
 
     while (true) {
       const pageQuery = lastId ? { _id: { $gt: lastId } } : {};
@@ -339,7 +328,6 @@ export const similarSongsRepair = async (client) => {
             repaired++;
             // Optional: small progress log every N songs
             if ((repaired + skipped + failed) % 2000 === 0) {
-              console.log(`[similarRepair] progress: total=${total}, repaired=${repaired}, skipped=${skipped}, failed=${failed}`);
             }
           } catch (e) {
             failed++;
@@ -354,7 +342,6 @@ export const similarSongsRepair = async (client) => {
       if (SLEEP_MS) await new Promise(res => setTimeout(res, SLEEP_MS));
     }
 
-    console.log(`[similarRepair] done. total=${total} repaired=${repaired} skipped=${skipped} failed=${failed}`);
   } catch (err) {
     console.error('[similarRepair] fatal:', err);
   }
@@ -575,7 +562,6 @@ const AUDIO_PREFETCH = 0;
 //     // 1) Similar IDs
 //     const similarIds = await client.zRange(similarSongsMatches(songId), 0, -1, { REV: true });
 
-//  console.log('CHECK SONGS FROM REDIS IN SIMILAR IDS:', similarIds.length)
 
 
 //     if (!similarIds.length) return { context, songs: [], expireAt };
@@ -586,7 +572,6 @@ const AUDIO_PREFETCH = 0;
 //     // 2) Redis songs
 //     const songs = await Promise.all(similarIds.map(id => getSongRedis(id, client)));
 
-//     console.log('CHECK SONGS FROM REDIS IN SIMILAR SONGS:', songs.length)
 
 //     // 3) Filter valid
 //     const validSongs = songs.filter(s => s && s._id && s.title && s.artist && Object.keys(s).length > 1);

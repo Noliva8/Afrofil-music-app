@@ -1,20 +1,38 @@
 
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import { useMutation } from '@apollo/client';
 
   import {
   Share
 } from '@mui/icons-material';
+import { SHARE_SONG } from '../utils/queries';
+import { shareSongLink } from '../utils/shareSong';
 
 
-export const ShareButton = ({handleShare}) => {
+export const ShareButton = ({ handleShare, songId, title, text }) => {
+const [shareSongMutation] = useMutation(SHARE_SONG);
+
+const onShare = async () => {
+  if (songId) {
+    await shareSongLink({
+      songId,
+      title,
+      text,
+      shareSongMutation,
+    });
+    return;
+  }
+
+  handleShare?.();
+};
 
 return(
     <>
     
                 {/* Share Button */}
                 <IconButton
-                onClick={handleShare}
+                onClick={onShare}
                   aria-label="Share"
                   sx={{
                     color: 'rgba(255,255,255,0.85)',

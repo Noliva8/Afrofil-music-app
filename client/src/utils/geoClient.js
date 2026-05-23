@@ -36,14 +36,12 @@
 //           const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
           
 //           if (permissionStatus.state === 'denied') {
-//             console.log('Geolocation permission previously denied');
 //             permissionChecked = true;
 //             return null;
 //           }
           
 //           // Listen for permission changes
 //           permissionStatus.onchange = () => {
-//             console.log('Permission state changed to:', permissionStatus.state);
 //             permissionChecked = false; // Reset to check again
 //           };
 //         }
@@ -115,7 +113,6 @@
 //     // 3. Extract coordinates
 //     const { latitude, longitude, accuracy } = position.coords;
     
-//     console.log('Geolocation obtained:', { latitude, longitude, accuracy });
 
 //     // 4. Reverse geocode to get country/city (optional)
 //     let locationData = { 
@@ -148,7 +145,6 @@
     
 //     // Specific error handling
 //     if (error.code === error.PERMISSION_DENIED) {
-//       console.log('User denied location permission');
 //       // Cache denial for longer to avoid annoying user
 //       geoCache = {
 //         data: null,
@@ -156,7 +152,6 @@
 //         expiresIn: 24 * 60 * 60 * 1000 // 24 hours for denials
 //       };
 //     } else if (error.code === error.TIMEOUT) {
-//       console.log('Geolocation timeout');
 //       geoCache = {
 //         data: null,
 //         timestamp: now,
@@ -454,12 +449,10 @@
 //       const permissionStatus = await navigator.permissions?.query({ name: 'geolocation' });
       
 //       if (permissionStatus?.state === 'denied') {
-//         console.log('Geolocation permission previously denied');
 //         return resolve(null);
 //       }
 
 //       if (permissionStatus?.state === 'prompt') {
-//         console.log('Geolocation permission will be requested');
 //       }
 
 //       // 2. Get current position
@@ -478,7 +471,6 @@
 //       // 3. Extract coordinates
 //       const { latitude, longitude, accuracy } = position.coords;
       
-//       console.log('Geolocation obtained:', { latitude, longitude, accuracy });
 
 //       // 4. Reverse geocode to get country/city (optional)
 //       let locationData = { latitude, longitude, accuracy };

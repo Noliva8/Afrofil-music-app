@@ -20,17 +20,6 @@ const confirmPrice = async (_parent, { adId, isCostConfirmed, adTitle, campaignI
  
 
   // Log the data received for verification
-  console.log('Data received by the server to create the PaymentIntent object:', {
-    adId,
-    isCostConfirmed,
-    adTitle,
-    adType,
-    campaignId,
-    duration,
-    amount,
-    currency,
-    location
-  });
 
   try {
     // Update the ad in the database
@@ -41,7 +30,6 @@ const confirmPrice = async (_parent, { adId, isCostConfirmed, adTitle, campaignI
     );
 
     // Log the updated ad to verify that the update was successful
-    console.log('Updated ad:', updatedAd);
 
     if (!updatedAd) {
       console.error('Ad not found or update failed');
@@ -64,7 +52,6 @@ const pi = await stripeEngne.paymentIntents.create({
 });
 
 
-console.log('does the price created?', pi)
 
    return {
   id: pi.id,

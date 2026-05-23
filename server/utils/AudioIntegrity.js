@@ -18,11 +18,9 @@ const processAudio = async (inputFilePath, outputFilePath) => {
 
     if (isMP3 && isStereo && isOptimalBitrate) {
       await fs.copyFile(inputFilePath, outputFilePath);
-      console.log('File is already optimized. Copying...');
       return outputFilePath;
     }
 
-    console.log('Processing audio...');
 
     return new Promise((resolve, reject) => {
       let command = ffmpeg(inputFilePath)
@@ -34,7 +32,6 @@ const processAudio = async (inputFilePath, outputFilePath) => {
         .audioBitrate('128k') // Reduced bitrate to reduce file size
         .audioCodec('libmp3lame') // Use the libmp3lame codec (standard for MP3 encoding)
         .on('end', () => {
-          console.log('Audio processing completed:', outputFilePath);
           resolve(outputFilePath);
         })
         .on('error', (err) => {

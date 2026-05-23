@@ -95,7 +95,6 @@ const run = async () => {
       );
     }
 
-    console.log(`Seeded ${stations.length} radio stations.`);
   } catch (error) {
     console.error("Failed to seed radio stations:", error);
   } finally {

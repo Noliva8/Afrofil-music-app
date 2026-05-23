@@ -134,7 +134,6 @@ const artistMatches = filteredMatches.filter(
   match => match.songData.artistId === currentArtistId.toString()
 );
 
-console.log('see if artistMatches is valid:', artistMatches);
 
 // STEP 6: Build the result object
 const result = {

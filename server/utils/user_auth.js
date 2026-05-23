@@ -14,21 +14,14 @@ const __dirname = path.dirname(__filename);
 // -----------------------------
 // ENVIRONMENT DEBUGGING
 // -----------------------------
-// console.log('🔍 ENVIRONMENT DEBUGGING:');
-// console.log('📁 Current working directory:', process.cwd());
-// console.log('📁 __dirname:', __dirname);
-// console.log('📁 __filename:', __filename);
 
 // Load .env with explicit path
 const envPath = path.resolve(process.cwd(), '.env');
-console.log('📁 Loading .env from:', envPath);
 
 const envResult = dotenv.config({ path: envPath });
 if (envResult.error) {
   console.error('❌ Failed to load .env file:', envResult.error);
 } else {
-  // console.log('✅ .env file loaded successfully');
-  // console.log('📋 Loaded environment variables:', Object.keys(envResult.parsed || {}));
 }
 
 // -----------------------------
@@ -59,17 +52,10 @@ const JWT_CONFIG = {
   algorithm: 'HS256'
 };
 
-// console.log('\n⚙️  JWT CONFIGURATION:');
-// console.log('Secret length:', JWT_CONFIG.secret?.length);
-// console.log('Expiration:', JWT_CONFIG.expiration);
-// console.log('Issuer:', JWT_CONFIG.issuer);
-// console.log('Audience:', JWT_CONFIG.audience);
-// console.log('Algorithm:', JWT_CONFIG.algorithm);
 
 // Validate configuration
 if (!JWT_CONFIG.secret) {
   console.error('❌ CRITICAL: JWT_SECRET_USER is not defined!');
-  console.log('💡 Check your .env file for JWT_SECRET_USER=your_secret_here');
   throw new Error('JWT_SECRET_USER environment variable is required');
 }
 
@@ -104,47 +90,26 @@ export class AuthorizationError extends GraphQLError {
 // -----------------------------
 const tokenUtils = {
   extractToken: (rawToken) => {
-    console.log('\n🎯 EXTRACTING TOKEN:');
-    console.log('Raw token input:', rawToken ? `"${rawToken.substring(0, 50)}..."` : 'NULL');
     
     if (!rawToken) {
-      console.log('❌ No raw token provided');
       return null;
     }
     
     const token = rawToken.replace(/^Bearer\s+/i, '').trim();
-    console.log('Cleaned token length:', token.length);
-    console.log('Token preview:', token.substring(0, 20) + '...');
     
     return token;
   },
 
   verifyToken: (token) => {
-    // console.log('\n🔐 VERIFYING TOKEN:');
-    // console.log('Token to verify length:', token.length);
-    // console.log('Using JWT secret length:', JWT_CONFIG.secret.length);
-    // console.log('Using JWT secret preview:', JWT_CONFIG.secret.substring(0, 10) + '...');
 
     try {
       // First, decode without verification to see the structure
       const unverified = jwt.decode(token, { complete: true });
-      // console.log('📦 TOKEN STRUCTURE (UNVERIFIED):');
-      // console.log('Header:', unverified?.header);
-      // console.log('Payload:', unverified?.payload);
       
       if (unverified?.payload) {
-        console.log('Payload contents:', {
-          hasData: !!unverified.payload.data,
-          keys: Object.keys(unverified.payload),
-          iat: unverified.payload.iat,
-          exp: unverified.payload.exp,
-          iss: unverified.payload.iss,
-          aud: unverified.payload.aud
-        });
       }
 
       // Now verify with the secret
-      // console.log('\n🔑 ATTEMPTING VERIFICATION...');
 
       const decoded = jwt.verify(token, JWT_CONFIG.secret, {
         issuer: JWT_CONFIG.issuer,
@@ -152,8 +117,6 @@ const tokenUtils = {
         algorithms: [JWT_CONFIG.algorithm]
       });
       
-      // console.log('✅ TOKEN VERIFIED SUCCESSFULLY');
-      // console.log('Decoded structure:', {
       //   hasData: !!decoded.data,
       //   directKeys: Object.keys(decoded).filter(key => key !== 'data'),
       //   dataKeys: decoded.data ? Object.keys(decoded.data) : 'No data property'
@@ -194,10 +157,6 @@ const tokenUtils = {
 // Token Generation Debugging
 // -----------------------------
 export const signUserToken = (user) => {
-  // console.log('\n🎫 SIGNING NEW TOKEN:');
-  // console.log('User ID:', user._id);
-  // console.log('User email:', user.email);
-  // console.log('Using JWT secret length:', JWT_CONFIG.secret.length);
 
   const payload = {
     data: {
@@ -212,8 +171,6 @@ export const signUserToken = (user) => {
     iat: Math.floor(Date.now() / 1000)
   };
 
-  // console.log('📦 PAYLOAD STRUCTURE:');
-  // console.log(JSON.stringify(payload, null, 2));
 
   const token = jwt.sign(
     payload,
@@ -224,14 +181,10 @@ export const signUserToken = (user) => {
     }
   );
 
-  // console.log('✅ TOKEN GENERATED SUCCESSFULLY');
-  // console.log('Token length:', token.length);
-  // console.log('Token preview:', token.substring(0, 50) + '...');
 
   // Verify the token immediately to ensure it works
   try {
     const verified = jwt.verify(token, JWT_CONFIG.secret);
-    // console.log('✅ SELF-VERIFICATION: Token can be verified with current secret');
   } catch (error) {
     console.error('❌ SELF-VERIFICATION FAILED: Generated token cannot be verified!');
     console.error('This indicates a serious configuration issue');
@@ -244,7 +197,6 @@ export const signUserToken = (user) => {
 // Test Token Function
 // -----------------------------
 export const testTokenGeneration = async () => {
-  // console.log('\n🧪 RUNNING TOKEN GENERATION TEST:');
   
   const testUser = {
     _id: '65d8a1b2c5e8a1b2c5e8a1b2',
@@ -255,7 +207,6 @@ export const testTokenGeneration = async () => {
 
   try {
     const token = signUserToken(testUser);
-    // console.log('✅ TEST COMPLETED: Token generation successful');
     return token;
   } catch (error) {
     console.error('❌ TEST FAILED: Token generation failed');
@@ -286,31 +237,23 @@ const enrichUser = (user) => {
 // Enhanced Middleware with Complete Debugging
 // -----------------------------
 export const user_authMiddleware = async ({ req }) => {
-  // console.log('\n' + '='.repeat(60));
-  // console.log('🔄 STARTING AUTHENTICATION MIDDLEWARE');
-  // console.log('='.repeat(60));
 
   try {
     const rawToken = req.headers.authorization || req.body?.token || req.query?.token;
-    console.log('📨 RAW TOKEN RECEIVED:', rawToken ? 'PRESENT' : 'MISSING');
     
     if (rawToken) {
-      // console.log('Raw token preview:', rawToken.substring(0, 80) + '...');
     }
 
     const token = tokenUtils.extractToken(rawToken);
 
     if (!token) {
-      // console.log('⚠️  No token provided - proceeding without authentication');
       return { req, user: null };
     }
 
-    // console.log('\n🔍 ANALYZING TOKEN...');
     const decoded = tokenUtils.verifyToken(token);
 
     // Extract user data with flexible handling
     const userData = decoded.data || decoded;
-    // console.log('👤 EXTRACTED USER DATA:', userData);
 
     if (!userData._id) {
       console.error('❌ NO _id FOUND IN TOKEN PAYLOAD');
@@ -318,8 +261,6 @@ export const user_authMiddleware = async ({ req }) => {
       throw new AuthenticationError('Invalid token payload - missing _id');
     }
 
-    // console.log('🔎 LOOKING UP USER IN DATABASE...');
-    // console.log('User ID from token:', userData._id);
     
     const user = await User.findById(userData._id)
       .select('_id username email role subscription adLimits')
@@ -331,17 +272,9 @@ export const user_authMiddleware = async ({ req }) => {
       throw new AuthenticationError('User not found', { status: 'INACTIVE' });
     }
 
-    // console.log('✅ USER FOUND IN DATABASE:', user.email);
     
     const enrichedUser = enrichUser(user);
-    console.log('🎯 ENRICHED USER:', {
-      id: enrichedUser._id,
-      email: enrichedUser.email,
-      role: enrichedUser.role,
-      isPremium: enrichedUser.isPremium
-    });
 
-    // console.log('✅ AUTHENTICATION SUCCESSFUL');
     return { 
       req, 
       user: enrichedUser,
@@ -358,7 +291,6 @@ export const user_authMiddleware = async ({ req }) => {
     }
     
     // Return null user instead of throwing to allow unauthenticated requests
-    console.log('⚠️  Returning null user - request will continue without authentication');
     return { req, user: null };
   }
 };
@@ -406,24 +338,18 @@ export const getUserFromToken = async (token) => {
 // -----------------------------
 // Environment Diagnostics
 // -----------------------------
-// console.log('\n📋 ENVIRONMENT DIAGNOSTICS:');
-// console.log('NODE_ENV:', process.env.NODE_ENV);
-// console.log('All JWT-related env vars:');
 Object.keys(process.env).forEach(key => {
   if (key.includes('JWT') || key.includes('SECRET')) {
-    // console.log(`  ${key}: ${process.env[key] ? 'SET' : 'NOT SET'}`);
   }
 });
 
 // Run immediate test if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
-  // console.log('\n🧪 RUNNING IMMEDIATE SELF-TEST...');
   testTokenGeneration();
 }
 
 export { enrichUser };
 
-// console.log('\n✅ AUTH MODULE LOADED WITH COMPREHENSIVE DEBUGGING');
 
 
 
@@ -481,7 +407,6 @@ export { enrichUser };
 //   const token = extractToken(req);
 
 //   // Debug (safe)
-//   console.log('🔐 auth:', {
 //     hasAuthHeader: !!req?.headers?.authorization,
 //     tokenPrefix: token ? token.slice(0, 20) + '...' : null,
 //   });
@@ -503,7 +428,6 @@ export { enrichUser };
 //       }
 //     }
 //   } catch (e) {
-//     console.log('❌ Invalid token:', e.message);
 //   }
 
 //   return req;
@@ -705,7 +629,6 @@ export { enrichUser };
 // //       const preview = jwt.decode(token);
 // //       if (preview) {
 // //         const now = Math.floor(Date.now() / 1000);
-// //         console.log('🔍 Token preview:', {
 // //           sub: preview.sub,
 // //           iat: preview.iat,
 // //           exp: preview.exp,
@@ -773,19 +696,16 @@ export { enrichUser };
 
 // //     const token = tokenUtils.extractToken(rawToken);
 
-// //     console.log('🔐 Authentication attempt:', {
 // //       rawTokenPresent: !!rawToken,
 // //       cleanedTokenPresent: !!token,
 // //       tokenPrefix: token ? token.slice(0, 20) + '...' : null
 // //     });
 
 // //     if (!token) {
-// //       console.log('ℹ️ No token provided, continuing without authentication');
 // //       return req;
 // //     }
 
 // //     const decoded = tokenUtils.verifyToken(token);
-// //     console.log('✅ Token verified');
 
 // //     const data = decoded.data || decoded; // support wrapped or flat
 // //     if (!data?._id) {
@@ -801,7 +721,6 @@ export { enrichUser };
 // //     }
 
 // //     req.user = enrichUser(user);
-// //     console.log('✅ User authenticated:', {
 // //       _id: user._id,
 // //       email: user.email,
 // //       role: user.role
@@ -810,7 +729,6 @@ export { enrichUser };
 // //     return req;
 // //   } catch (error) {
 // //     console.error('🔴 Authentication Error:', error.message);
-// //     console.log('ℹ️ Continuing without authenticated user');
 // //     return req;
 // //   }
 // // };
@@ -838,7 +756,6 @@ export { enrichUser };
 // //     // do NOT put iss/aud here; set them in options below
 // //   };
 
-// //   console.log('🎫 Generating new token for user:', user.email);
 
 // //   const token = jwt.sign(
 // //     { data: payload },
@@ -851,7 +768,6 @@ export { enrichUser };
 // //     }
 // //   );
 
-// //   console.log('✅ Token generated');
 // //   return token;
 // // };
 

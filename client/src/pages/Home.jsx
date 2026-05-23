@@ -156,7 +156,7 @@ const Home = ({ upgradeToPremium }) => {
   const {
     songsWithArtwork: recentSongsWithArtwork,
     loading: recentSongsLoading,
-  } = useSongsWithPresignedUrls(recentSongs);
+  } = useSongsWithPresignedUrls(recentSongs, { includeRelatedImages: false });
 
   const { songsWithArtwork, loading: artworkLoading } =
     useSongsWithPresignedUrls(mixTracks);
@@ -236,6 +236,8 @@ const Home = ({ upgradeToPremium }) => {
                   rowCode="recentlyPlayed"
                   songsList={recentSongsWithArtwork}
                   onCardClick={handleCardClick}
+                  loading={recentPlayedLoading || recentSongsLoading}
+                  lightweight
                   emptyMessage="You haven't played anything yet"
                   emptyDescription="Start listening and we'll surface these tracks again."
                 />
@@ -308,7 +310,6 @@ const Home = ({ upgradeToPremium }) => {
         <PremiumPromoModal
           onClose={() => setShowCheckout(false)}
           onSubscribe={(plan) => {
-            console.log("Subscribed to:", plan);
             // TODO: update user context to 'premium'
             setShowCheckout(false);
           }}

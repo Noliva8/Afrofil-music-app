@@ -91,7 +91,6 @@ export async function artistCreateRedis(artistData, options = {}) {
     if (!updateExisting) {
       const exists = await redis.exists(key);
       if (exists) {
-        console.log(`Artist ${artistId} already exists in Redis`);
         return { success: true, action: 'exists' };
       }
     }
@@ -143,7 +142,6 @@ export async function artistCreateRedis(artistData, options = {}) {
     // Memory check (best-effort)
     await checkMemoryAndNotify(redis, `artistCreateRedis:${artistId}`);
 
-    console.log(`✅ Artist ${artistId} ${updateExisting ? 'updated' : 'created'} in Redis`);
     return { success: true, action: updateExisting ? 'updated' : 'created' };
 
   } catch (error) {
@@ -256,7 +254,6 @@ export async function deleteArtistRedis(artistId) {
       console.warn('Index cleanup failed:', error)
     );
 
-    console.log(`✅ Artist ${artistId} deleted from Redis`);
     return { success: true };
 
   } catch (error) {

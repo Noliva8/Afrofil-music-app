@@ -393,7 +393,6 @@ export async function createSongRedis(songDoc) {
     // If an older HASH (or any non-JSON type) exists under this key, unlink it first
     const existingType = await r.type(key);
     if (existingType && existingType !== 'none' && existingType !== 'ReJSON-RL') {
-      console.log(`🔄 Converting ${key} from ${existingType} to JSON`);
       await r.unlink(key); // non-blocking delete
     }
 
@@ -448,7 +447,6 @@ export async function createSongRedis(songDoc) {
     }
 
     await withTimeout(m.exec(), 4000, "Redis transaction timeout");
-    console.log(`✅ Song ${id} stored as JSON with indexes updated`);
     return { insertedId: id };
 
   } catch (error) {
@@ -512,7 +510,6 @@ export async function createSongIndex() {
       }
     );
 
-    console.log('✅ idx:songs created');
     return { created: true };
   } catch (e) {
     const msg = String(e?.message || '');
@@ -608,7 +605,6 @@ export async function createArtistIndex() {
       }
     );
 
-    console.log('✅ idx:artists created');
     return { created: true };
   } catch (e) {
     const msg = String(e?.message || '');
@@ -635,14 +631,11 @@ export async function checkRedisIndexes() {
   const r = await getRedis();
   
   try {
-    console.log('🔍 Checking Redis Search Indexes...\n');
     
     // 1. List all indexes
     const indexes = await r.ft._list();
-    console.log('📋 Available Indexes:', indexes);
     
     if (indexes.length === 0) {
-      console.log('❌ No indexes found');
       return { success: false, indexes: [] };
     }
     
@@ -650,34 +643,23 @@ export async function checkRedisIndexes() {
     
     // 2. Check each index
     for (const indexName of indexes) {
-      console.log(`\n${'='.repeat(50)}`);
-      console.log(`🏷️  Index: ${indexName}`);
-      console.log(`${'='.repeat(50)}`);
       
       try {
         const info = await r.ft.info(indexName);
         
         // Basic info
-        console.log(`📊 Documents indexed: ${info.num_docs}`);
-        console.log(`🔧 Index options: ${JSON.stringify(info.index_options)}`);
-        console.log(`🏗️  Index definition:`, info.index_definition);
         
         // Fields/schema
-        console.log(`\n📝 Fields (${info.attributes.length}):`);
         info.attributes.forEach((attr, i) => {
           const identifier = attr[1]; // $.field path
           const fieldName = attr[3];  // AS name
           const fieldType = attr[5];  // TYPE
-          console.log(`  ${i + 1}. ${identifier} → ${fieldName} (${fieldType})`);
         });
         
         // Test search
-        console.log(`\n🔍 Testing search...`);
         const searchResult = await r.ft.search(indexName, '*', { 
           LIMIT: { from: 0, size: 2 } 
         });
-        console.log(`   Found ${searchResult.total} total documents`);
-        console.log(`   Sample documents:`, searchResult.documents.length);
         
         results[indexName] = {
           info,
@@ -686,22 +668,16 @@ export async function checkRedisIndexes() {
         };
         
       } catch (error) {
-        console.log(`❌ Error checking index ${indexName}:`, error.message);
         results[indexName] = { error: error.message };
       }
     }
     
     // 3. Summary
-    console.log(`\n${'='.repeat(50)}`);
-    console.log('📈 SUMMARY');
-    console.log(`${'='.repeat(50)}`);
     
     indexes.forEach(indexName => {
       const result = results[indexName];
       if (result.info) {
-        console.log(`✅ ${indexName}: ${result.totalDocuments} documents, ${result.info.attributes.length} fields`);
       } else {
-        console.log(`❌ ${indexName}: ERROR - ${result.error}`);
       }
     });
     
@@ -725,42 +701,30 @@ export async function checkRedisIndexes() {
 export async function debugRedisData() {
   const r = await getRedis();
   
-  console.log('🔍 Debugging Redis Data...\n');
   
   // Check what keys actually exist
   const songKeys = await r.keys('song:*');
   const artistKeys = await r.keys('artist:*');
   
-  console.log(`🎵 Song keys found: ${songKeys.length}`);
-  console.log(`🎤 Artist keys found: ${artistKeys.length}`);
   
   // Sample a few keys to see their structure
   if (songKeys.length > 0) {
-    console.log('\n📝 Sample song structure:');
     const sampleSong = await r.hGetAll(songKeys[0]);
-    console.log('Keys in song hash:', Object.keys(sampleSong));
     
     if (sampleSong.doc) {
       try {
         const songDoc = JSON.parse(sampleSong.doc);
-        console.log('JSON doc structure:', Object.keys(songDoc));
-        console.log('Sample title:', songDoc.title);
-        console.log('Sample artist:', songDoc.artist);
       } catch (e) {
-        console.log('Error parsing song doc:', e.message);
       }
     }
   }
   
   if (artistKeys.length > 0) {
-    console.log('\n📝 Sample artist structure:');
     const sampleArtist = await r.get(artistKeys[0]);
     if (sampleArtist) {
       try {
         const artistDoc = JSON.parse(sampleArtist);
-        console.log('Artist doc structure:', Object.keys(artistDoc));
       } catch (e) {
-        console.log('Error parsing artist doc:', e.message);
       }
     }
   }
@@ -1670,7 +1634,6 @@ export async function hydrateSongsForClient(r, songs) {
   const artistIds = [...new Set(songs.map(s => String(s.artist || '')).filter(Boolean))];
   const albumIds  = [...new Set(songs.map(s => String(s.album  || '')).filter(Boolean))];
 
-  console.log(`[hydrate] input songs=${songs.length}  artistIds=${artistIds.length}  albumIds=${albumIds.length}`);
 
   const safeParse = (x) => {
     if (!x) return null;
@@ -1694,7 +1657,6 @@ export async function hydrateSongsForClient(r, songs) {
     console.warn('[hydrate] getMultipleAlbumsRedis failed:', e?.message || e);
   }
 
-  console.log(`[hydrate] redis hits  artists=${artistsArr.length}  albums=${albumsArr.length}`);
 
   const artistMap = new Map(artistsArr.map(a => [String(a._id), a]));
   const albumMap  = new Map(albumsArr.map(a => [String(a._id), a]));
@@ -1710,7 +1672,6 @@ export async function hydrateSongsForClient(r, songs) {
         .lean();
 
       for (const a of docs) artistMap.set(String(a._id), a);
-      console.log(`[hydrate] mongo fallback artists=${docs.length}`);
 
       // write-back to Redis
       await Promise.all(
@@ -1731,7 +1692,6 @@ export async function hydrateSongsForClient(r, songs) {
         .lean();
 
       for (const a of docs) albumMap.set(String(a._id), a);
-      console.log(`[hydrate] mongo fallback albums=${docs.length}`);
 
       // write-back to Redis
       await Promise.all(
@@ -1763,7 +1723,6 @@ export async function hydrateSongsForClient(r, songs) {
     return normalizeSongForGraphQL(base);
   });
 
-  console.log(`[hydrate] shaped=${shaped.length}`);
   return shaped;
 }
 
@@ -1774,13 +1733,10 @@ export async function redisTrending(limit = 20) {
   if (n === 0) return [];
 
   const ids = await r.zRange(C.IDX_SCORE, 0, Math.max(0, n - 1), { REV: true });
-  // console.log('ids returned of trending songs:', ids);
   if (!ids?.length) return [];
 
   const raw = await fetchDocsForIds(r, ids);
-  // console.log('raws returned from trending songs:', raw)
   const songs = await hydrateSongsForClient(r, raw);
-  // console.log('hydrated[0]:', songs[0]);
   return songs;
 }
 
@@ -2013,7 +1969,6 @@ export async function enforceSongLimit() {
     }
 
     if (evicted.length) {
-      console.log(`[redis] Evicted ${evicted.length} song(s) to cap=${cap}`);
     }
     return evicted;
 

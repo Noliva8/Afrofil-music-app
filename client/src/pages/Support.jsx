@@ -87,7 +87,6 @@ export const Support = () => {
     e.preventDefault();
     setErrorMessage('');
     // Simple submission - replace with API call
-    console.log('Support request:', contactForm);
     
     const payload = { ...contactForm, category: contactForm.category || 'general' };
     try {

@@ -31,7 +31,6 @@
 // export default async function preProcessAudio(filePath) {
 //     let tempPath;
 //     try {
-//         console.log("Processing file:", filePath);
 //         tempPath = `temp-${uuidv4()}.wav`;
 
 //         const wavPath = filePath.endsWith(".wav") ? filePath : await convertToWav(filePath, tempPath);
@@ -57,7 +56,6 @@
 //         const adjustedBufferSize = getNextPowerOf2(trimmedData.length);
 //         const adjustedData = trimmedData.slice(0, adjustedBufferSize);
         
-//         console.log(`Adjusted Data Length (Power of 2): ${adjustedData.length}`);
 
 //         // Meyda feature extraction
 //         if (!Meyda) {
@@ -66,9 +64,7 @@
 
 //         const windowedData = Meyda.windowing(adjustedData, "hanning");
 
-//         console.log("Extracting features...");
 //         const features = Meyda.extract(["rms", "spectralCentroid"], windowedData);
-//         console.log("Extracted Features:", features);
 
 //         return new Float32Array(windowedData);
 //     } catch (error) {
@@ -173,7 +169,6 @@
 //   let tempPath = null;
   
 //   try {
-//     console.log(`[1/6] Starting processing for: ${filePath}`);
 
 //     // 1. File validation (parallel I/O)
 //     const [stats] = await Promise.all([
@@ -182,7 +177,6 @@
 //     ]);
     
 //     const fileSizeMB = stats.size / (1024 * 1024);
-//     console.log(`[2/6] File size: ${fileSizeMB.toFixed(2)}MB`);
 
 //     // 2. Convert to WAV with parallel processing
 //     tempPath = `./temp-${Date.now()}-${Math.random().toString(36).slice(2)}.wav`;
@@ -203,7 +197,6 @@
 //     });
 
 //     // 3. Parallel decode and validate
-//     console.log(`[3/6] Decoding audio...`);
 //     const buffer = await fs.readFile(wavPath);
 //     const audioData = await wavDecoder.decode(buffer);
     
@@ -212,14 +205,11 @@
 //     }
 
 //     const rawSamples = audioData.channelData[0];
-//     console.log(`[4/6] Decoded ${rawSamples.length.toLocaleString()} samples (${(rawSamples.length/CONFIG.targetSampleRate).toFixed(2)}s)`);
 
 //     // 4. Parallel energy analysis
-//     console.log(`[5/6] Analyzing audio energy...`);
 //     const analysisWindow = CONFIG.targetSampleRate * CONFIG.analysisWindowSec;
 //     const { index: bestStart } = await parallelEnergyCalculation(rawSamples, analysisWindow);
     
-//     console.log(`• Best audio segment starts at ${(bestStart/CONFIG.targetSampleRate).toFixed(2)}s`);
 
 //     // 5. Optimized window processing
 //     const bufferSize = getPowerOf2BufferSize(analysisWindow * 3);
@@ -254,8 +244,6 @@
 //     if (nonZero === 0) throw new Error("Silent output detected");
     
 //     const processingTime = Number(process.hrtime.bigint() - startTime) / 1e9;
-//     console.log(`[6/6] Processing completed in ${processingTime.toFixed(2)}s`);
-//     console.log(`• Sample stats: max=${max.toExponential(2)}, min=${min.toExponential(2)}, nonZero=${nonZero}`);
 
 //     return {
 //       samples,
@@ -298,7 +286,6 @@ export default async function preProcessAudio(filePath, { maxDurationSeconds = 3
   try {
     // 1. File validation
     const stats = await fs.stat(filePath);
-    console.log(`Processing: ${filePath} (${(stats.size / (1024 * 1024)).toFixed(2)}MB)`);
 
     // 2. Convert to WAV
     await new Promise((resolve, reject) => {
@@ -334,7 +321,6 @@ export default async function preProcessAudio(filePath, { maxDurationSeconds = 3
     }
 
     const rawSamples = channelData[0];
-    console.log(`Decoded audio: ${rawSamples.length} samples at ${sampleRate}Hz`);
 
     // 4. Find optimal segment
     const windowSize = CONFIG.targetSampleRate * CONFIG.analysisWindowSec;
@@ -356,7 +342,6 @@ export default async function preProcessAudio(filePath, { maxDurationSeconds = 3
       }
     }
 
-    console.log(`Best segment starts at sample index: ${bestStart}, max energy: ${maxEnergy.toFixed(6)}`);
 
     // 5. Apply window function
     const bufferSize = Math.min(32768, Math.pow(2, Math.ceil(Math.log2(windowSize * 3))));
@@ -376,8 +361,6 @@ export default async function preProcessAudio(filePath, { maxDurationSeconds = 3
       samples[i] = (sourceIdx < rawSamples.length ? rawSamples[sourceIdx] : 0) * window;
     }
 
-    console.log("Sample preview:", samples.slice(0, 10));
-    console.log(`Processed ${samples.length} samples at ${sampleRate}Hz`);
 
     return {
       samples,

@@ -224,13 +224,11 @@ async function handleMessage(msg) {
 
   const s3Info = parseS3Event(body);
   if (s3Info.ignore) {
-  console.log(`[worker] Ignoring ${s3Info.reason} bucket=${s3Info.bucket} key=${s3Info.key}`);
   await sqs.send(new DeleteMessageCommand({ QueueUrl: SQS_QUEUE_URL, ReceiptHandle: receiptHandle }));
   return;
 }
   const { bucket, key } = s3Info;
 
-  console.log(`[worker] S3 event: ${s3Info.eventName} bucket=${bucket} key=${key}`);
 
   // 1) Acquire lock / transition to PROCESSING
   const song = await acquireProcessingLock({ bucket, key });
@@ -244,16 +242,12 @@ async function handleMessage(msg) {
     }
 
     if (existing.songUploadStatus === "READY") {
-      console.log(`[worker] Song already completed, deleting message. songId=${existing._id}`);
       await sqs.send(
         new DeleteMessageCommand({ QueueUrl: SQS_QUEUE_URL, ReceiptHandle: receiptHandle })
       );
       return;
     }
 
-    console.log(
-      `[worker] Song not eligible for lock (status=${existing.songUploadStatus}). Deleting message.`
-    );
     await sqs.send(
       new DeleteMessageCommand({ QueueUrl: SQS_QUEUE_URL, ReceiptHandle: receiptHandle })
     );
@@ -272,7 +266,6 @@ async function handleMessage(msg) {
         } catch (error) {
           console.error(`[worker] Duplicate cleanup failed for songId=${song._id}:`, error);
         }
-        console.log(`[worker] Removed duplicate songId=${song._id}`);
       } else {
         await markCompleted(song._id, {
           publishStatus: result.publishStatus,
@@ -299,7 +292,6 @@ async function handleMessage(msg) {
     await sqs.send(
       new DeleteMessageCommand({ QueueUrl: SQS_QUEUE_URL, ReceiptHandle: receiptHandle })
     );
-    console.log(`[worker] Completed songId=${song._id} and deleted message.`);
   } catch (err) {
     console.error(`[worker] Processing failed for songId=${song._id}:`, err);
     await markFailed(song._id, err);
@@ -341,15 +333,7 @@ async function pollLoop() {
 
 async function main() {
   await mongoose.connect(MONGODB_URI);
-  console.log("[worker] Connected to MongoDB");
 
-  console.log("[worker] Starting poll loop", {
-    PROCESSING_REGION,
-    SQS_QUEUE_URL,
-    WORKER_POLL_WAIT_SECONDS,
-    WORKER_MAX_MESSAGES,
-    WORKER_VISIBILITY_TIMEOUT,
-  });
 
   await pollLoop();
 }

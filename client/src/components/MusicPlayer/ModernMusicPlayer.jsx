@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMutation } from '@apollo/client';
 import Box from '@mui/material/Box';
 import Slider from '@mui/material/Slider';
 import IconButton from '@mui/material/IconButton';
@@ -19,11 +20,14 @@ import {
   Repeat,
   RepeatOne,
   QueueMusic,
-  OpenInFull
+  OpenInFull,
+  Share
 } from '@mui/icons-material';
 
 import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext';
 import { useNowPlayingArtwork } from '../../utils/Contexts/useNowPlayingArtwork';
+import { SHARE_SONG } from '../../utils/queries';
+import { getShareableSongId, shareSongLink } from '../../utils/shareSong';
 
 const DEFAULT_COVER = 'data:image/svg+xml;utf8,' +
   encodeURIComponent(
@@ -67,6 +71,7 @@ const CompactMusicPlayer = ({
   isAdPlaying = false
 }) => {
   const theme = useTheme();
+  const [shareSongMutation] = useMutation(SHARE_SONG);
   const isXs = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
   const isSm = useMediaQuery(theme.breakpoints.between('sm', 'md')); // 600px - 900px
   const isMd = useMediaQuery(theme.breakpoints.between('md', 'lg')); // 900px - 1200px
@@ -140,6 +145,19 @@ const effectiveRepeatMode =
     ? (adSubtitle || 'Sponsored')
     : (resolveArtistText(currentSong?.artist) || currentSong?.artistName || '');
   const safeSubtitle = displaySubtitle || '';
+
+  const handleShare = React.useCallback(async () => {
+    if (isAdPlaying || isAd) return;
+    const songId = getShareableSongId(currentSong);
+    if (!songId) return;
+
+    await shareSongLink({
+      songId,
+      title: displayTitle,
+      text: safeSubtitle ? `${displayTitle} by ${safeSubtitle}` : displayTitle,
+      shareSongMutation,
+    });
+  }, [currentSong, displayTitle, isAd, isAdPlaying, safeSubtitle, shareSongMutation]);
 
   const formatTime = (seconds) => {
     if (isNaN(seconds)) return '0:00';
@@ -568,6 +586,25 @@ const effectiveRepeatMode =
               </IconButton>
             </Tooltip>
           )}
+
+          <Tooltip title="Share song">
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleShare}
+                disabled={isAdPlaying || isAd || !getShareableSongId(currentSong)}
+                sx={{
+                  color: textMuted,
+                  p: 0.5,
+                  '&:hover': { color: accent },
+                  '&.Mui-disabled': { opacity: 0.3 },
+                  display: 'inline-flex',
+                }}
+              >
+                <Share sx={{ fontSize: config.iconSize }} />
+              </IconButton>
+            </span>
+          </Tooltip>
 
           {/* Queue Button */}
           {onOpenQueue && config.showFavoritePlaylist && (

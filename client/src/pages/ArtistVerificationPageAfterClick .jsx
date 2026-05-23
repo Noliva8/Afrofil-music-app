@@ -15,7 +15,6 @@ const ArtistVerificationPageAfterClick = () => {
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          console.log('Verification successful');
           
     
           // Open the login page in a new tab/window

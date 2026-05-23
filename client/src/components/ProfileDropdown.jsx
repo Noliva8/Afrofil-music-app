@@ -9,7 +9,6 @@ const ProfileDropdown = () => {
 
   const loggedIn = UserAuth.loggedIn();
   const username = loggedIn ? UserAuth.getProfile().data.username : '';
-  console.log(username);
 
   const handleLogout = () => {
     UserAuth.logout();

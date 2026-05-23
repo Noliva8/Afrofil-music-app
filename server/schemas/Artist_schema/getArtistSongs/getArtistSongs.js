@@ -8,7 +8,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 
 
 // export const getArtistSongs = async (_, { artistId }, context) => {
-//   console.log('getArtistSongs called', { artistId, hasUser: !!context?.user });
 //   const userId = context?.user?._id || null;
 //   const key = ARTIST_SONGS(artistId);
 //   const client = await getRedis();
@@ -21,7 +20,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
     
 //     if (songIds && songIds.length > 0) {
 //       // Found songs in Redis cache
-//       console.log(`Cache hit for artist ${artistId}: ${songIds.length} songs`);
       
 //       // Fetch songs from database with correct population
 //       songs = await Song.find({
@@ -42,7 +40,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 
 //     // 2. If Redis cache miss or empty, fallback to database
 //     if (songs.length === 0) {
-//       console.log(`Cache miss for artist ${artistId}, querying database...`);
       
 //       // Fetch top 20 songs from database by playCount
 //       songs = await Song.find({
@@ -72,7 +69,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //         pipeline.expire(key, 3600);
         
 //         await pipeline.exec();
-//         console.log(`Cached ${songs.length} songs for artist ${artistId} with 1h expiration`);
 //       }
 //     }
 
@@ -184,8 +180,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 
 // export const getArtistSongs = async (_, { artistId }, context) => {
 
-//   console.log('🎵 ==================== getArtistSongs START ====================');
-//   console.log('📥 Input:', { 
 //     artistId, 
 //     artistIdType: typeof artistId,
 //     hasUser: !!context?.user,
@@ -307,9 +301,7 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //           .map(id => songMap.get(id))
 //           .filter(song => song);
         
-//         console.log(`📊 After sorting: ${songs.length} songs remain`);
 //       } else {
-//         console.log('❌ Cache miss for artist', artistId);
 //       }
 //     }
 
@@ -321,7 +313,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //         artist: artistId,
 //         visibility: 'public'
 //       };
-//       console.log('📝 Full Mongo query:', JSON.stringify(mongoQuery, null, 2));
       
 //       songs = await Song.find(mongoQuery)
 //         .populate('artist', 'fullName artistAka profileImage coverImage country genre bio')
@@ -331,8 +322,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //         .limit(20)
 //         .lean();
       
-//       console.log(`📊 Database returned ${songs.length} songs`);
-//       console.log('🔍 Sample song:', songs[0] ? {
 //         _id: songs[0]._id,
 //         title: songs[0].title,
 //         artist: songs[0].artist?._id || 'no-artist',
@@ -341,7 +330,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 
 //       // Cache the results in Redis for 1 hour
 //       if (client && songs.length > 0) {
-//         console.log(`💾 Caching ${songs.length} songs to Redis for 1 hour...`);
 //         const pipeline = client.multi();
         
 //         songs.forEach((song, index) => {
@@ -349,19 +337,16 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //           const value = song._id.toString();
 //           pipeline.zAdd(key, { score, value });
 //           if (index < 3) {
-//             console.log(`  ${index + 1}. Adding song ${value} with score ${score}`);
 //           }
 //         });
         
 //         if (songs.length > 3) {
-//           console.log(`  ... and ${songs.length - 3} more songs`);
 //         }
         
 //         pipeline.expire(key, 3600);
         
 //         try {
 //           await pipeline.exec();
-//           console.log(`✅ Successfully cached ${songs.length} songs`);
 //         } catch (cacheError) {
 //           console.warn('⚠️ Failed to cache songs:', cacheError.message);
 //         }
@@ -370,11 +355,9 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 
 //     // 3. Add user-specific data (likedByMe)
 //     if (songs.length > 0) {
-//       console.log(`👤 Processing user-specific data for ${userId ? 'logged-in user' : 'guest'}`);
       
 //       let likedSongIds = new Set();
 //       if (userId && songs.length > 0) {
-//         console.log(`🔍 Checking likes for user ${userId} across ${songs.length} songs...`);
 //         const userLikes = await Song.find({
 //           _id: { $in: songs.map(s => s._id) },
 //           likedByUsers: userId
@@ -383,10 +366,8 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //         .lean();
         
 //         likedSongIds = new Set(userLikes.map(like => like._id.toString()));
-//         console.log(`❤️ User has liked ${likedSongIds.size} of these songs`);
 //       }
       
-//       console.log(`🔄 Transforming ${songs.length} songs for GraphQL response...`);
       
 //       // Transform songs
 //       songs = await Promise.all(songs.map(async (song, index) => {
@@ -472,7 +453,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
         
 //         // Log first 2 songs for debugging
 //         if (index < 2) {
-//           console.log(`📋 Sample transformed song ${index + 1}:`, {
 //             id: idStr ? `${idStr.substring(0, 10)}...` : 'none',
 //             title: transformed.title,
 //             hasArtist: !!transformed.artist,
@@ -484,11 +464,8 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //         return transformed;
 //       }));
 //     } else {
-//       console.log('📭 No songs found for artist', artistId);
 //     }
 
-//     console.log(`✅ Returning ${songs.length} songs for artist ${artistId}`);
-//     console.log('🎵 ==================== getArtistSongs END ====================\n');
 //     return songs;
 
 //   } catch (error) {
@@ -501,7 +478,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
     
 //     // Last resort: try without Redis and with minimal fields
 //     try {
-//       console.log('🔄 Attempting fallback query...');
 //       const fallbackSongs = await Song.find({
 //         artist: artistId,
 //         visibility: 'public'
@@ -512,7 +488,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //       .limit(20)
 //       .lean();
 
-//       console.log(`🔄 Fallback found ${fallbackSongs.length} songs`);
       
 //       const result = await Promise.all(fallbackSongs.map(async song => {
 //         const idStr = song._id ? String(song._id) : (song.id ? String(song.id) : '');
@@ -588,7 +563,6 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 //         };
 //       }));
       
-//       console.log('✅ Fallback succeeded, returning songs');
 //       return result;
 //     } catch (fallbackError) {
 //       console.error('❌ Fallback also failed:', fallbackError);
@@ -608,15 +582,7 @@ import { getPresignedUrlDownload } from '../../../utils/cloudFrontUrl.js';
 
 
 export const getArtistSongs = async (_, { artistId }, context) => {
-  console.log('🎵 ==================== getArtistSongs START ====================');
 
-  console.log('📥 Input:', { 
-    artistId, 
-    artistIdType: typeof artistId,
-    hasUser: !!context?.user,
-    userId: context?.user?._id || 'no-user',
-    userType: context?.user?.constructor?.name || 'unknown'
-  });
 
 
 
@@ -651,7 +617,6 @@ export const getArtistSongs = async (_, { artistId }, context) => {
       const songIds = await client.zRange(key, 0, 19, { REV: true });
       
       if (songIds && songIds.length > 0) {
-        console.log(`🎯 Cache hit: Found ${songIds.length} song IDs in Redis`);
         
         const mongoQuery = {
           _id: { $in: songIds },
@@ -664,7 +629,6 @@ export const getArtistSongs = async (_, { artistId }, context) => {
           .populate('album', 'title albumCoverImage releaseDate')
           .lean();
         
-        console.log(`📊 Database returned ${songs.length} songs from cached IDs`);
         
         // Sort songs in the same order as Redis results
         const songMap = new Map(songs.map(song => [song._id.toString(), song]));
@@ -672,15 +636,12 @@ export const getArtistSongs = async (_, { artistId }, context) => {
           .map(id => songMap.get(id))
           .filter(song => song);
         
-        console.log(`📊 After sorting: ${songs.length} songs remain`);
       } else {
-        console.log('❌ Cache miss for artist', artistId);
       }
     }
 
     // 2. If Redis cache miss or empty, fallback to database
     if (songs.length === 0) {
-      console.log('📝 Fetching songs directly from database...');
       
       const mongoQuery = {
         artist: artistId,
@@ -695,11 +656,9 @@ export const getArtistSongs = async (_, { artistId }, context) => {
         .limit(20)
         .lean();
       
-      console.log(`📊 Database returned ${songs.length} songs`);
       
       // Cache the results in Redis for 1 hour
       if (client && songs.length > 0) {
-        console.log(`💾 Caching ${songs.length} songs to Redis for 1 hour...`);
         const pipeline = client.multi();
         
         songs.forEach((song, index) => {
@@ -707,19 +666,16 @@ export const getArtistSongs = async (_, { artistId }, context) => {
           const value = song._id.toString();
           pipeline.zAdd(key, { score, value });
           if (index < 3) {
-            console.log(`  ${index + 1}. Adding song ${value} with score ${score}`);
           }
         });
         
         if (songs.length > 3) {
-          console.log(`  ... and ${songs.length - 3} more songs`);
         }
         
         pipeline.expire(key, 3600);
         
         try {
           await pipeline.exec();
-          console.log(`✅ Successfully cached ${songs.length} songs`);
         } catch (cacheError) {
           console.warn('⚠️ Failed to cache songs:', cacheError.message);
         }
@@ -728,11 +684,9 @@ export const getArtistSongs = async (_, { artistId }, context) => {
 
     // 3. Add user-specific data (likedByMe) and transform response
     if (songs.length > 0) {
-      console.log(`👤 Processing user-specific data for ${userId ? 'logged-in user' : 'guest'}`);
       
       let likedSongIds = new Set();
       if (userId && songs.length > 0) {
-        console.log(`🔍 Checking likes for user ${userId} across ${songs.length} songs...`);
         const userLikes = await Song.find({
           _id: { $in: songs.map(s => s._id) },
           likedByUsers: userId
@@ -741,10 +695,8 @@ export const getArtistSongs = async (_, { artistId }, context) => {
         .lean();
         
         likedSongIds = new Set(userLikes.map(like => like._id.toString()));
-        console.log(`❤️ User has liked ${likedSongIds.size} of these songs`);
       }
       
-      console.log(`🔄 Transforming ${songs.length} songs for GraphQL response...`);
       
       // Transform songs - RETURNING RAW DATA WITHOUT URL MAPPING
       songs = songs.map((song, index) => {
@@ -823,25 +775,13 @@ export const getArtistSongs = async (_, { artistId }, context) => {
         
         // Log first 2 songs for debugging
         if (index < 2) {
-          console.log(`📋 Sample transformed song ${index + 1}:`, {
-            id: idStr ? `${idStr.substring(0, 10)}...` : 'none',
-            title: transformed.title,
-            hasArtist: !!transformed.artist,
-            hasAlbum: !!transformed.album,
-            playCount: transformed.playCount,
-            artwork: transformed.artwork ? 'Present' : 'Missing',
-            audioUrl: transformed.audioFileUrl ? 'Present' : 'Missing'
-          });
         }
         
         return transformed;
       });
     } else {
-      console.log('📭 No songs found for artist', artistId);
     }
 
-    console.log(`✅ Returning ${songs.length} songs for artist ${artistId}`);
-    console.log('🎵 ==================== getArtistSongs END ====================\n');
     return songs;
 
   } catch (error) {
@@ -854,7 +794,6 @@ export const getArtistSongs = async (_, { artistId }, context) => {
     
     // Last resort: try without Redis and with minimal fields
     try {
-      console.log('🔄 Attempting fallback query...');
       const fallbackSongs = await Song.find({
         artist: artistId,
         visibility: 'public'
@@ -865,7 +804,6 @@ export const getArtistSongs = async (_, { artistId }, context) => {
       .limit(20)
       .lean();
 
-      console.log(`🔄 Fallback found ${fallbackSongs.length} songs`);
       
       const result = fallbackSongs.map(song => {
         const idStr = song._id ? String(song._id) : (song.id ? String(song.id) : '');
@@ -932,7 +870,6 @@ export const getArtistSongs = async (_, { artistId }, context) => {
         };
       });
       
-      console.log('✅ Fallback succeeded, returning songs');
       return result;
     } catch (fallbackError) {
       console.error('❌ Fallback also failed:', fallbackError);

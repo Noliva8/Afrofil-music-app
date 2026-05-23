@@ -83,16 +83,13 @@ eligbleAd: {
 //     password: process.env.REDIS_PASSWORD
 // });
 
-// client.on('error', err => console.log('Redis Client Error', err));
 
 // async function getRedis() {
 //     await client.connect();
-//     console.log('Connected to Redis Enterprise!');
 
 //     // Example operations
 //     await client.set('mykey', 'myvalue');
 //     const value = await client.get('mykey');
-//     console.log(`Value for mykey: ${value}`);
 
 //     await client.quit();
 // }

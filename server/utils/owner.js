@@ -49,12 +49,10 @@ const PERMISSIONS = {
 
 //   try {
 //     await mongoose.connect(DB_URI);
-//     console.log('🔗 Connected to MongoDB');
 
 //     // Abort if an Owner already exists
 //     const exists = await Advertizer.exists({ isSuperAdmin: true });
 //     if (exists) {
-//       console.log('❌ Owner (isSuperAdmin) already exists:', exists._id.toString());
 //       process.exit(1);
 //     }
 
@@ -89,12 +87,9 @@ const PERMISSIONS = {
 //     // Create an admin token (role enforced inside your signer)
 //     const adminToken = signAdminToken(ownerDoc.toObject());
 
-//     console.log('✅ Owner created:', {
 //       id: ownerDoc._id.toString(),
 //       email: ownerDoc.businessEmail
 //     });
-//     console.log('🔑 Admin JWT (for testing):');
-//     console.log(adminToken);
 //   } catch (err) {
 //     if (err?.code === 11000) {
 //       console.error('❌ Duplicate key (email already in use). Change OWNER_EMAIL.');

@@ -1,7 +1,7 @@
 
 import fs from 'fs'
 import { ApolloError } from 'apollo-server-express';
-import  { Artist, Album, Song, User, Fingerprint, RadioStation , Message} from '../../models/Artist/index_artist.js';
+import  { Artist, Album, Song, User, Fingerprint, RadioStation , Message, ArtistSupport} from '../../models/Artist/index_artist.js';
 import BookArtist from '../../models/Artist/bookArtist.js';
 import { getMessages } from './MessagingSystem/Queries/getmessages.js';
 import { getConversations } from './MessagingSystem/Queries/conversation.js';
@@ -78,6 +78,8 @@ import { addSongToTrendingOnUpload } from './Redis/redisTrendingOnUpload.js';
 import { INITIAL_RECENCY_SCORE } from './Redis/keys.js';
 import { TRENDING_WEIGHTS } from './Redis/keys.js';
 import { trendIndexZSet } from './Redis/keys.js';
+import { RECENT_PLAYED_CACHE_KEY } from './Redis/keys.js';
+import { TRENDING_SONGS_CACHE_KEY } from './Redis/keys.js';
 import { PLAY_COOLDOWN_SECONDS } from './Redis/keys.js';
 import { generateSimilarSongs} from './similarSongs/similasongResolver.js';
 import { savePlaybackSession } from './playbackRestore/savePlaybackSession.js';
@@ -95,6 +97,7 @@ import { RADIO_TYPES } from '../../utils/radioTypes.js';
 import { createBookArtist } from './bookingArtist/createBookArtist.js';
 import { respondToBooking } from './bookingArtist/respondToBooking.js';
 import { sendMessage } from './MessagingSystem/Mutations/sendMessage.js';
+import { createArtistSupport } from './artistSupport/createArtistSupport.js';
 import jwt from 'jsonwebtoken';
 
 import { newSongUpload } from './newSongUpload/newSongUpload.js';
@@ -282,11 +285,6 @@ function analyzeFingerprints(fingerprint) {
   const deltas = fingerprint.map(fp => fp.deltaTime);
   const avgDelta = deltas.reduce((a,b) => a+b, 0) / deltas.length;
   
-  console.log(`Fingerprint Analysis:
-  - Total: ${fingerprint.length}
-  - Avg Δt: ${avgDelta.toFixed(4)}s
-  - Time range: ${fingerprint[0]?.time.toFixed(4)}-${fingerprint.at(-1)?.time.toFixed(4)}s
-  `);
 }
 
 const SONG_UPLOAD_UPDATE = 'SONG_UPLOAD_UPDATE';
@@ -532,7 +530,6 @@ Query: {
 // artistProfile: async (parent, args, context) => {
 //   try {
 //     // Debugging: Log the entire artistContext to see what it contains
-//     // console.log('context in artist profile:', context);
 
 //     // Check if the artist is authenticated
 //     if (!context.artist) {
@@ -540,7 +537,6 @@ Query: {
 //     }
 
 //     // Debugging: Log the artist's ID from the context
-//     // console.log('Artist ID from Context:', context.artist._id);
 
 //     // Find the artist's profile using the artist's ID from the context
 //     const artist = await Artist.findById(context.artist._id)
@@ -567,19 +563,11 @@ Query: {
 
 
 artistProfile: async (parent, args, context) => {
-  console.log('\n🔍 ===== ARTIST PROFILE DEBUG =====');
   
   // SAFELY log context - don't stringify the whole thing!
-  console.log('1. context keys:', Object.keys(context));
-  console.log('2. context.artist:', context.artist);
-  console.log('3. context.artist?._id:', context.artist?._id);
   
   // Safely log headers if they exist
   if (context.req) {
-    console.log('4. Headers present:', {
-      authorization: context.req.headers?.authorization ? '✅ Yes' : '❌ No',
-      'user-agent': context.req.headers?.['user-agent']?.substring(0, 50)
-    });
   }
   
   try {
@@ -593,7 +581,6 @@ artistProfile: async (parent, args, context) => {
       throw new Error("Unauthorized: Invalid artist data.");
     }
 
-    console.log('✅ Step 7: Looking up artist with ID:', context.artist._id);
     
     const artist = await Artist.findById(context.artist._id)
       .populate("songs")
@@ -604,9 +591,6 @@ artistProfile: async (parent, args, context) => {
       throw new Error("Artist not found.");
     }
 
-    console.log('✅ Step 9: Artist found:', artist.email);
-    console.log('✅ Step 10: Artist confirmed:', artist.confirmed);
-    console.log('✅ Step 11: Artist has plan:', artist.selectedPlan);
     
     return artist;
     
@@ -665,6 +649,41 @@ songsOfArtist: async (parent, args, context) => {
         // Throw a general error message for the GraphQL response
         throw new Error("Failed to fetch songs.");
     }
+},
+
+artistSupportRevenue: async (_parent, _args, context) => {
+  if (!context.artist?._id) {
+    throw new Error('Unauthorized: You must be logged in to fetch support revenue.');
+  }
+
+  const artistId = context.artist._id;
+
+  try {
+    const [summary] = await ArtistSupport.aggregate([
+      {
+        $match: {
+          artistId: new mongoose.Types.ObjectId(artistId),
+          status: 'paid',
+        },
+      },
+      {
+        $group: {
+          _id: '$currency',
+          totalArtistAmount: { $sum: '$artistAmount' },
+          paidSupportCount: { $sum: 1 },
+        },
+      },
+    ]);
+
+    return {
+      totalArtistAmount: summary?.totalArtistAmount || 0,
+      paidSupportCount: summary?.paidSupportCount || 0,
+      currency: summary?._id || 'usd',
+    };
+  } catch (error) {
+    console.error('Error fetching artist support revenue:', error);
+    throw new Error('Failed to fetch artist support revenue.');
+  }
 },
 
 getAlbum,
@@ -1193,8 +1212,6 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
 //     // Construct the verification link
 //     const verificationLink = `${process.env.FRONTEND_URL}/verify-email?token=${artistToken}`;
 
-// //  console.log(process.env.FRONTEND_URL) ;
-//   // console.log(verificationLink) ;
 
 //     // Send the verification email
 //     await sendEmail(artist.email, "Verify Your Email", `
@@ -1213,41 +1230,28 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
 
 // resendVerificationEmail: async (parent, { email }) => {
 //   try {
-//     console.log("========== RESEND VERIFICATION EMAIL ==========");
-//     console.log("1. Email requested:", email);
     
 //     // Find the artist by email
 //     const artist = await Artist.findOne({ email });
 //     if (!artist) {
-//       console.log("❌ Artist not found for email:", email);
 //       throw new Error("Artist not found");
 //     }
 
-//     console.log("2. Artist found:");
-//     console.log("   - ID:", artist._id.toString());
-//     console.log("   - Full Name:", artist.fullName);
-//     console.log("   - Current confirmed status:", artist.confirmed);
 
 //     // Check if the email is already verified
 //     if (artist.confirmed) {
-//       console.log("3. Artist already confirmed");
 //       return { success: false, message: "Email is already verified" };
 //     }
 
-//     console.log("3. Artist needs verification, generating token...");
     
 //     // Generate a new token using signArtistToken
 //     const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
-//     console.log("4. Token generated:", artistToken.substring(0, 50) + "...");
 
 //     // USE SERVER_URL here (your backend)
 //     const verificationLink = `${process.env.SERVER_URL}/confirmation/${artistToken}`;
     
-//     console.log("5. Verification link created:", verificationLink);
-//     console.log("   - This link points to your BACKEND server on port 3001");
 
 //     // Send the verification email
-//     console.log("6. Sending email to:", artist.email);
 //     await sendEmail(artist.email, "Verify Your Email", `
 //       <p>Hello, ${artist.fullName}!</p>
 //       <p>Please click the link below to verify your email:</p>
@@ -1255,8 +1259,6 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
 //       <p>This link will expire in 24 hours.</p>
 //     `);
 
-//     console.log("7. Email sent successfully!");
-//     console.log("========== RESEND COMPLETE ==========");
 
 //     return { success: true, message: "Verification email resent successfully" };
 //   } catch (error) {
@@ -1268,41 +1270,28 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
 
 resendVerificationEmail: async (parent, { email }) => {
   try {
-    console.log("========== RESEND VERIFICATION EMAIL ==========");
-    console.log("1. Email requested:", email);
     
     // Find the artist by email
     const artist = await Artist.findOne({ email });
     if (!artist) {
-      console.log("❌ Artist not found for email:", email);
       throw new Error("Artist not found");
     }
 
-    console.log("2. Artist found:");
-    console.log("   - ID:", artist._id.toString());
-    console.log("   - Full Name:", artist.fullName);
-    console.log("   - Current confirmed status:", artist.confirmed);
 
     // Check if the email is already verified
     if (artist.confirmed) {
-      console.log("3. Artist already confirmed");
       return { success: false, message: "Email is already verified" };
     }
 
-    console.log("3. Artist needs verification, generating token...");
     
     // Generate a new token using signArtistToken
     const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
-    console.log("4. Token generated:", artistToken.substring(0, 50) + "...");
 
     // USE SERVER_URL here (your backend)
     const verificationLink = `${process.env.SERVER_URL}/confirmation/${artistToken}`;
     
-    console.log("5. Verification link created:", verificationLink);
-    console.log("   - This link points to your BACKEND server on port 3001");
 
     // Send the verification email with styled template
-    console.log("6. Sending email to:", artist.email);
     const logoUrl = `${process.env.FRONTEND_URL || 'https://flolup.com'}/assets/logo.png`;
     await sendEmail(artist.email, "Welcome to FloLup - Verify Your Email", `
       <div style="font-family: 'Inter', system-ui; max-width: 600px; margin: 0 auto; padding: 20px;
@@ -1352,8 +1341,6 @@ resendVerificationEmail: async (parent, { email }) => {
       </div>
     `);
 
-    console.log("7. Email sent successfully!");
-    console.log("========== RESEND COMPLETE ==========");
 
     return { success: true, message: "Verification email resent successfully" };
   } catch (error) {
@@ -1451,7 +1438,6 @@ createRadioStation: async (_parent, { input }, context) => {
 verifyEmail: async (parent, { token }) => {
   try {
 
-    console.log('see the token sent on verification:', token)
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -1535,12 +1521,10 @@ getPresignedUrl: async (_, { bucket, key, region }) => {
     
 //     const pathOnly = key.startsWith("/") ? key : `/${key}`;
 
-//     console.log("key sent by client:", pathOnly);
 
 //     const { getSignedUrl } = await import("../../utils/cloudFrontUrl.js");
 //     const urlToDownload = getSignedUrl(key, expiration ?? 18000);
 
-//     console.log("check the returned url:", urlToDownload);
 
 //     return {
 //       urlToDownload,
@@ -1709,7 +1693,6 @@ console.error('Error in resolver:', error);
    artist_login : async (parent, { email, password }) => {
   try {
     // Step 1: Find the artist by email
-    console.log('CHECK EMAIL RECIEVED:', email)
     const artist = await Artist.findOne({
       email
     });
@@ -1810,7 +1793,6 @@ selectPlan: async (parent, { artistId, plan }) => {
     
     // Create default album only if none exist
     if (existingAlbums.length === 0) {
-      console.log('Creating default album for artist:', artistId);
       
       const defaultAlbum = await Album.create({
         title: "Single",
@@ -1819,7 +1801,6 @@ selectPlan: async (parent, { artistId, plan }) => {
         // Add any other fields your Album schema requires
       });
       
-      console.log('✅ Default album created:', defaultAlbum._id);
     }
 
     await artistUpdateRedis(artist);
@@ -1849,9 +1830,6 @@ updateArtistProfile: async (
       throw new Error('Unauthorized: You must be logged in to update your profile.');
     }
 
-    // console.log('Context:', context);
-    // console.log('Artist ID from Context:', context.artist._id);
-    // console.log('Update Payload:', { bio, country, languages, genre, mood, profileImage, coverImage });
 
     // Create an object to hold the fields to update
     const updateFields = {};
@@ -2189,7 +2167,6 @@ const updatedArtist = await Artist.findOneAndUpdate(
 //       { new: true }
 //     );
 
-//     console.log('✅ Updated song document:', updatedSong);
 
 
 //     // ---------- we need to find this song in redis and update it ----------
@@ -2269,12 +2246,10 @@ if (updatedSong.visibility !== "public" && hasRequiredMetadata) {
   await updatedSong.save();
 }
 
-console.log('✅ Updated song document:', updatedSong._id);
 
 // 2) similarity set precomputation (ONLY AFTER ALL FIELDS ARE SET)
 try {
   await generateSimilarSongs(updatedSong);
-  console.log('✅ Similarity precomputation completed for:', updatedSong._id);
 } catch (similarityError) {
   console.warn('Similarity precomputation failed:', similarityError);
 }
@@ -2295,7 +2270,6 @@ return updatedSong;
 //   const __dirname = path.dirname(new URL(import.meta.url).pathname);
 //   const uploadsDir = path.join(__dirname, "uploads");
   
-//   // console.log('🚀 Starting songUpload resolver');
 //   // console.time('⏱️ Total upload time');
   
 //   if (!context.artist) {
@@ -2308,20 +2282,17 @@ return updatedSong;
 
 //   // Enhanced cleanup function
 //   const cleanupFiles = async () => {
-//     // console.log('🧹 Starting cleanup procedure');
     
 //     const cleanupTasks = [];
 //     if (tempFilePath && fs.existsSync(tempFilePath)) {
 //       cleanupTasks.push(
 //         fs.promises.unlink(tempFilePath)
-//           .then(() => console.log(`✅ Deleted temp file: ${tempFilePath}`))
 //           .catch(err => console.error(`❌ Error deleting temp file: ${err.message}`))
 //       );
 //     }
 //     if (processedFilePath && fs.existsSync(processedFilePath)) {
 //       cleanupTasks.push(
 //         fs.promises.unlink(processedFilePath)
-//           .then(() => console.log(`✅ Deleted processed file: ${processedFilePath}`))
 //           .catch(err => console.error(`❌ Error deleting processed file: ${err.message}`))
 //       );
 //     }
@@ -2342,7 +2313,6 @@ return updatedSong;
 //           timestamp: Date.now()
 //         }
 //       });
-//       // console.log(`📢 Progress sent: ${step} (${percent}%) - ${status}`);
 //     } catch (pubError) {
 //       console.error('❌ Failed to publish progress:', pubError.message);
 //       // Don't throw - continue upload even if progress fails
@@ -2555,7 +2525,6 @@ return updatedSong;
 // //     _id: songData._id  // just to be sure _id is included
 // //   });
 
-// //   console.log('Cached in Redis successfully');
 // // } catch (redisError) {
 // //   console.warn('Redis caching failed (continuing anyway):', redisError);
 // // }
@@ -3225,7 +3194,6 @@ nextSongAfterComplete: async (_p, { input }) => {
 //   // Load song first (we need artist id and to fail fast if missing)
 //   const song = await Song.findById(songId).lean();
 //   if (!song) throw new Error('Song not found');
-//   console.log('is it being called? ...')
 
 //   // Don't count the artist's own plays
 //   if (context.artist && String(song.artist) === String(context.artist._id)) {
@@ -3241,7 +3209,6 @@ nextSongAfterComplete: async (_p, { input }) => {
 //   let updatedSong;
 
 //   if (onCooldown) {
-//     console.log('🎵 On cooldown - no play count increment');
 //     // No increment; just keep lastPlayedAt fresh
 //     updatedSong = await Song.findByIdAndUpdate(
 //       songId,
@@ -3249,7 +3216,6 @@ nextSongAfterComplete: async (_p, { input }) => {
 //       { new: true, runValidators: true }
 //     );
 //   } else {
-//     console.log('🎵 Not on cooldown - incrementing play count');
 //     // Count this as a play (Mongo = source of truth)
 //     updatedSong = await Song.findByIdAndUpdate(
 //       songId,
@@ -3268,11 +3234,9 @@ nextSongAfterComplete: async (_p, { input }) => {
 //   try {
 //     const songCacheKey = songKey(songId);
 //     const songExists = await r.exists(songCacheKey);
-//     console.log(`🎵 Song ${songId} exists in Redis:`, songExists);
 
 //     if (songExists) {
 //       if (!onCooldown) {
-//         console.log(`🎵 Incrementing playCount for existing song: ${songId}`);
 //         // Only increment playCount if not on cooldown
 //         await r
 //           .multi()
@@ -3280,12 +3244,10 @@ nextSongAfterComplete: async (_p, { input }) => {
 //           .expire(songCacheKey, songHashExpiration)
 //           .exec();
 //       } else {
-//         console.log(`🎵 Refreshing TTL only (cooldown): ${songId}`);
 //         // Just refresh TTL during cooldown
 //         await r.expire(songCacheKey, songHashExpiration);
 //       }
 //     } else {
-//       console.log(`🎵 Adding song to Redis: ${songId}`);
 //       // Song not in cache - add it with current data
 //       await addSongRedis(songId);
 //     }
@@ -3317,7 +3279,6 @@ nextSongAfterComplete: async (_p, { input }) => {
   let updatedSong;
 
   if (onCooldown) {
-    console.log('🎵 On cooldown - no play count increment');
     // No increment; just keep lastPlayedAt fresh
     updatedSong = await Song.findByIdAndUpdate(
       songId,
@@ -3325,7 +3286,6 @@ nextSongAfterComplete: async (_p, { input }) => {
       { new: true, runValidators: true }
     );
   } else {
-    console.log('🎵 Not on cooldown - incrementing play count AND trending score');
     // Count this as a play (Mongo = source of truth)
     updatedSong = await Song.findByIdAndUpdate(
       songId,
@@ -3359,6 +3319,13 @@ nextSongAfterComplete: async (_p, { input }) => {
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
+      await r.del(
+        RECENT_PLAYED_CACHE_KEY(context.user._id, 4),
+        RECENT_PLAYED_CACHE_KEY(context.user._id, 5),
+        RECENT_PLAYED_CACHE_KEY(context.user._id, 10),
+        RECENT_PLAYED_CACHE_KEY(context.user._id, 20),
+        RECENT_PLAYED_CACHE_KEY(context.user._id, 50)
+      );
     } catch (error) {
       console.warn('PlayCount update failed:', error?.message || error);
     }
@@ -3374,14 +3341,12 @@ nextSongAfterComplete: async (_p, { input }) => {
       if (!onCooldown) {
         // Update playCount in cache
         await r.hIncrBy(songCacheKey, 'playCount', 1);
-        console.log(`🎵 Updated song cache playCount for: ${songId}`);
       }
       // Always refresh TTL
       await r.expire(songCacheKey, songHashExpiration);
     } else {
       // Song not in cache - add it
-      await addSongRedis(songId);
-      console.log(`🎵 Added song to cache: ${songId}`);
+      await addSongRedis(songId, r);
     }
 
     // 2. Handle trending operations (only if not on cooldown)
@@ -3395,14 +3360,11 @@ nextSongAfterComplete: async (_p, { input }) => {
           score: newScore, 
           value: songId.toString() 
         });
-        console.log(`📈 Trending updated: ${songId}: ${currentScore} → ${newScore}`);
       } else {
         // Song is NOT in trending - check if it should enter
         const songNewScore = updatedSong.trendingScore;
-        console.log(`📊 Song ${songId} not in trending, current score: ${songNewScore}`);
         
         const trendingCount = await r.zCard(trendIndexZSet);
-        console.log(`📊 Trending set has ${trendingCount}/20 songs`);
         
         if (trendingCount < 20) {
           // Trending has space - add directly
@@ -3410,7 +3372,6 @@ nextSongAfterComplete: async (_p, { input }) => {
             score: songNewScore,
             value: songId.toString()
           });
-          console.log(`🎉 Added ${songId} to trending (space available): ${songNewScore}`);
         } else {
           // Trending is full - check if this song deserves a spot
           const lowestSongs = await r.zRange(trendIndexZSet, 0, 0, {
@@ -3418,7 +3379,6 @@ nextSongAfterComplete: async (_p, { input }) => {
           });
           
           const lowestScore = parseFloat(lowestSongs[1]);
-          console.log(`📊 Lowest score in trending: ${lowestScore}`);
           
           if (songNewScore >= lowestScore) {
             // Song qualifies - replace the oldest song with the lowest score
@@ -3426,7 +3386,6 @@ nextSongAfterComplete: async (_p, { input }) => {
               WITHSCORES: true
             });
             
-            console.log(`📊 Found ${allLowestSongs.length / 2} songs with score ${lowestScore}`);
             
             // Find the oldest song among those with lowest score
             let oldestSongId = allLowestSongs[0];
@@ -3454,15 +3413,16 @@ nextSongAfterComplete: async (_p, { input }) => {
               score: songNewScore,
               value: songId.toString()
             });
-            console.log(`🔄 ${songId} replaced ${oldestSongId} in trending: ${songNewScore} >= ${lowestScore}`);
           } else {
-            console.log(`📊 ${songId} not high enough for trending: ${songNewScore} < ${lowestScore}`);
           }
         }
       }
     }
 
-    console.log(`✅ All Redis operations completed for: ${songId}`);
+    if (!onCooldown) {
+      await r.del(TRENDING_SONGS_CACHE_KEY);
+    }
+
 
   } catch (redisError) {
     console.warn('[Redis] operations skipped:', redisError.message);
@@ -3539,12 +3499,15 @@ nextSongAfterComplete: async (_p, { input }) => {
         if (currentScore !== null) {
           await r.zAdd(trendIndexZSet, { score: parseFloat(currentScore) + inc, value: songId.toString() });
         }
+        await r.del(TRENDING_SONGS_CACHE_KEY);
       } catch (err) {
         console.warn('[shareSong] Redis sync skipped:', err?.message || err);
       }
 
       return updatedSong;
     },
+
+    createArtistSupport,
 
     createBookArtist,
     respondToBooking,
@@ -3595,7 +3558,6 @@ Subscription: {
   songUploadProgress: {
     subscribe: withFilter(
       () => {
-        console.log('🎯 Subscription created for:', SONG_UPLOAD_UPDATE);
         return pubsub.asyncIterableIterator([SONG_UPLOAD_UPDATE]);
       },
       (payload, variables, context) => {
@@ -3638,7 +3600,11 @@ Subscription: {
 
   Song: {
     likesCount: (parent) => {
-      return parent.likedByUsers?.length || 0;
+      if (Number.isFinite(Number(parent.likesCount))) {
+        return Number(parent.likesCount);
+      }
+
+      return Array.isArray(parent.likedByUsers) ? parent.likedByUsers.length : 0;
     },
 
     composer: (song) => normalizeComposerList(song?.composer),

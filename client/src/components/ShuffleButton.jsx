@@ -5,7 +5,7 @@ import Button from '@mui/material/Button';
 
 
 
-export const ShuffleButton = ({ playableTrack, isShuffled, onClick }) => {
+export const ShuffleButton = ({ playableTrack, isShuffled, onClick, sx }) => {
 
     
     return(
@@ -35,6 +35,7 @@ export const ShuffleButton = ({ playableTrack, isShuffled, onClick }) => {
                           transform: 'scale(1.02)',
                         },
                         transition: 'all 0.2s ease',
+                        ...sx,
                       }}
                     >
                       Shuffle

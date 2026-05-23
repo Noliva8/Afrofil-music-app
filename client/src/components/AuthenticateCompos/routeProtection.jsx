@@ -117,7 +117,6 @@ export const PlanGate = ({ element }) => {
   
 //   useEffect(() => {
 //     if (urlToken) {
-//       console.log("Found token in URL, storing it...");
 //       // Store the new token with updated confirmation status
 //       localStorage.setItem('artistToken', urlToken);
 //       // Clear old profile so it gets fetched fresh
@@ -132,7 +131,6 @@ export const PlanGate = ({ element }) => {
 //   const isVerified = profile?.data?.confirmed;
 //   const hasPlan = Boolean(profile?.data?.selectedPlan);
 
-//   console.log("PlanGate check:", {
 //     isArtistLoggedIn,
 //     isVerified,
 //     hasPlan,
@@ -155,7 +153,6 @@ export const PlanGate = ({ element }) => {
 //     return <Navigate to="/artist/studio/content" replace />;
 //   }
 
-//   console.log('Showing plan selection page');
 //   return element;
 // };
 
@@ -214,16 +211,6 @@ export const StudioGate = ({ element }) => {
   const hasPlan = profileHasPlan || tempHasPlan;
 
   // Add detailed logging
-  console.log('========== STUDIO GATE ==========');
-  console.log('Time:', new Date().toISOString());
-  console.log('isArtistLoggedIn:', isArtistLoggedIn);
-  console.log('isVerified:', isVerified);
-  console.log('profileHasPlan:', profileHasPlan);
-  console.log('tempHasPlan:', tempHasPlan);
-  console.log('hasPlan (combined):', hasPlan);
-  console.log('Profile data:', profile?.data);
-  console.log('Raw selectedPlan value:', profile?.data?.selectedPlan);
-  console.log('================================');
 
   if (!isArtistLoggedIn) {
     console.warn('Redirecting to /artist/login.');
@@ -240,6 +227,5 @@ export const StudioGate = ({ element }) => {
     return <Navigate to="/artist/plan" replace />;
   }
 
-  console.log('✅ StudioGate passed, rendering element');
   return element;
 };

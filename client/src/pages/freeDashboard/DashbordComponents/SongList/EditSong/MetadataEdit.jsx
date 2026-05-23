@@ -54,7 +54,6 @@ const [updateSong] = useMutation(UPDATE_SONG);
 
 
 
-console.log('check again how the song looks like', song)
 
 
 
@@ -89,7 +88,6 @@ const {
 
 
 
-console.log(song);
 
 // query the albums to display them
 // ------------------------------
@@ -174,7 +172,6 @@ useEffect(() => {
 
 const onSubmit = async (formData) => {
   try {
-    console.log("📥 Raw formData:", formData);
 setSongId(song._id);
     const variables = {
       songId: song._id,

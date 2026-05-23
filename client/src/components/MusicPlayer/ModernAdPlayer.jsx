@@ -36,7 +36,6 @@ export const AdMediaPlayer = ({
   onTogglePlay = null,
   onCloseFullScreen = () => {}
 }) => {
-  console.log('🎯 AdMediaPlayer: Component render start');
   
   const [adState, setAdState] = useState(initialAdState);
   const { playerState, currentAd: contextAd } = useAudioPlayer();
@@ -52,23 +51,14 @@ export const AdMediaPlayer = ({
   renderCount.current++;
   
   // Log ALL relevant data sources
-  console.log(`🎯 AdMediaPlayer: Render #${renderCount.current}`, {
-    localAd: adState.currentAd,
-    contextAd: contextAd,
-    playerStateIsAdPlaying: playerState?.isAdPlaying,
-    cachedAd: adMetadataCache.current,
-    progress: adState.progress.currentTime
-  });
 
   useEffect(() => {
-    console.log('🎯 AdMediaPlayer: Component mount');
     isMounted.current = true;
     
     // Check cache for missed metadata
     if (!adState.currentAd && !contextAd && adMetadataCache.current) {
       const cacheAge = Date.now() - adMetadataCache.timestamp;
       if (cacheAge < 10000) { // Cache valid for 10 seconds
-        console.log('🎯 AdMediaPlayer: Restoring ad from cache', adMetadataCache.current);
         setAdState(prev => ({
           ...prev,
           currentAd: adMetadataCache.current,
@@ -79,7 +69,6 @@ export const AdMediaPlayer = ({
     }
     
     return () => {
-      console.log('🎯 AdMediaPlayer: Component unmount');
       isMounted.current = false;
       if (resizeTimeout.current) {
         clearTimeout(resizeTimeout.current);
@@ -97,7 +86,6 @@ export const AdMediaPlayer = ({
       (!local.artwork && contextAd.artwork) ||
       (!local.title && contextAd.title);
     if (needsUpdate) {
-      console.log('🎯 AdMediaPlayer: Syncing local ad from context metadata', contextAd);
       setAdState(prev => ({
         ...prev,
         currentAd: contextAd,
@@ -109,10 +97,8 @@ export const AdMediaPlayer = ({
 
   // Listen for ALL possible ad-related events
   useEffect(() => {
-    console.log('🎯 AdMediaPlayer: Setting up comprehensive event listeners');
     
     const handleAdMetadata = (metadata) => {
-      console.log('🎯 AdMediaPlayer: Received AD_METADATA_LOADED', metadata);
       hasReceivedMetadata.current = true;
       
       // Cache the metadata globally
@@ -132,7 +118,6 @@ export const AdMediaPlayer = ({
     // Also listen for generic ad events that might contain metadata
     const handleAdEvent = (eventName, data) => {
       if (eventName.includes('AD_') && data?.ad) {
-        console.log(`🎯 AdMediaPlayer: Found ad metadata in ${eventName}`, data.ad);
         if (!hasReceivedMetadata.current) {
           handleAdMetadata(data.ad);
         }
@@ -140,11 +125,9 @@ export const AdMediaPlayer = ({
     };
 
     const handleAdStart = (adInfo) => {
-      console.log('🎯 AdMediaPlayer: Received AD_STARTED', adInfo);
       
       // Sometimes ad metadata is in the start event
       if (adInfo?.ad && !hasReceivedMetadata.current) {
-        console.log('🎯 AdMediaPlayer: Extracting metadata from AD_STARTED');
         handleAdMetadata(adInfo.ad);
       }
       
@@ -168,7 +151,6 @@ export const AdMediaPlayer = ({
     };
 
     const handleAdCompleted = () => {
-      console.log('🎯 AdMediaPlayer: Received AD_COMPLETED');
       if (!isMounted.current) return;
 
       setAdState((prev) => {
@@ -177,7 +159,6 @@ export const AdMediaPlayer = ({
         const current = Number(progress?.currentTime) || 0;
         const percent = duration ? current / duration : 0;
 
-        console.log('🎯 AdMediaPlayer: Completion check', { percent });
 
         if (percent < 0.95) {
           console.warn('🎯 AdMediaPlayer: Ignoring premature completion');
@@ -197,7 +178,6 @@ export const AdMediaPlayer = ({
     };
 
     const handleAdPaused = (payload) => {
-      console.log('🎯 AdMediaPlayer: Received AD_PAUSED', payload);
       
       if (!isMounted.current) return;
       
@@ -209,7 +189,6 @@ export const AdMediaPlayer = ({
     };
 
     const handleAdResumed = (payload) => {
-      console.log('🎯 AdMediaPlayer: Received AD_RESUMED', payload);
       
       if (!isMounted.current) return;
       
@@ -221,7 +200,6 @@ export const AdMediaPlayer = ({
     };
 
     // Subscribe to ALL events to catch any ad metadata
-    console.log('🎯 AdMediaPlayer: Subscribing to events');
     
     eventBus.on('AD_METADATA_LOADED', handleAdMetadata);
     eventBus.on('AD_STARTED', handleAdStart);
@@ -236,12 +214,10 @@ export const AdMediaPlayer = ({
 
     // Also check if there's a global ad object somewhere
     if (window.__adPlayerMetadata && !hasReceivedMetadata.current) {
-      console.log('🎯 AdMediaPlayer: Found global ad metadata', window.__adPlayerMetadata);
       handleAdMetadata(window.__adPlayerMetadata);
     }
 
     return () => {
-      console.log('🎯 AdMediaPlayer: Cleaning up event listeners');
       
       eventBus.off('AD_METADATA_LOADED', handleAdMetadata);
       eventBus.off('AD_STARTED', handleAdStart);
@@ -262,7 +238,6 @@ export const AdMediaPlayer = ({
       
       // Try to find ad data in playerState
       if (playerState.currentAd) {
-        console.log('🎯 AdMediaPlayer: Found ad in playerState.currentAd', playerState.currentAd);
         setAdState(prev => ({
           ...prev,
           currentAd: playerState.currentAd,
@@ -275,14 +250,12 @@ export const AdMediaPlayer = ({
       const playerStateKeys = Object.keys(playerState || {});
       playerStateKeys.forEach(key => {
         if (key.includes('ad') || key.includes('Ad')) {
-          console.log(`🎯 AdMediaPlayer: Checking playerState.${key}`, playerState[key]);
         }
       });
     }
     
     // If we have context ad, use it
     if (contextAd && !adState.currentAd) {
-      console.log('🎯 AdMediaPlayer: Using context ad', contextAd);
       setAdState(prev => ({
         ...prev,
         currentAd: contextAd,
@@ -367,13 +340,6 @@ export const AdMediaPlayer = ({
   // Show ad player if: ad is playing OR we have ad data OR we're closing animation
   const shouldShowAdPlayer = playerState?.isAdPlaying || displayAd || isClosing;
 
-  console.log('🎯 AdMediaPlayer: Render decision', {
-    displayAd: displayAd?.title || 'No title',
-    shouldShowAdPlayer,
-    isClosing,
-    isPlaying,
-    hasProgress: !!progress.currentTime
-  });
 
   if (!shouldShowAdPlayer) {
     return null;

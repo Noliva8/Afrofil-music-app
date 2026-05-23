@@ -9,7 +9,6 @@ import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Container from '@mui/material/Container';
 import Avatar from '@mui/material/Avatar';
-import Fab from '@mui/material/Fab';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -32,18 +31,17 @@ import {
   Share,
   Download,
   PlaylistAdd,
-  MoreVert,
   ExpandMore,
   PersonAdd
 } from '@mui/icons-material';
 
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useNowPlayingArtwork } from '../../utils/Contexts/useNowPlayingArtwork';
 import { useArtistFollowers } from '../../utils/Contexts/followers/useArtistFollowers';
 import { useUser } from '../../utils/Contexts/userContext';
 import { SHARE_SONG } from '../../utils/queries';
 import useArtistDownload from '../../utils/Contexts/artisDownload/useArtistDownload';
+import { getShareableSongId, shareSongLink } from '../../utils/shareSong';
 
 
 
@@ -113,9 +111,8 @@ const FullScreenMediaPlayer = ({
   const horizontalTimerRef = useRef(null);
   const { artworkUrl } = useNowPlayingArtwork({ currentTrack: currentSong });
 
-
-const [showReadMore, setShowReadMore] = useState(false);
   const [isBioExpanded, setIsBioExpanded] = useState(false);
+  const [renderDetails, setRenderDetails] = useState(false);
   const bioRef = useRef(null);
 
 
@@ -154,11 +151,14 @@ const formatStatNumber = (value, fallback = "0") => {
   };
 
   const currentTrackId = currentSong?.id || currentSong?._id;
-  const recommendations = Array.isArray(queue)
-    ? queue
-        .filter((item) => String(item?.id ?? item?._id ?? '') !== String(currentTrackId ?? ''))
-        .slice(0, 4)
-    : [];
+  const recommendations = React.useMemo(
+    () => Array.isArray(queue)
+      ? queue
+          .filter((item) => String(item?.id ?? item?._id ?? '') !== String(currentTrackId ?? ''))
+          .slice(0, 4)
+      : [],
+    [queue, currentTrackId]
+  );
   const displayTitle = currentSong?.title || currentSong?.name || 'No song playing';
   const displayArtist = resolveArtistText(currentSong?.artist) || currentSong?.artistName || 'Unknown Artist';
   const displayAlbum = currentSong?.albumName || 'Single';
@@ -245,59 +245,14 @@ const formatStatNumber = (value, fallback = "0") => {
 
   
   const handleShare = async () => {
-    const songId = currentSong?.id || currentSong?._id;
+    const songId = getShareableSongId(currentSong);
     if (!songId) return;
-    const shareUrl = `${window.location.origin}/track/${songId}`;
-    try {
-      await shareSong({ variables: { songId } });
-    } catch (err) {
-      console.error('Share song mutation failed', err);
-    }
-
-    const shareImageUrl =
-      currentSong?.artist?.coverImage ||
-      currentSong?.artist?.cover ||
-      currentSong?.artworkUrl ||
-      currentSong?.artwork ||
-      currentSong?.cover ||
-      null;
-
-    const buildSharePayload = async () => {
-      const payload = { title: displayTitle, url: shareUrl };
-
-      if (navigator?.canShare && shareImageUrl) {
-        try {
-          const response = await fetch(shareImageUrl, { mode: 'cors' });
-          if (response.ok) {
-            const blob = await response.blob();
-            const ext = blob.type.split('/').pop() || 'png';
-            const safeName =
-              displayTitle?.replace(/\s+/g, '_').replace(/[^\w.-]/g, '') || 'flolup-share';
-            const file = new File([blob], `${safeName}.${ext}`, { type: blob.type });
-            if (navigator.canShare({ files: [file] })) {
-              payload.files = [file];
-            }
-          }
-        } catch (imgErr) {
-          console.debug('Share image fetch failed', imgErr);
-        }
-      }
-
-      return payload;
-    };
-
-    if (navigator?.share) {
-      try {
-        const payload = await buildSharePayload();
-        await navigator.share(payload);
-      } catch (err) {
-        console.debug('Navigator share failed', err);
-      }
-    } else if (navigator?.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(shareUrl);
-      } catch {}
-    }
+    await shareSongLink({
+      songId,
+      title: displayTitle,
+      text: `${displayTitle} by ${displayArtist}`,
+      shareSongMutation: shareSong,
+    });
   };
 
   const handleDownload = async () => {
@@ -354,25 +309,15 @@ const formatStatNumber = (value, fallback = "0") => {
     { role: 'Vocals', name: displayArtist },
     { role: 'Mixing', name: 'Sofia Chen' }
   ];
-  const expandedCredits = React.useMemo(() => {
-    const list = Array.isArray(credits) ? [...credits] : [];
-    if (currentSong?.label) {
-      list.push({ role: 'Label', name: currentSong.label });
-    }
-    if (Array.isArray(currentSong?.featuringArtist)) {
-      currentSong.featuringArtist.forEach((feat) => {
-        if (feat) list.push({ role: 'Featuring', name: feat });
-      });
-    }
-    return list;
-  }, [credits, currentSong?.label, currentSong?.featuringArtist]);
-
   const controlsDisabled = isAdPlaying;
 
   // Track scroll position so we can restore it when reopening the player
   const handleScroll = useCallback(() => {
     if (scrollRef.current) {
       scrollPositionRef.current = scrollRef.current.scrollTop;
+      if (scrollRef.current.scrollTop > 260) {
+        setRenderDetails(true);
+      }
     }
   }, []);
 
@@ -444,6 +389,7 @@ const formatStatNumber = (value, fallback = "0") => {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      setRenderDetails(false);
       // Reset scroll position when opening
       if (scrollRef.current) {
         scrollRef.current.scrollTop = 0;
@@ -455,25 +401,7 @@ const formatStatNumber = (value, fallback = "0") => {
     return () => {
       document.body.style.overflow = 'auto';
     };
-  }, [isOpen]);
-
-  const artworkSize = 'clamp(260px, 35vw, 520px)';
-
-
-
-  // Effect to check if bio needs truncation
-  useEffect(() => {
-    if (!isOpen) {
-      setShowReadMore(false);
-      return;
-    }
-    if (bioRef.current && !isBioExpanded) {
-      const needsTruncation = bioRef.current.scrollHeight > bioRef.current.clientHeight;
-      setShowReadMore(needsTruncation);
-    } else {
-      setShowReadMore(false);
-    }
-  }, [artistBio, isBioExpanded, isOpen]);
+  }, [isOpen, currentTrackId]);
 
   const toggleBioExpansion = () => {
     setIsBioExpanded(!isBioExpanded);
@@ -501,7 +429,7 @@ const formatStatNumber = (value, fallback = "0") => {
         flexDirection: 'column',
       }}
     >
-      {/* Dynamic Background - Fixed */}
+      {/* Lightweight Artwork Background */}
       <Box
         sx={{
           position: 'fixed',
@@ -509,28 +437,27 @@ const formatStatNumber = (value, fallback = "0") => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: `linear-gradient(180deg, 
-            ${alpha(theme.palette.primary.main, 0.4)} 0%,
-            ${alpha('#0A0A0F', 0.95)} 40%,
-            ${alpha('#050509', 0.98)} 100%
-          )`,
+          backgroundColor: '#050509',
           zIndex: 0,
           pointerEvents: 'none',
+          overflow: 'hidden',
           '&::before': {
             content: '""',
             position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            
+            inset: 0,
             backgroundImage: `url(${displayImageSrc})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            opacity: 0.15,
-            filter: 'blur(10px)',
-            backgroundAttachment: 'fixed',
-          }
+            opacity: 0.18,
+            filter: { xs: 'none', md: 'blur(18px)' },
+            transform: { xs: 'none', md: 'scale(1.06)' },
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            background: `linear-gradient(180deg, ${alpha('#050509', 0.72)} 0%, ${alpha('#050509', 0.94)} 58%, #050509 100%)`,
+          },
         }}
       />
 
@@ -547,7 +474,6 @@ const formatStatNumber = (value, fallback = "0") => {
           alignItems: 'center',
           justifyContent: 'space-between',
           background: alpha('#050509', 0.95),
-          backdropFilter: 'blur(20px)',
           borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
         }}
       >
@@ -572,11 +498,6 @@ const formatStatNumber = (value, fallback = "0") => {
           <IconButton size="small" onClick={handleShare} sx={{ color: 'white' }}>
             <Share fontSize="small" />
           </IconButton>
-
-          {/* <IconButton size="small" sx={{ color: 'white' }}>
-            <MoreVert fontSize="small" />
-          </IconButton> */}
-
         </Box>
       </Box>
 
@@ -616,7 +537,7 @@ const formatStatNumber = (value, fallback = "0") => {
 {/* Hero Section - Responsive */}
 <Box
   sx={{
-    minHeight: { xs: 'auto', md: '100vh' },
+    minHeight: { xs: 'auto', md: 'calc(100dvh - 76px)' },
     display: 'grid',
     gridTemplateAreas: {
       xs: `"art"
@@ -636,11 +557,12 @@ const formatStatNumber = (value, fallback = "0") => {
       md: 'minmax(300px, 1fr) minmax(0, 1.2fr)',
     },
     alignItems: { xs: 'flex-start', md: 'center' },
-    gap: { xs: 2, md: 6 },
+    alignContent: { xs: 'start', md: 'center' },
+    gap: { xs: 1.75, sm: 2.25, md: 4 },
     width: '100%',
     maxWidth: { xs: '100%', md: '1400px' },
     mx: 'auto',
-    p: { xs: 2, md: 5 },
+    p: { xs: 2, sm: 2.5, md: 4 },
     position: 'relative',
   }}
 >
@@ -649,10 +571,10 @@ const formatStatNumber = (value, fallback = "0") => {
     sx={{
       position: 'relative',
       width: '100%',
-      maxWidth: { xs: '200px', sm: '250px', md: '100%' }, // Fixed max width on mobile
+      maxWidth: { xs: 'min(76vw, 300px)', sm: 'min(52vw, 360px)', md: '100%' },
       height: { 
         xs: 'auto',
-        md: 'calc(100vh - 200px)',
+        md: 'min(52vh, 500px)',
       },
       justifySelf: 'center',
       alignSelf: 'center',
@@ -660,7 +582,7 @@ const formatStatNumber = (value, fallback = "0") => {
       alignItems: 'center',
       justifyContent: 'center',
       gridArea: 'art',
-      mx: 'auto', // Center on mobile
+      mx: 'auto',
     }}
   >
     <Box
@@ -682,32 +604,9 @@ const formatStatNumber = (value, fallback = "0") => {
           aspectRatio: '1/1', // Keep square aspect ratio
           objectFit: 'cover',
           borderRadius: { xs: 2, md: 4 },
-          boxShadow: `0 24px 60px ${alpha('#000', 0.7)}`,
+          display: 'block',
         }}
       />
-      
-      {/* Floating Play Button - Smaller on mobile */}
-      <Fab
-        onClick={controlsDisabled ? undefined : onPlayPause}
-        disabled={controlsDisabled}
-        size="medium"
-        sx={{
-          position: 'absolute',
-          bottom: { xs: -15, md: -30 },
-          right: { xs: -10, md: 30 },
-          bgcolor: theme.palette.primary.main,
-          color: theme.palette.getContrastText(theme.palette.primary.main),
-          width: { xs: 48, md: 72 },
-          height: { xs: 48, md: 72 },
-          '&:hover': { bgcolor: theme.palette.primary.dark },
-          boxShadow: `0 15px 40px ${alpha(theme.palette.primary.main, 0.45)}`,
-        }}
-      >
-        {isPlaying ? 
-          <Pause sx={{ fontSize: { xs: 24, md: 36 } }} /> : 
-          <PlayArrow sx={{ fontSize: { xs: 24, md: 36 } }} />
-        }
-      </Fab>
     </Box>
   </Box>
 
@@ -716,7 +615,7 @@ const formatStatNumber = (value, fallback = "0") => {
     sx={{
       display: 'flex',
       flexDirection: 'column',
-      gap: { xs: 1.5, md: 4 },
+      gap: { xs: 1, md: 3 },
       gridArea: 'info',
     }}
   >
@@ -729,7 +628,7 @@ const formatStatNumber = (value, fallback = "0") => {
         variant="h1"
         sx={{
           fontWeight: 900,
-          fontSize: { xs: '1.5rem', sm: '2rem', md: '3.2rem' },
+          fontSize: { xs: '1.45rem', sm: '1.9rem', md: '3rem' },
           lineHeight: 1.1,
           background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           WebkitBackgroundClip: 'text',
@@ -744,7 +643,7 @@ const formatStatNumber = (value, fallback = "0") => {
         variant="h4"
         sx={{
           fontWeight: 500,
-          fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.9rem' },
+          fontSize: { xs: '1rem', sm: '1.2rem', md: '1.8rem' },
           color: alpha('#fff', 0.9),
           mb: 0.5,
         }}
@@ -767,7 +666,7 @@ const formatStatNumber = (value, fallback = "0") => {
       <Box sx={{ 
         display: 'flex', 
         justifyContent: { xs: 'center', md: 'flex-start' }, 
-        gap: { xs: 2, md: 4 },
+        gap: { xs: 1.5, md: 4 },
         flexWrap: 'wrap',
       }}>
         {[
@@ -780,7 +679,7 @@ const formatStatNumber = (value, fallback = "0") => {
             <Typography sx={{ 
               color: theme.palette.primary.main, 
               fontWeight: 700,
-              fontSize: { xs: '1rem', md: '1.6rem' }
+              fontSize: { xs: '0.95rem', md: '1.5rem' }
             }}>
               {stat.value}
             </Typography>
@@ -804,7 +703,7 @@ const formatStatNumber = (value, fallback = "0") => {
       alignItems: 'center',
       justifyContent: { xs: 'center', md: 'flex-end' },
       gap: { xs: 1.5, md: 2 },
-      mt: { xs: 1, md: 0 },
+      mt: { xs: 0.75, md: 0 },
     }}
   >
     <IconButton
@@ -838,7 +737,7 @@ const formatStatNumber = (value, fallback = "0") => {
   </Box>
 
   {/* Progress Bar */}
-  <Box sx={{ gridArea: 'slider', width: '100%', mt: { xs: 1, md: 0 } }}>
+  <Box sx={{ gridArea: 'slider', width: '100%', mt: { xs: 0.75, md: 0 } }}>
     <Slider
       value={Math.min(sliderValue, effectiveDuration || teaserDuration)}
       max={effectiveDuration || 100}
@@ -869,7 +768,7 @@ const formatStatNumber = (value, fallback = "0") => {
     alignItems: 'center',
     justifyContent: 'center',
     gap: { xs: 1.5, sm: 2, md: 4 },
-    mt: { xs: 1, md: 4 },
+    mt: { xs: 0.75, md: 2 },
   }}>
     <IconButton
       onClick={controlsDisabled ? undefined : onToggleShuffle}
@@ -898,10 +797,9 @@ const formatStatNumber = (value, fallback = "0") => {
       sx={{
         bgcolor: theme.palette.primary.main,
         color: theme.palette.getContrastText(theme.palette.primary.main),
-        width: { xs: 48, md: 80 },
-        height: { xs: 48, md: 80 },
+        width: { xs: 48, md: 72 },
+        height: { xs: 48, md: 72 },
         '&:hover': { bgcolor: theme.palette.primary.dark },
-        boxShadow: `0 15px 35px ${alpha(theme.palette.primary.main, 0.4)}`,
       }}
     >
       {isPlaying ? 
@@ -955,12 +853,30 @@ const formatStatNumber = (value, fallback = "0") => {
 {/* ----------------------------- */}
 
         {/* Content Section */}
-        <Box sx={{ 
-          bgcolor: alpha('#050509', 0.9),
-          minHeight: '100vh',
+        <Box sx={{
+          bgcolor: '#050509',
+          minHeight: renderDetails ? '100vh' : 'auto',
           pt: 4,
-          backdropFilter: 'blur(10px)',
+          contentVisibility: 'auto',
+          containIntrinsicSize: '900px',
         }}>
+          {!renderDetails ? (
+            <Box sx={{ px: 3, pb: 8, display: 'flex', justifyContent: 'center' }}>
+              <Button
+                variant="outlined"
+                onClick={() => setRenderDetails(true)}
+                sx={{
+                  color: theme.palette.primary.main,
+                  borderColor: alpha(theme.palette.primary.main, 0.45),
+                  borderRadius: 2,
+                  px: 3,
+                  py: 1,
+                }}
+              >
+                Show lyrics and credits
+              </Button>
+            </Box>
+          ) : (
           <Container maxWidth="lg" sx={{ py: { xs: 6, md: 8 }, px: { xs: 3, sm: 4 } }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: { xs: 4, lg: 6 }, alignItems: 'start' }}>
               <Box sx={{ display: 'grid', gap: 3 }}>
@@ -968,8 +884,7 @@ const formatStatNumber = (value, fallback = "0") => {
 
                 <Paper
                   sx={{
-                    bgcolor: alpha('#111119', 0.75),
-                    backdropFilter: 'blur(18px)',
+                    bgcolor: alpha('#111119', 0.9),
                     borderRadius: 3,
                     border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                     p: { xs: 3, sm: 4 },
@@ -994,8 +909,7 @@ const formatStatNumber = (value, fallback = "0") => {
 
 <Paper
       sx={{
-        bgcolor: alpha('#111119', 0.75),
-        backdropFilter: 'blur(18px)',
+        bgcolor: alpha('#111119', 0.9),
         borderRadius: 3,
         border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
         p: { xs: 3, sm: 4 },
@@ -1120,10 +1034,8 @@ const formatStatNumber = (value, fallback = "0") => {
               bgcolor: isFollowing 
                 ? alpha(theme.palette.primary.main, 0.15)
                 : alpha(theme.palette.primary.main, 0.9),
-              transform: 'translateY(-1px)',
-              boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
             },
-            transition: 'all 0.2s ease',
+            transition: 'background-color 0.2s ease',
             whiteSpace: 'nowrap',
             minWidth: { xs: '100%', sm: 'auto' }
           }}
@@ -1171,13 +1083,7 @@ const formatStatNumber = (value, fallback = "0") => {
       
       {/* Responsive Biography Text Container */}
       <Box
-        ref={(el) => {
-          // Check if bio needs truncation (only on mount)
-          if (el && !isBioExpanded) {
-            const needsTruncation = el.scrollHeight > el.clientHeight;
-            setShowReadMore(needsTruncation);
-          }
-        }}
+        ref={bioRef}
         sx={{
           position: 'relative',
           maxHeight: isBioExpanded ? 'none' : { 
@@ -1253,8 +1159,7 @@ const formatStatNumber = (value, fallback = "0") => {
 
 <Paper
   sx={{
-    bgcolor: alpha('#111119', 0.75),
-    backdropFilter: 'blur(18px)',
+    bgcolor: alpha('#111119', 0.9),
     borderRadius: 3,
     border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
     p: { xs: 3, sm: 4 },
@@ -1573,7 +1478,6 @@ const formatStatNumber = (value, fallback = "0") => {
                             border: `1px solid ${alpha('#fff', 0.1)}`,
                             '&:hover': {
                               borderColor: theme.palette.primary.main,
-                              boxShadow: `0 10px 30px ${alpha(theme.palette.primary.main, 0.2)}`,
                             }
                           }}
                         >
@@ -1626,6 +1530,7 @@ const formatStatNumber = (value, fallback = "0") => {
               </Box>
             </Box>
           </Container>
+          )}
         </Box>
         </Box>
       </Box>
@@ -1640,8 +1545,6 @@ const formatStatNumber = (value, fallback = "0") => {
           sx: {
             bgcolor: alpha('#050509', 0.95),
             border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-            boxShadow: `0 20px 50px ${alpha('#000', 0.6)}`,
-            backdropFilter: 'blur(18px)'
           }
         }}
       >

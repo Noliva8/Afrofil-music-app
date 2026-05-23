@@ -26,7 +26,7 @@ import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import PersonIcon from "@mui/icons-material/Person";
 import AddIcon from "@mui/icons-material/Add";
 
-import { SONGS_OF_ALBUM } from "../../utils/queries";
+import { SHARE_SONG, SONGS_OF_ALBUM } from "../../utils/queries";
 import { GET_PRESIGNED_URL_DOWNLOAD } from "../../utils/mutations";
 import { useSongsWithPresignedUrls } from "../../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils";
@@ -37,6 +37,7 @@ import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBa
 import { PlayButton } from "../../components/PlayButton.jsx";
 import { ShuffleButton } from "../../components/ShuffleButton.jsx";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal.jsx";
+import { shareSongLink } from "../../utils/shareSong";
 
 export const AlbumPage = () => {
   const { albumId } = useParams();
@@ -47,6 +48,7 @@ export const AlbumPage = () => {
   const { currentTrack, isPlaying, isAdPlaying, handlePlaySong, pause, playerState } =
     useAudioPlayer();
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const [shareSongMutation] = useMutation(SHARE_SONG);
   const [albumCoverUrl, setAlbumCoverUrl] = useState(null);
   const [isSubtitleHovered, setIsSubtitleHovered] = useState(false);
   const [trackMenuAnchor, setTrackMenuAnchor] = useState(null);
@@ -66,7 +68,6 @@ export const AlbumPage = () => {
     fetchPolicy: "cache-first",
   });
 
-console.log('does album has songs?', data);
   const albumMeta = data?.getAlbum || null;
   const albumTitle = albumMeta?.title || "Single";
   const albumArtist = albumMeta?.artist || null;
@@ -196,7 +197,6 @@ console.log('does album has songs?', data);
 
   const handleAddToFavorites = useCallback((track) => {
     if (!track) return;
-    console.log("Add to favorites", getId(track));
   }, [getId]);
 
   const handleAddToPlaylist = useCallback((track) => {
@@ -207,17 +207,23 @@ console.log('does album has songs?', data);
 
   const handlePlayNext = useCallback((track) => {
     if (!track) return;
-    console.log("Play next:", track.title);
   }, []);
 
-  const handleShareTrack = useCallback((track) => {
+  const handleShareTrack = useCallback(async (track) => {
     if (!track) return;
-    console.log("Share track:", track.title);
-  }, []);
+    const trackId = getId(track);
+    if (!trackId) return;
+
+    await shareSongLink({
+      songId: trackId,
+      title: track?.title || "Song",
+      text: track?.artistName || albumArtist?.artistAka || "Listen to this track",
+      shareSongMutation,
+    });
+  }, [albumArtist?.artistAka, getId, shareSongMutation]);
 
   const handleReportTrack = useCallback((track) => {
     if (!track) return;
-    console.log("Report track:", track.title);
   }, []);
 
   const handleTouchStart = useCallback(
@@ -343,15 +349,16 @@ console.log('does album has songs?', data);
         sx={{
           width: "100%",
           height: { xs: "auto", md: "40vh", lg: "35vh" },
-          minHeight: { xs: 400, md: 450, lg: 500 },
+          minHeight: { xs: "auto", md: 450, lg: 500 },
           position: "relative",
-          overflow: "hidden",
+          overflow: { xs: "visible", md: "hidden" },
           backgroundColor: theme.palette.background.paper,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           px: { xs: 1, sm: 2, md: 3 },
-          py: { xs: 3, sm: 4, md: 5, lg: 6 },
+          pt: { xs: 5, sm: 5, md: 5, lg: 6 },
+          pb: { xs: 2.5, sm: 4, md: 5, lg: 6 },
         }}
       >
         <Box
@@ -392,9 +399,9 @@ console.log('does album has songs?', data);
             zIndex: 2,
             display: "flex",
             flexDirection: { xs: "column", md: "row" },
-            alignItems: { xs: "center", md: "center" },
-            justifyContent: { xs: "center", md: "space-between" },
-            gap: { xs: 4, md: 6, lg: 8 },
+            alignItems: { xs: "flex-start", md: "center" },
+            justifyContent: { xs: "flex-start", md: "space-between" },
+            gap: { xs: 2, md: 6, lg: 8 },
             width: "100%",
             maxWidth: "1400px",
             margin: "0 auto",
@@ -403,22 +410,31 @@ console.log('does album has songs?', data);
         >
           <Box
             sx={{
-              width: { xs: 220, sm: 260, md: 300, lg: 340 },
-              height: { xs: 220, sm: 260, md: 300, lg: 340 },
+              width: { xs: "min(100%, 220px)", sm: 230, md: 300, lg: 340 },
+              height: { xs: "auto", md: 300, lg: 340 },
+              aspectRatio: "1 / 1",
               flexShrink: 0,
               position: "relative",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.9)",
+              boxShadow: "0 18px 42px rgba(0, 0, 0, 0.75)",
               borderRadius: 3,
               overflow: "hidden",
               border: "1px solid rgba(255, 255, 255, 0.15)",
-              backgroundColor: "rgba(255,255,255,0.03)",
+              backgroundColor: "rgba(0,0,0,0.35)",
+              alignSelf: { xs: "center", md: "auto" },
+              mt: { xs: 0.5, md: 0 },
             }}
           >
             <Box
               component="img"
               src={heroCover}
               alt={albumTitle || "Album cover"}
-              sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+              sx={{
+                display: "block",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+              }}
             />
           </Box>
 
@@ -428,11 +444,11 @@ console.log('does album has songs?', data);
               minWidth: 0,
               overflow: "hidden",
               color: "white",
-              textAlign: { xs: "center", md: "left" },
+              textAlign: "left",
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
-              alignItems: { xs: "center", md: "flex-start" },
+              alignItems: "flex-start",
               maxWidth: {
                 xs: "100%",
                 md: "calc(100% - 350px)",
@@ -465,14 +481,14 @@ console.log('does album has songs?', data);
               }}
               sx={{
                 fontSize: {
-                  xs: "3.2rem",
-                  sm: "3.8rem",
+                  xs: "2.35rem",
+                  sm: "3rem",
                   md: "4.2rem",
                   lg: "4.8rem",
                   xl: "5.2rem",
                 },
                 fontWeight: 800,
-                mb: { xs: 1.5, md: 2 },
+                mb: { xs: 1, md: 2 },
                 lineHeight: 1.1,
                 letterSpacing: "0.1em",
                 background: "linear-gradient(45deg, #fff 20%, #E4C421 80%)",
@@ -487,7 +503,7 @@ console.log('does album has songs?', data);
                 WebkitBoxOrient: "vertical",
                 WebkitLineClamp: { xs: 2, md: 2 },
                 overflowWrap: "anywhere",
-                textAlign: { xs: "center", md: "left" },
+                textAlign: "left",
                 width: "100%",
                 cursor: albumId ? "pointer" : "default",
                 "&:hover": {
@@ -499,7 +515,7 @@ console.log('does album has songs?', data);
               {isSingle ? "Single" : albumTitle}
             </Typography>
 
-            <Box sx={{ width: "100%", mb: { xs: 2, md: 3 }, maxWidth: { xs: "100%", md: "90%" } }}>
+            <Box sx={{ width: "100%", mb: { xs: 1.25, md: 3 }, maxWidth: { xs: "100%", md: "90%" } }}>
               <MarqueeText
                 text={subtitleValue}
                 hovered={{ value: isSubtitleHovered, set: setIsSubtitleHovered }}
@@ -507,7 +523,7 @@ console.log('does album has songs?', data);
                 duration="12s"
                 sx={{
                   height: { xs: "1.8em", sm: "2em" },
-                  textAlign: { xs: "center", md: "left" },
+                  textAlign: "left",
                 }}
               />
             </Box>
@@ -517,7 +533,8 @@ console.log('does album has songs?', data);
                 display: "flex",
                 alignItems: "center",
                 gap: 2,
-                justifyContent: { xs: "center", md: "flex-start" },
+                justifyContent: "flex-start",
+                mb: { xs: 1.5, md: 0 },
               }}
             >
               <Typography
@@ -539,6 +556,46 @@ console.log('does album has songs?', data);
                 {albumArtist?.artistAka || "Unknown Artist"}
               </Typography>
             </Box>
+
+            <Box
+              sx={{
+                display: { xs: "grid", md: "none" },
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                gap: 1,
+                width: "100%",
+                maxWidth: 360,
+                mt: 0.5,
+                "& .MuiButton-root": {
+                  minWidth: 0,
+                  width: "100%",
+                },
+                "& .MuiButton-startIcon": {
+                  mr: 0.75,
+                },
+              }}
+            >
+              <PlayButton
+                handlePrimaryPlay={handlePrimaryPlay}
+                isArtistTrackPlaying={isSongPlaying}
+                playableTrack={playableTrack}
+                sx={{
+                  px: 1,
+                  minWidth: 0,
+                  maxWidth: "none",
+                  fontSize: { xs: "0.78rem", sm: "0.85rem" },
+                }}
+              />
+              <ShuffleButton
+                playableTrack={playableTrack}
+                isShuffled={isShuffled}
+                sx={{
+                  px: 1,
+                  minWidth: 0,
+                  maxWidth: "none",
+                  fontSize: { xs: "0.78rem", sm: "0.85rem" },
+                }}
+              />
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -556,12 +613,16 @@ console.log('does album has songs?', data);
         }}
       >
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-          <PlayButton
-            handlePrimaryPlay={handlePrimaryPlay}
-            isArtistTrackPlaying={isSongPlaying}
-            playableTrack={playableTrack}
-          />
-          <ShuffleButton playableTrack={playableTrack} isShuffled={isShuffled} />
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
+            <PlayButton
+              handlePrimaryPlay={handlePrimaryPlay}
+              isArtistTrackPlaying={isSongPlaying}
+              playableTrack={playableTrack}
+            />
+          </Box>
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
+            <ShuffleButton playableTrack={playableTrack} isShuffled={isShuffled} />
+          </Box>
         </Box>
       </Box>
 
@@ -1312,4 +1373,3 @@ console.log('does album has songs?', data);
     </>
   );
 };
-

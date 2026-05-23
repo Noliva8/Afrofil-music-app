@@ -13,7 +13,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 router.get('/verify-advertizer-email', async (req, res) => {
-  console.log("🎯 Route hit"); 
   const { token } = req.query;
 
   if (!token) {

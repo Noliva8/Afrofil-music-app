@@ -546,7 +546,6 @@ const UserSideBar = () => {
 
       // You might want to save the new order to backend
       // This would require a new mutation to reorder playlists
-      console.log('Playlists reordered:', newPlaylists.map(p => p._id));
     }
   };
 

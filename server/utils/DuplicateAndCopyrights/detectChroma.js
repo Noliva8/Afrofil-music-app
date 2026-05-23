@@ -56,8 +56,6 @@ export default async function extractFeatures(tempPath) {
     const audioBuffer = audioData.getChannelData(0);  // Use the left channel (mono)
 
     // Debug: Check the audio buffer length and the first few samples
-    // console.log('Audio buffer length:', audioBuffer.length);
-    // console.log('First 10 samples of audio buffer:', audioBuffer.slice(0, 10));
 
     // Normalize the audio buffer to avoid very small values
     const normalizedAudioBuffer = normalizeAudioChunk(audioBuffer);
@@ -78,8 +76,6 @@ export default async function extractFeatures(tempPath) {
       let chunk = normalizedAudioBuffer.slice(chunkStart, chunkEnd);
 
       // Debug: Log chunk and check chunk size
-      // console.log(`Processing chunk from ${chunkStart} to ${chunkEnd}`);
-      // console.log('Chunk data (first 10 samples):', chunk.slice(0, 10));
 
       // Ensure the chunk size is a power of 2
       const chunkSizePowerOf2 = nextPowerOf2(chunk.length);
@@ -112,8 +108,6 @@ export default async function extractFeatures(tempPath) {
 
 
       // Log the extracted MFCC features for debugging
-      // console.log(`Extracted MFCC Features for Chunk ${chunkStart / initialBufferSize + 1}:`);
-      // console.log('Extracted MFCC :', mfccFeatures);
 
       // Store the features (you can process them further or return them)
      features.push({ mfcc: mfccFeatures, chroma: chromaFeatures });

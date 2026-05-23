@@ -23,7 +23,7 @@ import {
   Person,
   Report,
 } from "@mui/icons-material";
-import { useApolloClient, useQuery } from "@apollo/client";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client";
 import { useMediaQuery } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
@@ -44,6 +44,8 @@ import {
   SONG_LIST_PLACEHOLDER_QUERY,
 } from "./songListConfig";
 import { useSongsWithPresignedUrls } from "../../utils/someSongsUtils/songsWithPresignedUrlHook.js";
+import { SHARE_SONG } from "../../utils/queries";
+import { shareSongLink } from "../../utils/shareSong";
 
 
 
@@ -65,12 +67,13 @@ const SongList = ({
   emptyMessage = "No songs available",
   emptyDescription = "Start listening to get recommendations",
   rowCode,
+  loading = false,
+  lightweight = false,
 }) => {
   const theme = useTheme();
   const client = useApolloClient();
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
-  const [hoveredIndex, setHoveredIndex] = useState(null);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [playlistTrack, setPlaylistTrack] = useState(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
@@ -79,6 +82,7 @@ const SongList = ({
   const isMobileActions = useMediaQuery(theme.breakpoints.down("md"));
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
+  const [shareSongMutation] = useMutation(SHARE_SONG);
 
   const rowConfig = rowCode ? ROW_QUERY_CONFIG[rowCode] : null;
   const shouldFetchRowQuery = Boolean(rowConfig && showAll);
@@ -115,7 +119,8 @@ const SongList = ({
   }, [baseIdSet, baseSongs.length, fetchedRowSongs, rowConfig, showAll]);
 
   const { songsWithArtwork: extraSongsWithArtwork } = useSongsWithPresignedUrls(
-    showAll ? extraSongs : []
+    showAll ? extraSongs : [],
+    { includeRelatedImages: !lightweight }
   );
 
   const displayedSongs = useMemo(() => {
@@ -140,7 +145,6 @@ const handleAddToPlaylist = useCallback((track) => {
 
 const handleRemoveFromPlaylist = useCallback((track) => {
   if (!track) return;
-  console.log("Remove from playlist", track?.title);
 }, []);
 
 
@@ -156,29 +160,28 @@ const handleNavigateToArtist = useCallback(
 
 const handleReportTrack = useCallback((track) => {
   if (!track) return;
-  console.log("Report:", track?.title);
 }, []);
 
 const handleToggleFavorite = useCallback((track) => {
   if (!track) return;
-  console.log("Toggle favorite", track?.title);
 }, []);
 
 const handlePlayNext = useCallback((track) => {
   if (!track) return;
-  console.log("Play next", track?.title);
 }, []);
 
-const handleShareTrack = useCallback((track) => {
+const handleShareTrack = useCallback(async (track) => {
   if (!track) return;
-  const url = `${window.location.origin}/song/${track?.id || track?._id || ""}`;
-  const text = `Listen to "${track?.title}"`;
-  if (navigator?.share) {
-    navigator.share({ title: track?.title, text, url }).catch(console.error);
-    return;
-  }
-  navigator.clipboard.writeText(url).catch(console.error);
-}, []);
+  const songId = track?.id || track?._id;
+  if (!songId) return;
+
+  await shareSongLink({
+    songId,
+    title: track?.title || "Song",
+    text: track?.artistName || track?.artist?.artistAka || "Listen to this track",
+    shareSongMutation,
+  });
+}, [shareSongMutation]);
 
 const handleMenuClose = useCallback(() => {
   setMenuAnchorEl(null);
@@ -378,8 +381,7 @@ const handlePlay = (event, song) => {
       {/* List Container */}
       <Box
         sx={{
-          backgroundColor: alpha(theme.palette.background.paper, 0.5),
-          backdropFilter: "blur(10px)",
+          backgroundColor: "background.paper",
           borderRadius: 2,
           border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
           overflow: "hidden",
@@ -388,7 +390,7 @@ const handlePlay = (event, song) => {
         {/* List Header */}
         <Box
           sx={{
-            display: { xs: "none", md: "grid" },
+            display: { xs: "none", md: lightweight ? "none" : "grid" },
             gridTemplateColumns: {
               md: "50px minmax(0,1fr) repeat(3, 120px)",
               lg: "50px minmax(0,1fr) repeat(4, 120px)",
@@ -470,24 +472,24 @@ const handlePlay = (event, song) => {
         <List sx={{ py: 0 }}>
           {displayedSongs.map((song, index) => {
             const isCurrent = currentTrack?.id === song.id;
-            const isHovered = hoveredIndex === index;
             return (
               <ListItem
                 key={song.id}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
+                className="song-list-item"
                 onClick={() => onCardClick?.(song)}
                 sx={{
                   px: { xs: 2, md: 3 },
                   py: 1.5,
                   borderBottom: `1px solid ${alpha(theme.palette.divider, 0.05)}`,
                   cursor: "pointer",
-                  transition: "all 0.2s ease",
-                  backgroundColor: isHovered 
-                    ? alpha(theme.palette.primary.main, 0.05)
-                    : "transparent",
+                  transition: "background-color 0.2s ease",
+                  backgroundColor: "transparent",
                   "&:hover": {
                     backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                  },
+                  "&:hover .song-play-button": {
+                    opacity: 1,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.2),
                   },
                   "&:last-child": {
                     borderBottom: "none",
@@ -506,8 +508,12 @@ const handlePlay = (event, song) => {
                     alignItems: "center",
                     gap: { xs: 1.25, md: 2 },
                     gridTemplateColumns: {
-                      md: "50px minmax(0,1fr) 120px 120px 120px",
-                      lg: "50px minmax(0,1fr) 120px 120px 120px 120px",
+                      md: lightweight
+                        ? "50px minmax(0,1fr) 120px"
+                        : "50px minmax(0,1fr) 120px 120px 120px",
+                      lg: lightweight
+                        ? "50px minmax(0,1fr) 120px"
+                        : "50px minmax(0,1fr) 120px 120px 120px 120px",
                     },
                   }}
                 >
@@ -594,6 +600,7 @@ const handlePlay = (event, song) => {
                         {song.title?.[0]}
                       </Avatar>
                       <IconButton
+                        className="song-play-button"
                         size="small"
                         onClick={(e) => handlePlay(e, song)}
                         aria-label="Play song"
@@ -604,13 +611,13 @@ const handlePlay = (event, song) => {
                           transform: "translate(-50%, -50%)",
                           backgroundColor: isCurrent
                             ? theme.palette.primary.main
-                            : alpha(theme.palette.primary.main, isHovered ? 0.2 : 0),
+                            : alpha(theme.palette.primary.main, 0),
                           color: isCurrent
                             ? theme.palette.primary.contrastText
                             : theme.palette.primary.main,
                           width: 36,
                           height: 36,
-                          opacity: isHovered || isCurrent ? 1 : 0,
+                          opacity: isCurrent ? 1 : 0,
                           transition: "all 0.2s ease",
                           borderRadius: "50%",
                           "&:hover": {
@@ -677,7 +684,7 @@ const handlePlay = (event, song) => {
                   <Box
                     sx={{
                       gridColumn: { lg: "3 / 4" },
-                      display: { xs: "none", md: "none", lg: "flex" },
+                      display: lightweight ? "none" : { xs: "none", md: "none", lg: "flex" },
                       alignItems: "center",
                       gap: 0.5,
                       justifyContent: { lg: "center" },
@@ -698,7 +705,7 @@ const handlePlay = (event, song) => {
 
                   <Box
                     sx={{
-                      gridColumn: { md: "3 / 4", lg: "4 / 5" },
+                      gridColumn: lightweight ? { md: "3 / 4", lg: "3 / 4" } : { md: "3 / 4", lg: "4 / 5" },
                       display: { xs: "none", md: "flex" },
                       alignItems: "center",
                       gap: 0.5,
@@ -711,52 +718,56 @@ const handlePlay = (event, song) => {
                     </Typography>
                   </Box>
 
-                  <Box
-                    sx={{
-                      gridColumn: { md: "4 / 5", lg: "5 / 6" },
-                      display: "flex",
-                      justifyContent: { xs: "flex-start", md: "center" },
-                      order: { xs: 2, md: "auto" },
-                      ml: { xs: "auto", md: 0 },
-                    }}
-                  >
-                    <AddButton
-                      track={song}
-                      handleAddToPlaylist={handleAddToPlaylist}
-                      handleRemoveFromPlaylist={handleRemoveFromPlaylist}
-                      sx={{ display: "flex" }}
-                    />
-                  </Box>
+                  {!lightweight && (
+                    <>
+                      <Box
+                        sx={{
+                          gridColumn: { md: "4 / 5", lg: "5 / 6" },
+                          display: "flex",
+                          justifyContent: { xs: "flex-start", md: "center" },
+                          order: { xs: 2, md: "auto" },
+                          ml: { xs: "auto", md: 0 },
+                        }}
+                      >
+                        <AddButton
+                          track={song}
+                          handleAddToPlaylist={handleAddToPlaylist}
+                          handleRemoveFromPlaylist={handleRemoveFromPlaylist}
+                          sx={{ display: "flex" }}
+                        />
+                      </Box>
 
-                  <Box
-                    sx={{
-                      gridColumn: { md: "5 / 6", lg: "6 / 7" },
-                      display: "flex",
-                      justifyContent: "center",
-                      width: { xs: "auto", md: "100%" },
-                      order: { xs: 3, md: "auto" },
-                      ml: { xs: 1, md: 0 },
-                    }}
-                  >
-                    <IconButton
-                      size="small"
-                      onClick={(event) => handleMoreClick(event, song)}
-                      aria-label="More options"
-                      sx={{
-                        color: "rgba(255,255,255,0.65)",
-                        backgroundColor: "rgba(255,255,255,0.05)",
-                        "&:hover": {
-                          backgroundColor: "rgba(255,255,255,0.1)",
-                        },
-                        "@media (max-width:414px)": {
-                          display: "none",
-                        },
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <MoreHoriz />
-                    </IconButton>
-                  </Box>
+                      <Box
+                        sx={{
+                          gridColumn: { md: "5 / 6", lg: "6 / 7" },
+                          display: "flex",
+                          justifyContent: "center",
+                          width: { xs: "auto", md: "100%" },
+                          order: { xs: 3, md: "auto" },
+                          ml: { xs: 1, md: 0 },
+                        }}
+                      >
+                        <IconButton
+                          size="small"
+                          onClick={(event) => handleMoreClick(event, song)}
+                          aria-label="More options"
+                          sx={{
+                            color: "rgba(255,255,255,0.65)",
+                            backgroundColor: "rgba(255,255,255,0.05)",
+                            "&:hover": {
+                              backgroundColor: "rgba(255,255,255,0.1)",
+                            },
+                            "@media (max-width:414px)": {
+                              display: "none",
+                            },
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <MoreHoriz />
+                        </IconButton>
+                      </Box>
+                    </>
+                  )}
 
                   
                 </Box>
@@ -764,6 +775,18 @@ const handlePlay = (event, song) => {
             );
           })}
         </List>
+
+        {loading && displayedSongs.length === 0 && (
+          <LinearProgress
+            sx={{
+              height: 2,
+              backgroundColor: alpha(theme.palette.divider, 0.2),
+              "& .MuiLinearProgress-bar": {
+                backgroundColor: theme.palette.primary.main,
+              },
+            }}
+          />
+        )}
 
         {/* Current Song Progress Bar */}
         {currentTrack && displayedSongs.some(song => song.id === currentTrack.id) && (
@@ -786,7 +809,7 @@ const handlePlay = (event, song) => {
       </Box>
 
       {/* Empty State */}
-      {displayedSongs.length === 0 && (
+      {!loading && displayedSongs.length === 0 && (
         <Box
           sx={{
             textAlign: "center",
@@ -803,23 +826,27 @@ const handlePlay = (event, song) => {
           </Typography>
         </Box>
       )}
-      <ActionMenu
-        isMobile={isMobileActions}
-        anchorEl={menuAnchorEl}
-        open={!isMobileActions && Boolean(menuAnchorEl)}
-        onClose={handleMenuClose}
-        drawerOpen={drawerOpen}
-        onCloseDrawer={handleDrawerClose}
-        items={menuItems}
-        drawerTitle="More actions"
-        drawerSubtitle={menuTrack?.title}
-        showCancel
-      />
-      <AddToPlaylistModal
-        open={playlistDialogOpen}
-        onClose={handleCloseAddToPlaylist}
-        track={playlistTrack}
-      />
+      {!lightweight && (
+        <>
+          <ActionMenu
+            isMobile={isMobileActions}
+            anchorEl={menuAnchorEl}
+            open={!isMobileActions && Boolean(menuAnchorEl)}
+            onClose={handleMenuClose}
+            drawerOpen={drawerOpen}
+            onCloseDrawer={handleDrawerClose}
+            items={menuItems}
+            drawerTitle="More actions"
+            drawerSubtitle={menuTrack?.title}
+            showCancel
+          />
+          <AddToPlaylistModal
+            open={playlistDialogOpen}
+            onClose={handleCloseAddToPlaylist}
+            track={playlistTrack}
+          />
+        </>
+      )}
     </Box>
   );
 };

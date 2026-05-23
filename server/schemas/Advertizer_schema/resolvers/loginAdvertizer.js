@@ -35,7 +35,6 @@ const loginAdvertizer = async (_, { businessEmail, password }) => {
   }
 
   const advertizerToken = signAdvertiserToken(advertizer, USER_TYPES.ADVERTISER); 
-console.log('check the token:', advertizerToken);
 
 
 

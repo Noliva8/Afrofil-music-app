@@ -89,8 +89,6 @@ export const getAlbum = async (_parent, { albumId }) => {
 
 
 export const otherAlbumsByArtist = async (parent, { albumId, artistId }) => {
-      console.log('[getAlbum] albumId:', albumId);
-       console.log('[getArtist] albumId:', artistId);
   try {
     const albums = await Album.find({
       artist: artistId,

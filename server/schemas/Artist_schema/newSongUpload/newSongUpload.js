@@ -68,9 +68,6 @@ if (!context.artist) throw new Error('Unauthorized: You are not logged in.');
 
   const url = await CreatePresignedUrl({ bucket, key, region });
 
-console.log('IS PREIGNED? ', url)
-console.log('KEY? ', key)
-console.log('SONG? ', song)
     return {
     song,
     url,

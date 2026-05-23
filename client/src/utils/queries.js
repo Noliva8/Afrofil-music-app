@@ -541,6 +541,16 @@ export const SONG_OF_ARTIST = gql`
   }
 `;
 
+export const ARTIST_SUPPORT_REVENUE = gql`
+  query ArtistSupportRevenue {
+    artistSupportRevenue {
+      totalArtistAmount
+      paidSupportCount
+      currency
+    }
+  }
+`;
+
 
 
 

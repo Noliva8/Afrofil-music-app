@@ -40,7 +40,6 @@ export const SongsILike = () => {
     [songsWithArtwork]
   );
 
-console.log('how is liked songs:', likedSongs)
   useEffect(() => {
     checkScrollPosition();
     window.addEventListener('resize', checkScrollPosition);

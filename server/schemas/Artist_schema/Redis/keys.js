@@ -13,6 +13,7 @@ export const TRENDING_SLOTS = 20;
 export const PLAY_COOLDOWN_SECONDS = 60;
 export const SIMILAR_SONGS_PLAYBACK = (userId) => `sim:songs:${userId}`; 
 export const PLAYBACK_SONGS = (userId) => `playback:${userId}`; // playback session storage
+export const RECENT_PLAYED_CACHE_KEY = (userId, limit) => `afrofeel:user:${userId}:recentPlayed:${limit}`;
 export const ARTIST_FOLLOWERS = (artistId) => `followere${artistId}`
 export const ARTIST_DOWNLOADS = (artistId) => `downloads${artistId}`
 export const ARTIST_SHARE = (artistId) => `shares${artistId}`
@@ -42,7 +43,8 @@ export const SIMILARITY_TIERS = {
 };
 
 export const AVAILABLE_ADS_KEY = (userId) => `ads:user#${userId}#available`;
-export const CACHE_TTL_SECONDS = 24 * 60 * 60; 
+export const CACHE_TTL_SECONDS = 24 * 60 * 60;
+export const TRENDING_PAYLOAD_CACHE_TTL_SECONDS = 15 * 60;
 // One year TTL for long-lived sets (e.g., artist followers)
 export const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 

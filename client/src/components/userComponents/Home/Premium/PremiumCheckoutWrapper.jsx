@@ -11,7 +11,6 @@ const PremiumCheckoutWrapper = () => {
   useEffect(() => {
     const profile = UserAuth.getProfile();
     const email = profile?.data?.email;
-    console.log(email)
     if (email) setUserEmail(email);
   }, []);
 

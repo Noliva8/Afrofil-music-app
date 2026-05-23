@@ -4,14 +4,12 @@ import { PLAYBACK_SONGS } from "../Redis/keys.js";
 export const savePlaybackSession = async (_, { data }, context) => {
   const userId = context.user?._id;
   if (!userId) {
-    // console.log("User is not logged in");
     return false;
   }
 
   try {
     const client = await getRedis();
     const redisKey = PLAYBACK_SONGS(userId);
-// console.log('recieved data:', data)
 
 
 await client.json.set(redisKey, '$', data); // set new JSON

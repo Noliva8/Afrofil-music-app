@@ -19,11 +19,9 @@
 //     // Ensure the buffer is properly formatted as Float32Array
 //     const processedBuffer = new Float32Array(audioBuffer);
 
-//     console.log("Extracting features with valid names...");
 
 //     try {
 //         const features = Meyda.extract(VALID_FEATURES, processedBuffer);
-//         console.log("Extracted Features:", features);
 //         return features;
 //     } catch (error) {
 //         console.error("Meyda extraction error:", error);
@@ -37,7 +35,6 @@
 //         throw new Error("Invalid features object.");
 //     }
 
-//     console.log("Creating fingerprint from features:", features);
 
 //     // Ensure all features are numbers and handle missing features
 //     const fingerprint = {
@@ -67,7 +64,6 @@
 // import Meyda from 'meyda';
 
 // export default function generateFingerprint(samples, sampleRate) {
-//   console.log('[Fingerprint] Starting with samples:', samples.length);
 
 //   // 1. Validate input
 //   if (!samples || samples.length < 1024) {
@@ -82,7 +78,6 @@
 //     { sampleRate }
 //   );
 
-//   console.log('[Fingerprint] Raw features:', {
 //     zcr: features.zcr,
 //     chromaRange: `${Math.min(...features.chroma)}-${Math.max(...features.chroma)}`,
 //     mfcc: features.mfcc.slice(0, 3)
@@ -152,7 +147,6 @@ export default async function generateFingerprint(samples, sampleRate) {
   validateInput(samples, sampleRate);
 
   try {
-    console.log('[Fingerprint] Generating optimized fingerprint...');
     
     // 1. Reduce analysis window
     const maxSamples = Math.min(

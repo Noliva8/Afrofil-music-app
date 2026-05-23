@@ -12,7 +12,6 @@ async function convertMp3ToWav(inputPath, outputPath) {
   const extension = path.extname(inputPath).toLowerCase();
   
   if (extension === '.wav') {
-    console.log('🎵 File is already in WAV format.');
     return false; // No conversion happened
   }
 
@@ -54,7 +53,6 @@ export default async function tempoDetect(filePath) {
   if (!isOriginalWav) {
     await convertMp3ToWav(filePath, wavPath);
   } else {
-    console.log('🎵 File is already in WAV format.');
   }
 
   // Detect BPM
@@ -62,13 +60,11 @@ export default async function tempoDetect(filePath) {
   if (bpm > 150) bpm = bpm / 2;
   if (bpm < 60) bpm = bpm * 2;
 
-  console.log('🎧 Detected BPM:', bpm);
 
   // Clean up only the temp WAV if one was created
   if (!isOriginalWav) {
     try {
       await fs.unlink(wavPath);
-      console.log(`🧹 Deleted temp WAV: ${wavPath}`);
     } catch (err) {
       console.warn(`⚠️ Error deleting temp WAV: ${wavPath}`, err);
     }

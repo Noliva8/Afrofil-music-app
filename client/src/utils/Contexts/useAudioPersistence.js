@@ -142,7 +142,6 @@ export const useAudioPersistence = ({
         return;
       }
 
-      console.log('Restoring playback for:', { userId, sessionId });
 
       // 1) Pull snapshot (trackId + playbackContext + minimal song)
       const { data, error } = await getCtx({ variables: { userId, sessionId } });
@@ -153,13 +152,11 @@ export const useAudioPersistence = ({
       const song = snap?.song;
       
       if (!snap || !song) {
-        console.log('No playback state found');
         restoredRef.current = true;
         setIsRestoring(false);
         return;
       }
 
-      console.log('Found playback state:', snap);
 
       // 2) Sign artwork
       let artworkUrl = null;
@@ -310,7 +307,6 @@ export const useAudioPersistence = ({
         document.addEventListener('keydown', playOnInteraction, { once: true });
         document.addEventListener('touchstart', playOnInteraction, { once: true });
 
-        console.log('Playback restored. Click/tap to resume.');
       }
 
       restoredRef.current = true;

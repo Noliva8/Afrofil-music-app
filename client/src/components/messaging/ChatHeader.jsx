@@ -3,13 +3,10 @@ import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRound
 
 export default function ChatHeader({ booking, onClose, unreadCount, artistName, currentUser }) {
 
-  console.log('BOOKING', booking)
-    console.log('BOOKED ARTIST', currentUser)
 
   const userName = booking?.user?.username || booking?.userName || "Client";
 
   const shouldShowArtist = currentUser?.type === "user" && artistName;
-    console.log('BOOKING USER', shouldShowArtist)
   return (
 
 

@@ -2,11 +2,130 @@ import mongoose from 'mongoose';
 import User from '../models/User/User.js';
 import Ad from '../models/Advertizer/Ad.js';
 import Advertizer from '../models/Advertizer/Advertizer.js';
+import ArtistSupport from '../models/Artist/ArtistSupport.js';
+import Artist from '../models/Artist/Artist.js';
+import Song from '../models/Artist/Song.js';
 import sendEmail from '../utils/emailTransportation.js';
 import Stripe from 'stripe';
 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const ARTIST_SUPPORT_PLATFORM_FEE_RATE = 0.2;
+
+const formatCents = (amount, currency = 'usd') =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: String(currency || 'usd').toUpperCase(),
+  }).format((Number(amount) || 0) / 100);
+
+async function sendArtistSupportReceivedEmail(support) {
+  try {
+    const [artist, supporter, song] = await Promise.all([
+      Artist.findById(support.artistId).select('email fullName artistAka').lean(),
+      User.findById(support.userId).select('username email').lean(),
+      Song.findById(support.songId).select('title').lean(),
+    ]);
+
+    if (!artist?.email) {
+      console.warn('Artist support email skipped: artist email missing', String(support.artistId));
+      return;
+    }
+
+    const artistName = artist.artistAka || artist.fullName || 'there';
+    const supporterName = supporter?.username || supporter?.email || 'A fan';
+    const songTitle = song?.title || 'your song';
+    const artistAmount = formatCents(support.artistAmount, support.currency);
+    const grossAmount = formatCents(support.grossAmount, support.currency);
+
+    await sendEmail(
+      artist.email,
+      `You received fan support for ${songTitle}`,
+      `
+        <div style="font-family: Inter, Arial, sans-serif; line-height: 1.6; color: #171717;">
+          <h2 style="margin: 0 0 12px;">Fan support received</h2>
+          <p>Hi ${artistName},</p>
+          <p>${supporterName} supported <strong>${songTitle}</strong>.</p>
+          <p>
+            Confirmed support amount: <strong>${grossAmount}</strong><br/>
+            Your artist share: <strong>${artistAmount}</strong>
+          </p>
+          <p>You can view this in your artist dashboard under Fan support.</p>
+        </div>
+      `
+    );
+  } catch (error) {
+    console.warn('Artist support email failed:', error?.message || error);
+  }
+}
+
+export async function handleArtistSupportPaymentSucceeded(paymentIntent) {
+  const supportId = paymentIntent?.metadata?.supportId;
+
+  if (!supportId) {
+    console.warn('Artist support payment succeeded without supportId metadata:', paymentIntent?.id);
+    return;
+  }
+
+  try {
+    let stripeFee = 0;
+
+    if (paymentIntent.latest_charge) {
+      const charge = await stripe.charges.retrieve(paymentIntent.latest_charge, {
+        expand: ['balance_transaction'],
+      });
+
+      stripeFee = Number(charge?.balance_transaction?.fee || 0);
+    }
+
+    const support = await ArtistSupport.findById(supportId);
+    if (!support) {
+      console.warn('Artist support record not found:', supportId);
+      return;
+    }
+
+    const grossAmount = Number(support.grossAmount || paymentIntent.amount_received || paymentIntent.amount || 0);
+    const platformFee = Math.round(grossAmount * ARTIST_SUPPORT_PLATFORM_FEE_RATE);
+    const artistAmount = Math.max(0, grossAmount - platformFee);
+
+    support.status = 'paid';
+    support.stripePaymentIntentId = paymentIntent.id;
+    support.stripeFee = stripeFee;
+    support.platformFee = platformFee;
+    support.artistAmount = artistAmount;
+    support.paidAt = new Date();
+
+    await support.save();
+    await sendArtistSupportReceivedEmail(support);
+  } catch (err) {
+    console.error('handleArtistSupportPaymentSucceeded error:', err);
+    throw err;
+  }
+}
+
+export async function handleArtistSupportPaymentFailed(paymentIntent) {
+  const supportId = paymentIntent?.metadata?.supportId;
+
+  if (!supportId) {
+    console.warn('Artist support payment failed without supportId metadata:', paymentIntent?.id);
+    return;
+  }
+
+  try {
+    await ArtistSupport.findByIdAndUpdate(
+      supportId,
+      {
+        $set: {
+          status: 'failed',
+          stripePaymentIntentId: paymentIntent.id,
+        },
+      },
+      { runValidators: false }
+    );
+  } catch (err) {
+    console.error('handleArtistSupportPaymentFailed error:', err);
+    throw err;
+  }
+}
 
 // Pricing config (in cents)
 const PRICING = {
@@ -21,12 +140,10 @@ const PLAN_DURATIONS = {
 };
 
 export async function handleInvoicePaymentSucceeded(invoice) {
-  console.log('💸 Invoice Payment Succeeded:', invoice.id);
 
   // ✅ Safely handle payment check
   const isPaid = invoice.status === 'paid' || invoice.paid === true;
   if (!isPaid) {
-    console.log('ℹ️ Invoice not marked as paid, skipping processing');
     return;
   }
 
@@ -103,7 +220,6 @@ export async function handleInvoicePaymentSucceeded(invoice) {
 
       if (session) await session.commitTransaction();
 
-      console.log(`✅ Updated user ${user.email} to premium with plan ${planType}`);
 
       // ✅ Email confirmation
       try {
@@ -112,7 +228,6 @@ export async function handleInvoicePaymentSucceeded(invoice) {
             ? '🎉 Your Afrofeel Premium Trial Has Converted'
             : '🎶 Subscription Updated – Afrofeel Premium';
 
-            console.log(`📧 Preparing to send email to ${user.email}`);
 
 
         await sendEmail(
@@ -129,13 +244,11 @@ export async function handleInvoicePaymentSucceeded(invoice) {
           </div>
           `
         );
-        console.log('📧 Confirmation email sent');
       } catch (emailErr) {
         console.error('📧 Failed to send confirmation email:', emailErr);
       }
     } else {
       if (session) await session.abortTransaction();
-      console.log(`ℹ️ No subscription update needed for ${user.email}`);
     }
   } catch (err) {
     console.error('❌ Error processing payment:', err);
@@ -162,7 +275,6 @@ export async function handleSessionExpired(session) {
   try {
     // 1. Send email only (no DB updates)
     await sendExpiredSessionEmail(email);
-    console.log(`📧 Sent reminder to ${email}`);
     
     return { success: true };
   } catch (error) {
@@ -195,7 +307,6 @@ async function sendExpiredSessionEmail(email) {
 // -----------------
 
 export async function handleInvoicePaymentFailed(invoice) {
-  console.log('⚠️ Payment Failed for Invoice:', invoice.id);
 
   const customerEmail = invoice.customer_email || 
                        invoice.customer?.email || 
@@ -256,9 +367,7 @@ async function handleExistingPremiumFailure(user, invoice) {
     user.subscription.status = 'past_due';
     user.subscription.periodEnd = gracePeriodEnd;
     await user.save();
-    console.log(`⚠️ Marked ${user.email} as past_due until ${gracePeriodEnd}`);
   } else {
-    console.log(`ℹ️ Payment failed for ${user.email}, grace period active`);
   }
 }
 
@@ -270,7 +379,6 @@ async function handleNewPremiumFailure(user, invoice) {
     invoice.attempt_count || 1,
     'immediately' // No grace period for new subscriptions
   );
-  console.log(`ℹ️ Initial payment failed for ${user.email}, no status change`);
 }
 
 async function sendPaymentFailedEmail(email, amount, attempt, resolutionDate) {
@@ -316,7 +424,6 @@ async function sendPaymentFailedEmail(email, amount, attempt, resolutionDate) {
 
 
 export async function handleSubscriptionDeleted(subscription) {
-  console.log('🗑️ Subscription Deleted:', subscription.id);
 
   
 
@@ -362,13 +469,11 @@ const customerEmail = customer.email || subscription.metadata?.userEmail;
       await user.save({ session });
       if (session) await session.commitTransaction();
 
-      console.log(`⬇️ Downgraded ${user.email} to regular`);
 
       // Send cancellation confirmation
       await sendSubscriptionCancelledEmail(user.email, subscription.cancel_at_period_end);
     } else {
       if (session) await session.abortTransaction();
-      console.log(`ℹ️ No action needed for ${user.email} (status: ${user.subscription?.status})`);
     }
 
     return { success: true };
@@ -424,7 +529,6 @@ async function sendSubscriptionCancelledEmail(email, wasScheduledCancellation) {
 
 
 export async function handleSubscriptionUpdated(subscription) {
-  console.log('🔄 Subscription Updated:', subscription.id);
 
   const customerEmail = subscription.customer_email || 
                        subscription.customer?.email || 
@@ -453,7 +557,6 @@ export async function handleSubscriptionUpdated(subscription) {
     const previousStatus = user.subscription?.status || 'none';
     const isNewPlan = subscription.metadata?.new_plan === 'true';
 
-    console.log(`🔄 Status Change: ${previousStatus} → ${newStatus}`);
 
     // Handle status transitions
     switch (newStatus) {
@@ -663,7 +766,6 @@ export async function handlePaymentIntentSucceeded(paymentIntent) {
 
     // 3) Idempotency: if already marked paid with this PI, skip
     if (ad.isPaid && ad.payment?.intentId === paymentIntent.id) {
-      console.log('Ad already marked paid for this PI, skipping:', adId, paymentIntent.id);
       return;
     }
 
@@ -688,7 +790,6 @@ export async function handlePaymentIntentSucceeded(paymentIntent) {
       { new: true }
     );
 
-    console.log('✅ Ad marked paid:', updatedAd?._id?.toString() || adId);
 
     // 5) Resolve recipient email
     let recipientEmail = null;
@@ -777,7 +878,6 @@ export async function handlePaymentIntentSucceeded(paymentIntent) {
 );
 
 
-      console.log('📨 Confirmation email sent to:', recipientEmail);
     } else {
       console.warn('Payment succeeded but no recipient email found for adId:', adId);
     }
@@ -801,7 +901,6 @@ const escapeHtml = (s) =>
 // 🔴 payment failed → keep ad unpaid, notify user with retry link
 export async function handlePaymentIntentFailed(pi) {
   try {
-    console.log('payment_intent.payment_failed:', pi.id);
 
     const adId = pi?.metadata?.adId;
     const advertiserId = pi?.metadata?.advertiserId; // ✅ fixed spelling
@@ -893,7 +992,6 @@ export async function handlePaymentIntentFailed(pi) {
         `
       );
 
-      console.log('📨 Failure email sent to:', recipientEmail);
     } else {
       console.warn('Payment failed but no recipient email found for adId:', adId);
     }
@@ -902,5 +1000,3 @@ export async function handlePaymentIntentFailed(pi) {
     throw err; // let the webhook return 5xx so Stripe can retry if needed
   }
 }
-
-

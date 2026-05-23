@@ -752,6 +752,15 @@ export const HANDLE_ARTIST_DOWNLOAD = gql`
   }
 `
 
+export const CREATE_ARTIST_SUPPORT = gql`
+  mutation CreateArtistSupport($songId: ID!, $amount: Float!) {
+    createArtistSupport(songId: $songId, amount: $amount) {
+      supportId
+      clientSecret
+    }
+  }
+`
+
 
 
 export const SEND_BOOKING_REQUEST = gql`

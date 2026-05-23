@@ -52,7 +52,17 @@ import { RadioStation } from "./models/Artist/index_artist.js";
 import { RADIO_TYPES } from "./utils/radioTypes.js";
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
-import { handleInvoicePaymentSucceeded, handleSessionExpired, handleInvoicePaymentFailed, handleSubscriptionDeleted, handleSubscriptionUpdated,  handlePaymentIntentSucceeded,   handlePaymentIntentFailed} from "./routes/webhook.js";
+import {
+  handleInvoicePaymentSucceeded,
+  handleSessionExpired,
+  handleInvoicePaymentFailed,
+  handleSubscriptionDeleted,
+  handleSubscriptionUpdated,
+  handlePaymentIntentSucceeded,
+  handlePaymentIntentFailed,
+  handleArtistSupportPaymentSucceeded,
+  handleArtistSupportPaymentFailed,
+} from "./routes/webhook.js";
 import geoip from 'geoip-lite';
 import aiMixRoutes from "./routes/aiMix.js";
 import { signArtistToken } from "./utils/artist_auth.js";
@@ -84,7 +94,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, DASHBOARD_WHSEC);
-    console.log(`🔔 Received ${event.type} (${event.id})`); // Added event logging
+// Added event logging
   } catch (err) {
     console.error('❌ Webhook Error:', {
       message: err.message,
@@ -100,28 +110,24 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
       case 'invoice.payment_succeeded':
       case 'invoice_payment.paid': {
         const invoice = event.data.object;
-        console.log('💰 Invoice paid:', invoice.id);
         handleInvoicePaymentSucceeded(invoice);
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        console.log('❌ Invoice failed:', invoice.id);
         handleInvoicePaymentFailed(invoice);
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        console.log('🗑️ Subscription deleted:', subscription.id);
         handleSubscriptionDeleted(subscription);
         break;
       }
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
-        console.log('🔄 Subscription updated:', subscription.id);
         handleSubscriptionUpdated(subscription);
         break;
       }
@@ -129,7 +135,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
       // ----- Checkout Events -----
       case 'checkout.session.expired': {
         const session = event.data.object;
-        console.log('⏳ Checkout expired:', session.id);
         handleSessionExpired(session);
         break;
       }
@@ -137,21 +142,26 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
       // ----- Payment Intents (Ads) -----
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object;
-        console.log('✅ Ad payment succeeded:', paymentIntent.id);
-        handlePaymentIntentSucceeded(paymentIntent);
+        if (paymentIntent.metadata?.type === 'artist_support') {
+          handleArtistSupportPaymentSucceeded(paymentIntent);
+        } else {
+          handlePaymentIntentSucceeded(paymentIntent);
+        }
         break;
       }
 
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object;
-        console.log('❌ Ad payment failed:', paymentIntent.id);
-        handlePaymentIntentFailed(paymentIntent);
+        if (paymentIntent.metadata?.type === 'artist_support') {
+          handleArtistSupportPaymentFailed(paymentIntent);
+        } else {
+          handlePaymentIntentFailed(paymentIntent);
+        }
         break;
       }
 
       case 'payment_intent.canceled': {
         const paymentIntent = event.data.object;
-        console.log('🚫 Ad payment canceled:', paymentIntent.id);
         if (typeof handlePaymentIntentCanceled === 'function') {
           handlePaymentIntentCanceled(paymentIntent);
         }
@@ -184,7 +194,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
 // ==================
 
 // app.post('/api/stripe/webhook-ads', express.raw({ type: 'application/json' }), (req, res) => {
-//   console.log('the ad webhook is firing ...');
   
   
 //   const signature = req.headers['stripe-signature'];
@@ -198,7 +207,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
 //         endPointSecretForAdPayment
 //       );
 //     } catch (error) {  // You had 'err' here but declared 'error' above
-//       console.log(`⚠️  Webhook signature verification failed.`, error.message);
 //       return res.sendStatus(400);
 //     }
 
@@ -218,10 +226,8 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), (req,
         
 //       // It's good practice to handle unexpected event types
 //       default:
-//         console.log(`Unhandled event type ${event.type}`);
 //     }
 //   } else {
-//     console.log('Warning: No endpoint secret configured for ad payments');
 //     return res.sendStatus(400);
 //   }
 
@@ -360,7 +366,6 @@ const serverCleanup = useServer(
         const authHeader = ctx.connectionParams?.authorization || "";
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
-        console.log('WS Auth called with token:', token ? 'present' : 'missing');
 
         if (!token) {
           throw new Error("No token provided");
@@ -378,15 +383,12 @@ const serverCleanup = useServer(
 
         // Return the authenticated context
         if (reqWithAuth.artist) {
-          console.log('WS Artist authenticated:', reqWithAuth.artist._id);
           return { artist: reqWithAuth.artist };
         }
         if (reqWithAuth.user) {
-          console.log('WS User authenticated:', reqWithAuth.user._id);
           return { user: reqWithAuth.user };
         }
         if (reqWithAuth.advertizer) {
-          console.log('WS Advertizer authenticated:', reqWithAuth.advertizer._id);
           return { advertizer: reqWithAuth.advertizer };
         }
 
@@ -397,10 +399,8 @@ const serverCleanup = useServer(
       }
     },
     onConnect: (ctx) => {
-      console.log("New subscription connection");
     },
     onDisconnect: (ctx, code, reason) => {
-      console.log(`Disconnected: ${code} ${reason}`);
     },
   },
   wsServer
@@ -461,7 +461,6 @@ app.use(async (req, res, next) => {
 app.get('/api/location/redis', async (req, res) => {
   const { userId, sessionId } = req.query;
   
-  console.log('Redis Location Request:', { userId, sessionId });
   
   try {
     const r = await getRedis();
@@ -575,7 +574,6 @@ const startApolloServer = async () => {
   try {
 
  // Connect to database
-    console.log("Attempting to connect to the database...");
     await connectDB();
 
     const ensureRadioStations = async () => {
@@ -657,15 +655,12 @@ const startApolloServer = async () => {
       await RadioStation.insertMany(
         stations.map((station) => ({ ...station, visibility: "public" }))
       );
-      console.log(`Seeded ${stations.length} default radio stations.`);
     };
 
     await ensureRadioStations();
 
     // Start Apollo Server
-    console.log("Apollo Server starting...");
     await server.start();
-    console.log("Apollo Server started successfully");
 
     
 
@@ -704,11 +699,6 @@ const startApolloServer = async () => {
 //   "/graphql",
 //   expressMiddleware(server, {
 //     context: async ({ req }) => {
-//       console.log('🔍 GraphQL Context DEBUG:');
-//       console.log('  - req.user:', req.user?._id, req.user?.email);
-//       console.log('  - req.artist:', req.artist?._id);
-//       console.log('  - req.advertiser:', req.advertiser?._id);
-//       console.log('  - req.auth:', req.auth?.kind, req.auth?.id);
       
 //       return {
 //         user: req.user || null,
@@ -734,7 +724,6 @@ const startApolloServer = async () => {
     //       req.params.artist_id_token,
     //       process.env.JWT_SECRET_ARTIST
     //     );
-    //     console.log(decoded);
     //     if (!decoded || !decoded.data || !decoded.data._id) {
     //       throw new Error("Invalid token structure");
     //     }
@@ -742,7 +731,6 @@ const startApolloServer = async () => {
     //     await Artist.findByIdAndUpdate(_id, { confirmed: true });
     //     return res.redirect(`${frontendUrl}/artist/login`);
     //   } catch (e) {
-    //     console.log("Error confirming email:", e);
     //     if (e?.name === "TokenExpiredError") {
     //       return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
     //     }
@@ -755,7 +743,6 @@ const startApolloServer = async () => {
 app.get("/confirmation/:artist_id_token", async (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   
-  console.log("========== EMAIL VERIFICATION ENDPOINT HIT ==========");
   
   try {
     const decoded = jwt.verify(
@@ -776,13 +763,11 @@ app.get("/confirmation/:artist_id_token", async (req, res) => {
       { new: true }
     );
     
-    console.log("✅ Artist verified successfully!");
     
     // SIMPLE: Just redirect to login - no message needed
     return res.redirect(`${frontendUrl}/artist/login`);
     
   } catch (e) {
-    console.log("Verification error:", e);
     
     if (e?.name === "TokenExpiredError") {
       return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
@@ -797,7 +782,6 @@ app.get("/confirmation/:artist_id_token", async (req, res) => {
 app.get("/confirmation/:artist_id_token", async (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
   
-  console.log("========== EMAIL VERIFICATION ENDPOINT HIT ==========");
   
   try {
     const decoded = jwt.verify(
@@ -818,7 +802,6 @@ app.get("/confirmation/:artist_id_token", async (req, res) => {
       { new: true }
     );
     
-    console.log("✅ Artist verified successfully!");
     
     // Generate a fresh token with updated data
     const authToken = jwt.sign(
@@ -836,7 +819,6 @@ app.get("/confirmation/:artist_id_token", async (req, res) => {
     return res.redirect(`${frontendUrl}/artist/plan?token=${authToken}`);
     
   } catch (e) {
-    console.log("Verification error:", e);
     
     if (e?.name === "TokenExpiredError") {
       return res.redirect(`${frontendUrl}/artist/verification?status=expired`);
@@ -892,8 +874,6 @@ app.post('/api/cleanup', async (req, res) => {
 
     // Start the server
     httpServer.listen(PORT, () => {
-      console.log(`API server running on port ${PORT}!`);
-      console.log(`Use GraphQL at http://localhost:${PORT}/graphql`);
     });
   } catch (error) {
     console.error("Error starting Apollo Server:", error);

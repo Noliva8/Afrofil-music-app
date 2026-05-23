@@ -4,7 +4,7 @@ import { trendIndexZSet } from "../Redis/keys.js";
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { similarSongsRepair } from "../similarSongs/similasongResolver.js";
 import { TRENDING_SONGS_CACHE_KEY } from "../Redis/keys.js";
-import { CACHE_TTL_SECONDS } from "../Redis/keys.js";
+import { TRENDING_PAYLOAD_CACHE_TTL_SECONDS } from "../Redis/keys.js";
 
 
 
@@ -117,7 +117,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
             await redis.set(
               TRENDING_SONGS_CACHE_KEY,
               JSON.stringify(hydrated.slice(0, take)),
-              { EX: CACHE_TTL_SECONDS } // short TTL for payload list
+              { EX: TRENDING_PAYLOAD_CACHE_TTL_SECONDS }
             );
           } catch (e) {
             console.warn("Trending payload cache write failed:", e?.message || e);
@@ -166,7 +166,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
         await redis.set(
           TRENDING_SONGS_CACHE_KEY,
           JSON.stringify(normalized),
-          { EX: CACHE_TTL_SECONDS }
+          { EX: TRENDING_PAYLOAD_CACHE_TTL_SECONDS }
         );
       } catch (e) {
         console.warn("Trending payload cache write failed:", e?.message || e);

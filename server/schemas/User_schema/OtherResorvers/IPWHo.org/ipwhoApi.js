@@ -7,7 +7,6 @@
 // function extractClientIp(context) {
 //   const req = context.req;
 // //   check the req
-// console.log('see the req format to extract the ip from :', req);
 
 //   if (!req) {
 //     console.warn('No request object found in context for IP extraction.');
@@ -33,7 +32,6 @@
 //     if (value) {
 //       // Handle comma-separated lists (e.g., X-Forwarded-For: client, proxy1, proxy2)
 //       const firstIp = value.split(',')[0].trim();
-//       console.log('check the structure of the returned ip:', firstIp);
 //       if (firstIp && firstIp.length > 0) {
 //         // Optional: Validate it's a rough IP format
 //         if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(firstIp) || firstIp.includes(':')) {
@@ -45,7 +43,6 @@
 
 //   // Fallback to socket address (less reliable behind proxies)
 //   if (req.socket?.remoteAddress) {
-//       console.log('check the structure of the returned ip from socket:', req.socket?.remoteAddress);
 //     return req.socket.remoteAddress;
 //   }
 //   if (req.connection?.remoteAddress) {

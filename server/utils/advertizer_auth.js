@@ -61,7 +61,6 @@ export const advertizer_authMiddleware = async ({ req }) => {
     const authHeader = req.headers['authorization'];
     
     if (!authHeader) {
-      console.log('⚠️ No authorization header');
       return { req };
     }
 
@@ -70,7 +69,6 @@ export const advertizer_authMiddleware = async ({ req }) => {
       authHeader;
 
     if (!token) {
-      console.log('⚠️ Empty token');
       return { req };
     }
 
@@ -79,7 +77,6 @@ export const advertizer_authMiddleware = async ({ req }) => {
     
     if (advertizer) {
       req.advertizer = advertizer;
-      console.log(`✅ Authenticated advertizer: ${advertizer.businessEmail}`);
     }
 
     return { req };

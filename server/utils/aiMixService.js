@@ -126,7 +126,6 @@ const CACHE_TTL_SECONDS = 60 * 60; // 1 hour
 //       redisClient = await getRedis();
 //       const cached = await redisClient.get(cacheKey);
 //       if (cached) {
-//         console.log('Returning cached daily mix');
 //         const parsed = JSON.parse(cached);
 //         parsed.generatedAt = parsed.generatedAt ? new Date(parsed.generatedAt) : new Date();
 //         return parsed;
@@ -235,7 +234,6 @@ const CACHE_TTL_SECONDS = 60 * 60; // 1 hour
     
 //     // If no songs with playCount > 0, fall back to recent songs
 //     if (!songs.length) {
-//       console.log('No songs with playCount > 0, fetching recent songs');
 //       const recentSongs = await Song.find({})
 //         .sort({ createdAt: -1 })
 //         .limit(limit * 2)
@@ -339,7 +337,6 @@ const CACHE_TTL_SECONDS = 60 * 60; // 1 hour
 //     if (redisClient) {
 //       try {
 //         await redisClient.set(cacheKey, JSON.stringify(payload), { EX: CACHE_TTL_SECONDS });
-//         console.log('Daily mix cached successfully');
 //       } catch (err) {
 //         console.warn("Failed to cache daily mix:", err?.message);
 //       }
@@ -371,7 +368,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
  
   const profileKey = overrideTime || determineTimeSlice();
   const profile = TIME_PROFILES[profileKey] ?? TIME_PROFILES.morning;
-  console.log(`📊 Profile: ${profileKey} (${profile.label})`);
   
   // Cache key with version to avoid old cached data
   const CACHE_VERSION = 'v2-booking-fix';
@@ -385,7 +381,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
       redisClient = await getRedis();
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        console.log('✅ Returning cached daily mix');
         const parsed = JSON.parse(cached);
         parsed.generatedAt = parsed.generatedAt ? new Date(parsed.generatedAt) : new Date();
         return parsed;
@@ -448,25 +443,14 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
         
         songs = await Song.aggregate(aggregationPipeline);
         console.timeEnd('aggregation');
-        console.log(`✅ Aggregation returned ${songs.length} songs`);
         
         // Log first song structure for debugging
         if (songs.length > 0) {
           const firstSong = songs[0];
-          console.log('🔍 First song from aggregation:', {
-            songId: firstSong._id,
-            title: firstSong.title,
-            artistId: firstSong.artistId,
-            hasArtistData: !!firstSong.artistData,
-            artistAka: firstSong.artistData?.artistAka,
-            bookingAvailability: firstSong.artistData?.bookingAvailability,
-            bookingAvailabilityDirect: firstSong.bookingAvailability
-          });
         }
         
       } catch (aggError) {
         console.error('❌ Aggregation failed:', aggError.message);
-        console.log('🔄 Falling back to simple find query...');
         
         // Fallback with proper population
         songs = await Song.find({ playCount: { $gt: 0 } })
@@ -494,7 +478,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
     
     // If still no songs, get recent songs
     if (!songs.length) {
-      console.log('⚠️ No popular songs, fetching recent songs');
       console.time('recentSongs');
       songs = await Song.find({})
         .sort({ createdAt: -1 })
@@ -520,7 +503,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
    
     
     if (!songs.length) {
-      console.log('❌ NO SONGS IN DATABASE!');
       console.timeEnd('buildDailyMix');
       return {
         profileKey,
@@ -535,7 +517,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
     }
 
     console.time('processing');
-    console.log('🔄 Processing songs...');
     
     // Helper function to get artist data from consistent format
     const getArtistData = (song) => {
@@ -574,12 +555,6 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
           
           // Log first few songs for debugging
           if (index < 3) {
-            console.log(`🔍 Song ${index + 1}: "${song.title}"`, {
-              artistId: artistData._id,
-              artistAka: artistData.artistAka,
-              bookingAvailability: artistData.bookingAvailability,
-              source: 'artistData.bookingAvailability'
-            });
           }
           
           // Calculate scores
@@ -692,18 +667,12 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
     
     // Log sample tracks
     if (tracks.length > 0) {
-      console.log('🔍 Sample tracks:');
       tracks.slice(0, 3).forEach((track, i) => {
-        console.log(`  ${i + 1}. ${track.title} - ${track.artistName}:`, {
-          bookingAvailability: track.bookingAvailability,
-          artistProfileBooking: track.artistProfile?.bookingAvailability
-        });
       });
     }
 
     // Add fallback if no tracks
     if (!tracks.length) {
-      console.log('⚠️ No valid tracks after processing, adding fallback');
       tracks.push({
         __typename: "DailyMixTrack",
         _id: 'fallback-1',
@@ -748,14 +717,12 @@ export const buildDailyMix = async ({ overrideTime, limit = 24, userContext } = 
     if (redisClient && tracks.length > 0) {
       try {
         await redisClient.set(cacheKey, JSON.stringify(payload), { EX: CACHE_TTL_SECONDS });
-        console.log('💾 Daily mix cached successfully');
       } catch (err) {
         console.warn("⚠️ Failed to cache daily mix:", err?.message);
       }
     }
 
     console.timeEnd('buildDailyMix');
-    console.log(`🎉 SUCCESS: Returning mix with ${tracks.length} tracks`);
     
     return payload;
     

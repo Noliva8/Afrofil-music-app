@@ -42,58 +42,44 @@ function getIdFromPayload(payload) {
 // Update getArtistFromToken with detailed debugging
 export const getArtistFromToken = async (token) => {
   try {
-    console.log('🔐 [getArtistFromToken] Starting verification');
-    console.log('📋 [getArtistFromToken] Raw token:', token ? `${token.substring(0, 50)}...` : 'NULL');
     
     if (!token) {
-      console.log('❌ [getArtistFromToken] No token provided');
       throw new Error('No token provided');
     }
     
     // Handle Bearer prefix
     const cleanedToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-    console.log('🧹 [getArtistFromToken] After Bearer removal:', cleanedToken ? `${cleanedToken.substring(0, 50)}...` : 'NULL');
 
     if (!cleanedToken) {
-      console.log('❌ [getArtistFromToken] Empty token after cleaning');
       throw new Error('Invalid token format');
     }
     
     // Check if token has the artist prefix
     const hasArtistPrefix = cleanedToken.startsWith('artist_id_');
-    console.log('🔍 [getArtistFromToken] Has artist_id_ prefix:', hasArtistPrefix);
     
     if (!hasArtistPrefix) {
-      console.log('❌ [getArtistFromToken] Token missing artist prefix');
       throw new Error('Not an artist token');
     }
     
     // Extract the actual JWT token
     const actualToken = cleanedToken.replace('artist_id_', '');
-    console.log('🎫 [getArtistFromToken] Actual JWT:', actualToken ? `${actualToken.substring(0, 30)}...` : 'NULL');
 
     if (!actualToken) {
-      console.log('❌ [getArtistFromToken] Empty token after prefix removal');
       throw new Error('Invalid token format after prefix removal');
     }
 
     // Verify token
-    console.log('🔐 [getArtistFromToken] Verifying with secret...');
     const { data } = jwt.verify(actualToken, secret, { maxAge: expiration });
-    console.log('✅ [getArtistFromToken] Token verified. Data:', data);
 
     // Get artist from database
-    console.log('👤 [getArtistFromToken] Fetching artist for ID:', data._id);
     const artist = await Artist.findById(data._id)
       .select('_id username email')
       .lean();
 
     if (!artist) {
-      console.log('❌ [getArtistFromToken] Artist not found for ID:', data._id);
       throw new Error('Artist not found');
     }
 
-    console.log('✅ [getArtistFromToken] Authentication successful');
     return artist;
   } catch (error) {
     console.error('❌ [getArtistFromToken] Verification failed:', error.message);

@@ -151,7 +151,6 @@ const [newSongUpload] = useMutation( NEW_SONG_UPLOAD);
         },
       });
 
-console.log('the data produced from song image upload:', data);
 
 
 
@@ -183,7 +182,6 @@ if (!res.ok) {
 
       const s3ObjectUrl = `https://afrofeel-cover-images-for-songs.s3.us-east-2.amazonaws.com/${objectKey}`;
 
-      console.log('the link to display the image', imageUrlToDisplay);
 
       // 4. Update states: store canonical S3 URL (not presigned) for artwork
       setSongCoverImage(s3ObjectUrl);
@@ -347,12 +345,9 @@ const navigate = useNavigate();
 
 //     // 🎯 Use the full audio buffer here (no trimming)
 //     const mt = new MusicTempo(audioData);
-//     console.log('🎵 Full Audio BPM:', mt.tempo);
-//     console.log('🕒 Beats:', mt.beats);
 
 //     // Detect time signature
 //     const timeSignature = detectTimeSignature(mt.beats, mt.tempo);
-//     console.log('🧭 Detected Time Signature:', timeSignature);
 
 //     // Upload to server
 //     const { data } = await songUpload({
@@ -366,9 +361,7 @@ const navigate = useNavigate();
 
 
 
-//     console.log('✅ Upload successful:', data);
 //     const songId = data.songUpload._id;
-//     console.log('the song id from server:', songId);
 
 //     setSongId(songId)
 //   } catch (error) {
@@ -462,10 +455,8 @@ const navigate = useNavigate();
 //     bucket: 'flolup-original-songs'
 //   }
 // })
-// console.log('what is the data?', data)
 // const songId = data?.newSongUpload?.song?._id
 
-// console.log('SONG ID AFTER UPLOAD:',songId)
 //     setSongId(songId)
 
 // const { url, key, song } = data?.newSongUpload;
@@ -712,7 +703,6 @@ const handleNewSongUpload = async (event) => {
 //     confirmButtonText: 'Submit Report',
 //     preConfirm: (reportText) => {
 //       // Add your report submission logic here
-//       console.log('Copyright report submitted:', reportText);
 //     }
 //   }).then(() => {
 //     // After reporting, keep user on upload screen
@@ -741,7 +731,6 @@ const handleAlbumChange = (event) => {
   const selectedAlbum = albums.find(album => album._id === event.target.value);
   if (selectedAlbum) {
     setAlbumToSelect(selectedAlbum);  // Ensure state updates properly
-    console.log("Selected Album:", selectedAlbum);
   }
 };
 
@@ -822,7 +811,6 @@ try {
   const response = await updateSong({ variables });
   data = response.data;
 
-  console.log("📡 Mutation response data:", data);
 
 } catch (mutationError) {
   console.error("💥 GraphQL mutation failed:", mutationError);
@@ -865,7 +853,6 @@ try {
     });
   } finally {
     setIsSubmitting(false);
-    console.log("🟡 Submission process ended");
   }
 };
 

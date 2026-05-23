@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
+import { useApolloClient, useQuery } from '@apollo/client';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
@@ -9,10 +9,12 @@ import { processSongs } from '../utils/someSongsUtils/someSongsUtils';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook';
 import { useAudioPlayer } from '../utils/Contexts/AudioPlayerContext';
 import { eventBus } from '../utils/Contexts/playerAdapters';
+import { presignAudioForTrack } from '../utils/plabackUtls/handleSongPlayBack';
 
 const SharedTrack = () => {
   const { trackId } = useParams();
   const navigate = useNavigate();
+  const client = useApolloClient();
   const { data, loading, error } = useQuery(SONG_BY_ID, {
     variables: { songId: trackId },
     fetchPolicy: 'network-only',
@@ -25,23 +27,43 @@ const SharedTrack = () => {
 
   useEffect(() => {
     if (playedRef.current) return;
+    if (error || (!loading && !data?.publicSong)) {
+      playedRef.current = true;
+      navigate('/', { replace: true });
+      return;
+    }
+
     if (!loading && !error && !presignLoading && songsWithArtwork.length && handlePlaySong) {
       const [processed] = processSongs(songsWithArtwork);
-      if (processed) {
+      const playSharedTrack = async () => {
+        if (!processed) {
+          playedRef.current = true;
+          navigate('/', { replace: true });
+          return;
+        }
+
+        const signedTrack = await presignAudioForTrack(processed, client);
+        if (!signedTrack?.audioUrl) {
+          playedRef.current = true;
+          navigate('/', { replace: true });
+          return;
+        }
+
         playedRef.current = true;
-        handlePlaySong(processed, [], null, {
+        handlePlaySong(signedTrack, [], null, {
           prepared: {
-            queue: [processed],
-            queueIds: [processed.id],
+            queue: [signedTrack],
+            queueIds: [signedTrack.id],
             currentIndex: 0,
           },
         });
-        // Return to main UI then open fullscreen so the player is visible
         navigate('/', { replace: true });
         setTimeout(() => eventBus.emit('OPEN_FULL_SCREEN_PLAYER'), 150);
-      }
+      };
+
+      playSharedTrack();
     }
-  }, [loading, error, presignLoading, songsWithArtwork, handlePlaySong, navigate]);
+  }, [client, data?.publicSong, loading, error, presignLoading, songsWithArtwork, handlePlaySong, navigate]);
 
   if (loading) {
     return (
@@ -51,11 +73,11 @@ const SharedTrack = () => {
     );
   }
 
-  if (error || !data?.publicSong) {
+  if (error || (!loading && !data?.publicSong)) {
     return (
       <Box sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', px: 3 }}>
         <Typography color="error">
-          Unable to load this track. Please try again later.
+          Redirecting...
         </Typography>
       </Box>
     );

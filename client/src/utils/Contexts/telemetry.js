@@ -17,7 +17,6 @@
 
 // // export function useTrackTelemetry({ userId, userTier, audioRef }) {
 
-// //     console.log('telemetry is being called ....')
 
 // //   const [trackStart]    = useMutation(TRACK_START);
 // //   const [trackProgress] = useMutation(TRACK_PROGRESS);
@@ -102,7 +101,6 @@
 // //         },
 // //       });
 // //       if (process.env.NODE_ENV === 'development') {
-// //         console.log('[telemetry] trackStart sent with geo:', geo);
 // //       }
 // //     } catch (e) {
 // //       if (process.env.NODE_ENV === 'development') {
@@ -128,7 +126,6 @@
 // //         },
 // //       });
 // //       if (process.env.NODE_ENV === 'development') {
-// //         console.log('[telemetry] trackEnd sent', { finished, listenedSec, durationSec });
 // //       }
 // //     } catch (e) {
 // //       if (process.env.NODE_ENV === 'development') {
@@ -292,7 +289,6 @@
 //     if (input.eventId) {
 //       const fresh = await markEventSeen(input.eventId);
 //       if (!fresh) {
-//         console.log('TrackComplete event deduplicated:', input.eventId);
 //         return { ok: true, deduped: true, ad: null };
 //       }
 //     }

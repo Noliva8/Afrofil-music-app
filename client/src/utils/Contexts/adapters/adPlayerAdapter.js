@@ -14,7 +14,6 @@ let _adAdapterSingleton = null;
 export const createAdPlayerAdapter = (initial = {}) => {
   // If we already have an instance, reuse it and optionally update the client
 
-  console.log('adapter is being called ...')
   if (_adAdapterSingleton) {
     if (initial.apolloClient) {
       _adAdapterSingleton.setApolloClient(initial.apolloClient);
@@ -199,40 +198,21 @@ export const createAdPlayerAdapter = (initial = {}) => {
     let effectiveIndex = requestedIndex % availableCount;
     let selectedAd = availableAds[effectiveIndex];
 
-    console.log(`🔍 CAPPING CHECK:`, {
-      requestedIndex,
-      effectiveIndex,
-      availableAds: availableAds.map((ad) => ({ id: ad.id, title: ad.adTitle })),
-      selectedAd: { id: selectedAd.id, title: selectedAd.adTitle },
-    });
 
     if (context?.shouldCapAd && context.shouldCapAd(selectedAd.id)) {
-      console.log(
-        `🛑 AD CAPPED: "${selectedAd.adTitle}" is being skipped due to capping rules`
-      );
 
       for (let i = 0; i < availableCount; i++) {
         const alternativeIndex = (requestedIndex + i + 1) % availableCount;
         const alternativeAd = availableAds[alternativeIndex];
 
         const isCapped = context.shouldCapAd(alternativeAd.id);
-        console.log(
-          `🔍 Checking alternative ${i}: "${alternativeAd.adTitle}" - capped: ${isCapped}`
-        );
 
         if (!isCapped) {
-          console.log(
-            `✅ USING ALTERNATIVE: "${alternativeAd.adTitle}" instead of capped ad`
-          );
           return alternativeIndex;
         }
       }
 
-      console.log(
-        `⚠️ ALL ADS CAPPED: No alternatives available, using originally scheduled ad`
-      );
     } else {
-      console.log(`✅ AD APPROVED: "${selectedAd.adTitle}" is not capped`);
     }
 
     return effectiveIndex;
@@ -241,7 +221,6 @@ export const createAdPlayerAdapter = (initial = {}) => {
   const fetchDecisionEngineAd = async (adIndex, context, userLocation) => {
     // Decision engine requires a userId; fall back for guests
     if (!identity?.userId) {
-      console.log("[AD] Decision engine skipped: no userId in identity (guest)");
       return null;
     }
 
@@ -342,11 +321,6 @@ export const createAdPlayerAdapter = (initial = {}) => {
       errorPolicy: "all",
     });
 
-    console.log("📥 Adapter: GET_AUDIO_AD response received", {
-      hasData: !!data,
-      success: data?.getAudioAd?.success,
-      adCount: data?.getAudioAd?.ads?.length,
-    });
 
     const resp = data?.getAudioAd;
 
@@ -401,30 +375,19 @@ export const createAdPlayerAdapter = (initial = {}) => {
     };
   };
 
-  console.log("🎧 Adapter: createAdPlayerAdapter() created", {
-    hasClient: !!apolloClient,
-    identity,
-    environment,
-  });
 
   const adapter = {
     // ---------- wiring ----------
     setApolloClient(client) {
       apolloClient = client || null;
-      console.log(
-        "🔗 Adapter: Apollo Client set. hasClient =",
-        !!apolloClient
-      );
     },
 
     updateIdentity(next) {
       identity = { ...identity, ...next };
-      console.log("👤 Adapter: identity updated", identity);
     },
 
     updateEnvironment(next) {
       environment = { ...environment, ...next };
-      console.log("🌍 Adapter: environment updated", environment);
     },
 
     onComplete(cb) {
@@ -439,13 +402,6 @@ export const createAdPlayerAdapter = (initial = {}) => {
     // ---------- main ad entry ----------
     
 async playAd(adIndex, context) {
-  console.log("📡 Adapter: playAd() called", {
-    adIndex,
-    hasClient: !!apolloClient,
-    ctxLocation: context?.location,
-    envLocation: environment?.location,
-    clientReadyState: apolloClient ? "READY" : "MISSING",
-  });
 
   try {
     if (typeof adIndex !== "number" || isNaN(adIndex)) {
@@ -470,10 +426,6 @@ async playAd(adIndex, context) {
     try {
       prepared = await fetchDecisionEngineAd(adIndex, context, userLocation);
       if (prepared) {
-        console.log("🎯 Using decision engine ad pick", {
-          adId: prepared.ad?.id,
-          campaignId: prepared.ad?.campaignId,
-        });
       }
     } catch (engineError) {
       console.warn("⚠️ Decision engine failed, falling back", engineError);
@@ -506,7 +458,6 @@ async playAd(adIndex, context) {
     if (context?.pauseContent) {
       try {
         await context.pauseContent();
-        console.log("[AD] Main content paused for ad playback");
       } catch (err) {
         console.warn("[AD] Failed to pause main content before ad", err);
       }
@@ -542,7 +493,6 @@ async playAd(adIndex, context) {
     if (context?.resumeContent) {
       try {
         await context.resumeContent();
-        console.log("[AD] Main content resume requested after ad");
       } catch (err) {
         console.warn("[AD] Failed to resume main content after ad", err);
       }
@@ -612,12 +562,10 @@ _getCappedAdIndex(requestedIndex, availableAds, context) {
     //     };
 
     //     audio.onplay = () => {
-    //       console.log("🔊 Adapter: Audio playback started");
     //       startProgress();
     //     };
 
     //     audio.onended = () => {
-    //       console.log("✅ Adapter: Audio ended");
     //       clearProgressTimer();
     //       stopAudio();
     //       resolve();
@@ -679,19 +627,16 @@ async playAudioAd(audioUrl, declaredDurationMs, effectiveIndex, adId) {
     audio.src = audioUrl;
 
     audio.onplay = () => {
-      console.log("🔊 Adapter: Audio playback started");
       startProgressTimer();
     };
 
  
 audio.onended = () => {
-  console.log("✅ Adapter: Audio ended - cleaning up before completion");
   clearProgressTimer();
   stopAudio();
   
   // 🔥 Ensure cleanup is complete before emitting completion
   setTimeout(() => {
-    console.log("✅ Adapter: Emitting AD_COMPLETED after cleanup");
     eventBus.emit("AD_COMPLETED", { 
       adId: adId,
       adIndex: effectiveIndex
@@ -740,13 +685,11 @@ audio.onended = () => {
 _ensureMainAudioPaused() {
   // This method should coordinate with your main audio player
   // to ensure it's properly paused before ad plays
-  console.log("[AD] Ensuring main audio is paused before ad playback");
   eventBus.emit("AD_PAUSE_REQUESTED", { timestamp: Date.now() });
 },
 
 
     stopAd() {
-      console.log("⏹️ Adapter: Stopping ad");
       clearProgressTimer();
       stopAudio();
       if (_playing) {
@@ -775,13 +718,6 @@ _ensureMainAudioPaused() {
 
     // tiny helper so you can debug from console if needed
     __debug() {
-      console.log("[AD adapter debug]", {
-        hasClient: !!apolloClient,
-        identity,
-        environment,
-        playing: _playing,
-        currentAd: _currentAd?.id,
-      });
     },
   };
 

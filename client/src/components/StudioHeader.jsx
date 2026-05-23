@@ -71,7 +71,6 @@ export default function StudioHeader({ openDrawer, handleShowDrawers, handleshow
 
   const handleRespond = async (bookingId, status) => {
     try {
-console.log('booking tend to be accepted: ....')
       await respondToBooking({
         variables: {
           input: {

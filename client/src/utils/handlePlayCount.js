@@ -22,7 +22,6 @@ export const usePlayCount = () => {
       await handlePlayCount({
         variables: { songId: key }
       });
-      console.log(`Play count incremented for song: ${songId}`);
       return true;
     } catch (err) {
       console.warn('Failed to increment play count:', err);

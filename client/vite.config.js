@@ -2,16 +2,22 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 
+const shouldAnalyzeBundle = process.env.ANALYZE === 'true';
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(),
-  visualizer({
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
+  plugins: [
+    react(),
+    shouldAnalyzeBundle && visualizer({
       filename: 'dist/stats.html',
-      open: true,
+      open: false,
       gzipSize: true,
       brotliSize: true,
-    })
-  ],
+    }),
+  ].filter(Boolean),
   server: {
     port: 3000, // Change if port 3000 is in use
     open: true, // Automatically opens in the browser
@@ -28,6 +34,16 @@ export default defineConfig({
     },
   },
   build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+      format: {
+        comments: false,
+      },
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {

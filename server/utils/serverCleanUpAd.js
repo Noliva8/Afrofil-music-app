@@ -9,7 +9,6 @@
       createdAt: { $lt: cutoffDate },
     });
 
-    console.log(`Cleaned up ${result.deletedCount} abandoned draft ads`);
     return result.deletedCount;
   } catch (error) {
     console.error('Error cleaning up abandoned draft ads:', error);

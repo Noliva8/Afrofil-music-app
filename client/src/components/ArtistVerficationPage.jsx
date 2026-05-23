@@ -31,12 +31,11 @@ const ArtistVerificationPage = () => {
     linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.paper})
   `;
 
-  console.log("Profile:", profile); // Debugging profile
+// Debugging profile
 
   // Function to check confirmation and plan status
   const checkConfirmationStatus = async (email) => {
     try {
-      console.log("Making API call with email:", email);
       
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/confirmationStatusAndPlanStatus`,
@@ -71,9 +70,7 @@ const ArtistVerificationPage = () => {
     const verifyConfirmation = async () => {
       try {
         if (email) {
-          // console.log("Checking confirmation for email:", email);
           const data = await checkConfirmationStatus(email);
-          // console.log("Data received from API:", data);
 
           if (!data) {
             // console.error("No data received. Staying on verification page.");
@@ -99,10 +96,8 @@ const ArtistVerificationPage = () => {
 
           // Once selectedPlan is true, check the actual plan
           const userPlan = data.plan;  // Get the value of plan field
-          // console.log("Plan selected:", userPlan);
 
           setStatus("You are verified!");
-          // console.log("Verification complete. Redirecting to dashboard.");
 
           // Navigate based on the selected plan
           if (userPlan === "Pro Plan") {

@@ -13,7 +13,7 @@ import { toggleLikeSong } from './OtherResorvers/toggleLikeSong.js';
 import {USER_TYPES} from '../../utils/AuthSystem/constant/systemRoles.js'
 import {signUserToken } from '../../utils/AuthSystem/tokenUtils.js';
 import { addSongRedis } from '../Artist_schema/Redis/addSongRedis.js';
-import { songKey } from '../Artist_schema/Redis/keys.js';
+import { RECENT_PLAYED_CACHE_KEY, songKey } from '../Artist_schema/Redis/keys.js';
 import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import sendEmail from '../../utils/emailTransportation.js';
 import { buildDailyMix } from '../../utils/aiMixService.js';
@@ -75,6 +75,7 @@ const flattenSongs = (docs, field) =>
 const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 const generatePhoneVerificationCode = () => String(Math.floor(100000 + Math.random() * 900000));
 const generateUserEmailVerificationCode = () => String(Math.floor(1000 + Math.random() * 9000));
+const RECENT_PLAYED_CACHE_TTL_SECONDS = 15 * 60;
 
 const sendBusinessVerificationEmail = (email, verificationCode) => {
   sendEmail(
@@ -325,7 +326,6 @@ businessAccountStatus: async (_, { email }) => {
       if (!freshUser) {
         throw new GraphQLError('Unable to locate your account.');
       }
-      console.log('returned dta for sub:', freshUser.subscription)
 
       const subs = freshUser.subscription || {
         status: 'none',
@@ -371,28 +371,44 @@ recentPlayedSongs: async (_, { limit = 50 }, { user }) => {
     throw new AuthenticationError('You must be logged in!');
   }
 
+  const requested = Math.max(1, Math.min(Number(limit) || 50, 50));
+  const cacheKey = RECENT_PLAYED_CACHE_KEY(user._id, requested);
+  let redis = null;
+
+  try {
+    redis = await getRedis();
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (error) {
+    redis = null;
+    console.warn('Recent played cache read failed:', error?.message || error);
+  }
+
   const plays = await PlayCount.find({ user: user._id })
     .sort({ createdAt: -1 })
-    .limit(limit)
+    .limit(requested)
     .populate({
       path: 'played_songs',
       populate: [
         {
           path: 'artist',
           select:
-            'artistAka country bio followers artistDownloadCounts profileImage bookingAvailability',
+            'artistAka country bio artistDownloadCounts profileImage bookingAvailability',
         },
         { path: 'album', select: 'title releaseDate albumCoverImage' },
       ],
     })
     .lean();
 
-  return plays
+  const recentSongs = plays
     .map((play) => play.played_songs)
     .filter(Boolean)
     .map((song) => ({
       ...song,
-      artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+      artistFollowers: 0,
       mood: song.mood || [],
       subMoods: song.subMoods || [],
       composer: Array.isArray(song.composer) ? song.composer : [],
@@ -403,6 +419,18 @@ recentPlayedSongs: async (_, { limit = 50 }, { user }) => {
       shareCount: song.shareCount || 0,
       artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
     }));
+
+  if (redis) {
+    try {
+      await redis.set(cacheKey, JSON.stringify(recentSongs), {
+        EX: RECENT_PLAYED_CACHE_TTL_SECONDS,
+      });
+    } catch (error) {
+      console.warn('Recent played cache write failed:', error?.message || error);
+    }
+  }
+
+  return recentSongs;
 },
 
 likedSongs: async (_, { limit = 50 }, { user }) => {
@@ -419,7 +447,7 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
         {
           path: 'artist',
           select:
-            'artistAka country bio followers artistDownloadCounts profileImage bookingAvailability',
+            'artistAka country bio artistDownloadCounts profileImage bookingAvailability',
         },
         { path: 'album', select: 'title releaseDate albumCoverImage' },
       ],
@@ -431,7 +459,7 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
     .filter(Boolean)
     .map((song) => ({
       ...song,
-      artistFollowers: Array.isArray(song.artist?.followers) ? song.artist.followers.length : 0,
+      artistFollowers: 0,
       mood: song.mood || [],
       subMoods: song.subMoods || [],
       composer: Array.isArray(song.composer) ? song.composer : [],
@@ -446,7 +474,6 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
 
 
   userNotifications: async (_, { status }, { user }) => {
-    console.log('Booking-based resolver called', { status });
 
     if (!user?._id) {
       throw new AuthenticationError('You must be logged in!');
@@ -475,7 +502,6 @@ likedSongs: async (_, { limit = 50 }, { user }) => {
       throw new GraphQLError('Failed to load booking notifications');
     }
 
-    console.log('booking notifications result:', bookings);
     const normalizeEvent = (value) => {
       if (!value) return null;
       return String(value).trim().replace(/\s+/g, '_').toUpperCase();
@@ -573,7 +599,6 @@ userPlaylists: async (_, { limit = 50 }, { user }) => {
 
 // trendingSongs: async () => {
 
-//   console.log('trending songs is called')
 //   const limit = 20;
 
 //   try {
@@ -614,10 +639,6 @@ userPlaylists: async (_, { limit = 50 }, { user }) => {
 //         }
 //       }
 //     };
-// console.log("Top Plays:", topPlays.length);
-// console.log("Top Likes (agg):", topLikesAgg.length);
-// console.log("Top Downloads:", topDownloads.length);
-// console.log("Latest Songs:", latestSongs.length);
 
 //     addUnique(topPlays);
 //     addUnique(topLikes);
@@ -716,7 +737,6 @@ userPlaylists: async (_, { limit = 50 }, { user }) => {
 
 
 
-// console.log('retruned songs:', result)
 //     // 3) Best-effort Redis backfill
 //     (async () => {
 //       try {

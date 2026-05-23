@@ -33,13 +33,11 @@ export async function flushAllAndReimportSongs({
     // fallback
     try { summary.mongo.total = await Song.countDocuments(); } catch {}
   }
-  console.log(`[reimport:songs] Mongo total ~ ${summary.mongo.total}`);
 
   // 1) FLUSHALL (version-safe)
   try {
     await flushAllSafe(r);
     summary.flushed = true;
-    console.log("[reimport:songs] Redis FLUSHALL done");
   } catch (e) {
     summary.ok = false;
     summary.errors.push(`FLUSHALL failed: ${e?.message || String(e)}`);
@@ -51,7 +49,6 @@ export async function flushAllAndReimportSongs({
   try {
     await createSongIndex();
     summary.indexCreated = true;
-    console.log("[reimport:songs] idx:songs created");
   } catch (e) {
     // if it already exists somehow, continue; otherwise bail
     const msg = String(e?.message || "");
@@ -61,7 +58,6 @@ export async function flushAllAndReimportSongs({
       summary.finishedAt = new Date().toISOString();
       return summary;
     }
-    console.log("[reimport:songs] idx:songs already existed");
   }
 
   // 3) Stream-import songs (first, log a tiny sample so we know data is there)
@@ -73,7 +69,6 @@ export async function flushAllAndReimportSongs({
       artist: s?.artist ? String(s.artist) : "",
       album: s?.album ? String(s.album) : "",
     }));
-    console.log("[reimport:songs] Sample from Mongo:", summary.mongo.sample);
   } catch (e) {
     console.warn("[reimport:songs] Could not fetch sample:", e?.message || e);
   }
@@ -87,7 +82,6 @@ export async function flushAllAndReimportSongs({
         await createSongRedis(song); // your JSON-first writer builds all sets/zsets too
         n++;
         if (logEvery && n % logEvery === 0) {
-          console.log(`[reimport:songs] inserted ${n}/${summary.mongo.total}`);
         }
         if (limit && n >= limit) break;
       } catch (e) {
@@ -103,7 +97,6 @@ export async function flushAllAndReimportSongs({
   }
 
   summary.finishedAt = new Date().toISOString();
-  console.log(`[reimport:songs] Done. Inserted=${summary.inserted}, Errors=${summary.errors.length}`);
   return summary;
 }
 

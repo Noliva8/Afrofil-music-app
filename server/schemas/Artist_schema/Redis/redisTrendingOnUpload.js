@@ -1,7 +1,7 @@
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 
 import {Song} from "../../../models/Artist/index_artist.js"
-import { trendIndexZSet } from "./keys.js";
+import { trendIndexZSet, TRENDING_SONGS_CACHE_KEY } from "./keys.js";
 import { INITIAL_RECENCY_SCORE } from "./keys.js";
 import { TRENDING_SLOTS } from "./keys.js";
 
@@ -22,7 +22,6 @@ export const addSongToTrendingOnUpload = async (songId) => {
         score: INITIAL_RECENCY_SCORE,
         value: songId.toString()
       });
-      console.log(`📈 Added ${songId} to trending (had space)`);
     } else {
       // Trending is full - check if there are any songs with exactly 1000 score
       const allTrendingSongs = await client.zRange(trendIndexZSet, 0, -1, {
@@ -55,13 +54,11 @@ export const addSongToTrendingOnUpload = async (songId) => {
           score: INITIAL_RECENCY_SCORE,
           value: songId.toString()
         });
-        console.log(`🔄 Replaced oldest 1000-scored song ${oldestSongId} with new song ${songId}`);
       } else {
         // All songs have > 1000 score - new song doesn't enter trending
-        console.log(`❌ ${songId} not added to trending - all songs have > 1000 score`);
       }
     }
-    
+    await client.del(TRENDING_SONGS_CACHE_KEY);
   } catch (error) {
     console.warn('Failed to add song to trending on upload:', error);
   }
@@ -82,7 +79,6 @@ export const initializeAllTrendingScores = async () => {
     
     // Get all songs from MongoDB
     const songs = await Song.find({}).select('_id createdAt').lean();
-    console.log(`🎵 Found ${songs.length} songs to initialize trending`);
     
     // Update MongoDB with trending scores
     const bulkOperations = songs.map(song => ({
@@ -95,7 +91,6 @@ export const initializeAllTrendingScores = async () => {
     }));
     
     await Song.bulkWrite(bulkOperations);
-    console.log(`✅ Updated trending scores in MongoDB for ${songs.length} songs`);
     
     // Add to Redis trending set (limited to 20 most recent)
     const sortedSongs = songs
@@ -109,12 +104,8 @@ export const initializeAllTrendingScores = async () => {
     
     if (redisCommands.length > 0) {
       await client.zAdd(trendIndexZSet, redisCommands);
-      console.log(`🚀 Initialized Redis trending set with ${redisCommands.length} most recent songs`);
     }
     
-    console.log(`🎯 Trending system initialized!`);
-    console.log(`📊 MongoDB: ${songs.length} songs with trending scores`);
-    console.log(`🔥 Redis: ${redisCommands.length} songs in trending set`);
     
   } catch (error) {
     console.error('❌ Failed to initialize trending scores:', error);

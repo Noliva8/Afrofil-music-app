@@ -196,7 +196,6 @@ const LazyUserSignupPage = lazy(() =>
 
 function AppBody({ onCreatePlaylist }) {
   try {
-    console.log('🟢 AppBody starting');
     
     const theme = useTheme();
     const [isHydrated, setIsHydrated] = useState(false);
@@ -207,7 +206,6 @@ function AppBody({ onCreatePlaylist }) {
     const location = useLocation();
     const pathname = location.pathname;
 
-    console.log('🟢 AppBody hooks initialized');
 
     const [isPlayerActive, setIsPlayerActive] = useState(false);
     const [playerHeight, setPlayerHeight] = useState(0);
@@ -319,7 +317,6 @@ function AppBody({ onCreatePlaylist }) {
     
     const bottomNavHeight = isUserLoggedIn && isMobile && !isNotMediaPlayerAllowed ? 82 : 0;
 
-    console.log('🟢 AppBody returning JSX');
     
     return (
       <BookingIdProvider>

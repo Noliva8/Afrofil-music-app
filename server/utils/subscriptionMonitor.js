@@ -6,7 +6,6 @@ import sendEmail from './emailTransportation.js';
 const monitorSubscriptions = () => {
   // Run daily at 2 AM
   cron.schedule('0 2 * * *', async () => {
-    console.log('⏰ Checking for overdue subscriptions...');
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -31,7 +30,6 @@ const monitorSubscriptions = () => {
          <p>– AfroFeel Team 🎵</p>`
       );
 
-      console.log(`🔻 Downgraded ${user.email} due to failed payment`);
     }
   });
 };

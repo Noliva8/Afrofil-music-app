@@ -19,7 +19,6 @@ const deletePreviousImageUploaded = async (fileName) => {
   const command = new DeleteObjectCommand(params);
   try {
     const response = await client.send(command);
-    console.log(`The file ${fileName} was deleted successfully.`);
     return `The file ${fileName} was deleted successfully.`;
   } catch (error) {
     console.error("Error deleting file:", error);

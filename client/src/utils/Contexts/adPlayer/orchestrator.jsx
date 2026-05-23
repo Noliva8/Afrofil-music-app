@@ -396,7 +396,6 @@
 //     if (process.env.NODE_ENV !== "development") return;
 //     if (!pmRef.current || !adAdapter) return;
 
-//     console.log("🔧 ADAPTER DEBUG:", {
 //       hasAdapter: !!adAdapter,
 //       hasPlayAd: typeof adAdapter.playAd === "function",
 //       adapterType: adAdapter.constructor?.name || "object",
@@ -405,10 +404,8 @@
 //     const testAdPlayback = setTimeout(() => {
 //       const pm = pmRef.current;
 //       if (pm) {
-//         console.log("🧪 TEST: Attempting to play ad directly...");
 //         const state = pm.getState();
 //         const report = pm.getUserBehaviorReport();
-//         console.log("📊 CURRENT STATE:", {
 //           owner: state.owner,
 //           songsPlayed: report?.engagement?.songsPlayed,
 //           userType: state.identity.userType,
@@ -416,9 +413,7 @@
 //         });
 //         pm
 //           .playAd("midroll", pm.getAdContext())
-//           .then(() => console.log("✅ TEST: Direct ad play succeeded"))
 //           .catch((err) =>
-//             console.log(
 //               "❌ TEST: Direct ad play failed:",
 //               err?.message || err
 //             )
@@ -468,14 +463,12 @@
 //   const audioInstanceRef = useRef(null);
 //   if (!audioInstanceRef.current && audio) {
 //     audioInstanceRef.current = audio;
-//     console.log("🔒 LOCKED audio instance");
 //   }
   
 //   // Adapter instance lock  
 //   const adAdapterRef = useRef(null);
 //   if (!adAdapterRef.current && adAdapter) {
 //     adAdapterRef.current = adAdapter;
-//     console.log("🔒 LOCKED ad adapter instance");
 //   }
 
 //   // State tracking (internal to tick bridge)
@@ -680,7 +673,6 @@
 //         const st = audioInstance.playerState;
 //         if (!st) {
 //           if (tickCount % 40 === 0) {
-//             console.log("🔍 NUCLEAR TICK: No playerState");
 //           }
 //           return;
 //         }
@@ -821,7 +813,6 @@
 //           const state = pm.getState?.();
 //           const report = pm.getUserBehaviorReport?.();
           
-//           console.log("🏥 NUCLEAR ORCHESTRATOR STATUS", {
 //             // PM Status
 //             exists: !!pm,
 //             isDestroyed: pm._isDestroyed,
@@ -1106,7 +1097,6 @@ export default function Orchestrator() {
   // 4) FIXED TICK BRIDGE - USING PROPER CLOSURE PATTERN
   // =====================================================
   useEffect(() => {
-    console.log("[ORCH] 🎚️ BRIDGE EFFECT MOUNTED");
 
     let lastTrackId = null;
     let lastEndedFlag = false;
@@ -1129,16 +1119,11 @@ let trackReady = false;
 
       // Log every 10 ticks to avoid spam
       if (tickCount % 10 === 0) {
-        console.log("[ORCH] Tick bridge running - tick #" + tickCount);
       }
 
       // 1) Check PM + audioCtx presence
       if (!pm || !audioCtx) {
         if (tickCount % 20 === 0) {
-          console.log("[ORCH] Tick: missing pm or audioCtx", {
-            hasPm: !!pm,
-            hasAudioCtx: !!audioCtx,
-          });
         }
         setTimeout(tick, 1000);
         return;
@@ -1148,9 +1133,6 @@ let trackReady = false;
 
       if (!st) {
         if (tickCount % 20 === 0) {
-          console.log("[ORCH] Tick: audioCtx.playerState is null/undefined", {
-            audioKeys: Object.keys(audioCtx),
-          });
         }
         setTimeout(tick, 1000);
         return;
@@ -1160,30 +1142,13 @@ let trackReady = false;
 
       // 2) Log a small snapshot so we see what shape playerState has
       if (tickCount % 10 === 0) {
-        console.log("[ORCH] Tick snapshot", {
-          currentId,
-          title: st.currentTrack?.title,
-          isPlaying: st.isPlaying,
-          wasManuallyPaused: st.wasManuallyPaused,
-          currentTime: st.currentTime,
-          duration: st.duration,
-        });
       }
 
       // ========== TRACK START DETECTION ==========
       if (currentId && currentId !== lastTrackId) {
-        console.log("[ORCH] 🎵 TRACK CHANGE DETECTED", {
-          from: lastTrackId,
-          to: currentId,
-          trackTitle: st.currentTrack?.title
-        });
         
         clearTimeout(trackStartTimeout);
         trackStartTimeout = setTimeout(() => {
-          console.log("[ORCH] 🎵 CONFIRMED TRACK START → pm.onTrackStart()", {
-            from: lastTrackId,
-            to: currentId
-          });
           
           lastTrackId = currentId;
 
@@ -1195,11 +1160,9 @@ let trackReady = false;
             artist: st.currentTrack?.artist,
           };
 
-          console.log("[ORCH] 🎵 TRACK START - Metadata:", meta);
 
           try {
             pm.onTrackStart(meta);
-            console.log("[ORCH] 🎵 pm.onTrackStart() called successfully");
           } catch (err) {
             console.error("[ORCH] Error calling pm.onTrackStart:", err);
           }
@@ -1211,14 +1174,6 @@ let trackReady = false;
       const isNowPlaying = Boolean(st.isPlaying);
 
       if (tickCount % 10 === 0) {
-        console.log("[ORCH] Play state check:", {
-          isNowPlaying,
-          rawState: {
-            isPlaying: st.isPlaying,
-            wasManuallyPaused: st.wasManuallyPaused,
-            currentTime: st.currentTime,
-          }
-        });
       }
 
 
@@ -1239,7 +1194,6 @@ let trackReady = false;
 
       // // If we've just transitioned into an ended state for THIS track:
       // if (endedNow && !lastEndedFlag && currentId) {
-      //   console.log("[ORCH] 🔚 TRACK END DETECTED", {
       //     currentTime,
       //     duration,
       //     trackId: currentId,
@@ -1256,11 +1210,9 @@ let trackReady = false;
       //     artist: st.currentTrack?.artist,
       //   };
 
-      //   console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
 
       //   try {
       //     pm.onTrackEnd(meta);
-      //     console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
       //   } catch (err) {
       //     console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
       //   }
@@ -1268,7 +1220,6 @@ let trackReady = false;
 
       // // Reset the "ended" latch when playback is clearly NOT ended anymore
       // if (!endedNow && lastEndedFlag) {
-      //   console.log("[ORCH] Reset ended flag - playback resumed or new track");
       //   lastEndedFlag = false;
       // }
 
@@ -1310,12 +1261,6 @@ if (currentId && trackReady) {
 
 // If we've just transitioned into an ended state for THIS track:
 if (endedNow && !lastEndedFlag && currentId) {
-  console.log("[ORCH] 🔚 TRACK END DETECTED", {
-    currentTime,
-    duration,
-    trackId: currentId,
-    isPlaying: st.isPlaying,
-  });
 
   lastEndedFlag = true;
 
@@ -1327,11 +1272,9 @@ if (endedNow && !lastEndedFlag && currentId) {
     artist: st.currentTrack?.artist,
   };
 
-  console.log("[ORCH] 🔚 TRACK END → pm.onTrackEnd(meta)", meta);
 
   try {
     pm.onTrackEnd(meta);
-    console.log("[ORCH] 🔚 pm.onTrackEnd() called successfully");
   } catch (err) {
     console.error("[ORCH] Error when calling pm.onTrackEnd:", err);
   }
@@ -1339,7 +1282,6 @@ if (endedNow && !lastEndedFlag && currentId) {
 
 // Reset the "ended" latch when playback is clearly NOT ended anymore
 if (!endedNow && lastEndedFlag) {
-  console.log("[ORCH] Reset ended flag - playback resumed or new track");
   lastEndedFlag = false;
 }
 
@@ -1368,7 +1310,6 @@ if (!endedNow && lastEndedFlag) {
     tick();
 
     return () => {
-      console.log("[ORCH] 🧹 BRIDGE EFFECT CLEANUP");
       isMounted = false;
       if (trackStartTimeout) {
         clearTimeout(trackStartTimeout);

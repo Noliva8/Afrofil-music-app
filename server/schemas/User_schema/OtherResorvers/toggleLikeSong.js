@@ -107,7 +107,6 @@ export const toggleLikeSong = async (_, { songId }, context) => {
       const patternKeys = await redis.keys('home:daily-mix:*');
       if (patternKeys.length) {
         await redis.del(patternKeys);
-        console.log(`🔄 Cleared ${patternKeys.length} Daily Mix cache entries after like toggle`);
       }
     } catch (cacheError) {
       console.warn('⚠️ Failed to clear Daily Mix cache:', cacheError.message);
@@ -136,7 +135,6 @@ export const toggleLikeSong = async (_, { songId }, context) => {
           score: newScore, 
           value: songId.toString() 
         });
-        console.log(`📈 Trending ${isNowLiked ? 'increased' : 'decreased'}: ${songId}: ${currentTrendingScore} → ${newScore}`);
       } else if (isNowLiked) {
         // Song not in trending - only try to enter on like (not on unlike)
         const songNewScore = updatedSong.trendingScore;
@@ -148,7 +146,6 @@ export const toggleLikeSong = async (_, { songId }, context) => {
             score: songNewScore,
             value: songId.toString()
           });
-          console.log(`🎉 Added ${songId} to trending via like: ${songNewScore}`);
         } else {
           // Full - check if score is higher than lowest
           const lowestSongs = await redis.zRange(trendIndexZSet, 0, 0, { WITHSCORES: true });
@@ -161,7 +158,6 @@ export const toggleLikeSong = async (_, { songId }, context) => {
               score: songNewScore,
               value: songId.toString()
             });
-            console.log(`🔄 ${songId} replaced ${lowestSongs[0]} in trending via like: ${songNewScore} > ${lowestScore}`);
           }
         }
       }
@@ -176,7 +172,6 @@ export const toggleLikeSong = async (_, { songId }, context) => {
     if (obj.album?._id) obj.album._id = String(obj.album._id);
     obj.likedByMe = isNowLiked;
 
-console.log('LIKES OBJECT:', obj)
     return obj;
 
   } catch (error) {

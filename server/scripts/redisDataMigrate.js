@@ -2,7 +2,7 @@
 import { getRedis } from "../utils/AdEngine/redis/redisClient.js";
 import { artistCreateRedis } from "../schemas/Artist_schema/Redis/artistCreateRedis.js";
 import { albumCreateRedis } from "../schemas/Artist_schema/Redis/albumCreateRedis.js";
-import {Artist, Album,Song} from "../models/Artist/index_artist.js",
+import {Artist, Album,Song} from "../models/Artist/index_artist.js";
 
 import { withTimeout } from "../schemas/Artist_schema/Redis/songCreateRedis.js";
 import { createSongIndex } from "../schemas/Artist_schema/Redis/songCreateRedis.js";
@@ -22,11 +22,9 @@ class DataMigrator {
   async initialize() {
     try {
       this.redis = await getRedis();
-      console.log('✅ Redis client initialized');
       
       // Test connection
       await this.redis.ping();
-      console.log('✅ Redis connection successful');
       
       return true;
     } catch (error) {
@@ -36,15 +34,12 @@ class DataMigrator {
   }
 
   async migrateArtists() {
-    console.log('\n🎤 Starting artist migration...');
     
     try {
       // Count total artists
       this.stats.artists.total = await Artist.countDocuments();
-      console.log(`📊 Total artists to migrate: ${this.stats.artists.total}`);
 
       if (this.stats.artists.total === 0) {
-        console.log('ℹ️ No artists found to migrate');
         return;
       }
 
@@ -66,7 +61,6 @@ class DataMigrator {
           break;
         }
 
-        console.log(`🔄 Processing artists batch ${skip / this.batchSize + 1}...`);
 
         // Migrate artists in parallel with limited concurrency
         const migrationPromises = artists.map(async (artist) => {
@@ -87,7 +81,6 @@ class DataMigrator {
         // Log batch progress
         const batchSuccess = results.filter(r => r.success).length;
         const batchErrors = results.filter(r => !r.success).length;
-        console.log(`✅ Batch completed: ${batchSuccess} success, ${batchErrors} errors`);
 
         skip += this.batchSize;
         
@@ -97,7 +90,6 @@ class DataMigrator {
         }
       }
 
-      console.log(`🎉 Artist migration completed: ${this.stats.artists.migrated} migrated, ${this.stats.artists.errors} errors`);
 
     } catch (error) {
       console.error('❌ Artist migration failed:', error);
@@ -105,15 +97,12 @@ class DataMigrator {
   }
 
   async migrateAlbums() {
-    console.log('\n💿 Starting album migration...');
     
     try {
       // Count total albums
       this.stats.albums.total = await Album.countDocuments();
-      console.log(`📊 Total albums to migrate: ${this.stats.albums.total}`);
 
       if (this.stats.albums.total === 0) {
-        console.log('ℹ️ No albums found to migrate');
         return;
       }
 
@@ -134,7 +123,6 @@ class DataMigrator {
           break;
         }
 
-        console.log(`🔄 Processing albums batch ${skip / this.batchSize + 1}...`);
 
         // Migrate albums in parallel
         const migrationPromises = albums.map(async (album) => {
@@ -153,7 +141,6 @@ class DataMigrator {
         
         const batchSuccess = results.filter(r => r.success).length;
         const batchErrors = results.filter(r => !r.success).length;
-        console.log(`✅ Batch completed: ${batchSuccess} success, ${batchErrors} errors`);
 
         skip += this.batchSize;
         
@@ -162,7 +149,6 @@ class DataMigrator {
         }
       }
 
-      console.log(`🎉 Album migration completed: ${this.stats.albums.migrated} migrated, ${this.stats.albums.errors} errors`);
 
     } catch (error) {
       console.error('❌ Album migration failed:', error);
@@ -170,15 +156,12 @@ class DataMigrator {
   }
 
   async migrateSongs() {
-    console.log('\n🎵 Starting song migration...');
     
     try {
       // Count total songs
       this.stats.songs.total = await Song.countDocuments();
-      console.log(`📊 Total songs to migrate: ${this.stats.songs.total}`);
 
       if (this.stats.songs.total === 0) {
-        console.log('ℹ️ No songs found to migrate');
         return;
       }
 
@@ -199,7 +182,6 @@ class DataMigrator {
           break;
         }
 
-        console.log(`🔄 Processing songs batch ${skip / this.batchSize + 1}...`);
 
         // Migrate songs in parallel (using your existing songCreateRedis function)
         const migrationPromises = songs.map(async (song) => {
@@ -219,7 +201,6 @@ class DataMigrator {
         
         const batchSuccess = results.filter(r => r.success).length;
         const batchErrors = results.filter(r => !r.success).length;
-        console.log(`✅ Batch completed: ${batchSuccess} success, ${batchErrors} errors`);
 
         skip += this.batchSize;
         
@@ -228,7 +209,6 @@ class DataMigrator {
         }
       }
 
-      console.log(`🎉 Song migration completed: ${this.stats.songs.migrated} migrated, ${this.stats.songs.errors} errors`);
 
     } catch (error) {
       console.error('❌ Song migration failed:', error);
@@ -260,39 +240,31 @@ class DataMigrator {
 
   // Verify migration results
   async verifyMigration() {
-    console.log('\n🔍 Verifying migration...');
     
     try {
       // Verify artists
       const artistCount = await this.redis.zcard('index:artists:all');
-      console.log(`🎤 Artists in Redis: ${artistCount} (MongoDB: ${this.stats.artists.total})`);
 
       // Verify albums
       const albumCount = await this.redis.zcard('index:albums:all');
-      console.log(`💿 Albums in Redis: ${albumCount} (MongoDB: ${this.stats.albums.total})`);
 
       // Verify songs (if you have song indexes)
       try {
         const songCount = await this.redis.zcard('index:songs:all');
-        console.log(`🎵 Songs in Redis: ${songCount} (MongoDB: ${this.stats.songs.total})`);
       } catch (error) {
-        console.log('🎵 Song index not available yet');
       }
 
       // Test a few random keys
       const testArtist = await this.redis.keys('artist:*');
       const testAlbum = await this.redis.keys('album:*');
       
-      console.log(`🔑 Sample keys - Artists: ${testArtist.length}, Albums: ${testAlbum.length}`);
 
       if (testArtist.length > 0) {
         const sampleArtist = await this.redis.get(testArtist[0]);
-        console.log('✅ Sample artist key is accessible');
       }
 
       if (testAlbum.length > 0) {
         const sampleAlbum = await this.redis.get(testAlbum[0]);
-        console.log('✅ Sample album key is accessible');
       }
 
     } catch (error) {
@@ -302,7 +274,6 @@ class DataMigrator {
 
   // Clear existing Redis data (optional - use with caution!)
   async clearRedisData() {
-    console.log('\n⚠️ Clearing existing Redis data...');
     
     try {
       // Delete all artist and album keys
@@ -314,9 +285,7 @@ class DataMigrator {
       
       if (allKeys.length > 0) {
         await this.redis.del(allKeys);
-        console.log(`🗑️ Cleared ${allKeys.length} Redis keys`);
       } else {
-        console.log('ℹ️ No existing keys to clear');
       }
     } catch (error) {
       console.error('❌ Failed to clear Redis data:', error);
@@ -326,8 +295,6 @@ class DataMigrator {
   async runMigration(options = {}) {
     const { clearExisting = false, migrateSongs = false } = options;
     
-    console.log('🚀 Starting MongoDB to Redis migration...');
-    console.log('==========================================');
 
     if (!await this.initialize()) {
       return;
@@ -356,14 +323,8 @@ class DataMigrator {
 
       const duration = ((Date.now() - startTime) / 1000).toFixed(2);
       
-      console.log('\n🎉 Migration completed!');
-      console.log('=====================');
-      console.log(`⏱️ Total duration: ${duration}s`);
-      console.log(`🎤 Artists: ${this.stats.artists.migrated}/${this.stats.artists.total} (${this.stats.artists.errors} errors)`);
-      console.log(`💿 Albums: ${this.stats.albums.migrated}/${this.stats.albums.total} (${this.stats.albums.errors} errors)`);
       
       if (migrateSongs) {
-        console.log(`🎵 Songs: ${this.stats.songs.migrated}/${this.stats.songs.total} (${this.stats.songs.errors} errors)`);
       }
 
     } catch (error) {
@@ -397,7 +358,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   });
 }
-
 
 
 
