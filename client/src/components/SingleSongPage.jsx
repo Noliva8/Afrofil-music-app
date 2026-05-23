@@ -1023,6 +1023,7 @@ useEffect(() => {
           supportArtistId={song?.artistId || song?.artist?._id}
           supportArtistName={song?.artistName || song?.artist?.artistAka}
           supportSongId={song?.id || song?._id}
+          supportSongTitle={song?.title}
           isBookingEnabled={song?.artist?.bookingAvailability ?? true}
           showFavoriteButton={false}
         />

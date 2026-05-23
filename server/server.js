@@ -10,6 +10,7 @@ import { checkRedisHealth } from "./utils/AdEngine/redis/redisClient.js";
 
 
 import { fileURLToPath } from 'url';
+import fs from "fs/promises";
 
 // Import necessary packages and functions
 import connectDB from "./config/connection.js";
@@ -48,7 +49,7 @@ import stripeRoutes from "./routes/stripeRoutes.js";
 import location from './routes/location.js';
 import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
 import supportRoute from './routes/support.js';
-import { RadioStation } from "./models/Artist/index_artist.js";
+import { RadioStation, Song } from "./models/Artist/index_artist.js";
 import { RADIO_TYPES } from "./utils/radioTypes.js";
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
@@ -81,6 +82,58 @@ app.set("trust proxy", 1); // ✅ FIXED
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const escapeHtml = (value = "") =>
+  String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const stripHtml = (value = "") => String(value).replace(/<[^>]*>/g, "").trim();
+
+const getPublicAppUrl = () =>
+  (process.env.FRONTEND_URL || process.env.CLIENT_URL || "https://flolup.com").replace(/\/+$/, "");
+
+const toAbsoluteUrl = (value, baseUrl) => {
+  if (!value || typeof value !== "string") return "";
+  if (/^https?:\/\//i.test(value)) return value;
+  if (value.startsWith("/")) return `${baseUrl}${value}`;
+  return `${baseUrl}/${value.replace(/^\/+/, "")}`;
+};
+
+const replaceMetaTag = (html, selector, tag) => {
+  const pattern = new RegExp(`<meta\\s+${selector}=["'][^"']+["'][^>]*>`, "i");
+  return pattern.test(html) ? html.replace(pattern, tag) : html.replace("</head>", `    ${tag}\n  </head>`);
+};
+
+const injectTrackMeta = (html, { title, description, url, image }) => {
+  let nextHtml = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
+
+  const tags = [
+    [`name`, `description`, description],
+    [`property`, `og:title`, title],
+    [`property`, `og:description`, description],
+    [`property`, `og:type`, "music.song"],
+    [`property`, `og:url`, url],
+    [`property`, `og:image`, image],
+    [`name`, `twitter:card`, "summary_large_image"],
+    [`name`, `twitter:title`, title],
+    [`name`, `twitter:description`, description],
+    [`name`, `twitter:image`, image],
+  ];
+
+  for (const [attr, key, value] of tags) {
+    nextHtml = replaceMetaTag(
+      nextHtml,
+      attr,
+      `<meta ${attr}="${key}" content="${escapeHtml(value)}" />`
+    );
+  }
+
+  return nextHtml;
+};
 
 // Register webhook endpoint
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -864,6 +917,38 @@ app.post('/api/cleanup', async (req, res) => {
 
     // Production setup
     if (process.env.NODE_ENV === "production") {
+      app.get("/track/:trackId", async (req, res, next) => {
+        const indexPath = path.join(__dirname, "../client/dist/index.html");
+
+        try {
+          const baseUrl = getPublicAppUrl();
+          const html = await fs.readFile(indexPath, "utf8");
+          const song = await Song.findById(req.params.trackId)
+            .select("title artwork lyrics genre")
+            .populate("artist", "artistAka")
+            .lean();
+
+          if (!song) {
+            res.set("Content-Type", "text/html");
+            return res.send(html);
+          }
+
+          const artistName = song.artist?.artistAka || "FloLup artist";
+          const title = `${song.title} by ${artistName}`;
+          const description =
+            stripHtml(song.lyrics)?.slice(0, 150) ||
+            `Listen to ${song.title} by ${artistName} on FloLup.`;
+          const url = `${baseUrl}/track/${req.params.trackId}`;
+          const image = toAbsoluteUrl(song.artwork, baseUrl) || `${baseUrl}/logo-512.png`;
+
+          res.set("Content-Type", "text/html");
+          return res.send(injectTrackMeta(html, { title, description, url, image }));
+        } catch (error) {
+          console.error("Track metadata render failed:", error);
+          return next();
+        }
+      });
+
       app.use(express.static(path.join(__dirname, "../client/dist")));
       app.get("*", (req, res) => {
         res.sendFile(path.join(__dirname, "../client/dist/index.html"));

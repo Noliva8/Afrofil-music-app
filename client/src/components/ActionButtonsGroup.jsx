@@ -20,6 +20,7 @@ export const ActionButtonsGroup = ({
   supportArtistId,
   supportArtistName,
   supportSongId,
+  supportSongTitle,
 
   onBookingSubmit,
   showBookingButton = true,
@@ -114,8 +115,12 @@ export const ActionButtonsGroup = ({
         <ShareButton
           handleShare={onShare}
           songId={supportSongId}
-          title={supportArtistName ? `Listen to ${supportArtistName}` : "Song"}
-          text="Listen to this track"
+          title={supportSongTitle || "Song"}
+          text={
+            supportArtistName
+              ? `Listen to ${supportSongTitle || "this track"} by ${supportArtistName}`
+              : "Listen to this track"
+          }
         />
       )}
 

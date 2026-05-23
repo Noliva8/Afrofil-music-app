@@ -1,30 +1,107 @@
-
+import { useMemo, useState } from 'react';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Drawer from '@mui/material/Drawer';
+import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
+import Divider from '@mui/material/Divider';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import { useMutation } from '@apollo/client';
 
   import {
+  ContentCopy,
+  IosShare,
   Share
 } from '@mui/icons-material';
 import { SHARE_SONG } from '../utils/queries';
-import { shareSongLink } from '../utils/shareSong';
+import { buildSongShareUrl, shareSongLink } from '../utils/shareSong';
 
 
 export const ShareButton = ({ handleShare, songId, title, text }) => {
 const [shareSongMutation] = useMutation(SHARE_SONG);
+const [drawerOpen, setDrawerOpen] = useState(false);
+const theme = useTheme();
+const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+const shareTitle = title || 'Song';
+const shareText = text || 'Listen to this track';
+const shareUrl = useMemo(() => {
+  if (!songId || typeof window === 'undefined') return '';
+  return buildSongShareUrl(songId);
+}, [songId]);
+
+const closeDrawer = () => setDrawerOpen(false);
+
+const markShared = async () => {
+  if (!songId) return;
+
+  try {
+    await shareSongMutation({ variables: { songId } });
+  } catch (err) {
+    console.warn('Share count update failed', err);
+  }
+};
 
 const onShare = async () => {
+  if (isMobile && songId) {
+    setDrawerOpen(true);
+    return;
+  }
+
   if (songId) {
     await shareSongLink({
       songId,
-      title,
-      text,
+      title: shareTitle,
+      text: shareText,
       shareSongMutation,
     });
     return;
   }
 
   handleShare?.();
+};
+
+const handleNativeShare = async () => {
+  closeDrawer();
+
+  if (!songId) {
+    handleShare?.();
+    return;
+  }
+
+  await shareSongLink({
+    songId,
+    title: shareTitle,
+    text: shareText,
+    shareSongMutation,
+  });
+};
+
+const handleCopyLink = async () => {
+  closeDrawer();
+
+  if (!shareUrl) {
+    handleShare?.();
+    return;
+  }
+
+  if (navigator?.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      await markShared();
+      return;
+    } catch (err) {
+      console.warn('Clipboard share failed', err);
+    }
+  }
+
+  await shareSongLink({
+    songId,
+    title: shareTitle,
+    text: shareText,
+    shareSongMutation,
+  });
 };
 
 return(
@@ -64,6 +141,78 @@ return(
                     Share
                   </Typography>
                 </IconButton>
+
+                <Drawer
+                  anchor="bottom"
+                  open={drawerOpen}
+                  onClose={closeDrawer}
+                  PaperProps={{
+                    sx: {
+                      bgcolor: '#111',
+                      color: '#fff',
+                      borderTopLeftRadius: 16,
+                      borderTopRightRadius: 16,
+                      px: 2,
+                      pt: 1,
+                      pb: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 4,
+                      borderRadius: 999,
+                      bgcolor: 'rgba(255,255,255,0.35)',
+                      mx: 'auto',
+                      mb: 2,
+                    }}
+                  />
+                  <Typography sx={{ fontSize: 15, fontWeight: 700, mb: 0.5 }}>
+                    Share song
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: 'rgba(255,255,255,0.65)',
+                      fontSize: 13,
+                      mb: 1.5,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {shareTitle}
+                  </Typography>
+                  <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 1 }} />
+                  <ButtonBase
+                    onClick={handleNativeShare}
+                    sx={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      gap: 1.5,
+                      py: 1.5,
+                      borderRadius: 2,
+                      color: '#fff',
+                    }}
+                  >
+                    <IosShare fontSize="small" />
+                    <Typography sx={{ fontSize: 15, fontWeight: 600 }}>Share</Typography>
+                  </ButtonBase>
+                  <ButtonBase
+                    onClick={handleCopyLink}
+                    sx={{
+                      width: '100%',
+                      justifyContent: 'flex-start',
+                      gap: 1.5,
+                      py: 1.5,
+                      borderRadius: 2,
+                      color: '#fff',
+                    }}
+                  >
+                    <ContentCopy fontSize="small" />
+                    <Typography sx={{ fontSize: 15, fontWeight: 600 }}>Copy link</Typography>
+                  </ButtonBase>
+                </Drawer>
     
     
     </>
