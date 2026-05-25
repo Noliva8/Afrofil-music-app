@@ -225,8 +225,9 @@ export const addSongRedis = async (id, client) => {
 
     const key = songKey(id);
 
-    // 1️⃣ Check existence via canonical field
-    const exists = await redisClient.hExists(key, '_id');
+    // Check key existence instead of hExists so this works with Redis clients
+    // that do not expose hExists and with either HASH or JSON cache shapes.
+    const exists = await redisClient.exists(key);
 
     // 2️⃣ If exists → refresh TTL only
     if (exists) {

@@ -18,14 +18,12 @@ import { SHARE_SONG } from '../utils/queries';
 import { buildSongShareUrl, shareSongLink } from '../utils/shareSong';
 
 
-export const ShareButton = ({ handleShare, songId, title, text }) => {
+export const ShareButton = ({ handleShare, songId }) => {
 const [shareSongMutation] = useMutation(SHARE_SONG);
 const [drawerOpen, setDrawerOpen] = useState(false);
 const theme = useTheme();
 const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-const shareTitle = title || 'Song';
-const shareText = text || 'Listen to this track';
 const shareUrl = useMemo(() => {
   if (!songId || typeof window === 'undefined') return '';
   return buildSongShareUrl(songId);
@@ -52,8 +50,6 @@ const onShare = async () => {
   if (songId) {
     await shareSongLink({
       songId,
-      title: shareTitle,
-      text: shareText,
       shareSongMutation,
     });
     return;
@@ -72,8 +68,6 @@ const handleNativeShare = async () => {
 
   await shareSongLink({
     songId,
-    title: shareTitle,
-    text: shareText,
     shareSongMutation,
   });
 };
@@ -98,8 +92,6 @@ const handleCopyLink = async () => {
 
   await shareSongLink({
     songId,
-    title: shareTitle,
-    text: shareText,
     shareSongMutation,
   });
 };
@@ -181,7 +173,7 @@ return(
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {shareTitle}
+                    {shareUrl}
                   </Typography>
                   <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)', mb: 1 }} />
                   <ButtonBase

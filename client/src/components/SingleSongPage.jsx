@@ -471,8 +471,6 @@ useEffect(() => {
 
     await shareSongLink({
       songId,
-      title: song?.title || "Song",
-      text: song?.artist?.artistAka || "Listen to this track",
       shareSongMutation,
     });
   }, [songId, song, shareSongMutation]);
@@ -498,8 +496,6 @@ useEffect(() => {
 
     await shareSongLink({
       songId: trackId,
-      title: track?.title || "Song",
-      text: track?.artistName || track?.artist?.artistAka || "Listen to this track",
       shareSongMutation,
     });
   }, [getId, shareSongMutation]);

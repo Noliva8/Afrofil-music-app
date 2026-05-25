@@ -219,7 +219,8 @@ export async function getMultipleAlbumsRedis(redis, albumIds = [], { touchTTL = 
 
   const fallbackIdxs = [];
   for (let i = 0; i < res1.length; i++) {
-    const [, val] = res1[i] || [];
+    const row = res1[i];
+    const val = Array.isArray(row) && row.length === 2 ? row[1] : row;
     if (val) out[i] = val; else fallbackIdxs.push(i);
   }
 
@@ -229,7 +230,8 @@ export async function getMultipleAlbumsRedis(redis, albumIds = [], { touchTTL = 
     for (const i of fallbackIdxs) p2.get(keys[i]);
     const res2 = await withTimeout(p2.exec(), 3000, 'GET multi timeout');
     for (let j = 0; j < res2.length; j++) {
-      const [, raw] = res2[j] || [];
+      const row = res2[j];
+      const raw = Array.isArray(row) && row.length === 2 ? row[1] : row;
       if (!raw) continue;
       try { out[fallbackIdxs[j]] = JSON.parse(raw); } catch {}
     }

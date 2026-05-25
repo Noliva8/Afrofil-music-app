@@ -966,8 +966,8 @@ export const SONG_OF_MONTH_PUBLIC = gql`
 `;
 
 export const RADIO_STATIONS_PUBLIC = gql`
-  query radioStations {
-    radioStations {
+  query radioStations($limit: Int) {
+    radioStations(limit: $limit) {
       _id
       name
       description
@@ -1428,7 +1428,19 @@ export const SHARE_SONG = gql`
   mutation ShareSong($songId: ID!) {
     shareSong(songId: $songId) {
       _id
+      title
       shareCount
+      genre
+      artwork
+      artworkPresignedUrl
+      artist {
+        _id
+        artistAka
+      }
+      album {
+        _id
+        title
+      }
     }
   }
 `;

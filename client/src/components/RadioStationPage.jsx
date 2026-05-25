@@ -34,6 +34,7 @@ import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
 import { getShareableSongId, shareSongLink } from "../utils/shareSong";
 import { AddButton } from "./AddButton.jsx";
 import AddToPlaylistModal from "./AddToPlaylistModal.jsx";
+import ReportSong from "./ReportSong.jsx";
 
 const formatTotalDuration = (seconds) => {
   const total = Number(seconds || 0);
@@ -58,6 +59,8 @@ export const RadioStationPage = () => {
   const [trackDrawerOpen, setTrackDrawerOpen] = useState(false);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [playlistTrack, setPlaylistTrack] = useState(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTrack, setReportTrack] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [touchTimer, setTouchTimer] = useState(null);
   const isMobile = useMediaQuery("(max-width:900px)");
@@ -188,8 +191,6 @@ export const RadioStationPage = () => {
 
     await shareSongLink({
       songId,
-      title,
-      text: artistName ? `${title} by ${artistName}` : title,
       shareSongMutation,
     });
     setTrackMenuAnchor(null);
@@ -198,6 +199,13 @@ export const RadioStationPage = () => {
 
   const handleReportTrack = useCallback((track) => {
     if (!track) return;
+    setReportTrack(track);
+    setReportDialogOpen(true);
+  }, []);
+
+  const handleCloseReportSong = useCallback(() => {
+    setReportDialogOpen(false);
+    setReportTrack(null);
   }, []);
 
   const handleOpenTrackMenu = (event, track) => {
@@ -894,6 +902,11 @@ export const RadioStationPage = () => {
           setPlaylistTrack(null);
         }}
         track={playlistTrack}
+      />
+      <ReportSong
+        open={reportDialogOpen}
+        onClose={handleCloseReportSong}
+        song={reportTrack}
       />
     </>
   );

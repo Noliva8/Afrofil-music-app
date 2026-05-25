@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { Song } from "../../../models/Artist/index_artist.js";
 import { trendIndexZSet } from "../Redis/keys.js";
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
+import { rotateTrendingSongs } from "./fairTrendingRotation.js";
 
 const ensureArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -119,13 +120,14 @@ const enrichSongDocument = (song) => {
 const MAX_TRENDING_LIMIT = 50;
 
 const fetchTrendingSongDocs = async (limit = 20) => {
-  const safeLimit =
+  const displayLimit =
     Number.isFinite(limit) && limit > 0
       ? Math.min(Math.max(Math.floor(limit), 1), MAX_TRENDING_LIMIT)
       : 20;
+  const poolLimit = Math.max(displayLimit, Math.min(20, MAX_TRENDING_LIMIT));
 
   const client = await getRedis();
-  const trendingSongIds = await client.zRange(trendIndexZSet, 0, safeLimit - 1, { REV: true });
+  const trendingSongIds = await client.zRange(trendIndexZSet, 0, poolLimit - 1, { REV: true });
   const orderedIds = trendingSongIds.filter(Boolean);
 
   let orderedSongs = [];
@@ -143,11 +145,11 @@ const fetchTrendingSongDocs = async (limit = 20) => {
   }
 
   const existingIds = new Set(orderedSongs.map((song) => String(song._id ?? song.id ?? song.songId ?? "")));
-  if (orderedSongs.length >= safeLimit) {
-    return orderedSongs.slice(0, safeLimit);
+  if (orderedSongs.length >= poolLimit) {
+    return rotateTrendingSongs(orderedSongs, displayLimit);
   }
 
-  const remaining = safeLimit - orderedSongs.length;
+  const remaining = poolLimit - orderedSongs.length;
   const fallbackQuery = existingIds.size
     ? { _id: { $nin: Array.from(existingIds) } }
     : {};
@@ -169,7 +171,7 @@ const fetchTrendingSongDocs = async (limit = 20) => {
   }
 
   const enrichedFallback = fallbackSongs.map(enrichSongDocument).filter(Boolean);
-  return [...orderedSongs, ...enrichedFallback].slice(0, safeLimit);
+  return rotateTrendingSongs([...orderedSongs, ...enrichedFallback], displayLimit);
 };
 
 export const trendingSongs = async (_parent, { limit }) => fetchTrendingSongDocs(limit);

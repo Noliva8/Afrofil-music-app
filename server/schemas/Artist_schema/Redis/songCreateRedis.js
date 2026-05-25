@@ -2097,12 +2097,13 @@ export async function getMultipleSongsRedis(
   // 1) Try JSON first in a single pipeline
   const p1 = redis.multi();
   for (const k of keys) p1.json.get(k);
-  const res1 = await p1.exec(); // [[err, val], ...]
+  const res1 = await p1.exec();
 
   const fallbackIdxs = [];
   for (let i = 0; i < res1.length; i++) {
-    const [err, val] = res1[i] || [];
-    if (!err && val) {
+    const row = res1[i];
+    const val = Array.isArray(row) && row.length === 2 ? row[1] : row;
+    if (val) {
       docs[i] = val; // JSON doc found
     } else {
       fallbackIdxs.push(i); // need legacy fallback
@@ -2116,8 +2117,9 @@ export async function getMultipleSongsRedis(
     const res2 = await p2.exec();
 
     for (let j = 0; j < res2.length; j++) {
-      const [err, h] = res2[j] || [];
-      if (!err && h && h.doc) {
+      const row = res2[j];
+      const h = Array.isArray(row) && row.length === 2 ? row[1] : row;
+      if (h && h.doc) {
         try { docs[fallbackIdxs[j]] = JSON.parse(h.doc); } catch { /* ignore bad JSON */ }
       }
     }

@@ -37,6 +37,7 @@ import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBa
 import { PlayButton } from "../../components/PlayButton.jsx";
 import { ShuffleButton } from "../../components/ShuffleButton.jsx";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal.jsx";
+import ReportSong from "../../components/ReportSong.jsx";
 import { shareSongLink } from "../../utils/shareSong";
 
 export const AlbumPage = () => {
@@ -56,6 +57,8 @@ export const AlbumPage = () => {
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [playlistTrack, setPlaylistTrack] = useState(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTrack, setReportTrack] = useState(null);
   const [touchTimer, setTouchTimer] = useState(null);
   const [longPressTrack, setLongPressTrack] = useState(null);
   const isMobile = useMediaQuery("(max-width:900px)");
@@ -216,14 +219,19 @@ export const AlbumPage = () => {
 
     await shareSongLink({
       songId: trackId,
-      title: track?.title || "Song",
-      text: track?.artistName || albumArtist?.artistAka || "Listen to this track",
       shareSongMutation,
     });
   }, [albumArtist?.artistAka, getId, shareSongMutation]);
 
   const handleReportTrack = useCallback((track) => {
     if (!track) return;
+    setReportTrack(track);
+    setReportDialogOpen(true);
+  }, []);
+
+  const handleCloseReportSong = useCallback(() => {
+    setReportDialogOpen(false);
+    setReportTrack(null);
   }, []);
 
   const handleTouchStart = useCallback(
@@ -1369,6 +1377,11 @@ export const AlbumPage = () => {
           setPlaylistTrack(null);
         }}
         track={playlistTrack}
+      />
+      <ReportSong
+        open={reportDialogOpen}
+        onClose={handleCloseReportSong}
+        song={reportTrack}
       />
     </>
   );

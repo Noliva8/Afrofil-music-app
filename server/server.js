@@ -51,6 +51,7 @@ import verifyAdvertizerEmail from './routes/verifyAdvertizerEmail.js'
 import supportRoute from './routes/support.js';
 import { RadioStation, Song } from "./models/Artist/index_artist.js";
 import { RADIO_TYPES } from "./utils/radioTypes.js";
+import { getPresignedUrlDownload } from "./utils/cloudFrontUrl.js";
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
 import {
@@ -103,8 +104,45 @@ const toAbsoluteUrl = (value, baseUrl) => {
   return `${baseUrl}/${value.replace(/^\/+/, "")}`;
 };
 
-const replaceMetaTag = (html, selector, tag) => {
-  const pattern = new RegExp(`<meta\\s+${selector}=["'][^"']+["'][^>]*>`, "i");
+const getKeyFromUrlOrKey = (value) => {
+  if (!value || typeof value !== "string") return "";
+  if (!/^https?:\/\//i.test(value)) return value.replace(/^\/+/, "");
+  try {
+    const url = new URL(value);
+    return decodeURIComponent((url.pathname || "").replace(/^\/+/, ""));
+  } catch {
+    return "";
+  }
+};
+
+const resolveShareArtworkUrl = async (artwork, baseUrl) => {
+  const fallback = `${baseUrl}/logo-512.png`;
+  if (!artwork) return fallback;
+
+  const key = getKeyFromUrlOrKey(artwork);
+  if (key) {
+    try {
+      const signed = await getPresignedUrlDownload(null, {
+        bucket: "afrofeel-cover-images-for-songs",
+        key,
+        region: "us-east-2",
+      });
+      if (signed?.url) return signed.url;
+    } catch (error) {
+      console.warn("Share artwork signing failed:", error?.message || error);
+    }
+  }
+
+  return toAbsoluteUrl(artwork, baseUrl) || fallback;
+};
+
+const escapeRegExp = (value = "") => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const replaceMetaTag = (html, attr, key, tag) => {
+  const pattern = new RegExp(
+    `<meta\\s+[^>]*${attr}=["']${escapeRegExp(key)}["'][^>]*>`,
+    "i"
+  );
   return pattern.test(html) ? html.replace(pattern, tag) : html.replace("</head>", `    ${tag}\n  </head>`);
 };
 
@@ -128,6 +166,7 @@ const injectTrackMeta = (html, { title, description, url, image }) => {
     nextHtml = replaceMetaTag(
       nextHtml,
       attr,
+      key,
       `<meta ${attr}="${key}" content="${escapeHtml(value)}" />`
     );
   }
@@ -917,15 +956,27 @@ app.post('/api/cleanup', async (req, res) => {
 
     // Production setup
     if (process.env.NODE_ENV === "production") {
+      const clientDistPath = path.join(__dirname, "../client/dist");
+      const indexPath = path.join(clientDistPath, "index.html");
+      let hasClientBuild = true;
+
+      try {
+        await fs.access(indexPath);
+      } catch {
+        hasClientBuild = false;
+        console.error(`Client build missing: ${indexPath}. Run the client build before serving frontend routes.`);
+      }
+
       app.get("/track/:trackId", async (req, res, next) => {
-        const indexPath = path.join(__dirname, "../client/dist/index.html");
+        if (!hasClientBuild) return next();
 
         try {
           const baseUrl = getPublicAppUrl();
           const html = await fs.readFile(indexPath, "utf8");
           const song = await Song.findById(req.params.trackId)
-            .select("title artwork lyrics genre")
+            .select("title artwork lyrics genre duration releaseDate")
             .populate("artist", "artistAka")
+            .populate("album", "title releaseDate")
             .lean();
 
           if (!song) {
@@ -935,11 +986,14 @@ app.post('/api/cleanup', async (req, res) => {
 
           const artistName = song.artist?.artistAka || "FloLup artist";
           const title = `${song.title} by ${artistName}`;
+          const albumName = song.album?.title && song.album.title !== "Single"
+            ? ` from ${song.album.title}`
+            : "";
           const description =
             stripHtml(song.lyrics)?.slice(0, 150) ||
-            `Listen to ${song.title} by ${artistName} on FloLup.`;
+            `Listen to ${song.title} by ${artistName}${albumName}${song.genre ? ` #${song.genre}` : ""} on FloLup.`;
           const url = `${baseUrl}/track/${req.params.trackId}`;
-          const image = toAbsoluteUrl(song.artwork, baseUrl) || `${baseUrl}/logo-512.png`;
+          const image = await resolveShareArtworkUrl(song.artwork, baseUrl);
 
           res.set("Content-Type", "text/html");
           return res.send(injectTrackMeta(html, { title, description, url, image }));
@@ -949,10 +1003,16 @@ app.post('/api/cleanup', async (req, res) => {
         }
       });
 
-      app.use(express.static(path.join(__dirname, "../client/dist")));
-      app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "../client/dist/index.html"));
-      });
+      if (hasClientBuild) {
+        app.use(express.static(clientDistPath));
+        app.get("*", (req, res) => {
+          res.sendFile(indexPath);
+        });
+      } else {
+        app.get("*", (req, res) => {
+          res.status(503).send("Client build is missing on the server.");
+        });
+      }
     }
 
    

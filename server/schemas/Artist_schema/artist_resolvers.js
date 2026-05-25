@@ -113,6 +113,8 @@ const BUSINESS_IMAGE_BUCKET = 'business-licencing';
 const BUSINESS_IMAGE_PRESIGNED_TTL_SECONDS = 30 * 60;
 const CATALOGUE_SONG_COUNT_CACHE_KEY = 'catalogue:song-count';
 const CATALOGUE_SONG_COUNT_CACHE_TTL_SECONDS = 20 * 60;
+const RADIO_STATION_COVER_BUCKET =
+  process.env.BUCKET_NAME_COVER_IMAGE_SONG || 'afrofeel-cover-images-for-songs';
 
 const businessImagePresignedCacheKey = ({ bucket, key, region }) =>
   `business:image:presigned:${bucket}:${region || 'us-east-2'}:${key}`;
@@ -164,6 +166,25 @@ const s3KeyFromUrl = (urlOrKey) => {
     return path.startsWith('/') ? path.slice(1) : path;
   } catch {
     return null;
+  }
+};
+
+const signRadioStationCover = async (coverImage) => {
+  if (!coverImage || typeof coverImage !== 'string') return '';
+
+  const key = s3KeyFromUrl(coverImage);
+  if (!key) return /^https?:\/\//i.test(coverImage) ? coverImage : '';
+
+  try {
+    const { url } = await getPresignedUrlDownload(null, {
+      bucket: RADIO_STATION_COVER_BUCKET,
+      key,
+      region: process.env.AWS_REGION || process.env.REGION || 'us-east-2',
+    });
+    return url || '';
+  } catch (error) {
+    console.warn('[radioStations] Cover signing failed:', key, error?.message || error);
+    return /^https?:\/\//i.test(coverImage) ? coverImage : '';
   }
 };
 
@@ -470,6 +491,46 @@ const keyFromUrl = (url, expectedPrefix = null) => {
     return key || null;
   } catch {
     return null;
+  }
+};
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const normalizeReportReason = (reason) => {
+  const allowedReasons = new Map([
+    ["infringement", "Infringement"],
+    ["explicit_or_harmful_content", "Explicit or harmful content"],
+    ["misleading_metadata", "Misleading metadata"],
+    ["other", "Other"],
+  ]);
+  const key = String(reason || "").trim().toLowerCase().replace(/\s+/g, "_");
+  return allowedReasons.get(key) || null;
+};
+
+const deleteSongAssets = async (song) => {
+  const originalKey = keyFromUrl(song?.audioFileUrl, "original_songs/");
+  const streamingKey = keyFromUrl(song?.streamAudioFileUrl, "for-streaming/");
+  const artworkUrl = typeof song?.artwork === "string" ? song.artwork : song?.artwork?.url;
+  const artworkKey = keyFromUrl(artworkUrl);
+
+  const toDelete = [
+    originalKey && { Bucket: process.env.BUCKET_NAME_ORIGINAL_SONGS, Key: originalKey },
+    streamingKey && { Bucket: process.env.BUCKET_NAME_STREAMING, Key: streamingKey },
+    artworkKey && { Bucket: process.env.BUCKET_NAME_COVER_IMAGE_SONG, Key: artworkKey },
+  ].filter((params) => params?.Bucket && params?.Key);
+
+  for (const params of toDelete) {
+    try {
+      await s3.send(new DeleteObjectCommand(params));
+    } catch (error) {
+      console.warn("[S3] Reported song asset delete failed:", params.Bucket, params.Key, error?.message || error);
+    }
   }
 };
 
@@ -824,14 +885,16 @@ albumOfArtist: async (parent, args, context) => {
     return fetchSuggestedSongs({ limit });
   },
 songOfMonth,
-radioStations: async (_parent, { type, visibility = "public" }) => {
+radioStations: async (_parent, { type, visibility = "public", limit }) => {
   const query = {};
   if (visibility) query.visibility = visibility;
   const normalizedType = normalizeRadioType(type);
   if (normalizedType) query.type = normalizedType;
+  const stationLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 12) : 12;
 
   const stations = await RadioStation.find(query)
     .sort({ updatedAt: -1 })
+    .limit(stationLimit)
     .populate({ path: "createdBy", select: "artistAka profileImage country" })
     .lean();
 
@@ -844,8 +907,11 @@ radioStations: async (_parent, { type, visibility = "public" }) => {
 
       if (!song) return null;
 
-      if (station.coverImage) return station;
-      return { ...station, coverImage: song?.artwork || "" };
+      const coverImage = station.coverImage || song?.artwork || "";
+      return {
+        ...station,
+        coverImage: await signRadioStationCover(coverImage),
+      };
     })
   );
 
@@ -856,12 +922,15 @@ radioStation: async (_parent, { stationId }) => {
     .populate({ path: "createdBy", select: "artistAka profileImage country" })
     .lean();
   if (!station) return null;
-  if (station.coverImage) return station;
   const song = await Song.findOne(buildStationSongQuery(station))
     .sort({ trendingScore: -1, createdAt: -1 })
     .select("artwork")
     .lean();
-  return { ...station, coverImage: song?.artwork || "" };
+  const coverImage = station.coverImage || song?.artwork || "";
+  return {
+    ...station,
+    coverImage: await signRadioStationCover(coverImage),
+  };
 },
   radioStationSongs: async (_parent, { stationId }) => {
     const station = await RadioStation.findById(stationId).lean();
@@ -3502,6 +3571,113 @@ nextSongAfterComplete: async (_p, { input }) => {
         await r.del(TRENDING_SONGS_CACHE_KEY);
       } catch (err) {
         console.warn('[shareSong] Redis sync skipped:', err?.message || err);
+      }
+
+      return Song.findById(updatedSong._id)
+        .populate("artist", "_id artistAka")
+        .populate("album", "_id title");
+    },
+
+    reportSong: async (_parent, { songId, reason }, context) => {
+      if (!context.user?._id) {
+        throw new Error("Please log in to report this song.");
+      }
+
+      const normalizedReason = normalizeReportReason(reason);
+      if (!normalizedReason) {
+        throw new Error("Invalid report reason.");
+      }
+
+      const reporterId = context.user._id;
+      const reporterEmail = String(context.user.email || "").trim().toLowerCase();
+      if (!reporterEmail) {
+        throw new Error("Your account email is required to report this song.");
+      }
+
+      const reportUpdate = await Song.updateOne(
+        { _id: songId, reportedByEmails: { $ne: reporterEmail } },
+        {
+          $addToSet: {
+            reportedByUsers: reporterId,
+            reportedByEmails: reporterEmail,
+          },
+          $inc: { reportCount: 1 },
+        },
+        { runValidators: true }
+      );
+
+      const updatedSong = await Song.findById(songId)
+        .populate("artist", "artistAka fullName email")
+        .populate("reportedByUsers", "_id");
+      if (!updatedSong) throw new Error("Song not found");
+
+      if (reportUpdate.modifiedCount === 0) {
+        return updatedSong;
+      }
+
+      const artistName =
+        updatedSong.artist?.artistAka ||
+        updatedSong.artist?.fullName ||
+        "Unknown artist";
+      const reportCount = Array.isArray(updatedSong.reportedByEmails)
+        ? updatedSong.reportedByEmails.length
+        : updatedSong.reportCount || 0;
+      const shouldWarnArtist = reportCount === 2;
+      const shouldDelete = reportCount >= 3;
+
+      try {
+        await sendEmail(
+          "info@flolup.com",
+          `Song reported: ${updatedSong.title || "Untitled song"}`,
+          `
+            <p>A song has been reported on FloLup.</p>
+            <p><strong>Song:</strong> ${escapeHtml(updatedSong.title || "Untitled song")}</p>
+            <p><strong>Song ID:</strong> ${escapeHtml(updatedSong._id)}</p>
+            <p><strong>Artist:</strong> ${escapeHtml(artistName)}</p>
+            <p><strong>Artist ID:</strong> ${escapeHtml(updatedSong.artist?._id || "")}</p>
+            <p><strong>Reason:</strong> ${escapeHtml(normalizedReason)}</p>
+            <p><strong>Reported by:</strong> ${escapeHtml(reporterEmail)}</p>
+            <p><strong>Distinct report count:</strong> ${reportCount}</p>
+            ${shouldWarnArtist ? "<p><strong>Action:</strong> The artist was warned that the song may be deleted if it receives a third distinct report.</p>" : ""}
+            ${shouldDelete ? "<p><strong>Action:</strong> The song was deleted because it received 3 distinct reports.</p>" : ""}
+          `
+        );
+      } catch (error) {
+        console.warn("[reportSong] Email notification failed:", error?.message || error);
+      }
+
+      if (shouldWarnArtist && updatedSong.artist?.email) {
+        try {
+          await sendEmail(
+            updatedSong.artist.email,
+            `Important: ${updatedSong.title || "Your song"} has been reported twice`,
+            `
+              <p>Hello ${escapeHtml(artistName)},</p>
+              <p>Your song <strong>${escapeHtml(updatedSong.title || "Untitled song")}</strong> has now been reported by two different users.</p>
+              <p>The song may be deleted if it gets reported a third time.</p>
+              <p>You may also submit evidence as soon as you can before the song gets reported again.</p>
+              <p><strong>Latest report reason:</strong> ${escapeHtml(normalizedReason)}</p>
+            `
+          );
+        } catch (error) {
+          console.warn("[reportSong] Artist warning email failed:", error?.message || error);
+        }
+      }
+
+      try {
+        await updateSongRedis(String(songId), { reportCount });
+      } catch (error) {
+        console.warn("[reportSong] Redis report count sync skipped:", error?.message || error);
+      }
+
+      if (shouldDelete) {
+        await deleteSongAssets(updatedSong);
+        await Song.deleteOne({ _id: songId });
+        try {
+          await deleteSongRedis(String(songId));
+        } catch (error) {
+          console.warn("[reportSong] Redis delete cleanup skipped:", error?.message || error);
+        }
       }
 
       return updatedSong;

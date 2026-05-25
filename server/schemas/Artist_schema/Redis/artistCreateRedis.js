@@ -212,7 +212,8 @@ export async function getMultipleArtistsRedis(redis, artistIds = [], { touchTTL 
   const res1 = await p1.exec();
 
   for (let i = 0; i < res1.length; i++) {
-    const [, hash] = res1[i] || [];
+    const row = res1[i];
+    const hash = Array.isArray(row) && row.length === 2 ? row[1] : row;
     if (!hash || !hash._id) continue;
     out[i] = artistDeserialization(hash);
   }

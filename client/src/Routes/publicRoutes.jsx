@@ -18,6 +18,7 @@ const LazyUserSignupPage = lazy(() =>
   import('../pages/LoginSignin').then((module) => ({ default: module.UserSignupPage }))
 );
 const LazyTerms = lazy(() => import('../pages/Terms.jsx'));
+const LazyTermsArtist = lazy(() => import('../pages/TermsArtist.jsx'));
 const LazySupport = lazy(() =>
   import('../pages/Support.jsx').then((mod) => ({ default: mod.Support }))
 );
@@ -143,6 +144,8 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+
   {
     path: 'terms',
     element: (
@@ -151,6 +154,16 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+ {
+    path: 'terms/artist',
+    element: (
+      <Suspense fallback={<div />}>
+        <LazyTermsArtist />
+      </Suspense>
+    ),
+  },
+
   {
     path: 'support',
     element: (

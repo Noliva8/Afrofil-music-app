@@ -143,6 +143,7 @@ const Home = ({ upgradeToPremium }) => {
 
   const { data: radioStationsData } = useQuery(RADIO_STATIONS_PUBLIC, {
     skip: !loadDeferredHome,
+    variables: { limit: 8 },
     fetchPolicy: "cache-first",
     nextFetchPolicy: "cache-first",
   });

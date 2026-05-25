@@ -118,21 +118,38 @@ export const createArtistSupport = async (_parent, { songId, amount }, context) 
     platformCountry: process.env.PLATFORM_COUNTRY || 'US',
   });
 
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: amountInCents,
-    currency: 'usd',
-    description: song.title ? `Support for ${song.title}` : 'Fan support payment',
-    automatic_payment_methods: {
-      enabled: true,
-    },
-    metadata: {
-      type: 'artist_support',
-      supportId: support._id.toString(),
-      songId: songId.toString(),
-      artistId: artistId.toString(),
-      userId: userId.toString(),
-    },
-  });
+  let paymentIntent;
+  try {
+    paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: 'usd',
+      description: song.title ? `Support for ${song.title}` : 'Fan support payment',
+      payment_method_types: ['card'],
+      metadata: {
+        type: 'artist_support',
+        supportId: support._id.toString(),
+        songId: songId.toString(),
+        artistId: artistId.toString(),
+        userId: userId.toString(),
+      },
+    });
+  } catch (error) {
+    support.status = 'failed';
+    await support.save();
+    console.error('[artistSupport] Stripe PaymentIntent creation failed:', error?.message || error);
+    throw new GraphQLError('Could not start card payment. Please try again.', {
+      extensions: { code: 'PAYMENT_INTENT_FAILED' },
+    });
+  }
+
+  if (!paymentIntent?.client_secret) {
+    support.status = 'failed';
+    support.stripePaymentIntentId = paymentIntent?.id || null;
+    await support.save();
+    throw new GraphQLError('Stripe did not return a payment client secret.', {
+      extensions: { code: 'PAYMENT_CLIENT_SECRET_MISSING' },
+    });
+  }
 
   support.stripePaymentIntentId = paymentIntent.id;
   await support.save();

@@ -321,8 +321,6 @@ const selectedPlaylist = useMemo(
 
       await shareSongLink({
         songId: trackId,
-        title: track.title || "Song",
-        text: track.artistName || track?.artist?.artistAka || "Listen to this track",
         shareSongMutation,
       });
     },

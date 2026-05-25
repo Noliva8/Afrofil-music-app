@@ -201,6 +201,22 @@ composer: [
      type: Number,
     default: 0
   },
+
+  reportCount: {
+    type: Number,
+    default: 0
+  },
+
+  reportedByUsers: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
+  reportedByEmails: [{
+    type: String,
+    lowercase: true,
+    trim: true
+  }],
   
   likedByMe: {type: Boolean, default: false},
   

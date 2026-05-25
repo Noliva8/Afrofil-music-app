@@ -100,6 +100,12 @@ const cardElementOptions = {
   },
 };
 
+const getPaymentErrorMessage = (error) =>
+  error?.graphQLErrors?.[0]?.message ||
+  error?.networkError?.result?.errors?.[0]?.message ||
+  error?.message ||
+  "Payment failed. Please try again.";
+
 
 const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }) => {
   const stripe = useStripe();
@@ -112,16 +118,7 @@ const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }
   const artistName = artist?.artistAka || "artist";
   const supportImage = song?.artworkPresignedUrl || song?.artwork || artist?.profileImage;
 
-  const [createArtistSupport, { loading }] = useMutation(CREATE_ARTIST_SUPPORT, {
-    onError: (error) => {
-      const message =
-        error?.graphQLErrors?.[0]?.message ||
-        error?.message ||
-        "Could not start artist support payment.";
-
-      onNotice({ severity: "error", message });
-    },
-  });
+  const [createArtistSupport, { loading }] = useMutation(CREATE_ARTIST_SUPPORT);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -151,16 +148,20 @@ const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }
     }
 
     try {
-      const { data } = await createArtistSupport({
+      const { data, errors } = await createArtistSupport({
         variables: {
           songId,
           amount: numericAmount,
         },
       });
 
+      if (errors?.length) {
+        throw new Error(errors[0].message);
+      }
+
       const clientSecret = data?.createArtistSupport?.clientSecret;
       if (!clientSecret) {
-        throw new Error("Payment client secret unavailable.");
+        throw new Error("Payment setup failed before Stripe returned a client secret.");
       }
 
       const result = await stripe.confirmCardPayment(clientSecret, {
@@ -184,7 +185,7 @@ const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }
     } catch (error) {
       onNotice({
         severity: "error",
-        message: error?.message || "Payment failed. Please try again.",
+        message: getPaymentErrorMessage(error),
       });
     }
   };

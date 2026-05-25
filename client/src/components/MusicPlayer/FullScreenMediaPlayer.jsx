@@ -249,8 +249,6 @@ const formatStatNumber = (value, fallback = "0") => {
     if (!songId) return;
     await shareSongLink({
       songId,
-      title: displayTitle,
-      text: `${displayTitle} by ${displayArtist}`,
       shareSongMutation: shareSong,
     });
   };

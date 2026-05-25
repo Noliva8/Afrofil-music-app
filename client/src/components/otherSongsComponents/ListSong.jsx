@@ -37,6 +37,7 @@ import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBa
 import { AddButton } from "../AddButton";
 import { ActionMenu } from "../ActionMenu.jsx";
 import AddToPlaylistModal from "../AddToPlaylistModal.jsx";
+import ReportSong from "../ReportSong.jsx";
 import {
   LIST_BASE_LIMIT,
   LIST_SHOW_ALL_LIMIT,
@@ -76,6 +77,8 @@ const SongList = ({
   const [showAll, setShowAll] = useState(false);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [playlistTrack, setPlaylistTrack] = useState(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTrack, setReportTrack] = useState(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [menuTrack, setMenuTrack] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -160,6 +163,8 @@ const handleNavigateToArtist = useCallback(
 
 const handleReportTrack = useCallback((track) => {
   if (!track) return;
+  setReportTrack(track);
+  setReportDialogOpen(true);
 }, []);
 
 const handleToggleFavorite = useCallback((track) => {
@@ -177,8 +182,6 @@ const handleShareTrack = useCallback(async (track) => {
 
   await shareSongLink({
     songId,
-    title: track?.title || "Song",
-    text: track?.artistName || track?.artist?.artistAka || "Listen to this track",
     shareSongMutation,
   });
 }, [shareSongMutation]);
@@ -191,6 +194,11 @@ const handleMenuClose = useCallback(() => {
 const handleDrawerClose = useCallback(() => {
   setDrawerOpen(false);
   setMenuTrack(null);
+}, []);
+
+const handleCloseReportSong = useCallback(() => {
+  setReportDialogOpen(false);
+  setReportTrack(null);
 }, []);
 
 const handleMoreClick = useCallback(
@@ -844,6 +852,11 @@ const handlePlay = (event, song) => {
             open={playlistDialogOpen}
             onClose={handleCloseAddToPlaylist}
             track={playlistTrack}
+          />
+          <ReportSong
+            open={reportDialogOpen}
+            onClose={handleCloseReportSong}
+            song={reportTrack}
           />
         </>
       )}

@@ -66,6 +66,7 @@ type Song {
    likedByMe: Boolean
    likesCount: Int
    shareCount: Int
+   reportCount: Int
  trendingScore: Float
 
   tags: [String]
@@ -774,7 +775,7 @@ type Query {
   suggestedSongs(limit: Int = 20): [Song!]!
  songOfMonth: Song
  similarSongs(songId: ID!): SimilarSongsResponse!
- radioStations(type: RadioStationType, visibility: String = "public"): [RadioStation!]!
+ radioStations(type: RadioStationType, visibility: String = "public", limit: Int): [RadioStation!]!
  radioStation(stationId: ID!): RadioStation
  radioStationSongs(stationId: ID!): [Song!]!
  exploreSongs(type: String!, value: String!): [Song!]!
@@ -955,6 +956,7 @@ handlePlayCount(
 ):Song
 
  shareSong(songId: ID!): Song
+ reportSong(songId: ID!, reason: String!): Song
 
 createArtistSupport(
  songId: ID!

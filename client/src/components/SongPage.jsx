@@ -57,6 +57,7 @@ import { PlayButton } from "./PlayButton";
 import { ActionButtonsGroup } from "./ActionButtonsGroup.jsx";
 import { ActionMenu } from "./ActionMenu.jsx";
 import BookingArtistModal from "./BookingArtistModal.jsx";
+import ReportSong from "./ReportSong.jsx";
 
 export const SongPage = () => {
   // Audio player context
@@ -79,6 +80,8 @@ export const SongPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [playlistDialogOpen, setPlaylistDialogOpen] = useState(false);
   const [playlistTrack, setPlaylistTrack] = useState(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [reportTrack, setReportTrack] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [trackMenuAnchor, setTrackMenuAnchor] = useState(null);
   const [trackDrawerOpen, setTrackDrawerOpen] = useState(false);
@@ -618,8 +621,6 @@ useEffect(() => {
 
     await shareSongLink({
       songId,
-      title: song?.title || "Song",
-      text: song?.artist?.artistAka || "Listen to this track",
       shareSongMutation,
     });
   }, [songId, song, shareSongMutation]);
@@ -652,8 +653,6 @@ useEffect(() => {
 
       await shareSongLink({
         songId: trackId,
-        title: track?.title || "Song",
-        text: track?.artistName || track?.artist?.artistAka || "Listen to this track",
         shareSongMutation,
       });
     },
@@ -711,7 +710,14 @@ useEffect(() => {
   );
 
   const handleReportTrack = useCallback((track) => {
-    // Implement report logic
+    if (!track) return;
+    setReportTrack(track);
+    setReportDialogOpen(true);
+  }, []);
+
+  const handleCloseReportSong = useCallback(() => {
+    setReportDialogOpen(false);
+    setReportTrack(null);
   }, []);
 
 
@@ -2164,6 +2170,11 @@ sx={{
           setPlaylistTrack(null);
         }}
         track={playlistTrack}
+      />
+      <ReportSong
+        open={reportDialogOpen}
+        onClose={handleCloseReportSong}
+        song={reportTrack}
       />
       <Snackbar
         open={snackbar.open}

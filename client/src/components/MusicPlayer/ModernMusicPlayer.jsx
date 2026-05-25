@@ -153,8 +153,6 @@ const effectiveRepeatMode =
 
     await shareSongLink({
       songId,
-      title: displayTitle,
-      text: safeSubtitle ? `${displayTitle} by ${safeSubtitle}` : displayTitle,
       shareSongMutation,
     });
   }, [currentSong, displayTitle, isAd, isAdPlaying, safeSubtitle, shareSongMutation]);

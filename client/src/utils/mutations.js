@@ -429,6 +429,16 @@ export const DELETE_SONG = gql`
   }
 `;
 
+export const REPORT_SONG = gql`
+  mutation ReportSong($songId: ID!, $reason: String!) {
+    reportSong(songId: $songId, reason: $reason) {
+      _id
+      title
+      reportCount
+    }
+  }
+`;
+
 
 
 export const CREATE_ALBUM = gql`

@@ -616,7 +616,11 @@ const pickNextIndex = useCallback((reason = "auto") => {
     // If resuming with a saved URL, respect explicit isTeaser flag; guests default to teaser.
     if (track.url) {
       const guestTeaser = authState.isGuest ? track.isTeaser !== false : !!track.isTeaser;
-      return { url: track.url, isTeaser: guestTeaser };
+      return {
+        url: track.url,
+        isTeaser: guestTeaser,
+        maxDuration: guestTeaser ? TEASER_DURATION : undefined,
+      };
     }
 
     if (authState.isGuest) {

@@ -11,25 +11,43 @@ export const getShareableSongId = (song) =>
   song?.fullOriginal?._id ||
   "";
 
+const buildSongSharePayload = (song, url) => {
+  const title = song?.title || "Listen on FloLup";
+  const artistName = song?.artist?.artistAka || song?.artistName || "";
+  const albumName = song?.album?.title || song?.albumName || "";
+  const genre = song?.genre || "";
+  const details = [
+    artistName && `by ${artistName}`,
+    albumName && albumName !== "Single" && `from ${albumName}`,
+    genre && `#${genre}`,
+  ].filter(Boolean);
+
+  return {
+    title: artistName ? `${title} by ${artistName}` : title,
+    text: `Listen to ${title}${details.length ? ` ${details.join(" ")}` : ""} on FloLup.`,
+    url,
+  };
+};
+
 export const shareSongLink = async ({
   songId,
-  title = "Song",
-  text = "Listen to this track",
   shareSongMutation,
 }) => {
   if (!songId) return false;
 
   const url = buildSongShareUrl(songId);
+  let sharedSong = null;
 
   if (shareSongMutation) {
     try {
-      await shareSongMutation({ variables: { songId } });
+      const response = await shareSongMutation({ variables: { songId } });
+      sharedSong = response?.data?.shareSong || null;
     } catch (err) {
       console.warn("Share count update failed", err);
     }
   }
 
-  const payload = { title, text, url };
+  const payload = buildSongSharePayload(sharedSong, url);
 
   if (navigator?.share) {
     try {

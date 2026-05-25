@@ -5,6 +5,7 @@ import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
 import { similarSongsRepair } from "../similarSongs/similasongResolver.js";
 import { TRENDING_SONGS_CACHE_KEY } from "../Redis/keys.js";
 import { TRENDING_PAYLOAD_CACHE_TTL_SECONDS } from "../Redis/keys.js";
+import { rotateTrendingSongs } from "./fairTrendingRotation.js";
 
 
 
@@ -66,7 +67,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
         const list = JSON.parse(cached);
         if (Array.isArray(list) && list.length) {
           const safe = list.filter(hasArtist);
-          if (safe.length >= requested) return safe.slice(0, requested);
+          if (safe.length >= requested) return rotateTrendingSongs(safe, requested);
           // else fall through to try ZSET and refill cache
         }
       }
@@ -123,7 +124,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
             console.warn("Trending payload cache write failed:", e?.message || e);
           }
 
-          if (hydrated.length >= requested) return hydrated.slice(0, requested);
+          if (hydrated.length >= requested) return rotateTrendingSongs(hydrated, requested);
           // else fall through to DB to fill the gap
         }
       }
@@ -186,7 +187,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
       }
     }
 
-    return normalized.slice(0, requested);
+    return rotateTrendingSongs(normalized, requested);
   } catch (error) {
     console.error("Trending songs error:", error);
     return [];

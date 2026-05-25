@@ -297,10 +297,10 @@ export default function ArtistRegister() {
             label={
               <span>
                 I have read{" "}
-                <a href="/terms" target="_blank" rel="noreferrer">
+                <a href="/terms/artist" target="_blank" rel="noreferrer">
                   terms and conditions
                 </a>{" "}
-                of using Afrofeel.
+                of using Flolup.
               </span>
             }
           />

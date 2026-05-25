@@ -2,12 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import CardMedia from '@mui/material/CardMedia';
-import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
-import AvatarGroup from '@mui/material/AvatarGroup';
 import { alpha } from '@mui/material/styles';
 import LinearProgress from '@mui/material/LinearProgress';
 import Button from '@mui/material/Button';
@@ -20,13 +15,10 @@ import ListItem from '@mui/material/ListItem';
 import ListItemAvatar from '@mui/material/ListItemAvatar';
 import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
-import Tooltip from '@mui/material/Tooltip';
-import Fade from '@mui/material/Fade';
 import { useTheme } from "@mui/material/styles";
 import {
   PlayArrow,
   Pause,
-  MoreHoriz,
   Radio,
   Close,
   QueueMusic,
@@ -35,27 +27,14 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useLazyQuery, useApolloClient, useMutation } from "@apollo/client";
 import { RADIO_STATION_SONGS } from "../../utils/queries";
 import {
-  useSongsWithPresignedUrls,
   getFullKeyFromUrlOrKey,
+  useSongsWithPresignedUrls,
 } from "../../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils";
 import { useAudioPlayer } from "../../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../../utils/handlePlayCount";
 import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
 import { GET_PRESIGNED_URL_DOWNLOAD } from "../../utils/mutations";
-import { keyframes } from "@mui/system";
-
-// Animations
-const pulse = keyframes`
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.8; }
-  100% { transform: scale(1); opacity: 1; }
-`;
-
-const float = keyframes`
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-`;
 
 const fallbackStationArt = (name, theme) => {
   const gradientColors = [
@@ -84,262 +63,145 @@ const fallbackStationArt = (name, theme) => {
   );
 };
 
-const RadioStationCard = ({ station, coverUrl, onOpen, onNavigate, avatars = [] }) => {
-  const theme = useTheme();
-  const [isHovered, setIsHovered] = useState(false);
-  
-  // Get station type color
-  const getStationTypeColor = (type) => {
-    switch(type?.toLowerCase()) {
-      case 'artist': return theme.palette.primary.main;
-      case 'genre': return theme.palette.secondary.main;
-      case 'mood': return theme.palette.success.main;
-      case 'era': return theme.palette.warning.main;
-      case 'personal': return theme.palette.info.main;
-      default: return theme.palette.primary.main;
-    }
-  };
+const getUsableCoverUrl = (coverImage) => {
+  if (!coverImage || typeof coverImage !== "string") return null;
+  if (/^https?:\/\//i.test(coverImage) || coverImage.startsWith("blob:")) {
+    return coverImage;
+  }
+  return null;
+};
 
-  const stationColor = getStationTypeColor(station.type);
-  const isPlaying = false; // You might want to track this
+const RadioStationCard = ({ station, onOpen, onNavigate }) => {
+  const theme = useTheme();
+  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [signedCoverUrl, setSignedCoverUrl] = useState(null);
+  const stationColor = theme.palette.primary.main;
+  const coverUrl = signedCoverUrl || getUsableCoverUrl(station.coverImage);
+
+  useEffect(() => {
+    let alive = true;
+    setCoverFailed(false);
+    setSignedCoverUrl(null);
+
+    const coverKey = getFullKeyFromUrlOrKey(station.coverImage);
+    if (!coverKey || String(station.coverImage || "").startsWith("data:")) {
+      return undefined;
+    }
+
+    getPresignedUrlDownload({
+      variables: {
+        bucket: "afrofeel-cover-images-for-songs",
+        key: coverKey,
+        region: "us-east-2",
+      },
+    })
+      .then(({ data }) => {
+        if (alive) {
+          setSignedCoverUrl(data?.getPresignedUrlDownload?.url || null);
+        }
+      })
+      .catch((error) => {
+        console.warn("Station cover presign failed:", error?.message || error);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [station.coverImage, getPresignedUrlDownload]);
 
   return (
-    <Card
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+    <Box
       onClick={() => onNavigate?.(station)}
       sx={{
-        minWidth: 280,
-        maxWidth: 320,
-        height: 360,
+        flex: "0 0 218px",
         backgroundColor: alpha(theme.palette.background.paper, 0.8),
-        backdropFilter: "blur(10px)",
-        borderRadius: 3,
+        borderRadius: 2,
         border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
         cursor: "pointer",
         position: "relative",
         overflow: "hidden",
-        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "transform 160ms ease, border-color 160ms ease",
         "&:hover": {
-          transform: "translateY(-8px)",
-          borderColor: stationColor,
-          boxShadow: `0 20px 40px ${alpha(stationColor, 0.15)}`,
-          "& .play-button": {
-            opacity: 1,
-            transform: "translateY(0)",
-          },
-        },
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: "3px",
-          background: `linear-gradient(90deg, ${stationColor}, ${alpha(stationColor, 0.5)})`,
-          opacity: 0.8,
+          transform: "translateY(-3px)",
+          borderColor: alpha(stationColor, 0.45),
         },
       }}
     >
-      {/* Background Pattern */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `radial-gradient(circle at 20% 80%, ${alpha(stationColor, 0.05)} 0%, transparent 50%)`,
-          opacity: 0.3,
-        }}
-      />
-
-      {/* Artwork */}
-      <Box sx={{ position: "relative", height: 180, overflow: "hidden" }}>
-        {coverUrl ? (
-          <CardMedia
+      <Box sx={{ position: "relative", height: 122, overflow: "hidden" }}>
+        {coverUrl && !coverFailed ? (
+          <Box
             component="img"
-            image={coverUrl}
+            src={coverUrl}
             alt={station.name}
+            onError={() => setCoverFailed(true)}
             sx={{
               width: "100%",
               height: "100%",
               objectFit: "cover",
-              filter: isHovered ? "brightness(0.9)" : "brightness(1)",
-              transition: "filter 0.3s ease",
             }}
           />
         ) : (
           fallbackStationArt(station.name, theme)
         )}
-
-        {/* Overlay with Play Button */}
-        <Fade in={isHovered}>
-          <Box
-            className="play-button"
-            sx={{
-              position: "absolute",
-              inset: 0,
-              backgroundColor: alpha(theme.palette.background.paper, 0.8),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: 0,
-              transform: "translateY(10px)",
-              transition: "all 0.3s ease",
-            }}
-          >
-            <IconButton
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpen?.(station);
-              }}
-              sx={{
-                backgroundColor: stationColor,
-                color: theme.palette.getContrastText(stationColor),
-                width: 56,
-                height: 56,
-                "&:hover": {
-                  backgroundColor: stationColor,
-                  transform: "scale(1.1)",
-                  animation: `${pulse} 2s infinite`,
-                },
-              }}
-            >
-              {isPlaying ? <Pause /> : <PlayArrow />}
-            </IconButton>
-          </Box>
-        </Fade>
-
-        {/* Station Type Badge */}
-        <Chip
-          label={station.type?.toUpperCase() || "RADIO"}
-          size="small"
+        <IconButton
+          aria-label={`Play ${station.name}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen?.(station);
+          }}
           sx={{
             position: "absolute",
-            top: 12,
-            left: 12,
-            backgroundColor: alpha(stationColor, 0.2),
-            color: stationColor,
-            fontWeight: 700,
-            fontSize: "0.7rem",
-            backdropFilter: "blur(10px)",
-            border: `1px solid ${alpha(stationColor, 0.3)}`,
+            right: 10,
+            bottom: 10,
+            width: 42,
+            height: 42,
+            backgroundColor: stationColor,
+            color: theme.palette.getContrastText(stationColor),
+            boxShadow: `0 8px 20px ${alpha(theme.palette.common.black, 0.22)}`,
+            "&:hover": {
+              backgroundColor: theme.palette.primary.dark,
+            },
           }}
-        />
-
-        {/* Live Indicator */}
-        {station.isLive && (
-          <Chip
-            label="LIVE"
-            size="small"
-            sx={{
-              position: "absolute",
-              top: 12,
-              right: 12,
-              backgroundColor: alpha(theme.palette.error.main, 0.2),
-              color: theme.palette.error.main,
-              fontWeight: 700,
-              fontSize: "0.7rem",
-              backdropFilter: "blur(10px)",
-              animation: `${pulse} 1.5s infinite`,
-            }}
-          />
-        )}
+        >
+          <PlayArrow />
+        </IconButton>
       </Box>
 
-      {/* Content */}
-      <CardContent sx={{ p: 2.5, height: "calc(100% - 180px)" }}>
-        <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          {/* Title and Description */}
-          <Box sx={{ mb: 2, flex: 1 }}>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-                color: theme.palette.text.primary,
-                fontSize: "1.1rem",
-                mb: 0.5,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-              }}
-            >
-              {station.name}
-            </Typography>
-            
-            <Typography
-              variant="body2"
-              sx={{
-                color: alpha(theme.palette.text.primary, 0.7),
-                fontSize: "0.85rem",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-              }}
-            >
-              {station.description || "Personalized music mix"}
-            </Typography>
-          </Box>
-
-          {/* Bottom Section - Avatars and Stats */}
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            {/* Artist Avatars */}
-            {avatars.length > 0 ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 28, height: 28 } }}>
-                  {avatars.map((src, index) => (
-                    <Avatar
-                      key={index}
-                      src={src}
-                      sx={{
-                        border: `2px solid ${theme.palette.background.paper}`,
-                        animation: `${float} 3s ease-in-out infinite`,
-                        animationDelay: `${index * 0.5}s`,
-                      }}
-                    />
-                  ))}
-                </AvatarGroup>
-                <Typography variant="caption" sx={{ color: alpha(theme.palette.text.primary, 0.6) }}>
-                  {avatars.length}+ artists
-                </Typography>
-              </Box>
-            ) : (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Radio sx={{ fontSize: 20, color: alpha(theme.palette.text.primary, 0.6) }} />
-                <Typography variant="caption" sx={{ color: alpha(theme.palette.text.primary, 0.6) }}>
-                  Radio Station
-                </Typography>
-              </Box>
-            )}
-
-            {/* Stats */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {station.playCount > 0 && (
-                <Tooltip title="Total plays">
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <PlayArrow sx={{ fontSize: 14, color: alpha(theme.palette.text.primary, 0.6) }} />
-                    <Typography variant="caption" sx={{ color: alpha(theme.palette.text.primary, 0.8) }}>
-                      {station.playCount >= 1000 
-                        ? `${(station.playCount / 1000).toFixed(1)}K` 
-                        : station.playCount}
-                    </Typography>
-                  </Box>
-                </Tooltip>
-              )}
-              
-              <IconButton size="small" sx={{ color: alpha(theme.palette.text.primary, 0.6) }}>
-                <MoreHoriz />
-              </IconButton>
-            </Box>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
+      <Box sx={{ p: 1.5 }}>
+        <Typography
+          variant="subtitle1"
+          sx={{
+            fontWeight: 700,
+            color: theme.palette.text.primary,
+            fontSize: "0.98rem",
+            lineHeight: 1.2,
+            mb: 0.5,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {station.name}
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            color: alpha(theme.palette.text.primary, 0.64),
+            fontSize: "0.8rem",
+            lineHeight: 1.35,
+            minHeight: 34,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
+          {station.description || station.type || "Radio station"}
+        </Typography>
+      </Box>
+    </Box>
   );
 };
 
@@ -505,7 +367,6 @@ const StationDialog = ({
                                 borderRadius: "50%",
                                 backgroundColor: theme.palette.primary.main,
                                 ml: 1,
-                                animation: `${pulse} 1.5s infinite`,
                               }}
                             />
                           )}
@@ -573,8 +434,6 @@ export default function RadioStations({ stations = [] }) {
   const theme = useTheme();
   const client = useApolloClient();
   const navigate = useNavigate();
-  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
-  const [stationCards, setStationCards] = useState([]);
   const [open, setOpen] = useState(false);
   const [activeStation, setActiveStation] = useState(null);
   const [loadSongs, { data, loading }] = useLazyQuery(RADIO_STATION_SONGS, {
@@ -596,64 +455,6 @@ export default function RadioStations({ stations = [] }) {
     () => processSongs(stationSongsWithArtwork).filter((song) => song.audioUrl),
     [stationSongsWithArtwork]
   );
-
-  // Fetch station covers (same as before)
-  useEffect(() => {
-    let alive = true;
-    const resolveStations = async () => {
-      if (!stations.length) {
-        setStationCards([]);
-        return;
-      }
-
-      const resolved = await Promise.all(
-        stations.map(async (station) => {
-          const coverValue = station.coverImage;
-          const key = coverValue ? getFullKeyFromUrlOrKey(coverValue) : null;
-          if (key) {
-            try {
-              const { data: presignData } = await getPresignedUrlDownload({
-                variables: {
-                  bucket: "afrofeel-cover-images-for-songs",
-                  key,
-                  region: "us-east-2",
-                  expiresIn: 604800,
-                },
-              });
-              const url = presignData?.getPresignedUrlDownload?.url;
-              if (url) {
-                return { ...station, coverUrl: url };
-              }
-            } catch (error) {
-              console.error("Station cover presign failed:", error);
-            }
-          }
-          return { ...station, coverUrl: null };
-        })
-      );
-
-      if (alive) setStationCards(resolved);
-    };
-
-    resolveStations();
-    return () => {
-      alive = false;
-    };
-  }, [stations, getPresignedUrlDownload]);
-
-  // Get avatars for each station
-  const stationAvatars = useMemo(() => {
-    const avatars = {};
-    stations.forEach((station) => {
-      const seedIds = (station.seeds || []).map((seed) => seed.seedId);
-      const matches = stationSongs
-        .filter((song) => seedIds.includes(song.id) || seedIds.includes(song.artistId))
-        .map((song) => song.profilePictureUrl || song.artworkUrl)
-        .filter(Boolean);
-      avatars[station._id] = matches.slice(0, 3);
-    });
-    return avatars;
-  }, [stations, stationSongs]);
 
   const handleOpen = (station) => {
     setActiveStation(station);
@@ -697,15 +498,15 @@ export default function RadioStations({ stations = [] }) {
   if (!stations.length) return null;
 
   return (
-    <Box sx={{ mb: 8, px: { xs: 2, sm: 3, md: 4 } }}>
+    <Box sx={{ mb: 5, px: { xs: 2, sm: 3, md: 4 } }}>
       {/* Header */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
-          px: { xs: 1, sm: 2 },
+          mb: 2,
+          px: { xs: 0.5, sm: 1 },
           flexWrap: "wrap",
           gap: 2,
         }}
@@ -716,7 +517,7 @@ export default function RadioStations({ stations = [] }) {
             sx={{
               fontWeight: 700,
               color: theme.palette.primary.main,
-              fontSize: { xs: "1.25rem", sm: "1.5rem" },
+              fontSize: { xs: "1.1rem", sm: "1.25rem" },
               mb: 0.5,
             }}
           >
@@ -726,7 +527,7 @@ export default function RadioStations({ stations = [] }) {
             variant="body1"
             sx={{
               color: alpha(theme.palette.text.primary, 0.7),
-              fontSize: "0.95rem",
+              fontSize: "0.84rem",
               maxWidth: 600,
             }}
           >
@@ -739,10 +540,10 @@ export default function RadioStations({ stations = [] }) {
       <Box
         sx={{
           display: "flex",
-          gap: 3,
+          gap: 1.5,
           overflowX: "auto",
-          px: { xs: 1, sm: 2 },
-          pb: 3,
+          px: { xs: 0.5, sm: 1 },
+          pb: 2,
           "&::-webkit-scrollbar": {
             height: 6,
             backgroundColor: alpha(theme.palette.divider, 0.1),
@@ -754,12 +555,10 @@ export default function RadioStations({ stations = [] }) {
           },
         }}
       >
-        {stationCards.map((station) => (
+        {stations.map((station) => (
           <RadioStationCard
             key={station._id}
             station={station}
-            coverUrl={station.coverUrl}
-            avatars={stationAvatars[station._id] || []}
             onOpen={handleOpen}
             onNavigate={(item) => navigate(`/radio/${item._id}`)}
           />
