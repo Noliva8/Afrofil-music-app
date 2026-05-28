@@ -122,6 +122,29 @@ type ArtistSupportPaymentPayload {
   clientSecret: String!
 }
 
+type FlutterwaveCustomerPayload {
+  email: String!
+  phone_number: String!
+  name: String!
+}
+
+type FlutterwaveCustomizationPayload {
+  title: String!
+  description: String!
+  logo: String
+}
+
+type ArtistSupportMobileMoneyPayload {
+  supportId: ID!
+  public_key: String!
+  tx_ref: String!
+  amount: Int!
+  currency: String!
+  payment_options: String!
+  customer: FlutterwaveCustomerPayload!
+  customizations: FlutterwaveCustomizationPayload!
+}
+
 type ArtistSupportRevenue {
   totalArtistAmount: Int!
   paidSupportCount: Int!
@@ -962,6 +985,12 @@ createArtistSupport(
  songId: ID!
  amount: Float!
 ): ArtistSupportPaymentPayload!
+
+createArtistSupportMobileMoney(
+ songId: ID!
+ amount: Float!
+ phoneNumber: String!
+): ArtistSupportMobileMoneyPayload!
 
 toggleLikeSong(songId: ID!): Song
 

@@ -61,6 +61,13 @@ const artistSupportSchema = new Schema({
     index: true
   },
 
+  paymentProvider: {
+    type: String,
+    enum: ['stripe', 'flutterwave'],
+    default: 'stripe',
+    index: true
+  },
+
   stripeCheckoutSessionId: {
     type: String,
     index: true
@@ -69,6 +76,21 @@ const artistSupportSchema = new Schema({
   stripePaymentIntentId: {
     type: String,
     index: true
+  },
+
+  flutterwaveTxRef: {
+    type: String,
+    index: true
+  },
+
+  flutterwaveTransactionId: {
+    type: String,
+    index: true
+  },
+
+  mobileMoneyPhoneNumber: {
+    type: String,
+    trim: true
   },
 
   supporterCountry: {

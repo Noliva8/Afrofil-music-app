@@ -29,8 +29,6 @@ import SongOfMonth from '../components/homeFreePlanComponents/SongOfMonth';
 import RadioStations from '../components/homeFreePlanComponents/RadioStations';
 import { SongRowContainer } from '../components/otherSongsComponents/SongsRow';
 
-import { SongRowContainerHero } from '../components/otherSongsComponents/SongRowHero.jsx';
-
 import UserAuth from '../utils/auth';
 import SongList from '../components/otherSongsComponents/ListSong.jsx';
 
@@ -187,6 +185,13 @@ const Home = ({ upgradeToPremium }) => {
   const isLoggedIn = UserAuth.loggedIn();
   const profileName = UserAuth.getProfile?.()?.data?.username;
   const displayName = profileName ? profileName.split(/\s+/)[0] : "you";
+  const hasListeningHistory = recentSongs.length > 0;
+  const dailyMixTitle = dailyMixData?.dailyMix?.profileLabel ?? "AI Daily Mix";
+  const suggestedTitle = hasListeningHistory ? "Picked from your taste" : "Suggested songs";
+  const suggestedSubtitle = hasListeningHistory
+    ? "More tracks shaped by what you have been playing."
+    : "A starting point based on what is moving across Afrofeel.";
+  const hasSuggestedSongs = suggestedSongsWithArtwork.length > 0;
 
   // added
   const handleCardClick = (song) => {
@@ -215,51 +220,107 @@ const Home = ({ upgradeToPremium }) => {
        
             {isLoggedIn && (
               <>
-                <SongRowContainerHero
-                  header="Trending Now"
-                  subHeader="The hottest tracks across Afrofeel right now"
-                  songsWithArtwork={trendingSongsWithArtworkV2}
-                  onCardClick={handleCardClick}
-                />
+                {hasListeningHistory ? (
+                  <>
+                    <SongList
+                      title={`Continue listening, ${displayName}`}
+                      subtitle="Your recent tracks are first because this home is tuned to you."
+                      rowCode="recentlyPlayed"
+                      songsList={recentSongsWithArtwork}
+                      onCardClick={handleCardClick}
+                      loading={recentPlayedLoading || recentSongsLoading}
+                      lightweight
+                      emptyMessage="You haven't played anything yet"
+                      emptyDescription="Start listening and we'll surface these tracks again."
+                    />
 
-                <SongRowContainer
-                  header="Just Released"
-                  subHeader="The Latest Songs, Right Now"
-                  songsWithArtwork={newUploadsWithArtwork}
-                  onCardClick={handleCardClick}
-                  refetch={newUploadRefetch}
-                  rowCode="newUpload"
-                />
+                    {loadDeferredHome && (
+                      <>
+                        <SongRowContainer
+                          header={dailyMixTitle}
+                          subHeader="A daily mix shaped by your listening pattern."
+                          songsWithArtwork={dailyMixWithArtwork}
+                          onCardClick={handleCardClick}
+                        />
 
-                <SongList
-                  title="Recently played"
-                  subtitle="Back to the tracks you loved most recently."
-                  rowCode="recentlyPlayed"
-                  songsList={recentSongsWithArtwork}
-                  onCardClick={handleCardClick}
-                  loading={recentPlayedLoading || recentSongsLoading}
-                  lightweight
-                  emptyMessage="You haven't played anything yet"
-                  emptyDescription="Start listening and we'll surface these tracks again."
-                />
+                        {hasSuggestedSongs && (
+                          <SongList
+                            title={suggestedTitle}
+                            subtitle={suggestedSubtitle}
+                            rowCode="suggestedSongs"
+                            songsList={suggestedSongsWithArtwork}
+                            onCardClick={handleCardClick}
+                            emptyMessage="No songs available"
+                            emptyDescription="Keep listening to improve these recommendations."
+                          />
+                        )}
+                      </>
+                    )}
+
+                    <SongRowContainer
+                      header="Trending around you"
+                      subHeader="Rotating hits from the wider Flolup catalogue"
+                      songsWithArtwork={trendingSongsWithArtworkV2}
+                      onCardClick={handleCardClick}
+                      rowCode="trending"
+                    />
+
+                    <SongRowContainer
+                      header="Fresh releases"
+                      subHeader="New music rotated for wider exposure"
+                      songsWithArtwork={newUploadsWithArtwork}
+                      onCardClick={handleCardClick}
+                      refetch={newUploadRefetch}
+                      rowCode="newUpload"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <SongRowContainer
+                      header="Start with fresh releases"
+                      subHeader="New music rotated so more artists get early exposure"
+                      songsWithArtwork={newUploadsWithArtwork}
+                      onCardClick={handleCardClick}
+                      refetch={newUploadRefetch}
+                      rowCode="newUpload"
+                    />
+
+                    <SongRowContainer
+                      header="Trending now"
+                      subHeader="A rotating view of what listeners are playing"
+                      songsWithArtwork={trendingSongsWithArtworkV2}
+                      onCardClick={handleCardClick}
+                      rowCode="trending"
+                    />
+
+                    {loadDeferredHome && hasSuggestedSongs && (
+                      <SongList
+                        title={suggestedTitle}
+                        subtitle={suggestedSubtitle}
+                        rowCode="suggestedSongs"
+                        songsList={suggestedSongsWithArtwork}
+                        onCardClick={handleCardClick}
+                        emptyMessage="No songs available"
+                        emptyDescription="Start listening to get recommendations."
+                      />
+                    )}
+
+                    <SongList
+                      title="Recently played"
+                      subtitle="Your history will appear here after you start listening."
+                      rowCode="recentlyPlayed"
+                      songsList={recentSongsWithArtwork}
+                      onCardClick={handleCardClick}
+                      loading={recentPlayedLoading || recentSongsLoading}
+                      lightweight
+                      emptyMessage="No recent plays yet"
+                      emptyDescription="Play a song and this section becomes your shortcut back."
+                    />
+                  </>
+                )}
 
                 {loadDeferredHome && (
                   <>
-                    <SongOfMonth
-                      songOfMonthWithArtwork={songOfMonthWithArtwork}
-                      onCardClick={handleCardClick}
-                    />
-
-                    <SongList
-                      title="Suggested songs"
-                      subtitle="Based on your listening history and trending songs"
-                      rowCode="suggestedSongs"
-                      songsList={suggestedSongsWithArtwork}
-                      onCardClick={handleCardClick}
-                      emptyMessage="No songs available"
-                      emptyDescription="Start listening to get recommendations"
-                    />
-
                     <RadioStations stations={radioStations} />
 
                     <RecommendedSongsRow
@@ -272,6 +333,11 @@ const Home = ({ upgradeToPremium }) => {
 
                     <SongsILike />
 
+                    <SongOfMonth
+                      songOfMonthWithArtwork={songOfMonthWithArtwork}
+                      onCardClick={handleCardClick}
+                    />
+
                     {(dailyMixLoading || recentPlayedLoading || artworkLoading) && (
                       <Box sx={{ px: 1, pt: 1 }}>
                         <LinearProgress />
@@ -280,15 +346,6 @@ const Home = ({ upgradeToPremium }) => {
                         </Typography>
                       </Box>
                     )}
-
-                    <SongRowContainer
-                      header={
-                        dailyMixData?.dailyMix?.profileLabel ?? "AI Daily Mix"
-                      }
-                      subHeader="Daily AI mix"
-                      songsWithArtwork={dailyMixWithArtwork}
-                      onCardClick={handleCardClick}
-                    />
 
                     <EventsSection />
                   </>

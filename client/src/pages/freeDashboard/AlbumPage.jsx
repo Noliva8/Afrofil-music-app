@@ -61,6 +61,7 @@ export const AlbumPage = () => {
   const [reportTrack, setReportTrack] = useState(null);
   const [touchTimer, setTouchTimer] = useState(null);
   const [longPressTrack, setLongPressTrack] = useState(null);
+  const [failedArtistImageUrl, setFailedArtistImageUrl] = useState(null);
   const isMobile = useMediaQuery("(max-width:900px)");
 
 
@@ -334,6 +335,23 @@ export const AlbumPage = () => {
     processedAlbumSongs?.[0]?.artwork ||
     FALLBACK;
 
+  const artistProfileImageUrl =
+    processedAlbumSongs?.[0]?.profilePictureUrl ||
+    albumArtist?.profileImage ||
+    null;
+
+  useEffect(() => {
+    console.info("[artist-profile-image] resolved", {
+      route: "album",
+      albumId,
+      artistId: albumArtist?._id || albumArtist?.id,
+      artistName: albumArtist?.artistAka,
+      rawProfileImage: albumArtist?.profileImage || processedAlbumSongs?.[0]?.artist?.profileImage || null,
+      profilePictureUrl: processedAlbumSongs?.[0]?.profilePictureUrl || null,
+      selectedUrl: artistProfileImageUrl,
+    });
+  }, [albumId, albumArtist, processedAlbumSongs, artistProfileImageUrl]);
+
   if (loading) {
     return (
       <Box sx={{ p: 3 }}>
@@ -545,6 +563,45 @@ export const AlbumPage = () => {
                 mb: { xs: 1.5, md: 0 },
               }}
             >
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  bgcolor: "rgba(255,255,255,0.08)",
+                  display: "grid",
+                  placeItems: "center",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  flexShrink: 0,
+                }}
+              >
+                {artistProfileImageUrl && failedArtistImageUrl !== artistProfileImageUrl ? (
+                  <Box
+                    component="img"
+                    src={artistProfileImageUrl}
+                    alt={albumArtist?.artistAka || "Artist"}
+                    sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    onError={(e) => {
+                      const failedUrl = e.currentTarget.currentSrc || e.currentTarget.src;
+                      console.error("[artist-profile-image] failed to load", {
+                        route: "album",
+                        albumId,
+                        artistId: albumArtist?._id || albumArtist?.id,
+                        artistName: albumArtist?.artistAka,
+                        rawProfileImage:
+                          albumArtist?.profileImage || processedAlbumSongs?.[0]?.artist?.profileImage || null,
+                        failedUrl,
+                        selectedUrl: artistProfileImageUrl,
+                        eventType: e.type,
+                      });
+                      setFailedArtistImageUrl(failedUrl);
+                    }}
+                  />
+                ) : (
+                  <PersonIcon sx={{ color: "rgba(255,255,255,0.6)", fontSize: 28 }} />
+                )}
+              </Box>
               <Typography
                 onClick={() => {
                   const artistId = albumArtist?._id || albumArtist?.id;

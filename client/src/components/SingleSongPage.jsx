@@ -77,6 +77,7 @@ export const SingleSongPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [recommendedSongs, setRecommendedSongs] = useState([]);
   const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [failedArtistImageUrl, setFailedArtistImageUrl] = useState(null);
 
 
   const isMobile = useMediaQuery("(max-width:900px)");
@@ -171,7 +172,20 @@ const theme = useTheme();
     [songFromState, isCloudFrontExpired]
   );
 
-  const skipSongFetch = Boolean(songFromState && stateHasFreshSignedArtwork);
+  const stateHasArtistProfileImage = useMemo(
+    () =>
+      Boolean(
+        songFromState?.profilePictureUrl ||
+        songFromState?.artistProfileImage ||
+        songFromState?.artist?.profileImage ||
+        songFromState?.fullOriginal?.artist?.profileImage
+      ),
+    [songFromState]
+  );
+
+  const skipSongFetch = Boolean(
+    songFromState && stateHasFreshSignedArtwork && stateHasArtistProfileImage
+  );
 
   // -----------------------
   // 2) Fetch song by ID
@@ -270,6 +284,13 @@ const theme = useTheme();
     [albumSongsWithArtwork]
   );
 
+  const albumTrackForCurrentSong = useMemo(
+    () =>
+      (processedAlbumSongs || []).find((track) => String(getId(track)) === String(songId)) ||
+      null,
+    [processedAlbumSongs, getId, songId]
+  );
+
   const { songsWithArtwork: recommendedSongsWithArtwork } =
     useSongsWithPresignedUrls(recommendedSongs);
   const processedRecommendedSongs = useMemo(
@@ -313,6 +334,36 @@ const theme = useTheme();
       null
     );
   }, [song]);
+
+  const artistProfileImageUrl = useMemo(() => {
+    if (!song) return null;
+    return (
+      song.profilePictureUrl ||
+      song.artistProfileImage ||
+      albumTrackForCurrentSong?.profilePictureUrl ||
+      song.artist?.profileImage ||
+      song.artist?.profilePictureUrl ||
+      song.fullOriginal?.artist?.profileImage ||
+      null
+    );
+  }, [song, albumTrackForCurrentSong]);
+
+  useEffect(() => {
+    if (!song) return;
+    console.info("[artist-profile-image] resolved", {
+      route: "song",
+      songId,
+      artistId: song?.artistId || song?.artist?._id || song?.artist,
+      artistName: song?.artistName || song?.artist?.artistAka,
+      rawProfileImage:
+        song?.artist?.profileImage ||
+        song?.fullOriginal?.artist?.profileImage ||
+        albumTrackForCurrentSong?.artist?.profileImage ||
+        null,
+      profilePictureUrl: song?.profilePictureUrl || albumTrackForCurrentSong?.profilePictureUrl || null,
+      selectedUrl: artistProfileImageUrl,
+    });
+  }, [song, songId, albumTrackForCurrentSong, artistProfileImageUrl]);
 
   // -----------------------
   // 8) Playable track
@@ -954,17 +1005,33 @@ useEffect(() => {
                 border: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              {song?.artistProfileImage ? (
+              {artistProfileImageUrl && failedArtistImageUrl !== artistProfileImageUrl ? (
                 <Box
                   component="img"
-                  src={song.artistProfileImage}
+                  src={artistProfileImageUrl}
                   alt={song.artistName || "Artist"}
                   sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => {
+                    const failedUrl = e.currentTarget.currentSrc || e.currentTarget.src;
+                    console.error("[artist-profile-image] failed to load", {
+                      route: "song",
+                      songId,
+                      artistId: song?.artistId || song?.artist?._id || song?.artist,
+                      artistName: song?.artistName || song?.artist?.artistAka,
+                      rawProfileImage:
+                        song?.artist?.profileImage ||
+                        song?.fullOriginal?.artist?.profileImage ||
+                        albumTrackForCurrentSong?.artist?.profileImage ||
+                        null,
+                      failedUrl,
+                      selectedUrl: artistProfileImageUrl,
+                      eventType: e.type,
+                    });
+                    setFailedArtistImageUrl(failedUrl);
+                  }}
                 />
               ) : (
-                <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem" }}>
-                  N/A
-                </Typography>
+                <PersonIcon sx={{ color: "rgba(255,255,255,0.6)", fontSize: 28 }} />
               )}
             </Box>
 

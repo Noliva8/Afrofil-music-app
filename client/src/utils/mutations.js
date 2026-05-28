@@ -771,6 +771,29 @@ export const CREATE_ARTIST_SUPPORT = gql`
   }
 `
 
+export const CREATE_ARTIST_SUPPORT_MOBILE_MONEY = gql`
+  mutation CreateArtistSupportMobileMoney($songId: ID!, $amount: Float!, $phoneNumber: String!) {
+    createArtistSupportMobileMoney(songId: $songId, amount: $amount, phoneNumber: $phoneNumber) {
+      supportId
+      public_key
+      tx_ref
+      amount
+      currency
+      payment_options
+      customer {
+        email
+        phone_number
+        name
+      }
+      customizations {
+        title
+        description
+        logo
+      }
+    }
+  }
+`
+
 
 
 export const SEND_BOOKING_REQUEST = gql`

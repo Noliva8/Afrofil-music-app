@@ -1548,6 +1548,8 @@ export const SONGS_OF_ALBUM = gql`
       bio
       followerCount
       country
+      profileImage
+      coverImage
     }
     createdAt
     releaseDate

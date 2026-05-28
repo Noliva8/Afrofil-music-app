@@ -96,6 +96,7 @@ export const SongPage = () => {
   const [albumCovers, setAlbumCovers] = useState({});
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
   const { setBookingId } = useBookingId();
+  const [failedArtistImageUrl, setFailedArtistImageUrl] = useState(null);
 
 
   const isMobile = useMediaQuery("(max-width:900px)");
@@ -201,7 +202,23 @@ export const SongPage = () => {
     [songFromState]
   );
 
-  const skipSongFetch = Boolean(songFromState && stateHasFreshSignedArtwork && stateHasBookingFlag);
+  const stateHasArtistProfileImage = useMemo(
+    () =>
+      Boolean(
+        songFromState?.profilePictureUrl ||
+        songFromState?.artistProfileImage ||
+        songFromState?.artist?.profileImage ||
+        songFromState?.fullOriginal?.artist?.profileImage
+      ),
+    [songFromState]
+  );
+
+  const skipSongFetch = Boolean(
+    songFromState &&
+    stateHasFreshSignedArtwork &&
+    stateHasBookingFlag &&
+    stateHasArtistProfileImage
+  );
 
   // -----------------------
   // 2) Fetch song by ID
@@ -330,6 +347,13 @@ export const SongPage = () => {
     [albumSongsWithArtwork]
   );
 
+  const albumTrackForCurrentSong = useMemo(
+    () =>
+      (processedAlbumSongs || []).find((track) => String(getId(track)) === String(songId)) ||
+      null,
+    [processedAlbumSongs, getId, songId]
+  );
+
   // -----------------------
   // 6) Final song for rendering
   // -----------------------
@@ -360,13 +384,35 @@ export const SongPage = () => {
     if (!song) return null;
     
     return (
-      song.artist.profileImage||
       song.profilePictureUrl ||
+      song.artistProfileImage ||
+      albumTrackForCurrentSong?.profilePictureUrl ||
       song.artist?.profileImage ||
       song.artist?.profilePictureUrl ||
+      song.fullOriginal?.artist?.profileImage ||
+      albumSongsData?.getAlbum?.artist?.profileImage ||
       null
     );
-  }, [song]);
+  }, [song, albumTrackForCurrentSong, albumSongsData]);
+
+  useEffect(() => {
+    if (!song) return;
+    console.info("[artist-profile-image] resolved", {
+      route: "album-song",
+      songId,
+      albumId,
+      artistId: song?.artistId || song?.artist?._id || song?.artist,
+      artistName: song?.artistName || song?.artist?.artistAka,
+      rawProfileImage:
+        song?.artist?.profileImage ||
+        song?.fullOriginal?.artist?.profileImage ||
+        albumTrackForCurrentSong?.artist?.profileImage ||
+        albumSongsData?.getAlbum?.artist?.profileImage ||
+        null,
+      profilePictureUrl: song?.profilePictureUrl || albumTrackForCurrentSong?.profilePictureUrl || null,
+      selectedUrl: artistProfileImageUrl,
+    });
+  }, [song, songId, albumId, albumTrackForCurrentSong, albumSongsData, artistProfileImageUrl]);
 
   // -----------------------
   // 8) Playable track
@@ -1004,6 +1050,83 @@ useEffect(() => {
   }
 
   const isShuffled = Boolean(playerState?.shuffle);
+  const artistInfo = (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        justifyContent: { xs: "center", md: "flex-start" },
+        width: "100%",
+        minWidth: 0,
+        mt: { xs: 1, md: 0 },
+      }}
+    >
+      <Box
+        sx={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          overflow: "hidden",
+          bgcolor: "rgba(255,255,255,0.08)",
+          display: "grid",
+          placeItems: "center",
+          border: "1px solid rgba(255,255,255,0.12)",
+          flexShrink: 0,
+        }}
+      >
+        {artistProfileImageUrl && failedArtistImageUrl !== artistProfileImageUrl ? (
+          <Box
+            component="img"
+            src={artistProfileImageUrl}
+            alt={song.artistName || "Artist"}
+            sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+            onError={(e) => {
+              const failedUrl = e.currentTarget.currentSrc || e.currentTarget.src;
+              console.error("[artist-profile-image] failed to load", {
+                route: "album-song",
+                songId,
+                albumId,
+                artistId: song?.artistId || song?.artist?._id || song?.artist,
+                artistName: song?.artistName || song?.artist?.artistAka,
+                rawProfileImage:
+                  song?.artist?.profileImage ||
+                  song?.fullOriginal?.artist?.profileImage ||
+                  albumTrackForCurrentSong?.artist?.profileImage ||
+                  albumSongsData?.getAlbum?.artist?.profileImage ||
+                  null,
+                failedUrl,
+                selectedUrl: artistProfileImageUrl,
+                eventType: e.type,
+              });
+              setFailedArtistImageUrl(failedUrl);
+            }}
+          />
+        ) : (
+          <PersonIcon sx={{ color: "rgba(255,255,255,0.6)", fontSize: 28 }} />
+        )}
+      </Box>
+
+      <Typography
+        onClick={() => {
+          const artistId = song?.artistId || song?.artist?._id || song?.artist;
+          if (artistId) navigate(`/artist/${artistId}`);
+        }}
+        sx={{
+          color: "rgba(255,255,255,0.85)",
+          fontWeight: 600,
+          fontSize: "1rem",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          cursor: song?.artistId || song?.artist ? "pointer" : "default",
+          "&:hover": { color: "primary.main" },
+        }}
+      >
+        {song?.artistName || song?.artist?.artistAka || "Unknown Artist"}
+      </Typography>
+    </Box>
+  );
 
   // -----------------------
   // 13) RENDER
@@ -1271,12 +1394,13 @@ Song:
 
 
 
-          
+	          
 
 
 
 
 
+            {artistInfo}
           </Box>
 
           <Box
@@ -1319,60 +1443,6 @@ Song:
             />
           </Box>
 
-          {/* Artist Info */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              justifyContent: { xs: "center", md: "flex-start" },
-            }}
-          >
-            <Box
-              sx={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                overflow: "hidden",
-                bgcolor: "rgba(255,255,255,0.08)",
-                display: "grid",
-                placeItems: "center",
-                border: "1px solid rgba(255,255,255,0.12)",
-              }}
-            >
-            {artistProfileImageUrl ? (
-              <Box
-                component="img"
-                src={artistProfileImageUrl}
-                alt={song.artistName || "Artist"}
-                sx={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              <Typography sx={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem" }}>
-                N/A
-              </Typography>
-            )}
-            </Box>
-
-            <Typography
-              onClick={() => {
-                const artistId = song?.artistId || song?.artist?._id || song?.artist;
-                if (artistId) navigate(`/artist/${artistId}`);
-              }}
-              sx={{
-                color: "rgba(255,255,255,0.85)",
-                fontWeight: 600,
-                fontSize: "1rem",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                cursor: song?.artistId || song?.artist ? "pointer" : "default",
-                "&:hover": { color: "primary.main" },
-              }}
-            >
-              {song?.artistName || song?.artist?.artistAka || "Unknown Artist"}
-            </Typography>
-          </Box>
         </Box>
       </Box>
 

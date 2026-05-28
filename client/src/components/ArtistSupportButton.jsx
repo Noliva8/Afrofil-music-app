@@ -14,8 +14,11 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
+import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
+import PhoneAndroidRoundedIcon from "@mui/icons-material/PhoneAndroidRounded";
 import VolunteerActivismRoundedIcon from "@mui/icons-material/VolunteerActivismRounded";
-import { CREATE_ARTIST_SUPPORT } from "../utils/mutations";
+import { CREATE_ARTIST_SUPPORT, CREATE_ARTIST_SUPPORT_MOBILE_MONEY } from "../utils/mutations";
+import UserAuth from "../utils/auth";
 import { useStripePromise } from "../utils/stripeLoader";
 import FeedbackModal from "./FeedbackModal.jsx";
 
@@ -47,6 +50,10 @@ const SUPPORT_REQUIREMENTS = {
 const MIN_SUPPORT_AMOUNT = 1;
 const MAX_SUPPORT_AMOUNT = 500;
 const SUPPORT_PRESETS = [5, 10, 20, 100];
+const PAYMENT_METHODS = {
+  CARD: "card",
+  MOBILE_MONEY: "mobile_money",
+};
 
 const whiteButtonSx = {
   borderColor: "rgba(255,255,255,0.55)",
@@ -106,6 +113,254 @@ const getPaymentErrorMessage = (error) =>
   error?.message ||
   "Payment failed. Please try again.";
 
+const isRwandaValue = (value) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "rwanda" || normalized === "rw";
+};
+
+const getCachedGeoCountry = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const cached = JSON.parse(window.localStorage.getItem("af_geo_v3") || "null");
+    return cached?.countryCode || cached?.country || null;
+  } catch {
+    return null;
+  }
+};
+
+const SupportSummary = ({ song }) => {
+  const artist = song?.artist;
+  const artistName = artist?.artistAka || "artist";
+  const supportImage = song?.artworkPresignedUrl || song?.artwork || artist?.profileImage;
+
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
+      <Avatar
+        src={supportImage || undefined}
+        alt={artistName}
+        variant="rounded"
+        sx={{ width: 64, height: 64, bgcolor: "rgba(244,196,48,0.18)" }}
+      >
+        {artistName?.[0]?.toUpperCase?.() || "A"}
+      </Avatar>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
+          Support {artistName}
+        </Typography>
+        {song?.title && (
+          <Typography variant="body2" sx={{ color: "text.secondary" }} noWrap>
+            {song.title}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+const PaymentMethodChoice = ({ song, onChoose, onClose }) => (
+  <>
+    <DialogContent>
+      <SupportSummary song={song} />
+      <Typography variant="caption" sx={{ display: "block", mb: 1, color: "text.secondary" }}>
+        Choose payment method
+      </Typography>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: 1,
+        }}
+      >
+        <Button
+          type="button"
+          variant="outlined"
+          startIcon={<CreditCardRoundedIcon />}
+          onClick={() => onChoose(PAYMENT_METHODS.CARD)}
+          sx={{ justifyContent: "center", textTransform: "none", py: 1.4, ...whiteButtonSx }}
+        >
+          Card
+        </Button>
+        <Button
+          type="button"
+          variant="outlined"
+          startIcon={<PhoneAndroidRoundedIcon />}
+          onClick={() => onChoose(PAYMENT_METHODS.MOBILE_MONEY)}
+          sx={{ justifyContent: "center", textTransform: "none", py: 1.4, ...whiteButtonSx }}
+        >
+          Mobile Money
+        </Button>
+      </Box>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Cancel</Button>
+    </DialogActions>
+  </>
+);
+
+const MobileMoneySupportForm = ({ song, songId, canUseMobileMoney, onBack, onClose, onNotice }) => {
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [amount, setAmount] = useState("500");
+  const [customAmount, setCustomAmount] = useState("");
+  const [isCustomAmount, setIsCustomAmount] = useState(false);
+  const [createArtistSupportMobileMoney, { loading }] = useMutation(CREATE_ARTIST_SUPPORT_MOBILE_MONEY);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const selectedAmount = isCustomAmount ? customAmount : amount;
+    const numericAmount = Number(selectedAmount);
+
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      onNotice({ severity: "error", message: "Enter a valid Mobile Money amount." });
+      return;
+    }
+
+    if (!phoneNumber.trim()) {
+      onNotice({ severity: "error", message: "Enter your Mobile Money phone number." });
+      return;
+    }
+
+    if (!phoneNumber.trim().startsWith("07")) {
+      onNotice({
+        severity: "error",
+        message: "Mobile Money number must start with 07.",
+      });
+      return;
+    }
+
+    try {
+      const { data, errors } = await createArtistSupportMobileMoney({
+        variables: {
+          songId,
+          amount: numericAmount,
+          phoneNumber: phoneNumber.trim(),
+        },
+      });
+
+      if (errors?.length) {
+        throw new Error(errors[0].message);
+      }
+
+      const paymentConfig = data?.createArtistSupportMobileMoney;
+      if (!paymentConfig?.tx_ref) {
+        throw new Error("Mobile Money setup failed before a transaction reference was returned.");
+      }
+
+      console.info("[artist-support-mobile-money] payment config ready", paymentConfig);
+      onNotice({
+        severity: "success",
+        message: "Mobile Money payment is ready. Payment prompt integration comes next.",
+      });
+    } catch (error) {
+      onNotice({
+        severity: "error",
+        message: getPaymentErrorMessage(error),
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <DialogContent>
+        <SupportSummary song={song} />
+        <Typography variant="caption" sx={{ display: "block", mb: 1, color: "text.secondary" }}>
+          Choose an amount
+        </Typography>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: 1,
+            mb: 1.5,
+          }}
+        >
+          {[500, 1000, 2000, 5000].map((preset) => {
+            const selected = !isCustomAmount && Number(amount) === preset;
+            return (
+              <Button
+                key={preset}
+                type="button"
+                variant={selected ? "contained" : "outlined"}
+                onClick={() => {
+                  setIsCustomAmount(false);
+                  setAmount(String(preset));
+                }}
+                sx={{
+                  minWidth: 0,
+                  px: 1,
+                  fontWeight: 700,
+                  ...(selected ? selectedWhiteButtonSx : whiteButtonSx),
+                }}
+              >
+                {preset}
+              </Button>
+            );
+          })}
+        </Box>
+
+        <Button
+          type="button"
+          variant={isCustomAmount ? "contained" : "outlined"}
+          onClick={() => setIsCustomAmount(true)}
+          fullWidth
+          sx={{
+            mb: isCustomAmount ? 1.5 : 2,
+            textTransform: "none",
+            ...(isCustomAmount ? selectedWhiteButtonSx : whiteButtonSx),
+          }}
+        >
+          Custom amount
+        </Button>
+
+        {isCustomAmount && (
+          <TextField
+            autoFocus
+            fullWidth
+            label="Custom amount"
+            type="number"
+            value={customAmount}
+            onChange={(event) => setCustomAmount(event.target.value)}
+            inputProps={{ min: 1, step: "1" }}
+            InputProps={{
+              startAdornment: <Typography sx={{ mr: 0.75 }}>RWF</Typography>,
+            }}
+            sx={{ mb: 2 }}
+          />
+        )}
+
+        <Typography variant="caption" sx={{ display: "block", mb: 1, color: "text.secondary" }}>
+          What is your phone number?
+        </Typography>
+        <TextField
+          autoFocus={!isCustomAmount}
+          fullWidth
+          label="Mobile Money phone number"
+          placeholder="07..."
+          value={phoneNumber}
+          onChange={(event) => setPhoneNumber(event.target.value)}
+          sx={{ mb: 2 }}
+        />
+        <Alert severity={canUseMobileMoney ? "info" : "warning"}>
+          Only available for Rwandan numbers for now.
+        </Alert>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onBack} disabled={loading}>Back</Button>
+        <Button onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={loading}
+          sx={{ bgcolor: "#fff", color: "#111", fontWeight: 700 }}
+        >
+          {loading ? "Preparing..." : "Continue"}
+        </Button>
+      </DialogActions>
+    </form>
+  );
+};
+
 
 const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }) => {
   const stripe = useStripe();
@@ -113,10 +368,6 @@ const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }
   const [amount, setAmount] = useState("5");
   const [customAmount, setCustomAmount] = useState("");
   const [isCustomAmount, setIsCustomAmount] = useState(false);
-
-  const artist = song?.artist;
-  const artistName = artist?.artistAka || "artist";
-  const supportImage = song?.artworkPresignedUrl || song?.artwork || artist?.profileImage;
 
   const [createArtistSupport, { loading }] = useMutation(CREATE_ARTIST_SUPPORT);
 
@@ -193,26 +444,7 @@ const ArtistSupportPaymentForm = ({ song, songId, onClose, onNotice, onSuccess }
   return (
     <form onSubmit={handleSubmit}>
       <DialogContent>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-          <Avatar
-            src={supportImage || undefined}
-            alt={artistName}
-            variant="rounded"
-            sx={{ width: 64, height: 64, bgcolor: "rgba(244,196,48,0.18)" }}
-          >
-            {artistName?.[0]?.toUpperCase?.() || "A"}
-          </Avatar>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
-              Support {artistName}
-            </Typography>
-            {song?.title && (
-              <Typography variant="body2" sx={{ color: "text.secondary" }} noWrap>
-                {song.title}
-              </Typography>
-            )}
-          </Box>
-        </Box>
+        <SupportSummary song={song} />
 
         <Typography variant="caption" sx={{ display: "block", mb: 1, color: "text.secondary" }}>
           Choose an amount
@@ -324,6 +556,7 @@ const ArtistSupportButton = ({ songId }) => {
   const [notice, setNotice] = useState(null);
   const [successOpen, setSuccessOpen] = useState(false);
   const [amountOpen, setAmountOpen] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const stripePromise = useStripePromise();
   const { data, loading: statsLoading } = useQuery(ARTIST_SUPPORT_SONG_STATS, {
     variables: { songId },
@@ -333,6 +566,10 @@ const ArtistSupportButton = ({ songId }) => {
 
   const song = data?.publicSong;
   const canSupport = useMemo(() => isSongEligibleForArtistSupport(song), [song]);
+  const canUseMobileMoney = useMemo(() => {
+    const profile = UserAuth.getProfile?.()?.data || {};
+    return [profile.country, profile.countryCode, getCachedGeoCountry()].some(isRwandaValue);
+  }, []);
 
   if (statsLoading || !canSupport || !songId) {
     return null;
@@ -340,12 +577,14 @@ const ArtistSupportButton = ({ songId }) => {
 
   const handleClick = (event) => {
     event.stopPropagation();
+    setSelectedPaymentMethod(null);
     setAmountOpen(true);
   };
 
   const handleCloseAmount = (event) => {
     event?.stopPropagation?.();
     setAmountOpen(false);
+    setSelectedPaymentMethod(null);
   };
 
   return (
@@ -397,21 +636,48 @@ const ArtistSupportButton = ({ songId }) => {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Support artist</DialogTitle>
-        {!stripePromise ? (
-          <DialogContent sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
-          </DialogContent>
-        ) : (
-          <Elements stripe={stripePromise}>
-            <ArtistSupportPaymentForm
-              song={song}
-              songId={songId}
-              onClose={handleCloseAmount}
-              onNotice={setNotice}
-              onSuccess={() => setSuccessOpen(true)}
-            />
-          </Elements>
+        <DialogTitle>
+          {selectedPaymentMethod === PAYMENT_METHODS.CARD
+            ? "Pay with card"
+            : selectedPaymentMethod === PAYMENT_METHODS.MOBILE_MONEY
+              ? "Mobile Money"
+              : "Support artist"}
+        </DialogTitle>
+        {!selectedPaymentMethod && (
+          <PaymentMethodChoice
+            song={song}
+            onChoose={setSelectedPaymentMethod}
+            onClose={handleCloseAmount}
+          />
+        )}
+
+        {selectedPaymentMethod === PAYMENT_METHODS.CARD && (
+          !stripePromise ? (
+            <DialogContent sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </DialogContent>
+          ) : (
+            <Elements stripe={stripePromise}>
+              <ArtistSupportPaymentForm
+                song={song}
+                songId={songId}
+                onClose={handleCloseAmount}
+                onNotice={setNotice}
+                onSuccess={() => setSuccessOpen(true)}
+              />
+            </Elements>
+          )
+        )}
+
+        {selectedPaymentMethod === PAYMENT_METHODS.MOBILE_MONEY && (
+          <MobileMoneySupportForm
+            song={song}
+            songId={songId}
+            canUseMobileMoney={canUseMobileMoney}
+            onBack={() => setSelectedPaymentMethod(null)}
+            onClose={handleCloseAmount}
+            onNotice={setNotice}
+          />
         )}
       </Dialog>
 

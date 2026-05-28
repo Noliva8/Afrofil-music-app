@@ -54,7 +54,15 @@ export const useSongsWithPresignedUrls = (songsData, options = {}) => {
       }
 
       const signature = songsData
-        .map((song) => song?._id ?? song?.id ?? song?.songId ?? '')
+        .map((song) =>
+          [
+            song?._id ?? song?.id ?? song?.songId ?? '',
+            song?.artwork ?? song?.artworkKey ?? '',
+            song?.artist?.profileImage ?? song?.profilePictureUrl ?? '',
+            song?.artist?.coverImage ?? song?.coverImageUrl ?? '',
+            song?.album?.albumCoverImage ?? song?.albumCoverImageUrl ?? '',
+          ].join(':')
+        )
         .join('|') + `|related:${includeRelatedImages ? '1' : '0'}`;
 
       if (signature === lastSignatureRef.current) {
@@ -254,7 +262,15 @@ export const useSongsWithPresignedUrlsMemoized = (songsData) => {
       }
 
       const signature = songsData
-        .map((song) => song?._id ?? song?.id ?? song?.songId ?? '')
+        .map((song) =>
+          [
+            song?._id ?? song?.id ?? song?.songId ?? '',
+            song?.artwork ?? song?.artworkKey ?? '',
+            song?.artist?.profileImage ?? song?.profilePictureUrl ?? '',
+            song?.artist?.coverImage ?? song?.coverImageUrl ?? '',
+            song?.album?.albumCoverImage ?? song?.albumCoverImageUrl ?? '',
+          ].join(':')
+        )
         .join('|');
 
       if (signature === lastSignatureRef.current) {

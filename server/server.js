@@ -1,6 +1,7 @@
 // ✅ Setup early
 import express from "express";
 import dotenv from "dotenv";
+import fetch from "node-fetch";
 dotenv.config();
 
 // testing redis
@@ -146,14 +147,14 @@ const replaceMetaTag = (html, attr, key, tag) => {
   return pattern.test(html) ? html.replace(pattern, tag) : html.replace("</head>", `    ${tag}\n  </head>`);
 };
 
-const injectTrackMeta = (html, { title, description, url, image }) => {
+const injectTrackMeta = (html, { title, description, url, image, type = "music.song" }) => {
   let nextHtml = html.replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
 
   const tags = [
     [`name`, `description`, description],
     [`property`, `og:title`, title],
     [`property`, `og:description`, description],
-    [`property`, `og:type`, "music.song"],
+    [`property`, `og:type`, type],
     [`property`, `og:url`, url],
     [`property`, `og:image`, image],
     [`name`, `twitter:card`, "summary_large_image"],
@@ -172,6 +173,103 @@ const injectTrackMeta = (html, { title, description, url, image }) => {
   }
 
   return nextHtml;
+};
+
+const readClientIndexHtml = async ({ indexPath, hasClientBuild, baseUrl }) => {
+  if (hasClientBuild) {
+    return fs.readFile(indexPath, "utf8");
+  }
+
+  const response = await fetch(`${baseUrl}/index.html`);
+  if (!response.ok) {
+    throw new Error(`Unable to fetch frontend index.html: ${response.status}`);
+  }
+  return response.text();
+};
+
+const buildSongShareMeta = async ({ songId, pagePath, baseUrl }) => {
+  const song = await Song.findById(songId)
+    .select("title artwork lyrics genre duration releaseDate visibility")
+    .populate("artist", "artistAka")
+    .populate("album", "title releaseDate albumCoverImage")
+    .lean();
+
+  if (!song || song.visibility === "private") return null;
+
+  const artistName = song.artist?.artistAka || "FloLup artist";
+  const title = `${song.title} by ${artistName}`;
+  const albumName = song.album?.title && song.album.title !== "Single"
+    ? ` from ${song.album.title}`
+    : "";
+  const description =
+    stripHtml(song.lyrics)?.slice(0, 150) ||
+    `Listen to ${song.title} by ${artistName}${albumName}${song.genre ? ` #${song.genre}` : ""} on FloLup.`;
+  const image = await resolveShareArtworkUrl(song.artwork || song.album?.albumCoverImage, baseUrl);
+
+  return {
+    title,
+    description,
+    image,
+    url: `${baseUrl}${pagePath}`,
+  };
+};
+
+const renderSongSharePage = async ({ req, res, next, indexPath, hasClientBuild, songId, pagePath }) => {
+  try {
+    const baseUrl = getPublicAppUrl();
+    const html = await readClientIndexHtml({ indexPath, hasClientBuild, baseUrl });
+    const meta = await buildSongShareMeta({ songId, pagePath, baseUrl });
+
+    res.set("Content-Type", "text/html");
+    if (!meta) return res.send(html);
+
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900");
+    return res.send(injectTrackMeta(html, meta));
+  } catch (error) {
+    console.error(`Song metadata render failed for ${req.path}:`, error);
+    return next();
+  }
+};
+
+const buildArtistShareMeta = async ({ artistId, pagePath, baseUrl }) => {
+  const artist = await Artist.findById(artistId)
+    .select("artistAka fullName bio country region genre profileImage coverImage")
+    .lean();
+
+  if (!artist) return null;
+
+  const artistName = artist.artistAka || artist.fullName || "FloLup artist";
+  const genreList = Array.isArray(artist.genre) ? artist.genre.filter(Boolean).join(", ") : artist.genre;
+  const location = artist.country || artist.region || "";
+  const description =
+    stripHtml(artist.bio)?.slice(0, 150) ||
+    `Discover ${artistName}${genreList ? `, ${genreList}` : ""}${location ? ` from ${location}` : ""} on FloLup.`;
+  const image = await resolveShareArtworkUrl(artist.coverImage || artist.profileImage, baseUrl);
+
+  return {
+    title: `${artistName} on FloLup`,
+    description,
+    image,
+    type: "profile",
+    url: `${baseUrl}${pagePath}`,
+  };
+};
+
+const renderArtistSharePage = async ({ req, res, next, indexPath, hasClientBuild, artistId, pagePath }) => {
+  try {
+    const baseUrl = getPublicAppUrl();
+    const html = await readClientIndexHtml({ indexPath, hasClientBuild, baseUrl });
+    const meta = await buildArtistShareMeta({ artistId, pagePath, baseUrl });
+
+    res.set("Content-Type", "text/html");
+    if (!meta) return res.send(html);
+
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900");
+    return res.send(injectTrackMeta(html, meta));
+  } catch (error) {
+    console.error(`Artist metadata render failed for ${req.path}:`, error);
+    return next();
+  }
 };
 
 // Register webhook endpoint
@@ -968,39 +1066,51 @@ app.post('/api/cleanup', async (req, res) => {
       }
 
       app.get("/track/:trackId", async (req, res, next) => {
-        if (!hasClientBuild) return next();
+        return renderSongSharePage({
+          req,
+          res,
+          next,
+          indexPath,
+          hasClientBuild,
+          songId: req.params.trackId,
+          pagePath: `/track/${req.params.trackId}`,
+        });
+      });
 
-        try {
-          const baseUrl = getPublicAppUrl();
-          const html = await fs.readFile(indexPath, "utf8");
-          const song = await Song.findById(req.params.trackId)
-            .select("title artwork lyrics genre duration releaseDate")
-            .populate("artist", "artistAka")
-            .populate("album", "title releaseDate")
-            .lean();
+      app.get("/song/:songId", async (req, res, next) => {
+        return renderSongSharePage({
+          req,
+          res,
+          next,
+          indexPath,
+          hasClientBuild,
+          songId: req.params.songId,
+          pagePath: `/song/${req.params.songId}`,
+        });
+      });
 
-          if (!song) {
-            res.set("Content-Type", "text/html");
-            return res.send(html);
-          }
+      app.get("/album/:albumId/:songId", async (req, res, next) => {
+        return renderSongSharePage({
+          req,
+          res,
+          next,
+          indexPath,
+          hasClientBuild,
+          songId: req.params.songId,
+          pagePath: `/album/${req.params.albumId}/${req.params.songId}`,
+        });
+      });
 
-          const artistName = song.artist?.artistAka || "FloLup artist";
-          const title = `${song.title} by ${artistName}`;
-          const albumName = song.album?.title && song.album.title !== "Single"
-            ? ` from ${song.album.title}`
-            : "";
-          const description =
-            stripHtml(song.lyrics)?.slice(0, 150) ||
-            `Listen to ${song.title} by ${artistName}${albumName}${song.genre ? ` #${song.genre}` : ""} on FloLup.`;
-          const url = `${baseUrl}/track/${req.params.trackId}`;
-          const image = await resolveShareArtworkUrl(song.artwork, baseUrl);
-
-          res.set("Content-Type", "text/html");
-          return res.send(injectTrackMeta(html, { title, description, url, image }));
-        } catch (error) {
-          console.error("Track metadata render failed:", error);
-          return next();
-        }
+      app.get("/artist/:artistId", async (req, res, next) => {
+        return renderArtistSharePage({
+          req,
+          res,
+          next,
+          indexPath,
+          hasClientBuild,
+          artistId: req.params.artistId,
+          pagePath: `/artist/${req.params.artistId}`,
+        });
       });
 
       if (hasClientBuild) {
