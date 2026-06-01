@@ -1719,3 +1719,23 @@ query NotificationOnArtistMessages($messageId: ID, $bookingId: ID) {
   }
 }
 `
+
+
+export const ARTIST_SUPPORT_SONG_STATS = gql`
+  query ArtistSupportSongStats($songId: ID!) {
+    publicSong(songId: $songId) {
+      _id
+      title
+      artwork
+      artworkPresignedUrl
+      playCount
+      shareCount
+      likesCount
+      artist {
+        _id
+        artistAka
+        profileImage
+      }
+    }
+  }
+`;

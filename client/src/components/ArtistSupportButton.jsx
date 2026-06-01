@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { gql, useMutation, useQuery } from "@apollo/client";
+import { useMutation, useQuery } from "@apollo/client";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
@@ -21,25 +21,11 @@ import { CREATE_ARTIST_SUPPORT, CREATE_ARTIST_SUPPORT_MOBILE_MONEY } from "../ut
 import UserAuth from "../utils/auth";
 import { useStripePromise } from "../utils/stripeLoader";
 import FeedbackModal from "./FeedbackModal.jsx";
+import { ARTIST_SUPPORT_SONG_STATS } from "../utils/queries";
 
-const ARTIST_SUPPORT_SONG_STATS = gql`
-  query ArtistSupportSongStats($songId: ID!) {
-    publicSong(songId: $songId) {
-      _id
-      title
-      artwork
-      artworkPresignedUrl
-      playCount
-      shareCount
-      likesCount
-      artist {
-        _id
-        artistAka
-        profileImage
-      }
-    }
-  }
-`;
+
+
+
 
 
 const SUPPORT_REQUIREMENTS = {
@@ -47,9 +33,11 @@ const SUPPORT_REQUIREMENTS = {
   shareCount: 1,
   likesCount: 1,
 };
+
 const MIN_SUPPORT_AMOUNT = 1;
 const MAX_SUPPORT_AMOUNT = 500;
 const SUPPORT_PRESETS = [5, 10, 20, 100];
+
 const PAYMENT_METHODS = {
   CARD: "card",
   MOBILE_MONEY: "mobile_money",
@@ -90,6 +78,7 @@ const isSongEligibleForArtistSupport = (song = {}) => {
     likesCount >= SUPPORT_REQUIREMENTS.likesCount
   );
 };
+
 
 const cardElementOptions = {
   hidePostalCode: true,
@@ -143,6 +132,7 @@ const SupportSummary = ({ song }) => {
       >
         {artistName?.[0]?.toUpperCase?.() || "A"}
       </Avatar>
+
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="h6" sx={{ lineHeight: 1.2 }}>
           Support {artistName}
@@ -156,6 +146,7 @@ const SupportSummary = ({ song }) => {
     </Box>
   );
 };
+
 
 const PaymentMethodChoice = ({ song, onChoose, onClose }) => (
   <>
@@ -196,6 +187,8 @@ const PaymentMethodChoice = ({ song, onChoose, onClose }) => (
     </DialogActions>
   </>
 );
+
+
 
 const MobileMoneySupportForm = ({ song, songId, canUseMobileMoney, onBack, onClose, onNotice }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
