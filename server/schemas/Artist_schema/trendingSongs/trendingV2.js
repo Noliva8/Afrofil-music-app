@@ -7,7 +7,7 @@ import { TRENDING_SONGS_CACHE_KEY } from "../Redis/keys.js";
 import { TRENDING_PAYLOAD_CACHE_TTL_SECONDS } from "../Redis/keys.js";
 import { rotateTrendingSongs } from "./fairTrendingRotation.js";
 
-
+import {admin, owner, superAdmin } from "../../../utils/owner.js";
 
 // const normalizeSong = (song) => ({
 //   ...song,
@@ -24,11 +24,11 @@ import { rotateTrendingSongs } from "./fairTrendingRotation.js";
 //   shareCount: song.shareCount || 0,
 //   artistDownloadCounts: Number(song.artist?.artistDownloadCounts || 0),
 // });
-
-
-
-
 export const trendingSongsV2 = async (_parent, { limit }) => {
+// owner();
+// admin();
+superAdmin();
+
   const requested = Math.max(1, Math.min(Number(limit) || 10, 50)); // guard
   const CACHE_LIMIT = 20; 
   const take = Math.max(requested, Math.min(CACHE_LIMIT, 50)); 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import IconButton from "@mui/material/IconButton";
@@ -17,7 +17,12 @@ import TextField from "@mui/material/TextField";
 import CreditCardRoundedIcon from "@mui/icons-material/CreditCardRounded";
 import PhoneAndroidRoundedIcon from "@mui/icons-material/PhoneAndroidRounded";
 import VolunteerActivismRoundedIcon from "@mui/icons-material/VolunteerActivismRounded";
-import { CREATE_ARTIST_SUPPORT, CREATE_ARTIST_SUPPORT_MOBILE_MONEY } from "../utils/mutations";
+import { closePaymentModal, useFlutterwave } from "flutterwave-react-v3";
+import {
+  CREATE_ARTIST_SUPPORT,
+  CREATE_ARTIST_SUPPORT_MOBILE_MONEY,
+  CONFIRM_ARTIST_SUPPORT_MOBILE_MONEY,
+} from "../utils/mutations";
 import UserAuth from "../utils/auth";
 import { useStripePromise } from "../utils/stripeLoader";
 import FeedbackModal from "./FeedbackModal.jsx";
@@ -187,14 +192,89 @@ const PaymentMethodChoice = ({ song, onChoose, onClose }) => (
     </DialogActions>
   </>
 );
+const MobileMoneyFlutterwaveLauncher = ({
+  paymentConfig,
+  supportId,
+  onClosePaymentFlow,
+  onCloseDialog,
+  onNotice,
+  onSuccess,
+}) => {
+  const [confirmArtistSupportMobileMoney] = useMutation(CONFIRM_ARTIST_SUPPORT_MOBILE_MONEY);
+  const handleFlutterPayment = useFlutterwave(paymentConfig);
+  const launchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!paymentConfig || launchedRef.current) {
+      return;
+    }
+
+    launchedRef.current = true;
+
+    handleFlutterPayment({
+      callback: async (response) => {
+        try {
+          const status = String(response?.status || "").trim().toLowerCase();
+          if (status && status !== "successful") {
+            throw new Error(response?.statusMessage || "Mobile Money payment was not completed.");
+          }
+
+          const flutterwaveTransactionId =
+            response?.transaction_id || response?.transactionId || response?.id;
+
+          if (!flutterwaveTransactionId) {
+            throw new Error("Flutterwave did not return a transaction id.");
+          }
+
+          const { data, errors } = await confirmArtistSupportMobileMoney({
+            variables: {
+              supportId,
+              flutterwaveTransactionId: String(flutterwaveTransactionId),
+            },
+          });
+
+          if (errors?.length) {
+            throw new Error(errors[0].message);
+          }
+
+          if (!data?.confirmArtistSupportMobileMoney) {
+            throw new Error("Could not confirm the Mobile Money support payment.");
+          }
+
+          onNotice({
+            severity: "success",
+            message: "Mobile Money payment completed. The artist has been credited and notified.",
+          });
+          onClosePaymentFlow?.();
+          onCloseDialog?.();
+          onSuccess?.();
+        } catch (error) {
+          onNotice({
+            severity: "error",
+            message: getPaymentErrorMessage(error),
+          });
+        } finally {
+          closePaymentModal();
+        }
+      },
+      onClose: () => {
+        launchedRef.current = false;
+        onClosePaymentFlow?.();
+      },
+    });
+  }, [confirmArtistSupportMobileMoney, handleFlutterPayment, onClosePaymentFlow, onNotice, onSuccess, paymentConfig, supportId]);
+
+  return null;
+};
 
 
 
-const MobileMoneySupportForm = ({ song, songId, canUseMobileMoney, onBack, onClose, onNotice }) => {
+const MobileMoneySupportForm = ({ song, songId, canUseMobileMoney, onBack, onClose, onNotice, onSuccess }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [amount, setAmount] = useState("500");
   const [customAmount, setCustomAmount] = useState("");
   const [isCustomAmount, setIsCustomAmount] = useState(false);
+  const [paymentFlow, setPaymentFlow] = useState(null);
   const [createArtistSupportMobileMoney, { loading }] = useMutation(CREATE_ARTIST_SUPPORT_MOBILE_MONEY);
 
   const handleSubmit = async (event) => {
@@ -236,21 +316,23 @@ const MobileMoneySupportForm = ({ song, songId, canUseMobileMoney, onBack, onClo
       }
 
       const paymentConfig = data?.createArtistSupportMobileMoney;
-      if (!paymentConfig?.tx_ref) {
-        throw new Error("Mobile Money setup failed before a transaction reference was returned.");
+      if (!paymentConfig?.tx_ref || !paymentConfig?.supportId) {
+        throw new Error("Mobile Money setup failed before Flutterwave was ready.");
       }
 
-      console.info("[artist-support-mobile-money] payment config ready", paymentConfig);
-      onNotice({
-        severity: "success",
-        message: "Mobile Money payment is ready. Payment prompt integration comes next.",
-      });
+      setPaymentFlow(paymentConfig);
     } catch (error) {
       onNotice({
         severity: "error",
         message: getPaymentErrorMessage(error),
       });
     }
+  };
+
+  const handleClose = () => {
+    setPaymentFlow(null);
+    closePaymentModal();
+    onClose?.();
   };
 
   return (
@@ -337,17 +419,38 @@ const MobileMoneySupportForm = ({ song, songId, canUseMobileMoney, onBack, onClo
         <Alert severity={canUseMobileMoney ? "info" : "warning"}>
           Only available for Rwandan numbers for now.
         </Alert>
+
+        {paymentFlow && (
+          <MobileMoneyFlutterwaveLauncher
+            paymentConfig={paymentFlow}
+            supportId={paymentFlow.supportId}
+            onClosePaymentFlow={() => setPaymentFlow(null)}
+            onCloseDialog={handleClose}
+            onNotice={onNotice}
+            onSuccess={onSuccess}
+          />
+        )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onBack} disabled={loading}>Back</Button>
-        <Button onClick={onClose} disabled={loading}>Cancel</Button>
+        <Button
+          onClick={() => {
+            setPaymentFlow(null);
+            onBack?.();
+          }}
+          disabled={loading}
+        >
+          Back
+        </Button>
+        <Button onClick={handleClose} disabled={loading}>
+          Cancel
+        </Button>
         <Button
           type="submit"
           variant="contained"
-          disabled={loading}
+          disabled={loading || Boolean(paymentFlow)}
           sx={{ bgcolor: "#fff", color: "#111", fontWeight: 700 }}
         >
-          {loading ? "Preparing..." : "Continue"}
+          {loading || paymentFlow ? "Preparing..." : "Continue"}
         </Button>
       </DialogActions>
     </form>
@@ -670,6 +773,7 @@ const ArtistSupportButton = ({ songId }) => {
             onBack={() => setSelectedPaymentMethod(null)}
             onClose={handleCloseAmount}
             onNotice={setNotice}
+            onSuccess={() => setSuccessOpen(true)}
           />
         )}
       </Dialog>

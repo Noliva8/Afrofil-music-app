@@ -55,7 +55,7 @@ const AdvertizerSchema = new Schema(
     // Roles & permissions
     role: {
       type: String,
-      enum: ['advertizer', 'admin'],
+      enum: ['advertizer', 'admin', 'owner'],
       default: 'advertizer',
       index: true
     },
@@ -100,12 +100,16 @@ AdvertizerSchema.virtual('isAdmin').get(function () {
   return this.role === 'admin';
 });
 
+AdvertizerSchema.virtual('isOwner').get(function () {
+  return this.role === 'owner';
+});
+
 AdvertizerSchema.methods.hasPermission = function (perm) {
   return this.isSuperAdmin || (Array.isArray(this.permissions) && this.permissions.includes(perm));
 };
 
 AdvertizerSchema.index(
-  { isSuperAdmin: 1 },
+  { role: 1, isSuperAdmin: 1 },
   { unique: true, partialFilterExpression: { isSuperAdmin: true } }
 );
 

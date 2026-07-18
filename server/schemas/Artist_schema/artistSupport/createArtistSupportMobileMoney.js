@@ -66,10 +66,16 @@ export const createArtistSupportMobileMoney = async (_parent, { songId, amount, 
     });
   }
 
-  const mobileMoneyClientId = process.env.FLUTTERWAVE_PUBLIC_KEY || process.env.MOBILEMONEY_CLIENT_ID;
+  const flutterwavePublicKey = process.env.FLUTTERWAVE_PUBLIC_KEY;
 
-  if (!mobileMoneyClientId) {
-    throw new GraphQLError('Mobile Money is not configured', {
+  if (!flutterwavePublicKey) {
+    throw new GraphQLError('Flutterwave public key is not configured', {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    });
+  }
+
+  if (!/^FLWPUBK(?:_TEST)?-[A-Za-z0-9-]+$/.test(String(flutterwavePublicKey))) {
+    throw new GraphQLError('Flutterwave public key is invalid', {
       extensions: { code: 'INTERNAL_SERVER_ERROR' },
     });
   }
@@ -139,7 +145,7 @@ export const createArtistSupportMobileMoney = async (_parent, { songId, amount, 
 
   return {
     supportId: support._id.toString(),
-    public_key: mobileMoneyClientId,
+    public_key: flutterwavePublicKey,
     tx_ref: txRef,
     amount: amountInRwf,
     currency: 'RWF',

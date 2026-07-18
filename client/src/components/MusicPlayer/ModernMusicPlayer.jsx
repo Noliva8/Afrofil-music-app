@@ -73,6 +73,7 @@ const CompactMusicPlayer = ({
   const theme = useTheme();
   const [shareSongMutation] = useMutation(SHARE_SONG);
   const isXs = useMediaQuery(theme.breakpoints.down('sm')); // < 600px
+  const isTiny = useMediaQuery('(max-width:480px)');
   const isSm = useMediaQuery(theme.breakpoints.between('sm', 'md')); // 600px - 900px
   const isMd = useMediaQuery(theme.breakpoints.between('md', 'lg')); // 900px - 1200px
   const isLgUp = useMediaQuery(theme.breakpoints.up('lg')); // ≥ 1200px
@@ -225,7 +226,7 @@ const effectiveRepeatMode =
       iconSize: 18,
       playIconSize: 20,
       showTimeLabels: false,
-      showShuffleRepeat: false,
+      showShuffleRepeat: true,
       showFavoritePlaylist: false,
       compactVolume: true,
       progressHeight: 3
@@ -290,6 +291,7 @@ const effectiveRepeatMode =
         px: { xs: 1.2, sm: 1.5, md: 2, lg: 2 },
         py: { xs: 0.2, sm: 0.2, md: 0.2, lg: 0.2 },
         height: config.height,
+        minWidth: 320,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -299,21 +301,28 @@ const effectiveRepeatMode =
       role="application"
       aria-label="Music player"
     >
+
+
       {/* TOP SECTION: Controls */}
+
       <Box sx={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        position: 'relative',
         flex: 1,
         gap: { xs: 0.75, sm: 1, md: 1.5 }
       }}>
+
+
         {/* Left: Album Art & Song Info */}
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
-          flex: '0 1 auto',
+          flex: 1,
           minWidth: 0,
-          width: { xs: 'auto', sm: '30%', md: '25%', lg: '22%' },
+          width: '100%',
+          maxWidth: { xs: 'clamp(96px, calc(50% - 92px), 220px)', sm: '30%', md: '25%', lg: '22%' },
           gap: { xs: 0.75, sm: 1 },
           cursor: onOpenFullScreen ? 'pointer' : 'default'
         }}
@@ -356,14 +365,12 @@ const effectiveRepeatMode =
 <Box sx={{ 
   minWidth: 0, 
   flex: 1,
+  width: 0,
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  overflow: 'hidden', 
-  maxWidth: {
-    xs: 'calc(100vw - 180px)', // Reserve space for controls on mobile
-    sm: 'none'
-  }
+  overflow: 'hidden',
+  maxWidth: '100%'
 }}>
   {/* Title with dynamic truncation */}
   <Tooltip title={displayTitle} disableHoverListener={(displayTitle || '').length < 25}>
@@ -373,6 +380,7 @@ const effectiveRepeatMode =
         fontWeight: 600,
         color: text,
         display: 'block',
+        width: '100%',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
@@ -399,11 +407,12 @@ const effectiveRepeatMode =
       sx={{
         color: textMuted,
         display: 'block',
+        width: '100%',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         fontSize: { 
-          xs: '0.65rem', // Even smaller on mobile
+          xs: '0.62rem',
           sm: '0.75rem', 
           md: '0.8rem' 
         },
@@ -425,9 +434,13 @@ const effectiveRepeatMode =
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
-          flex: 1,
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1,
+          flex: '0 0 auto',
           justifyContent: 'center',
-          minWidth: 0,
+          minWidth: 168,
           gap: config.controlsGap
         }}>
 
@@ -560,10 +573,14 @@ const effectiveRepeatMode =
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
-          flex: '0 1 auto',
+          flex: '0 0 auto',
+          marginLeft: 'auto',
           minWidth: 0,
-          width: { xs: 'auto', sm: '25%', md: '25%', lg: '28%' },
+          width: 'auto',
+          maxWidth: { sm: '25%', md: '25%', lg: '28%' },
           justifyContent: 'flex-end',
+          flexWrap: 'nowrap',
+          overflow: 'hidden',
           gap: { xs: 0.5, sm: 0.75 }
         }}>
           {onOpenFullScreen && (
@@ -587,20 +604,22 @@ const effectiveRepeatMode =
 
           <Tooltip title="Share song">
             <span>
-              <IconButton
-                size="small"
-                onClick={handleShare}
-                disabled={isAdPlaying || isAd || !getShareableSongId(currentSong)}
-                sx={{
-                  color: textMuted,
-                  p: 0.5,
-                  '&:hover': { color: accent },
-                  '&.Mui-disabled': { opacity: 0.3 },
-                  display: 'inline-flex',
-                }}
-              >
-                <Share sx={{ fontSize: config.iconSize }} />
-              </IconButton>
+              {!isTiny && (
+                <IconButton
+                  size="small"
+                  onClick={handleShare}
+                  disabled={isAdPlaying || isAd || !getShareableSongId(currentSong)}
+                  sx={{
+                    color: textMuted,
+                    p: 0.5,
+                    '&:hover': { color: accent },
+                    '&.Mui-disabled': { opacity: 0.3 },
+                    display: 'inline-flex',
+                  }}
+                >
+                  <Share sx={{ fontSize: config.iconSize }} />
+                </IconButton>
+              )}
             </span>
           </Tooltip>
 
@@ -680,49 +699,55 @@ const effectiveRepeatMode =
           )}
 
           {/* Volume Controls */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            width: config.compactVolume ? 80 : 120
-          }}>
-            <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
-              <IconButton 
-                onClick={onToggleMute} 
-                size="small" 
-                sx={{ 
-                  color: textMuted, 
-                  p: 0.5,
-                  '&:hover': { color: accent }
-                }}
-              >
-                {isMuted ? 
-                  <VolumeOff sx={{ fontSize: config.iconSize }} /> : 
-                  <VolumeUp sx={{ fontSize: config.iconSize }} />
-                }
-              </IconButton>
-            </Tooltip>
-            
-            {!config.compactVolume && (
-              <Slider
-                value={isMuted ? 0 : (volume || 0) * 100}
-                onChange={(_, v) => onVolumeChange((Array.isArray(v) ? v[0] : v) / 100)}
-                sx={{
-                  color: accent,
-                  ml: 0.5,
-                  '& .MuiSlider-thumb': {
-                    width: { xs: 8, sm: 10 },
-                    height: { xs: 8, sm: 10 },
-                    '&:hover': { boxShadow: `0 0 0 4px ${accent}33` }
-                  },
-                  '& .MuiSlider-rail': { opacity: 0.3, height: 3 },
-                  '& .MuiSlider-track': { height: 3 },
-                }}
-                size="small"
-              />
-            )}
-          </Box>
+          {!isTiny && (
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              width: config.compactVolume ? 80 : 120
+            }}>
+              <Tooltip title={isMuted ? 'Unmute (M)' : 'Mute (M)'}>
+                <IconButton 
+                  onClick={onToggleMute} 
+                  size="small" 
+                  sx={{ 
+                    color: textMuted, 
+                    p: 0.5,
+                    '&:hover': { color: accent }
+                  }}
+                >
+                  {isMuted ? 
+                    <VolumeOff sx={{ fontSize: config.iconSize }} /> : 
+                    <VolumeUp sx={{ fontSize: config.iconSize }} />
+                  }
+                </IconButton>
+              </Tooltip>
+              
+              {!config.compactVolume && (
+                <Slider
+                  value={isMuted ? 0 : (volume || 0) * 100}
+                  onChange={(_, v) => onVolumeChange((Array.isArray(v) ? v[0] : v) / 100)}
+                  sx={{
+                    color: accent,
+                    ml: 0.5,
+                    '& .MuiSlider-thumb': {
+                      width: { xs: 8, sm: 10 },
+                      height: { xs: 8, sm: 10 },
+                      '&:hover': { boxShadow: `0 0 0 4px ${accent}33` }
+                    },
+                    '& .MuiSlider-rail': { opacity: 0.3, height: 3 },
+                    '& .MuiSlider-track': { height: 3 },
+                  }}
+                  size="small"
+                />
+              )}
+            </Box>
+          )}
         </Box>
+
+        
       </Box>
+
+
 
       {/* BOTTOM SECTION: Progress Bar */}
       <Box sx={{
@@ -813,6 +838,10 @@ const effectiveRepeatMode =
           )}
         </Box>
       </Box>
+
+
+      
+
     </Box>
   );
 };

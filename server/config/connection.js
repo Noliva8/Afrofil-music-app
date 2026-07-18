@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+export const dbConnection = mongoose.connection;
+
 const connectDB = async () => {
   try {
     // Connect to MongoDB without deprecated options

@@ -9,7 +9,7 @@ export const ROLES = {
 
 export const SUB_ROLES = {
   USER: ['regular', 'premium'],
-  ADVERTISER: ['advertiser', 'admin']
+  ADVERTISER: ['advertiser', 'admin', 'owner']
 };
 
 export const USER_TYPES = {

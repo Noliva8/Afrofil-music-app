@@ -486,7 +486,18 @@ const formatStatNumber = (value, fallback = "0") => {
         </IconButton>
 
         <Box sx={{ textAlign: 'center', mx: 2 }}>
-          <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 600, fontSize: '0.9rem' }}>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              color: 'white',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              maxWidth: { xs: '52vw', sm: '60vw' },
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
             {displayTitle}
           </Typography>
           
@@ -541,13 +552,13 @@ const formatStatNumber = (value, fallback = "0") => {
       xs: `"art"
            "info"
            "actions"
-           "slider"
            "controls"
+         "slider"
            "hint"`,
       md: `"art info"
            "actions actions"
-           "slider slider"
            "controls controls"
+         "slider slider"
            "hint hint"`
     },
     gridTemplateColumns: { 
@@ -613,6 +624,7 @@ const formatStatNumber = (value, fallback = "0") => {
     sx={{
       display: 'flex',
       flexDirection: 'column',
+      minWidth: 0,
       gap: { xs: 1, md: 3 },
       gridArea: 'info',
     }}
@@ -631,6 +643,12 @@ const formatStatNumber = (value, fallback = "0") => {
           background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          wordBreak: 'break-word',
+          display: '-webkit-box',
+          WebkitLineClamp: { xs: 2, md: 2 },
+          WebkitBoxOrient: 'vertical',
           mb: 0.5,
         }}
       >
@@ -764,7 +782,10 @@ const formatStatNumber = (value, fallback = "0") => {
     gridArea: 'controls',
     display: 'flex', 
     alignItems: 'center',
+    justifySelf: 'center',
     justifyContent: 'center',
+    width: '100%',
+    maxWidth: { xs: 440, md: 760 },
     gap: { xs: 1.5, sm: 2, md: 4 },
     mt: { xs: 0.75, md: 2 },
   }}>
@@ -840,6 +861,7 @@ const formatStatNumber = (value, fallback = "0") => {
     </Typography>
     <ExpandMore sx={{ color: alpha('#fff', 0.6), fontSize: '1.5rem' }} />
   </Box>
+  
 </Box>
 
 

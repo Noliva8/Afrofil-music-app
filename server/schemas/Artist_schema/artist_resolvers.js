@@ -99,6 +99,7 @@ import { respondToBooking } from './bookingArtist/respondToBooking.js';
 import { sendMessage } from './MessagingSystem/Mutations/sendMessage.js';
 import { createArtistSupport } from './artistSupport/createArtistSupport.js';
 import { createArtistSupportMobileMoney } from './artistSupport/createArtistSupportMobileMoney.js';
+import { confirmArtistSupportMobileMoney } from './artistSupport/confirmArtistSupportMobileMoney.js';
 import jwt from 'jsonwebtoken';
 
 import { newSongUpload } from './newSongUpload/newSongUpload.js';
@@ -3686,6 +3687,7 @@ nextSongAfterComplete: async (_p, { input }) => {
 
     createArtistSupport,
     createArtistSupportMobileMoney,
+    confirmArtistSupportMobileMoney,
 
     createBookArtist,
     respondToBooking,

@@ -7,6 +7,7 @@ scalar JSON
 enum AdvertizerRole {
   advertizer
   admin
+  owner
 }
 
 enum AdType {

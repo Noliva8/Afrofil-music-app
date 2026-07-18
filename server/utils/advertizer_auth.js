@@ -145,11 +145,43 @@ export const signAdminToken = ({
   return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
 };
 
+
+export const signOwnerToken = ({
+  businessEmail,
+  fullName,
+  companyName,
+  role,
+  _id,
+  isConfirmed,
+  isPhoneConfirmed,
+  phoneNumber,
+  isSuperAdmin,
+  permissions
+}) => {
+
+  const payload = {
+    _id,
+    businessEmail,
+    fullName,
+    companyName,
+    role: 'owner',
+    isConfirmed,
+    isPhoneConfirmed,
+    phoneNumber,
+    isSuperAdmin: !!isSuperAdmin,
+    permissions: Array.isArray(permissions) ? permissions : []
+  };
+
+  return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
+};
+
 // decide whether it is admin or advertiser
 // =========================================
 
 export function generateToken(userData) {
-            if (userData.role === 'admin') {
+            if (userData.role === 'owner') {
+                return signOwnerToken(userData);
+            } else if (userData.role === 'admin') {
                 return signAdminToken(userData);
             } else {
                 return signAdvertizerToken(userData);

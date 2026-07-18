@@ -794,6 +794,22 @@ export const CREATE_ARTIST_SUPPORT_MOBILE_MONEY = gql`
   }
 `
 
+export const CONFIRM_ARTIST_SUPPORT_MOBILE_MONEY = gql`
+  mutation ConfirmArtistSupportMobileMoney($supportId: ID!, $flutterwaveTransactionId: String!) {
+    confirmArtistSupportMobileMoney(
+      supportId: $supportId
+      flutterwaveTransactionId: $flutterwaveTransactionId
+    ) {
+      supportId
+      status
+      artistAmount
+      platformFee
+      paidAt
+      flutterwaveTransactionId
+    }
+  }
+`
+
 
 
 export const SEND_BOOKING_REQUEST = gql`

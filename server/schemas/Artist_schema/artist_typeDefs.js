@@ -145,6 +145,15 @@ type ArtistSupportMobileMoneyPayload {
   customizations: FlutterwaveCustomizationPayload!
 }
 
+type ArtistSupportMobileMoneyConfirmationPayload {
+  supportId: ID!
+  status: String!
+  artistAmount: Int!
+  platformFee: Int!
+  paidAt: Date
+  flutterwaveTransactionId: String!
+}
+
 type ArtistSupportRevenue {
   totalArtistAmount: Int!
   paidSupportCount: Int!
@@ -991,6 +1000,11 @@ createArtistSupportMobileMoney(
  amount: Float!
  phoneNumber: String!
 ): ArtistSupportMobileMoneyPayload!
+
+confirmArtistSupportMobileMoney(
+ supportId: ID!
+ flutterwaveTransactionId: String!
+): ArtistSupportMobileMoneyConfirmationPayload!
 
 toggleLikeSong(songId: ID!): Song
 
