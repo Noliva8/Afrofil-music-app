@@ -44,6 +44,22 @@ const getSongTimestamp = (song) => {
   return Number.isFinite(ts) ? ts : 0;
 };
 
+const applyRaceDisplayStats = (songs, rowCode) => {
+  if (rowCode !== "songsCompetingThisWeek") return songs;
+
+  return songs.map((song) => ({
+    ...song,
+    lifetimePlayCount: song.playCount,
+    lifetimeLikesCount: song.likesCount,
+    lifetimeShareCount: song.shareCount,
+    plays: Number(song.weeklyPlayCount || 0),
+    playsLabel: "plays this week",
+    playCount: Number(song.weeklyPlayCount || 0),
+    likesCount: Number(song.weeklyLikeCount || 0),
+    shareCount: Number(song.weeklyShareCount || 0),
+  }));
+};
+
 // 1) Horizontal rail
 export function SongRow({
   songs = [],
@@ -226,13 +242,10 @@ export function SongRowContainer({
   songsWithArtwork = [], 
   onCardClick,
   rowCode,
+  emptyMessage = "No songs available",
+  emptyDescription = "",
 }) {
   const client = useApolloClient();
-  const theme = useTheme();
-
-
-
-
 
   const sectionRef = useRef(null);
   const railRef = useRef(null);
@@ -246,8 +259,8 @@ export function SongRowContainer({
   // ✅ Base songs: trust parent (already 10 + presigned + processed)
   const baseSongs = useMemo(() => {
     const items = Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
-    return processSongs(items);
-  }, [songsWithArtwork]);
+    return applyRaceDisplayStats(processSongs(items), rowCode);
+  }, [songsWithArtwork, rowCode]);
 
   // ✅ Base IDs for trimming duplicates
   const baseIdSet = useMemo(() => {
@@ -273,7 +286,7 @@ export function SongRowContainer({
   const extraSongsRaw = useMemo(() => {
     if (!showAll || !rowConfig) return [];
 
-    const all = processSongs(compactData?.[rowConfig.dataKey] ?? [])
+    const all = applyRaceDisplayStats(processSongs(compactData?.[rowConfig.dataKey] ?? []), rowCode)
       .filter((song) => song.audioUrl || song.streamAudioFileUrl || song.audioFileUrl)
       .sort((a, b) => getSongTimestamp(b) - getSongTimestamp(a))
       .slice(0, COMPACT_LIMIT);
@@ -285,7 +298,7 @@ export function SongRowContainer({
 
     const need = Math.max(0, COMPACT_LIMIT - baseSongs.length);
     return extras.slice(0, need);
-  }, [compactData, showAll, baseIdSet, baseSongs.length, rowConfig]);
+  }, [compactData, showAll, baseIdSet, baseSongs.length, rowConfig, rowCode]);
 
   // ✅ Presign ONLY the extra songs
   const { songsWithArtwork: extraPresigned } = useSongsWithPresignedUrls(extraSongsRaw);
@@ -417,41 +430,82 @@ export function SongRowContainer({
           </Box>
         </Box>
 
-        <IconButton
-          onClick={toggleShowAllNoJump}
-          sx={{
-            color: "#6FFFD2",
-            "&:hover": { backgroundColor: "rgba(111, 255, 210, 0.1)" },
-          }}
-        >
-          <Typography variant="body2" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
-            {showAll ? "Show Less" : "Show All"}
-          </Typography>
-        </IconButton>
+        {baseSongs.length > 0 && (
+          <IconButton
+            onClick={toggleShowAllNoJump}
+            sx={{
+              color: "#6FFFD2",
+              "&:hover": { backgroundColor: "rgba(111, 255, 210, 0.1)" },
+            }}
+          >
+            <Typography variant="body2" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
+              {showAll ? "Show Less" : "Show All"}
+            </Typography>
+          </IconButton>
+        )}
       </Box>
 
-      {/* Rail (base 10) */}
-      <Collapse in={!showAll} timeout={220} unmountOnExit>
-        <SongRow
-          songs={baseSongs}
-          railRef={railRef}
-          currentTrackId={currentTrack?.id}
-          isPlaying={isPlaying}
-          onPlayPause={onPlayPause}
-          onCardClick={onCardClick}
-        />
-      </Collapse>
+      {baseSongs.length === 0 ? (
+        <Box
+          sx={{
+            border: "1px solid rgba(111, 255, 210, 0.18)",
+            background: "rgba(255,255,255,0.04)",
+            borderRadius: 2,
+            px: { xs: 2, sm: 3 },
+            py: { xs: 3, sm: 3.5 },
+            mx: { xs: 1, sm: 2 },
+          }}
+        >
+          <Typography
+            variant="subtitle1"
+            sx={{
+              color: "#fff",
+              fontWeight: 800,
+              fontSize: { xs: "1rem", sm: "1.1rem" },
+            }}
+          >
+            {emptyMessage}
+          </Typography>
 
-      {/* Grid (base 10 + presigned extras up to 20) */}
-      <Collapse in={showAll} timeout={220} unmountOnExit>
-        <SongRowCompact
-          songs={mergedSongs}
-          currentTrackId={currentTrack?.id}
-          isPlaying={isPlaying}
-          onPlayPause={onPlayPause}
-          onCardClick={onCardClick}
-        />
-      </Collapse>
+          {!!emptyDescription && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: "rgba(255,255,255,0.62)",
+                mt: 0.75,
+                maxWidth: 620,
+              }}
+            >
+              {emptyDescription}
+            </Typography>
+          )}
+        </Box>
+      ) : (
+        <>
+          {/* Rail (base 10) */}
+          <Collapse in={!showAll} timeout={220} unmountOnExit>
+            <SongRow
+              songs={baseSongs}
+              railRef={railRef}
+              currentTrackId={currentTrack?.id}
+              isPlaying={isPlaying}
+              onPlayPause={onPlayPause}
+              onCardClick={onCardClick}
+            />
+          </Collapse>
+
+          {/* Grid (base 10 + presigned extras up to 20) */}
+          <Collapse in={showAll} timeout={220} unmountOnExit>
+            <SongRowCompact
+              songs={mergedSongs}
+              currentTrackId={currentTrack?.id}
+              isPlaying={isPlaying}
+              onPlayPause={onPlayPause}
+              onCardClick={onCardClick}
+            />
+          </Collapse>
+        </>
+      )}
     </Box>
   );
 }

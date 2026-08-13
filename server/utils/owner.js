@@ -13,6 +13,7 @@ const PERMISSIONS = {
   EDIT_USERS: 'edit_users',
   DELETE_USERS: 'delete_users',
   BAN_USERS: 'ban_users',
+  
   // Advertiser management
   VIEW_ADVERTISERS: 'view_advertisers',
   APPROVE_ADVERTISERS: 'approve_advertisers',
@@ -28,6 +29,10 @@ const PERMISSIONS = {
   MANAGE_ADMINS: 'manage_admins',
   ASSIGN_PERMISSIONS: 'assign_permissions'
 };
+
+
+
+
 
 import dotenv from 'dotenv';
 import { dbConnection } from '../config/connection.js';

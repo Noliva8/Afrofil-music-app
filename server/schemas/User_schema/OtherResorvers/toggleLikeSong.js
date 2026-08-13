@@ -7,9 +7,64 @@ import { LikedSongs } from '../../../models/User/user_index.js';
 import { getRedis } from '../../../utils/AdEngine/redis/redisClient.js';
 import { userLikesKey, songKey } from '../../Artist_schema/Redis/keys.js';
 import {addSongRedis, getSongRedis} from "../../Artist_schema/Redis/addSongRedis.js"
+import { updateSongRedis } from '../../Artist_schema/Redis/songCreateRedis.js';
 import { likesSetExpiration, songHashExpiration } from '../../Artist_schema/Redis/redisExpiration.js';
 import { trendIndexZSet, TRENDING_WEIGHTS } from '../../Artist_schema/Redis/keys.js';
 
+const getSongOfTheWeekStartDate = (date = new Date()) => {
+  const weekStartDate = new Date(date);
+  const daysSinceSaturday = (weekStartDate.getDay() + 1) % 7;
+  weekStartDate.setDate(weekStartDate.getDate() - daysSinceSaturday);
+  weekStartDate.setHours(0, 0, 0, 0);
+  return weekStartDate;
+};
+
+const getSongOfTheWeekEndDate = (weekStartDate) => {
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  weekEndDate.setHours(23, 59, 59, 999);
+  return weekEndDate;
+};
+
+const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
+  if (!songWeekStartDate) return false;
+  return new Date(songWeekStartDate).getTime() === currentWeekStartDate.getTime();
+};
+
+const resetSongOfTheWeekCountersIfNeeded = async (redis, weekStartDate, weekEndDate) => {
+  const resetKey = `song-of-the-week:reset:${weekStartDate.toISOString().slice(0, 10)}`;
+  const acquired = await redis.set(resetKey, '1', {
+    EX: 8 * 24 * 60 * 60,
+    NX: true,
+  });
+
+  if (!acquired) return;
+
+  try {
+    await Song.updateMany(
+      {
+        $or: [
+          { weekStartDate: { $exists: false } },
+          { weekStartDate: null },
+          { weekStartDate: { $ne: weekStartDate } },
+        ],
+      },
+      {
+        $set: {
+          weekStartDate,
+          weekEndDate,
+          weeklyPlayCount: 0,
+          weeklyLikeCount: 0,
+          weeklyShareCount: 0,
+          weeklyDownloadCount: 0,
+        },
+      }
+    );
+  } catch (error) {
+    await redis.del(resetKey).catch(() => {});
+    throw error;
+  }
+};
 
 export const toggleLikeSong = async (_, { songId }, context) => {
 
@@ -30,6 +85,13 @@ export const toggleLikeSong = async (_, { songId }, context) => {
 
   try {
     const redis = await getRedis();
+    const weekStartDate = getSongOfTheWeekStartDate();
+    const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
+    await resetSongOfTheWeekCountersIfNeeded(redis, weekStartDate, weekEndDate);
+
+    const existingSong = await Song.findById(songObjectId).select('weekStartDate').lean();
+    if (!existingSong) throw new Error('Song not found');
+    const isCurrentWeek = isSameSongOfTheWeekWindow(existingSong.weekStartDate, weekStartDate);
 
     // 1. MongoDB operation to toggle like AND update trending score
     const updatedSong = await Song.findOneAndUpdate(
@@ -72,7 +134,31 @@ export const toggleLikeSong = async (_, { songId }, context) => {
                 { $add: [{ $ifNull: ["$trendingScore", 0] }, TRENDING_WEIGHTS.LIKE_WEIGHT] }, // Like: add weight
                 { $subtract: [{ $ifNull: ["$trendingScore", 0] }, TRENDING_WEIGHTS.LIKE_WEIGHT] } // Unlike: subtract weight
               ]
-            }
+            },
+            weekStartDate,
+            weekEndDate,
+            weeklyLikeCount: {
+              $cond: [
+                isCurrentWeek,
+                {
+                  $max: [
+                    0,
+                    {
+                      $add: [
+                        { $ifNull: ["$weeklyLikeCount", 0] },
+                        { $cond: ["$likedByMe", 1, -1] }
+                      ]
+                    }
+                  ]
+                },
+                { $cond: ["$likedByMe", 1, 0] }
+              ]
+            },
+            ...(!isCurrentWeek ? {
+              weeklyPlayCount: 0,
+              weeklyShareCount: 0,
+              weeklyDownloadCount: 0,
+            } : {})
           }
         }
       ],
@@ -94,10 +180,25 @@ export const toggleLikeSong = async (_, { songId }, context) => {
         ? redis.sAdd(redisKey, songId)
         : redis.sRem(redisKey, songId),
       
-      // Update song cache likes count AND trending score
-      redis.hSet(redisSongKey, {
-        'likesCount': updatedSong.likesCount,
-        'trendingScore': updatedSong.trendingScore
+      // Update song cache likes count, trending score, and weekly counters.
+      updateSongRedis(songId, {
+        likesCount: updatedSong.likesCount,
+        trendingScore: updatedSong.trendingScore,
+        weekStartDate: updatedSong.weekStartDate,
+        weekEndDate: updatedSong.weekEndDate,
+        weeklyPlayCount: updatedSong.weeklyPlayCount,
+        weeklyLikeCount: updatedSong.weeklyLikeCount,
+        weeklyShareCount: updatedSong.weeklyShareCount,
+        weeklyDownloadCount: updatedSong.weeklyDownloadCount,
+        hasWonSongOfTheWeek: updatedSong.hasWonSongOfTheWeek,
+        lastSongOfTheWeekWonAt: updatedSong.lastSongOfTheWeekWonAt,
+        songOfTheWeekWinnerWeekStartDate: updatedSong.songOfTheWeekWinnerWeekStartDate,
+      }).catch(async (error) => {
+        if (error?.message?.includes('song not found')) {
+          await addSongRedis(songId, redis);
+          return;
+        }
+        throw error;
       }),
       redis.expire(redisSongKey, songHashExpiration),
       redis.expire(redisKey, likesSetExpiration)

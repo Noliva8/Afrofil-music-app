@@ -66,7 +66,6 @@ import { trendingSongsV2 } from './trendingSongs/trendingV2.js';
 
 import { newUploads } from './newUploads/newUploads.js';
 import { suggestedSongs as fetchSuggestedSongs } from './suggestedSongs/suggestedSongs.js';
-import { songOfMonth } from './songOfMonth/songOfMonth.js';
 // import { similarSongs } from './similarSongs/similarSongs.js';
 
 import { similarSongs } from './similarSongs/similasongResolver.js'
@@ -117,6 +116,84 @@ const CATALOGUE_SONG_COUNT_CACHE_KEY = 'catalogue:song-count';
 const CATALOGUE_SONG_COUNT_CACHE_TTL_SECONDS = 20 * 60;
 const RADIO_STATION_COVER_BUCKET =
   process.env.BUCKET_NAME_COVER_IMAGE_SONG || 'afrofeel-cover-images-for-songs';
+
+const getSongOfTheWeekStartDate = (date = new Date()) => {
+  const weekStartDate = new Date(date);
+  const daysSinceSaturday = (weekStartDate.getDay() + 1) % 7;
+  weekStartDate.setDate(weekStartDate.getDate() - daysSinceSaturday);
+  weekStartDate.setHours(0, 0, 0, 0);
+  return weekStartDate;
+};
+
+const getSongOfTheWeekEndDate = (weekStartDate) => {
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  weekEndDate.setHours(23, 59, 59, 999);
+  return weekEndDate;
+};
+
+const getCompletedSongOfTheWeekWindow = (date = new Date()) => {
+  const currentWeekStartDate = getSongOfTheWeekStartDate(date);
+  const weekStartDate = new Date(currentWeekStartDate);
+  weekStartDate.setDate(weekStartDate.getDate() - 7);
+  const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
+  return { weekStartDate, weekEndDate };
+};
+
+const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
+  if (!songWeekStartDate) return false;
+  return new Date(songWeekStartDate).getTime() === currentWeekStartDate.getTime();
+};
+
+const SONG_OF_THE_WEEK_LOCKOUT_MS = 28 * 24 * 60 * 60 * 1000;
+
+const resetExpiredSongOfTheWeekLockouts = async (date = new Date()) => {
+  const cutoff = new Date(date.getTime() - SONG_OF_THE_WEEK_LOCKOUT_MS);
+  await Song.updateMany(
+    {
+      hasWonSongOfTheWeek: true,
+      lastSongOfTheWeekWonAt: { $lte: cutoff },
+    },
+    {
+      $set: { hasWonSongOfTheWeek: false },
+    }
+  );
+};
+
+const resetSongOfTheWeekCountersIfNeeded = async (redisClient, weekStartDate, weekEndDate) => {
+  const resetKey = `song-of-the-week:reset:${weekStartDate.toISOString().slice(0, 10)}`;
+  const acquired = await redisClient.set(resetKey, '1', {
+    EX: 8 * 24 * 60 * 60,
+    NX: true,
+  });
+
+  if (!acquired) return;
+
+  try {
+    await Song.updateMany(
+      {
+        $or: [
+          { weekStartDate: { $exists: false } },
+          { weekStartDate: null },
+          { weekStartDate: { $ne: weekStartDate } },
+        ],
+      },
+      {
+        $set: {
+          weekStartDate,
+          weekEndDate,
+          weeklyPlayCount: 0,
+          weeklyLikeCount: 0,
+          weeklyShareCount: 0,
+          weeklyDownloadCount: 0,
+        },
+      }
+    );
+  } catch (error) {
+    await redisClient.del(resetKey).catch(() => {});
+    throw error;
+  }
+};
 
 const businessImagePresignedCacheKey = ({ bucket, key, region }) =>
   `business:image:presigned:${bucket}:${region || 'us-east-2'}:${key}`;
@@ -410,6 +487,16 @@ export const shapeForRedis = (songDoc) => ({
   // ✅ counters you’ll use for trending
   playCount: Number(songDoc.playCount || 0),
   downloadCount: Number(songDoc.downloadCount || 0),
+  shareCount: Number(songDoc.shareCount || 0),
+  weeklyPlayCount: Number(songDoc.weeklyPlayCount || 0),
+  weeklyLikeCount: Number(songDoc.weeklyLikeCount || 0),
+  weeklyShareCount: Number(songDoc.weeklyShareCount || 0),
+  weeklyDownloadCount: Number(songDoc.weeklyDownloadCount || 0),
+  weekStartDate: songDoc.weekStartDate ? new Date(songDoc.weekStartDate) : null,
+  weekEndDate: songDoc.weekEndDate ? new Date(songDoc.weekEndDate) : null,
+  hasWonSongOfTheWeek: Boolean(songDoc.hasWonSongOfTheWeek),
+  lastSongOfTheWeekWonAt: songDoc.lastSongOfTheWeekWonAt ? new Date(songDoc.lastSongOfTheWeekWonAt) : null,
+  songOfTheWeekWinnerWeekStartDate: songDoc.songOfTheWeekWinnerWeekStartDate ? new Date(songDoc.songOfTheWeekWinnerWeekStartDate) : null,
   likesCount: Number(
     // prefer an explicit likesCount if you add it on Mongo,
     // otherwise derive from likedByUsers length when present
@@ -589,6 +676,147 @@ const resolvers = {
   Upload: GraphQLUpload,
 Query: {
 
+songOfTheWeek: async () => {
+  const now = new Date();
+  const { weekStartDate, weekEndDate } = getCompletedSongOfTheWeekWindow(now);
+  await resetExpiredSongOfTheWeekLockouts(now);
+
+  const existingWinner = await Song.findOne({
+    visibility: "public",
+    hasWonSongOfTheWeek: true,
+    songOfTheWeekWinnerWeekStartDate: weekStartDate,
+  })
+    .populate("artist", "artistAka profileImage country artistDownloadCounts followers")
+    .populate("album", "title releaseDate albumCoverImage");
+
+  if (existingWinner) return existingWinner;
+
+  const baseMatch = {
+    visibility: "public",
+    weekStartDate,
+    weekEndDate,
+    hasWonSongOfTheWeek: { $ne: true },
+    $or: [
+      { weeklyPlayCount: { $gt: 0 } },
+      { weeklyShareCount: { $gt: 0 } },
+      { weeklyLikeCount: { $gt: 0 } },
+    ],
+  };
+  const scoreStage = {
+    $addFields: {
+      songOfTheWeekScore: {
+        $add: [
+          { $ifNull: ["$weeklyPlayCount", 0] },
+          { $ifNull: ["$weeklyShareCount", 0] },
+          { $ifNull: ["$weeklyLikeCount", 0] },
+        ],
+      },
+    },
+  };
+
+  const [topScoreResult] = await Song.aggregate([
+    { $match: baseMatch },
+    scoreStage,
+    { $sort: { songOfTheWeekScore: -1 } },
+    { $limit: 1 },
+    { $project: { songOfTheWeekScore: 1 } },
+  ]);
+
+  const topScore = Number(topScoreResult?.songOfTheWeekScore || 0);
+  if (topScore <= 0) return null;
+
+  const [song] = await Song.aggregate([
+    { $match: baseMatch },
+    scoreStage,
+    {
+      $match: {
+        songOfTheWeekScore: topScore,
+      },
+    },
+    { $sample: { size: 1 } },
+  ]);
+
+  if (!song) return null;
+
+  const winner = await Song.findByIdAndUpdate(
+    song._id,
+    {
+      $set: {
+        hasWonSongOfTheWeek: true,
+        lastSongOfTheWeekWonAt: now,
+        songOfTheWeekWinnerWeekStartDate: weekStartDate,
+      },
+    },
+    { new: true }
+  )
+    .populate("artist", "artistAka profileImage country artistDownloadCounts followers")
+    .populate("album", "title releaseDate albumCoverImage");
+
+  if (!winner) return null;
+
+  try {
+    await updateSongRedis(winner._id, {
+      hasWonSongOfTheWeek: winner.hasWonSongOfTheWeek,
+      lastSongOfTheWeekWonAt: winner.lastSongOfTheWeekWonAt,
+      songOfTheWeekWinnerWeekStartDate: winner.songOfTheWeekWinnerWeekStartDate,
+    });
+  } catch (error) {
+    console.warn('[songOfTheWeek] Redis winner sync skipped:', error?.message || error);
+  }
+
+  return winner;
+},
+
+songOfMonth: async () => resolvers.Query.songOfTheWeek(),
+
+songsCompetingThisWeek: async (_parent, { limit = 10 }) => {
+  const weekStartDate = getSongOfTheWeekStartDate();
+  const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
+  const safeLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 20) : 10;
+
+  const songs = await Song.aggregate([
+    {
+      $match: {
+        visibility: "public",
+        weekStartDate,
+        weekEndDate,
+        hasWonSongOfTheWeek: { $ne: true },
+        $or: [
+          { weeklyPlayCount: { $gt: 0 } },
+          { weeklyShareCount: { $gt: 0 } },
+          { weeklyLikeCount: { $gt: 0 } },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        songOfTheWeekScore: {
+          $add: [
+            { $ifNull: ["$weeklyPlayCount", 0] },
+            { $ifNull: ["$weeklyShareCount", 0] },
+            { $ifNull: ["$weeklyLikeCount", 0] },
+          ],
+        },
+      },
+    },
+    {
+      $sort: {
+        songOfTheWeekScore: -1,
+        weeklyPlayCount: -1,
+        weeklyShareCount: -1,
+        weeklyLikeCount: -1,
+        trendingScore: -1,
+        createdAt: -1,
+      },
+    },
+    { $limit: safeLimit },
+  ]);
+
+  return Song.populate(songs, [
+    { path: "artist", select: "artistAka profileImage country artistDownloadCounts followers" },
+    { path: "album", select: "title releaseDate albumCoverImage" },
+  ]);
+},
 
 // artistProfile: async (parent, args, context) => {
 //   try {
@@ -886,7 +1114,6 @@ albumOfArtist: async (parent, args, context) => {
   suggestedSongs: async (_parent, { limit }) => {
     return fetchSuggestedSongs({ limit });
   },
-songOfMonth,
 radioStations: async (_parent, { type, visibility = "public", limit }) => {
   const query = {};
   if (visibility) query.visibility = visibility;
@@ -3332,6 +3559,10 @@ nextSongAfterComplete: async (_p, { input }) => {
 
   handlePlayCount: async (_parent, { songId }, context) => {
   // Load song first (we need artist id and to fail fast if missing)
+  // Song of the Week runs Saturday through Friday.
+  const weekStartDate = getSongOfTheWeekStartDate();
+  const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
+
   const song = await Song.findById(songId).lean();
   if (!song) throw new Error('Song not found');
 
@@ -3343,6 +3574,11 @@ nextSongAfterComplete: async (_p, { input }) => {
 
   const viewerId = getViewerId(context);
   const r = await getRedis();
+  try {
+    await resetSongOfTheWeekCountersIfNeeded(r, weekStartDate, weekEndDate);
+  } catch (resetError) {
+    console.warn('[SongOfTheWeek] weekly reset skipped:', resetError?.message || resetError);
+  }
 
   const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
   const onCooldown = await r.exists(cooldownKey);
@@ -3357,16 +3593,32 @@ nextSongAfterComplete: async (_p, { input }) => {
       { new: true, runValidators: true }
     );
   } else {
+    const isCurrentWeek = isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate);
+    const playUpdate = {
+      $inc: {
+        playCount: 1,
+        trendingScore: TRENDING_WEIGHTS.PLAY_WEIGHT,
+        weeklyPlayCount: 1,
+      },
+      $set: {
+        lastPlayedAt: new Date(),
+        weekStartDate,
+        weekEndDate,
+      },
+    };
+
+    if (!isCurrentWeek) {
+      playUpdate.$set.weeklyPlayCount = 1;
+      playUpdate.$set.weeklyLikeCount = 0;
+      playUpdate.$set.weeklyShareCount = 0;
+      playUpdate.$set.weeklyDownloadCount = 0;
+      delete playUpdate.$inc.weeklyPlayCount;
+    }
+
     // Count this as a play (Mongo = source of truth)
     updatedSong = await Song.findByIdAndUpdate(
       songId,
-      { 
-        $inc: { 
-          playCount: 1, 
-          trendingScore: TRENDING_WEIGHTS.PLAY_WEIGHT 
-        }, 
-        $set: { lastPlayedAt: new Date() } 
-      },
+      playUpdate,
       { new: true, runValidators: true }
     );
     if (!updatedSong) throw new Error('Song not found');
@@ -3410,8 +3662,20 @@ nextSongAfterComplete: async (_p, { input }) => {
     // 1. Handle song cache operations
     if (songExists) {
       if (!onCooldown) {
-        // Update playCount in cache
-        await r.hIncrBy(songCacheKey, 'playCount', 1);
+        await updateSongRedis(songId, {
+          playCount: updatedSong.playCount,
+          trendingScore: updatedSong.trendingScore,
+          weekStartDate: updatedSong.weekStartDate,
+          weekEndDate: updatedSong.weekEndDate,
+          weeklyPlayCount: updatedSong.weeklyPlayCount,
+          weeklyLikeCount: updatedSong.weeklyLikeCount,
+          weeklyShareCount: updatedSong.weeklyShareCount,
+          weeklyDownloadCount: updatedSong.weeklyDownloadCount,
+          hasWonSongOfTheWeek: updatedSong.hasWonSongOfTheWeek,
+          lastSongOfTheWeekWonAt: updatedSong.lastSongOfTheWeekWonAt,
+          songOfTheWeekWinnerWeekStartDate: updatedSong.songOfTheWeekWinnerWeekStartDate,
+          lastPlayedAt: updatedSong.lastPlayedAt,
+        });
       }
       // Always refresh TTL
       await r.expire(songCacheKey, songHashExpiration);
@@ -3543,25 +3807,64 @@ nextSongAfterComplete: async (_p, { input }) => {
     handleArtistDownloadCounts,
 
     shareSong: async (_parent, { songId }) => {
+      const weekStartDate = getSongOfTheWeekStartDate();
+      const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
       const song = await Song.findById(songId);
       if (!song) throw new Error('Song not found');
 
+      let r = null;
+      try {
+        r = await getRedis();
+        await resetSongOfTheWeekCountersIfNeeded(r, weekStartDate, weekEndDate);
+      } catch (resetError) {
+        console.warn('[SongOfTheWeek] weekly reset skipped:', resetError?.message || resetError);
+      }
+
+      const isCurrentWeek = isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate);
+      const shareUpdate = {
+        $inc: {
+          shareCount: 1,
+          trendingScore: TRENDING_WEIGHTS?.SHARE_WEIGHT ?? 1,
+          weeklyShareCount: 1,
+        },
+        $set: {
+          weekStartDate,
+          weekEndDate,
+        },
+      };
+
+      if (!isCurrentWeek) {
+        shareUpdate.$set.weeklyPlayCount = 0;
+        shareUpdate.$set.weeklyLikeCount = 0;
+        shareUpdate.$set.weeklyShareCount = 1;
+        shareUpdate.$set.weeklyDownloadCount = 0;
+        delete shareUpdate.$inc.weeklyShareCount;
+      }
+
       const updatedSong = await Song.findByIdAndUpdate(
         songId,
-        { 
-          $inc: { 
-            shareCount: 1,
-            trendingScore: TRENDING_WEIGHTS?.SHARE_WEIGHT ?? 1
-          } 
-        },
+        shareUpdate,
         { new: true, runValidators: true }
       );
+      if (!updatedSong) throw new Error('Song not found');
 
       try {
-        const r = await getRedis();
+        if (!r) r = await getRedis();
         const songCacheKey = songKey(songId);
         if (await r.exists(songCacheKey)) {
-          await r.hIncrBy(songCacheKey, 'shareCount', 1);
+          await updateSongRedis(songId, {
+            shareCount: updatedSong.shareCount,
+            trendingScore: updatedSong.trendingScore,
+            weekStartDate: updatedSong.weekStartDate,
+            weekEndDate: updatedSong.weekEndDate,
+            weeklyPlayCount: updatedSong.weeklyPlayCount,
+            weeklyLikeCount: updatedSong.weeklyLikeCount,
+            weeklyShareCount: updatedSong.weeklyShareCount,
+            weeklyDownloadCount: updatedSong.weeklyDownloadCount,
+            hasWonSongOfTheWeek: updatedSong.hasWonSongOfTheWeek,
+            lastSongOfTheWeekWonAt: updatedSong.lastSongOfTheWeekWonAt,
+            songOfTheWeekWinnerWeekStartDate: updatedSong.songOfTheWeekWinnerWeekStartDate,
+          });
           await r.expire(songCacheKey, songHashExpiration);
         }
 

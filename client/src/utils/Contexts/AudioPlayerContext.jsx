@@ -13,6 +13,7 @@ import { usePlayCount } from '../handlePlayCount.js';
 import { SAVE_PLAYBACK_SESSION, GET_PRESIGNED_URL_DOWNLOAD_AUDIO, GET_PRESIGNED_URL_DOWNLOAD } from '../mutations.js';
 import { GET_PLAYBACK_SESSION } from '../queries.js';
 import { getClientDeviceInfo } from '../detectDevice/getClientDeviceInfo.js';
+import { TEASER_DURATION_SECONDS } from '../teaserConfig.js';
 
 // ad integration
 import { PlayerManager } from './playerManager.js';
@@ -252,9 +253,24 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const lastProgressUpdateRef = useRef(0);
   const lastArtworkRef = useRef(null);
 
-  const setCanonicalQueue = (tracks = []) => {
+  const setCanonicalQueue = (tracks = [], guestFullPlaybackTrackId = null) => {
     canonicalQueueRef.current = (tracks || [])
       .map(normalizeArtworkTrack)
+      .map((track) => {
+        if (!isGuest || !track) return track;
+
+        const id = String(track?.id ?? track?._id ?? '');
+        if (guestFullPlaybackTrackId && id === String(guestFullPlaybackTrackId)) {
+          return track;
+        }
+
+        const {
+          allowGuestFullPlayback,
+          maxDuration,
+          ...guestQueuedTrack
+        } = track;
+        return { ...guestQueuedTrack, isTeaser: undefined };
+      })
       .filter(Boolean);
     return canonicalQueueRef.current;
   };
@@ -327,7 +343,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
     currentAd: null
   });
 
-  const TEASER_DURATION = 30;
+  const TEASER_DURATION = TEASER_DURATION_SECONDS;
 
 // part 1 ad integration
 // ----------------------------------------------------
@@ -613,9 +629,13 @@ const pickNextIndex = useCallback((reason = "auto") => {
   const getAudioConfig = useCallback((track) => {
     if (!track) return null;
 
-    // If resuming with a saved URL, respect explicit isTeaser flag; guests default to teaser.
+    // Guests only get full playback when a caller grants it for the current track.
     if (track.url) {
-      const guestTeaser = authState.isGuest ? track.isTeaser !== false : !!track.isTeaser;
+      const allowGuestFullPlayback =
+        authState.isGuest && track.allowGuestFullPlayback === true;
+      const guestTeaser = authState.isGuest
+        ? !allowGuestFullPlayback
+        : !!track.isTeaser;
       return {
         url: track.url,
         isTeaser: guestTeaser,
@@ -1082,7 +1102,7 @@ useEffect(() => {
         ? _newQueue.map(normalizeArtworkTrack).filter(Boolean)
         : [];
       if (incomingQueue.length) {
-        setCanonicalQueue([trackToPlay, ...incomingQueue]);
+        setCanonicalQueue([trackToPlay, ...incomingQueue], trackToPlay.id);
         targetIndex = 0;
       }
 
@@ -1092,9 +1112,7 @@ useEffect(() => {
 
       if (extras?.prepared?.queue && Array.isArray(extras.prepared.queue)) {
         const newQ = preparedQueue || [];
-        const newQueueIds = newQ.map(t => t.id).join(',');
-        const currentQueueIds = canonicalQueueRef.current.map(t => t.id).join(',');
-        if (newQueueIds !== currentQueueIds) setCanonicalQueue(newQ);
+        setCanonicalQueue(newQ, trackToPlay.id);
 
         if (typeof extras.prepared.currentIndex === 'number') {
           targetIndex = extras.prepared.currentIndex;

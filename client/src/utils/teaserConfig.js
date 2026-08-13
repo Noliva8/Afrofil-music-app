@@ -1,0 +1,1 @@
+export const TEASER_DURATION_SECONDS = 90;

@@ -2,6 +2,7 @@ import {
   NEW_UPLOADS_PUBLIC,
   TRENDING_SONGS_PUBLICV2,
   SUGGESTED_SONGS_PUBLIC,
+  SONGS_COMPETING_THIS_WEEK_PUBLIC,
   QUERY_RECENT_PLAYED,
   QUERY_LIKED_SONGS,
 } from "../../utils/queries";
@@ -34,6 +35,12 @@ export const ROW_QUERY_CONFIG = {
   suggestedSongs: {
     query: SUGGESTED_SONGS_PUBLIC,
     dataKey: "suggestedSongs",
+    fetchPolicy: "network-only",
+  },
+  songsCompetingThisWeek: {
+    query: SONGS_COMPETING_THIS_WEEK_PUBLIC,
+    dataKey: "songsCompetingThisWeek",
+    variables: { limit: LIST_SHOW_ALL_LIMIT },
     fetchPolicy: "network-only",
   },
   recentlyPlayed: {

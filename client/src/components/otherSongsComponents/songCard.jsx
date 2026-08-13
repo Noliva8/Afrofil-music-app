@@ -362,7 +362,7 @@ export function SongCard({
               fontWeight: 500,
             }}
           >
-            {song.plays?.toLocaleString?.() || 0} plays
+            {song.plays?.toLocaleString?.() || 0} {song.playsLabel || "plays"}
           </Typography>
 
           <Typography 
@@ -720,7 +720,7 @@ export function CompactSongCard({
               fontWeight: 500,
             }}
           >
-            {song.plays?.toLocaleString?.() || 0} plays
+            {song.plays?.toLocaleString?.() || 0} {song.playsLabel || "plays"}
           </Typography>
 
           <Typography

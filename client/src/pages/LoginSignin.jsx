@@ -11,7 +11,8 @@ import Divider from '@mui/material/Divider';
 import {
   NEW_UPLOADS_PUBLIC,
   SUGGESTED_SONGS_PUBLIC,
-  SONG_OF_MONTH_PUBLIC,
+  SONG_OF_THE_WEEK_PUBLIC,
+  SONGS_COMPETING_THIS_WEEK_PUBLIC,
   RADIO_STATIONS_PUBLIC,
   TRENDING_SONGS_PUBLICV2
 } from '../utils/queries';
@@ -636,15 +637,23 @@ const LoginSignin = () => {
   });
   const { songsWithArtwork: suggestedSongsWithArtwork } = useSongsWithPresignedUrls(suggestedData?.suggestedSongs);
 
-  const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
+  const { data: songOfTheWeekData } = useQuery(SONG_OF_THE_WEEK_PUBLIC, {
     fetchPolicy: 'cache-first',
     nextFetchPolicy: 'cache-first',
   });
-  const songOfMonthSource = useMemo(
-    () => (songOfMonthData?.songOfMonth ? [songOfMonthData.songOfMonth] : []),
-    [songOfMonthData?.songOfMonth]
+  const { data: competitionData } = useQuery(SONGS_COMPETING_THIS_WEEK_PUBLIC, {
+    variables: { limit: HORIZONTAL_LIMIT },
+    fetchPolicy: 'cache-and-network',
+    nextFetchPolicy: 'cache-first',
+  });
+  const songOfTheWeekSource = useMemo(
+    () => (songOfTheWeekData?.songOfTheWeek ? [songOfTheWeekData.songOfTheWeek] : []),
+    [songOfTheWeekData?.songOfTheWeek]
   );
-  const { songsWithArtwork: songOfMonthWithArtwork } = useSongsWithPresignedUrls(songOfMonthSource);
+  const { songsWithArtwork: songOfTheWeekWithArtwork } = useSongsWithPresignedUrls(songOfTheWeekSource);
+  const { songsWithArtwork: competingThisWeekWithArtwork } = useSongsWithPresignedUrls(
+    competitionData?.songsCompetingThisWeek
+  );
 
   const { data: radioStationsData } = useQuery(RADIO_STATIONS_PUBLIC, {
     fetchPolicy: 'cache-first',
@@ -658,7 +667,8 @@ const LoginSignin = () => {
         songsWithArtwork={songsWithArtwork}
         newUploadsWithArtwork={newUploadsWithArtwork}
         suggestedSongsWithArtwork={suggestedSongsWithArtwork}
-        songOfMonthWithArtwork={songOfMonthWithArtwork}
+        songOfTheWeekWithArtwork={songOfTheWeekWithArtwork}
+        competingThisWeekWithArtwork={competingThisWeekWithArtwork}
         radioStations={radioStationsData?.radioStations || []}
       />
     </>

@@ -149,6 +149,15 @@ export const processSongs = (songs) => {
       ),
       playCount,
       shareCount: Number(song.shareCount) || 0,
+      weekStartDate: song.weekStartDate ?? song.fullOriginal?.weekStartDate ?? null,
+      weekEndDate: song.weekEndDate ?? song.fullOriginal?.weekEndDate ?? null,
+      weeklyPlayCount: Number(song.weeklyPlayCount ?? song.fullOriginal?.weeklyPlayCount ?? 0) || 0,
+      weeklyLikeCount: Number(song.weeklyLikeCount ?? song.fullOriginal?.weeklyLikeCount ?? 0) || 0,
+      weeklyShareCount: Number(song.weeklyShareCount ?? song.fullOriginal?.weeklyShareCount ?? 0) || 0,
+      weeklyDownloadCount: Number(song.weeklyDownloadCount ?? song.fullOriginal?.weeklyDownloadCount ?? 0) || 0,
+      hasWonSongOfTheWeek: Boolean(song.hasWonSongOfTheWeek ?? song.fullOriginal?.hasWonSongOfTheWeek ?? false),
+      lastSongOfTheWeekWonAt: song.lastSongOfTheWeekWonAt ?? song.fullOriginal?.lastSongOfTheWeekWonAt ?? null,
+      songOfTheWeekWinnerWeekStartDate: song.songOfTheWeekWinnerWeekStartDate ?? song.fullOriginal?.songOfTheWeekWinnerWeekStartDate ?? null,
 
       // ✅ use server scalars; do NOT derive from likedByUsers
       likesCount:

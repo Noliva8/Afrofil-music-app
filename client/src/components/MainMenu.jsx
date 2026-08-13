@@ -7,7 +7,7 @@ import TopArtist from "./homeFreePlanComponents/TopArtist";
 import TopProducer from "./homeFreePlanComponents/TopProducer";
 import TopAlbum from "./homeFreePlanComponents/TopAlbum";
 import SongList from "./otherSongsComponents/ListSong";
-import SongOfMonth from "./homeFreePlanComponents/SongOfMonth";
+import SongOfTheWeek from "./homeFreePlanComponents/SongOfTheWeek";
 import RadioStations from "./homeFreePlanComponents/RadioStations";
 import { useNavigate, useLocation } from "react-router-dom";
 import useTheme from '@mui/material/styles/useTheme';
@@ -24,7 +24,8 @@ const MainMenu = ({
   songsWithArtwork,
   newUploadsWithArtwork,
   suggestedSongsWithArtwork,
-  songOfMonthWithArtwork,
+  songOfTheWeekWithArtwork,
+  competingThisWeekWithArtwork,
   radioStations,
   refetch,
   limit
@@ -200,10 +201,25 @@ const MainMenu = ({
 
 
 
-   <SongOfMonth
-     songOfMonthWithArtwork={songOfMonthWithArtwork}
+
+
+   <SongOfTheWeek
+     songOfTheWeekWithArtwork={songOfTheWeekWithArtwork}
      onCardClick={handleCardClick}
    />
+
+   <SongRowContainer
+     header="This Week's Race"
+     subHeader="Live standings from weekly plays, likes, and shares."
+     songsWithArtwork={competingThisWeekWithArtwork}
+     onCardClick={handleCardClick}
+     rowCode="songsCompetingThisWeek"
+     emptyMessage="Songs in the race are coming"
+     emptyDescription="The weekly race restarts after Friday. Songs will appear here as soon as they get plays, likes, or shares this week."
+   />
+
+
+
    <Box id="radio-section" component="section" sx={{ mt: 6 }}>
      <RadioStations stations={radioStations} />
    </Box>
@@ -214,7 +230,7 @@ const MainMenu = ({
 
 
 
- {/* 6. song of the month => plays, like, share, downloads */}
+ {/* 6. song of the week => plays, likes, shares, downloads */}
  {/* 7. Lastly Radio stations */}
 
       <AddToPlaylistModal

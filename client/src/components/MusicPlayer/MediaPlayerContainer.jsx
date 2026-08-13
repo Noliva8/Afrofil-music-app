@@ -3,6 +3,7 @@ import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 import Box from '@mui/material/Box';
 import MediaSessionManager from './MediaSessionManager.jsx';
+import { TEASER_DURATION_SECONDS } from '../../utils/teaserConfig.js';
 const LazyModernMusicPlayer = lazy(() => import('./ModernMusicPlayer.jsx'));
 const LazyFullScreenPlayer = lazy(() => import('./FullScreenMediaPlayer.jsx'));
 const LazyAdMediaPlayer = lazy(() =>
@@ -212,7 +213,7 @@ const MediaPlayerContainer = () => {
           onToggleRepeat={cycleRepeatMode}
           teaserMode={isTeaser}
           isTeaser={isTeaser}
-          teaserDuration={30}
+          teaserDuration={TEASER_DURATION_SECONDS}
           queue={queue}
           queueLength={queue.length}
           isAdPlaying={isAdPlaying}

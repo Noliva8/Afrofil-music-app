@@ -40,8 +40,10 @@ import { useNowPlayingArtwork } from '../../utils/Contexts/useNowPlayingArtwork'
 import { useArtistFollowers } from '../../utils/Contexts/followers/useArtistFollowers';
 import { useUser } from '../../utils/Contexts/userContext';
 import { SHARE_SONG } from '../../utils/queries';
+import { LIKES } from '../../utils/mutations';
 import useArtistDownload from '../../utils/Contexts/artisDownload/useArtistDownload';
 import { getShareableSongId, shareSongLink } from '../../utils/shareSong';
+import { TEASER_DURATION_SECONDS } from '../../utils/teaserConfig';
 
 
 
@@ -90,7 +92,7 @@ const FullScreenMediaPlayer = ({
   queue = [],
   isAdPlaying = false,
   isTeaser = false,
-  teaserDuration = 30,
+  teaserDuration = TEASER_DURATION_SECONDS,
   onSliderCommit
   ,
   // from container
@@ -100,6 +102,7 @@ const FullScreenMediaPlayer = ({
 }) => {
   const theme = useTheme();
   const [shareSong] = useMutation(SHARE_SONG);
+  const [toggleLikeSong, { loading: likeLoading }] = useMutation(LIKES);
   const { user } = useUser();
   const { toggleFollow, loading: followLoading } = useArtistFollowers();
   const { recordDownload, loading: downloading } = useArtistDownload();
@@ -163,17 +166,17 @@ const formatStatNumber = (value, fallback = "0") => {
   const displayArtist = resolveArtistText(currentSong?.artist) || currentSong?.artistName || 'Unknown Artist';
   const displayAlbum = currentSong?.albumName || 'Single';
   const download = currentSong.artistDownloadCounts || 0;
-  const likesCount = Number(
-    currentSong?.likesCount ??
-      currentSong?.fullOriginal?.likesCount ??
-      currentSong?.fullOriginal?.likedByUsers?.length ??
+  const getSongLikesCount = (song) => Number(
+    song?.likesCount ??
+      song?.fullOriginal?.likesCount ??
+      song?.fullOriginal?.likedByUsers?.length ??
       0
-  );
+  ) || 0;
+  const likesCount = getSongLikesCount(currentSong);
   const formattedPlayCount = formatStatNumber(
     currentSong?.playCount ?? currentSong?.fullOriginal?.playCount,
     "1.2M"
   );
-  const formattedLikesCount = formatStatNumber(likesCount, "0");
   const formattedDownloadCount = formatStatNumber(
     download > 0 ? download : currentSong?.downloadCount ?? 0,
     "0"
@@ -203,9 +206,13 @@ const formatStatNumber = (value, fallback = "0") => {
 
   const [artistFollowers, setArtistFollowers] = useState(initialFollowerCount);
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
+  const [songLikedByMe, setSongLikedByMe] = useState(Boolean(currentSong?.likedByMe ?? isFavorite));
+  const [songLikesCount, setSongLikesCount] = useState(likesCount);
   const [downloadCount, setDownloadCount] = useState(Number(currentSong?.downloadCount ?? 0));
   const [downloadInFlight, setDownloadInFlight] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const formattedLikesCount = formatStatNumber(songLikesCount, "0");
   const effectiveDuration = isTeaser
     ? Math.min(Number(duration) || teaserDuration, currentSong?.maxDuration || teaserDuration)
     : duration;
@@ -235,6 +242,18 @@ const formatStatNumber = (value, fallback = "0") => {
   useEffect(() => {
     setDownloadCount(Number(currentSong?.downloadCount ?? 0));
   }, [currentSong?.downloadCount, currentSong?.id, currentSong?._id]);
+
+  useEffect(() => {
+    setSongLikedByMe(Boolean(currentSong?.likedByMe ?? isFavorite));
+    setSongLikesCount(getSongLikesCount(currentSong));
+  }, [
+    currentSong?.id,
+    currentSong?._id,
+    currentSong?.likedByMe,
+    currentSong?.likesCount,
+    currentSong?.fullOriginal?.likesCount,
+    isFavorite
+  ]);
   const handleSliderCommit = (_, newValue) => {
     const maxAllowed = isTeaser ? Math.min(duration, teaserDuration) : duration;
     const clamped = Math.min(newValue, maxAllowed);
@@ -251,6 +270,82 @@ const formatStatNumber = (value, fallback = "0") => {
       songId,
       shareSongMutation: shareSong,
     });
+  };
+
+  const handleToggleLike = async () => {
+    const songId = String(currentSong?.id ?? currentSong?._id ?? currentSong?.songId ?? '');
+    if (!songId || likeLoading) return;
+
+    if (!user?._id) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    const previousLiked = songLikedByMe;
+    const previousLikes = songLikesCount;
+    const nextLiked = !previousLiked;
+    const nextLikes = Math.max(0, previousLikes + (nextLiked ? 1 : -1));
+
+    setSongLikedByMe(nextLiked);
+    setSongLikesCount(nextLikes);
+
+    try {
+      const { data } = await toggleLikeSong({
+        variables: { songId },
+        optimisticResponse: {
+          toggleLikeSong: {
+            __typename: 'Song',
+            _id: songId,
+            title: currentSong?.title ?? '',
+            likesCount: nextLikes,
+            likedByMe: nextLiked,
+            streamAudioFileUrl: currentSong?.streamAudioFileUrl ?? currentSong?.audioUrl ?? null,
+            genre: currentSong?.genre ?? null,
+            artwork: currentSong?.artwork ?? currentSong?.artworkUrl ?? null,
+            album: currentSong?.album
+              ? {
+                  __typename: 'Album',
+                  _id: String(currentSong.album._id ?? currentSong.albumId ?? ''),
+                  title: currentSong.album.title ?? '',
+                }
+              : null,
+            artist: currentSong?.artistId || currentSong?.artist
+              ? {
+                  __typename: 'Artist',
+                  _id: String(currentSong.artist?._id ?? currentSong.artistId ?? ''),
+                  artistAka: currentSong.artist?.artistAka ?? currentSong.artistName ?? '',
+                }
+              : null,
+          },
+        },
+        update: (cache, { data: mutationData }) => {
+          const updatedSong = mutationData?.toggleLikeSong;
+          if (!updatedSong) return;
+
+          cache.modify({
+            id: cache.identify({ __typename: 'Song', _id: updatedSong._id }),
+            fields: {
+              likesCount: () => updatedSong.likesCount,
+              likedByMe: () => updatedSong.likedByMe,
+            },
+          });
+        },
+      });
+
+      const updatedSong = data?.toggleLikeSong;
+      if (updatedSong) {
+        setSongLikedByMe(Boolean(updatedSong.likedByMe));
+        setSongLikesCount(getSongLikesCount(updatedSong));
+      }
+    } catch (err) {
+      setSongLikedByMe(previousLiked);
+      setSongLikesCount(previousLikes);
+      if (/unauthorized|login|required/i.test(err?.message || '')) {
+        setShowLoginPrompt(true);
+      } else {
+        console.error('Like toggle failed', err);
+      }
+    }
   };
 
   const handleDownload = async () => {
@@ -723,15 +818,15 @@ const formatStatNumber = (value, fallback = "0") => {
     }}
   >
     <IconButton
-      onClick={controlsDisabled ? undefined : onToggleFavorite}
-      disabled={controlsDisabled}
+      onClick={controlsDisabled ? undefined : handleToggleLike}
+      disabled={controlsDisabled || likeLoading}
       size="small"
       sx={{
-        color: isFavorite ? '#ff4081' : alpha('#fff', 0.8),
+        color: songLikedByMe ? '#ff4081' : alpha('#fff', 0.8),
         fontSize: { xs: '1.5rem', md: '2rem' },
       }}
     >
-      {isFavorite ? <Favorite /> : <FavoriteBorder />}
+      {songLikedByMe ? <Favorite /> : <FavoriteBorder />}
     </IconButton>
 
     <IconButton
@@ -1591,6 +1686,45 @@ const formatStatNumber = (value, fallback = "0") => {
             }}
           >
             Upgrade
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={showLoginPrompt}
+        onClose={() => setShowLoginPrompt(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: alpha('#050509', 0.95),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff', fontWeight: 700 }}>
+          Login Required
+        </DialogTitle>
+        <DialogContent sx={{ color: alpha('#fff', 0.9), pb: 1 }}>
+          Log in to like this song and add it to your liked songs.
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => setShowLoginPrompt(false)}
+            sx={{ color: alpha('#fff', 0.8) }}
+          >
+            Not now
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => { window.location.href = '/welcome?login=1'; }}
+            sx={{
+              bgcolor: theme.palette.primary.main,
+              color: theme.palette.getContrastText(theme.palette.primary.main),
+              '&:hover': { bgcolor: theme.palette.primary.dark }
+            }}
+          >
+            Log in
           </Button>
         </DialogActions>
       </Dialog>

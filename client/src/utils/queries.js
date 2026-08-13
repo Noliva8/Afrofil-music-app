@@ -634,6 +634,8 @@ export const TRENDING_SONGS_PUBLIC = gql`
       streamAudioFileUrl
       audioFileUrl
       createdAt
+      weekStartDate
+      weekEndDate
       downloadCount
       artistFollowers
       artistDownloadCounts
@@ -646,6 +648,13 @@ export const TRENDING_SONGS_PUBLIC = gql`
       likedByMe
       playCount
       shareCount
+      weeklyPlayCount
+      weeklyLikeCount
+      weeklyShareCount
+      weeklyDownloadCount
+      hasWonSongOfTheWeek
+      lastSongOfTheWeekWonAt
+      songOfTheWeekWinnerWeekStartDate
       trendingScore
 
       # content
@@ -789,6 +798,13 @@ export const NEW_UPLOADS_PUBLIC = gql`
       likedByMe
       playCount
       shareCount
+      weeklyPlayCount
+      weeklyLikeCount
+      weeklyShareCount
+      weeklyDownloadCount
+      hasWonSongOfTheWeek
+      lastSongOfTheWeekWonAt
+      songOfTheWeekWinnerWeekStartDate
       trendingScore
 
       # content
@@ -916,9 +932,9 @@ export const SUGGESTED_SONGS_PUBLIC = gql`
   }
 `;
 
-export const SONG_OF_MONTH_PUBLIC = gql`
-  query songOfMonth {
-    songOfMonth {
+export const SONG_OF_THE_WEEK_PUBLIC = gql`
+  query songOfTheWeek {
+    songOfTheWeek {
       _id
       title
       mood
@@ -942,6 +958,8 @@ export const SONG_OF_MONTH_PUBLIC = gql`
       streamAudioFileUrl
       audioFileUrl
       createdAt
+      weekStartDate
+      weekEndDate
       downloadCount
       artistFollowers
       artistDownloadCounts
@@ -954,9 +972,72 @@ export const SONG_OF_MONTH_PUBLIC = gql`
       likedByMe
       playCount
       shareCount
+      weeklyPlayCount
+      weeklyLikeCount
+      weeklyShareCount
+      weeklyDownloadCount
+      hasWonSongOfTheWeek
+      lastSongOfTheWeekWonAt
+      songOfTheWeekWinnerWeekStartDate
       trendingScore
 
       # content
+      lyrics
+      composer { name contribution }
+      producer { name role }
+      label
+    }
+  }
+`;
+
+export const SONG_OF_MONTH_PUBLIC = SONG_OF_THE_WEEK_PUBLIC;
+
+export const SONGS_COMPETING_THIS_WEEK_PUBLIC = gql`
+  query songsCompetingThisWeek($limit: Int = 10) {
+    songsCompetingThisWeek(limit: $limit) {
+      _id
+      title
+      mood
+      tempo
+      subMoods
+      artist {
+        _id
+        artistAka
+        country
+        bio
+        profileImage
+        bookingAvailability
+      }
+      album {
+        _id
+        title
+        releaseDate
+        albumCoverImage
+      }
+      artwork
+      streamAudioFileUrl
+      audioFileUrl
+      createdAt
+      weekStartDate
+      weekEndDate
+      downloadCount
+      artistFollowers
+      artistDownloadCounts
+      duration
+      featuringArtist
+      genre
+      likesCount
+      likedByMe
+      playCount
+      shareCount
+      weeklyPlayCount
+      weeklyLikeCount
+      weeklyShareCount
+      weeklyDownloadCount
+      hasWonSongOfTheWeek
+      lastSongOfTheWeekWonAt
+      songOfTheWeekWinnerWeekStartDate
+      trendingScore
       lyrics
       composer { name contribution }
       producer { name role }

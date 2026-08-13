@@ -19,13 +19,14 @@ import {
    TRENDING_SONGS_PUBLICV2,
   NEW_UPLOADS_PUBLIC,
   SUGGESTED_SONGS_PUBLIC,
-  SONG_OF_MONTH_PUBLIC,
+  SONG_OF_THE_WEEK_PUBLIC,
+  SONGS_COMPETING_THIS_WEEK_PUBLIC,
   RADIO_STATIONS_PUBLIC,
 } from '../utils/queries';
 import { HORIZONTAL_LIMIT, COMPACT_LIMIT } from '../CommonSettings/songsRowNumberControl.js';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook.js';
 import RecommendedSongsRow from '../components/userComponents/Home/RecommendedSongsRow';
-import SongOfMonth from '../components/homeFreePlanComponents/SongOfMonth';
+import SongOfTheWeek from '../components/homeFreePlanComponents/SongOfTheWeek';
 import RadioStations from '../components/homeFreePlanComponents/RadioStations';
 import { SongRowContainer } from '../components/otherSongsComponents/SongsRow';
 
@@ -133,9 +134,16 @@ const Home = ({ upgradeToPremium }) => {
     nextFetchPolicy: "cache-first",
   });
 
-  const { data: songOfMonthData } = useQuery(SONG_OF_MONTH_PUBLIC, {
+  const { data: songOfTheWeekData } = useQuery(SONG_OF_THE_WEEK_PUBLIC, {
     skip: !loadDeferredHome,
     fetchPolicy: "cache-first",
+    nextFetchPolicy: "cache-first",
+  });
+
+  const { data: competitionData } = useQuery(SONGS_COMPETING_THIS_WEEK_PUBLIC, {
+    skip: !loadDeferredHome,
+    variables: { limit: HORIZONTAL_LIMIT },
+    fetchPolicy: "cache-and-network",
     nextFetchPolicy: "cache-first",
   });
 
@@ -173,12 +181,14 @@ const Home = ({ upgradeToPremium }) => {
   const { songsWithArtwork: suggestedSongsWithArtwork } =
     useSongsWithPresignedUrls(loadDeferredHome ? suggestedData?.suggestedSongs : undefined);
 
-  const songOfMonthSource = useMemo(
-    () => (songOfMonthData?.songOfMonth ? [songOfMonthData.songOfMonth] : []),
-    [songOfMonthData?.songOfMonth],
+  const songOfTheWeekSource = useMemo(
+    () => (songOfTheWeekData?.songOfTheWeek ? [songOfTheWeekData.songOfTheWeek] : []),
+    [songOfTheWeekData?.songOfTheWeek],
   );
-  const { songsWithArtwork: songOfMonthWithArtwork } =
-    useSongsWithPresignedUrls(loadDeferredHome ? songOfMonthSource : undefined);
+  const { songsWithArtwork: songOfTheWeekWithArtwork } =
+    useSongsWithPresignedUrls(loadDeferredHome ? songOfTheWeekSource : undefined);
+  const { songsWithArtwork: competingThisWeekWithArtwork } =
+    useSongsWithPresignedUrls(loadDeferredHome ? competitionData?.songsCompetingThisWeek : undefined);
 
   const radioStations = radioStationsData?.radioStations || [];
 
@@ -333,9 +343,19 @@ const Home = ({ upgradeToPremium }) => {
 
                     <SongsILike />
 
-                    <SongOfMonth
-                      songOfMonthWithArtwork={songOfMonthWithArtwork}
+                    <SongOfTheWeek
+                      songOfTheWeekWithArtwork={songOfTheWeekWithArtwork}
                       onCardClick={handleCardClick}
+                    />
+
+                    <SongRowContainer
+                      header="This Week's Race"
+                      subHeader="Live standings from weekly plays, likes, and shares."
+                      songsWithArtwork={competingThisWeekWithArtwork}
+                      onCardClick={handleCardClick}
+                      rowCode="songsCompetingThisWeek"
+                      emptyMessage="Songs in the race are coming"
+                      emptyDescription="The weekly race restarts after Friday. Songs will appear here as soon as they get plays, likes, or shares this week."
                     />
 
                     {(dailyMixLoading || recentPlayedLoading || artworkLoading) && (

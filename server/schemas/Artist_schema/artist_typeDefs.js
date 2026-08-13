@@ -4,9 +4,6 @@ const typeDefs = `
 scalar Upload
 scalar Date
 
-
-
-
 type Artist {
   _id: ID!
   fullName: String!
@@ -92,8 +89,20 @@ processingError: String
 processingAttempts: Int
 
   artworkPresignedUrl: String       
-  audioPresignedUrl: String          
+  audioPresignedUrl: String  
+
+
+  weekStartDate: Date
+  weekEndDate: Date
+  weeklyPlayCount: Int
+  weeklyLikeCount: Int
+  weeklyShareCount: Int
+  weeklyDownloadCount: Int
+  hasWonSongOfTheWeek: Boolean
+  lastSongOfTheWeekWonAt: Date
+  songOfTheWeekWinnerWeekStartDate: Date
 }
+
 
 type ArtistSupport {
   _id: ID!
@@ -804,8 +813,10 @@ type Query {
 
  newUploads(limit: Int!): [Song!]!
 
-  suggestedSongs(limit: Int = 20): [Song!]!
- songOfMonth: Song
+ suggestedSongs(limit: Int = 20): [Song!]!
+ songOfTheWeek: Song
+ songsCompetingThisWeek(limit: Int = 10): [Song!]!
+ songOfMonth: Song @deprecated(reason: "Use songOfTheWeek.")
  similarSongs(songId: ID!): SimilarSongsResponse!
  radioStations(type: RadioStationType, visibility: String = "public", limit: Int): [RadioStation!]!
  radioStation(stationId: ID!): RadioStation

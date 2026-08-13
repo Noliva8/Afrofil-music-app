@@ -291,6 +291,43 @@ processingFinishedAt: { type: Date, default: null },
 processingError: { type: String, default: null },
 processingAttempts: { type: Number, default: 0 },
 
+  weekStartDate: {
+    type: Date,
+    default: null
+  },
+  weekEndDate: {
+    type: Date,
+    default: null
+  },
+  weeklyPlayCount: {
+    type: Number,
+    default: 0
+  },
+  weeklyLikeCount: {
+    type: Number,
+    default: 0
+  },
+  weeklyShareCount: {
+    type: Number,
+    default: 0
+  },
+  weeklyDownloadCount: {
+    type: Number,
+    default: 0
+  },
+  hasWonSongOfTheWeek: {
+    type: Boolean,
+    default: false
+  },
+  lastSongOfTheWeekWonAt: {
+    type: Date,
+    default: null
+  },
+  songOfTheWeekWinnerWeekStartDate: {
+    type: Date,
+    default: null
+  },
+
   createdAt: {
     type: Date,
     default: Date.now

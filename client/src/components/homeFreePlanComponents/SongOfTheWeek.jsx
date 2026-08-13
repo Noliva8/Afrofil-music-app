@@ -19,22 +19,41 @@ const formatStat = (value) => {
   return num.toLocaleString();
 };
 
-export default function SongOfMonth({ songOfMonthWithArtwork = [], onCardClick }) {
+const formatWeekRange = (start, end) => {
+  if (!start || !end) return "Saturday-Friday winner";
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return "Saturday-Friday winner";
+  }
+  const monthDay = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+  const endLabel = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(endDate);
+  return `${monthDay.format(startDate)} - ${endLabel}`;
+};
+
+export default function SongOfTheWeek({ songOfTheWeekWithArtwork = [], onCardClick }) {
   const theme = useTheme();
   const client = useApolloClient();
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
 
   const song = useMemo(() => {
-    const processed = processSongs(songOfMonthWithArtwork);
+    const processed = processSongs(songOfTheWeekWithArtwork);
     return processed[0] || null;
-  }, [songOfMonthWithArtwork]);
+  }, [songOfTheWeekWithArtwork]);
 
   if (!song) return null;
 
-  const monthLabel = new Date().toLocaleString("en-US", { month: "long" });
   const isCurrent = currentTrack?.id === song.id;
   const isPlayingThisSong = isCurrent && isPlaying;
+  const weekRange = formatWeekRange(song.weekStartDate, song.weekEndDate);
 
   const handlePlay = (event) => {
     event.stopPropagation();
@@ -91,7 +110,7 @@ export default function SongOfMonth({ songOfMonthWithArtwork = [], onCardClick }
               lineHeight: 1.15,
             }}
           >
-            Song of the Month
+            Song of the Week
           </Typography>
           <Typography
             variant="caption"
@@ -100,7 +119,7 @@ export default function SongOfMonth({ songOfMonthWithArtwork = [], onCardClick }
               fontSize: "0.82rem",
             }}
           >
-            {monthLabel} highlight
+            {weekRange}
           </Typography>
         </Box>
       </Box>
@@ -165,7 +184,7 @@ export default function SongOfMonth({ songOfMonthWithArtwork = [], onCardClick }
             }}
           >
             <Star sx={{ fontSize: 14 }} />
-            PROMOTED PICK
+            WEEKLY WINNER
           </Box>
 
           <Typography
@@ -223,7 +242,27 @@ export default function SongOfMonth({ songOfMonthWithArtwork = [], onCardClick }
                 whiteSpace: "nowrap",
               }}
             >
-              {formatStat(song.playCount)} plays
+              {formatStat(song.weeklyPlayCount)} weekly plays
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: alpha(theme.palette.text.primary, 0.72),
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatStat(song.weeklyLikeCount)} likes
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: alpha(theme.palette.text.primary, 0.72),
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatStat(song.weeklyShareCount)} shares
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.4, minWidth: 0 }}>
               <AccessTime sx={{ fontSize: 14, color: alpha(theme.palette.text.primary, 0.55) }} />
