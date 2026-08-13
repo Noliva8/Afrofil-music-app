@@ -13,7 +13,7 @@ import { ARTIST_SUPPORT_REVENUE, SONG_OF_ARTIST } from '../../utils/queries';
 import FeedbackModal from '../../components/FeedbackModal.jsx';
 
 const LazyTotalSongCharts = lazy(
-  () => import('./DashbordComponents/Charts/totalSongsCharts')
+  () => import('./DashbordComponents/Charts/TotalSongsCharts')
 );
 const LazySongCountChart = lazy(
   () => import('./DashbordComponents/Charts/SongCountChart')
