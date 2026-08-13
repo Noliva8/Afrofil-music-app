@@ -95,6 +95,9 @@ const escapeHtml = (value = "") =>
 
 const stripHtml = (value = "") => String(value).replace(/<[^>]*>/g, "").trim();
 
+const isMongoObjectId = (value) =>
+  typeof value === "string" && /^[0-9a-fA-F]{24}$/.test(value);
+
 const getPublicAppUrl = () =>
   (process.env.FRONTEND_URL || process.env.CLIENT_URL || "https://flolup.com").replace(/\/+$/, "");
 
@@ -188,6 +191,8 @@ const readClientIndexHtml = async ({ indexPath, hasClientBuild, baseUrl }) => {
 };
 
 const buildSongShareMeta = async ({ songId, pagePath, baseUrl }) => {
+  if (!isMongoObjectId(songId)) return null;
+
   const song = await Song.findById(songId)
     .select("title artwork lyrics genre duration releaseDate visibility")
     .populate("artist", "artistAka")
