@@ -1,5 +1,19 @@
+const createSessionId = () => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
 
-import { v4 as uuidv4 } from 'uuid';
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+};
 
 class SessionManager {
   constructor() {
@@ -36,7 +50,7 @@ class SessionManager {
    * @returns {string} new sessionId
    */
   startNewSession() {
-    this.sessionId = uuidv4();
+    this.sessionId = createSessionId();
     this.lastActivity = Date.now();
 
     sessionStorage.setItem('userSessionId', this.sessionId);
@@ -116,7 +130,7 @@ export const ensureSessionId = () => {
   const ttl = Number(localStorage.getItem(TTL) || 0);
   let sid = localStorage.getItem(KEY);
   if (!sid || now > ttl) {
-    sid = (crypto.randomUUID?.() ?? base64url(16));
+    sid = createSessionId();
     localStorage.setItem(KEY, sid);
     localStorage.setItem(TTL, String(now + 48 * 3600 * 1000));
   }
