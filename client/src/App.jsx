@@ -34,7 +34,7 @@ import LocationGate from "./utils/Contexts/LocationGate.jsx";
 import { AudioPlayerProvider, useAudioPlayer } from "./utils/Contexts/AudioPlayerContext.jsx";
 import { AdAudioProvider } from "./utils/Contexts/adPlayer/adPlayerProvider.jsx";
 import Orchestrator from "./utils/Contexts/adPlayer/orchestrator.jsx";
-import { BookingIdProvider } from "./utils/contexts/bookingIdContext";
+import { BookingIdProvider } from "./utils/Contexts/bookingIdContext";
 
 import AuthModal from "./components/WelcomePage/AuthModal.jsx";
 import MediaPlayerContainer from "./components/MusicPlayer/MediaPlayerContainer.jsx";

@@ -193,11 +193,17 @@ const readClientIndexHtml = async ({ indexPath, hasClientBuild, baseUrl }) => {
 const buildSongShareMeta = async ({ songId, pagePath, baseUrl }) => {
   if (!isMongoObjectId(songId)) return null;
 
-  const song = await Song.findById(songId)
-    .select("title artwork lyrics genre duration releaseDate visibility")
-    .populate("artist", "artistAka")
-    .populate("album", "title releaseDate albumCoverImage")
-    .lean();
+  let song = null;
+  try {
+    song = await Song.findById(songId)
+      .select("title artwork lyrics genre duration releaseDate visibility")
+      .populate("artist", "artistAka")
+      .populate("album", "title releaseDate albumCoverImage")
+      .lean();
+  } catch (error) {
+    if (error?.name === "CastError") return null;
+    throw error;
+  }
 
   if (!song || song.visibility === "private") return null;
 
@@ -223,7 +229,9 @@ const renderSongSharePage = async ({ req, res, next, indexPath, hasClientBuild, 
   try {
     const baseUrl = getPublicAppUrl();
     const html = await readClientIndexHtml({ indexPath, hasClientBuild, baseUrl });
-    const meta = await buildSongShareMeta({ songId, pagePath, baseUrl });
+    const meta = isMongoObjectId(songId)
+      ? await buildSongShareMeta({ songId, pagePath, baseUrl })
+      : null;
 
     res.set("Content-Type", "text/html");
     if (!meta) return res.send(html);

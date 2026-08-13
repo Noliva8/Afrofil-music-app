@@ -45,7 +45,7 @@ import { ActionMenu } from './ActionMenu.jsx';
 import { TrackListSection } from './TrackListSection.jsx';
 import AddToPlaylistModal from './AddToPlaylistModal.jsx';
 import { CREATE_BOOK_ARTIST } from '../utils/mutations';
-import { useBookingId } from '../utils/contexts/bookingIdContext.jsx';
+import { useBookingId } from '../utils/Contexts/bookingIdContext.jsx';
 
   export const formatDuration = (seconds) => {
     if (seconds == null) return '0:00';
