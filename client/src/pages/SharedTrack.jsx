@@ -18,6 +18,7 @@ const SharedTrack = () => {
   const client = useApolloClient();
   const [playError, setPlayError] = useState('');
   const [isPreparing, setIsPreparing] = useState(true);
+  const [preparedTrack, setPreparedTrack] = useState(null);
   const autoPlayAttemptedRef = useRef(false);
   const { data, loading, error } = useQuery(SONG_BY_ID, {
     variables: { songId: trackId },
@@ -43,22 +44,21 @@ const SharedTrack = () => {
     '/logo-512.png';
 
   const playSharedTrack = useCallback(async () => {
-    if (!processedSong || !handlePlaySong) return false;
+    if (!preparedTrack || !handlePlaySong) return false;
     setIsPreparing(true);
     setPlayError('');
     eventBus.emit('OPEN_FULL_SCREEN_PLAYER');
 
     try {
-      const signedTrack = await presignAudioForTrack(processedSong, client);
-      if (!signedTrack?.audioUrl) {
+      if (!preparedTrack?.audioUrl) {
         setPlayError('This song is not available for playback right now.');
         return false;
       }
 
       const playbackTrack = {
-        ...signedTrack,
-        url: signedTrack.audioUrl,
-        teaserUrl: signedTrack.teaserUrl,
+        ...preparedTrack,
+        url: preparedTrack.audioUrl,
+        teaserUrl: preparedTrack.teaserUrl,
         isTeaser: false,
         allowGuestFullPlayback: true,
         maxDuration: undefined,
@@ -81,7 +81,35 @@ const SharedTrack = () => {
     } finally {
       setIsPreparing(false);
     }
-  }, [client, handlePlaySong, processedSong]);
+  }, [handlePlaySong, preparedTrack]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const prepareSharedTrack = async () => {
+      if (!processedSong) return;
+      setIsPreparing(true);
+      try {
+        const signedTrack = processedSong.audioUrl
+          ? processedSong
+          : await presignAudioForTrack(processedSong, client);
+
+        if (!cancelled) {
+          setPreparedTrack(signedTrack);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPreparing(false);
+        }
+      }
+    };
+
+    prepareSharedTrack();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, processedSong]);
 
   useEffect(() => {
     if (!processedSong || autoPlayAttemptedRef.current) return;
