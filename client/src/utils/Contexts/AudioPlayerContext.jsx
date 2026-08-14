@@ -547,11 +547,18 @@ const pickNextIndex = useCallback((reason = "auto") => {
     const deviceInfo = getClientDeviceInfo();
   }, []);
 
-  // Init audio element (one-time)
+  // Init/configure the rendered audio element (use the DOM <audio> node)
   useEffect(() => {
-    const audio = new Audio();
-    audio.preload = 'auto';
-    audio.crossOrigin = 'anonymous';
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Ensure proper attributes on the existing DOM audio element
+    try {
+      audio.preload = 'auto';
+      audio.crossOrigin = 'anonymous';
+    } catch (e) {
+      // ignore if setting props fails for some reason
+    }
 
     const handleAudioError = (e) => {
       const error = audio.error;
@@ -569,15 +576,15 @@ const pickNextIndex = useCallback((reason = "auto") => {
     };
 
     audio.addEventListener('error', handleAudioError);
-    audioRef.current = audio;
 
     return () => {
       audio.removeEventListener('error', handleAudioError);
-      audio.pause();
-      audio.src = '';
-      audioRef.current = null;
+      try {
+        audio.pause();
+        audio.src = '';
+      } catch (e) {}
     };
-  }, []);
+  }, [isAudioReady]);
 
   // progress sync into state (listeners only; no deps that change every render)
   useEffect(() => {
