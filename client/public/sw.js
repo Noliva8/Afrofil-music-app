@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE_NAME = `afrofeel-static-${CACHE_VERSION}`;
 const MEDIA_CACHE_NAME = `afrofeel-media-${CACHE_VERSION}`;
 const ASSETS_TO_CACHE = [
@@ -15,6 +15,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -25,7 +26,7 @@ self.addEventListener('activate', (event) => {
           .filter((key) => key !== STATIC_CACHE_NAME && key !== MEDIA_CACHE_NAME)
           .map((key) => caches.delete(key))
       )
-    )
+    ).then(() => self.clients.claim())
   );
 });
 
