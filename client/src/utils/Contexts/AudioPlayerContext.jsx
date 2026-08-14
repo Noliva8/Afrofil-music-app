@@ -758,6 +758,9 @@ const pickNextIndex = useCallback((reason = "auto") => {
         isLoading: false,
         error: error?.message || 'Playback error'
       }));
+      // Propagate the error so callers (e.g. handlePlaySong) can
+      // detect autoplay blocking and avoid marking playback as started.
+      throw error;
     }
   }, [onRequireAuth, playerState.isAdPlaying, shouldBlockPlayback]);
 
@@ -1175,6 +1178,9 @@ try {
         setPlayerState(prev => ({ ...prev, isPlaying: true, isLoading: false, playedOnce: true }));
         return true;
       } catch (err) {
+        // If playback was blocked by the browser (autoplay), mark pending resume
+        // so the existing pointerdown listener will retry playback on user interaction.
+        pendingUserResumeRef.current = true;
         setPlayerState(prev => ({ ...prev, isLoading: false, error: err.message, isPlaying: false }));
         return false;
       }
