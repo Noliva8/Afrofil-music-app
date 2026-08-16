@@ -1,3 +1,5 @@
+import Ad from '../models/Advertizer/Ad.js';
+
  const cleanupAbandonedDrafts = async () => {
   try {
     const cutoffDate = new Date();

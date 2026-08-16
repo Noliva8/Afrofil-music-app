@@ -246,6 +246,8 @@ const renderSongSharePage = async ({ req, res, next, indexPath, hasClientBuild, 
 };
 
 const buildArtistShareMeta = async ({ artistId, pagePath, baseUrl }) => {
+  if (!isMongoObjectId(artistId)) return null;
+
   const artist = await Artist.findById(artistId)
     .select("artistAka fullName bio country region genre profileImage coverImage")
     .lean();
@@ -273,7 +275,9 @@ const renderArtistSharePage = async ({ req, res, next, indexPath, hasClientBuild
   try {
     const baseUrl = getPublicAppUrl();
     const html = await readClientIndexHtml({ indexPath, hasClientBuild, baseUrl });
-    const meta = await buildArtistShareMeta({ artistId, pagePath, baseUrl });
+    const meta = isMongoObjectId(artistId)
+      ? await buildArtistShareMeta({ artistId, pagePath, baseUrl })
+      : null;
 
     res.set("Content-Type", "text/html");
     if (!meta) return res.send(html);
