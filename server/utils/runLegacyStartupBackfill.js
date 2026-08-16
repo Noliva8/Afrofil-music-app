@@ -53,7 +53,8 @@ export const runLegacyStartupBackfill = async () => {
     }
   );
 
-  if (claimed.value) {
+  const existingClaim = claimed?.value ?? claimed;
+  if (existingClaim) {
     console.log(`[legacy-backfill] ${migrationId} is already running.`);
     return;
   }
