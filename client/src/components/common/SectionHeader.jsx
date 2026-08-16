@@ -1,25 +1,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import { useTheme } from '@mui/material/styles';
-
-const accentStyles = {
-  width: 4,
-  height: 32,
-  borderRadius: 2,
-  background: 'linear-gradient(180deg, #FFD700 0%, #FFA500 100%)',
-};
-
-const titleStyles = {
-  fontWeight: 900,
-  fontFamily: "'Inter', sans-serif",
-  background: 'linear-gradient(45deg, #FFD700 30%, #FFA500 90%)',
-  backgroundClip: 'text',
-  WebkitBackgroundClip: 'text',
-  color: 'transparent',
-  fontSize: { xs: '1.5rem', sm: '1.75rem' },
-  letterSpacing: '-0.5px',
-};
+import { alpha, useTheme } from '@mui/material/styles';
 
 export default function SectionHeader({ title, subtitle, actionLabel, onAction }) {
   const theme = useTheme();
@@ -30,25 +12,49 @@ export default function SectionHeader({ title, subtitle, actionLabel, onAction }
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        mb: 4,
+        mb: 2.5,
         px: { xs: 1, sm: 2 },
+        gap: 2,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <Box sx={accentStyles} />
-        <Box>
-          <Typography variant="h5" sx={titleStyles}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+        <Box
+          sx={{
+            width: 4,
+            height: 28,
+            borderRadius: 2,
+            flexShrink: 0,
+            background: `linear-gradient(180deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
+          }}
+        />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 900,
+              color: theme.palette.text.primary,
+              fontSize: { xs: '1.2rem', sm: '1.45rem', md: '1.6rem' },
+              letterSpacing: 0,
+              lineHeight: 1.15,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {title}
           </Typography>
           {subtitle && (
             <Typography
               variant="caption"
               sx={{
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: '0.875rem',
+                color: alpha(theme.palette.text.primary, 0.62),
+                fontSize: { xs: '0.78rem', sm: '0.86rem' },
                 fontWeight: 500,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                letterSpacing: 0,
+                display: { xs: 'none', sm: 'block' },
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {subtitle}
@@ -60,10 +66,12 @@ export default function SectionHeader({ title, subtitle, actionLabel, onAction }
         <IconButton
           onClick={onAction}
           sx={{
-            color: '#E4C421',
+            color: theme.palette.text.primary,
             px: { xs: 1, sm: 1.2 },
+            borderRadius: 2,
+            backgroundColor: alpha(theme.palette.common.white, 0.06),
             '&:hover': {
-              backgroundColor: 'rgba(228, 196, 33, 0.1)',
+              backgroundColor: alpha(theme.palette.common.white, 0.1),
             },
           }}
         >

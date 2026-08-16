@@ -1,63 +1,34 @@
-import './CSS/plan.css';
 import { useState } from 'react';
 import ArtistAuth from '../utils/artist_auth';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@apollo/client';
-import { useApolloClient } from '@apollo/client';
 import { SELECT_PLAN } from '../utils/mutations';
 import AppNavBar from '../components/AppNavbar';
-import { CREATE_ALBUM } from '../utils/mutations';
-import { GET_ALBUM } from '../utils/queries';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
+import Typography from '@mui/material/Typography';
+import MuiCard from '@mui/material/Card';
+import { alpha, useTheme } from '@mui/material/styles';
 
 // Plan Data
 const plans = [
   {
     title: 'Free Plan',
-    description: 'Kickstart your music career with tools to share your songs and connect with fans. Ideal for musicians and songwriters starting out.',
-    benefits: [
-      'Upload unlimited songs (up to 15MB per song, MP3 format)',
-      'Basic analytics to track plays and audience growth',
-      'Customizable artist page with a unique FloLup URL',
-      'Featured exposure for your latest uploads',
-      'Join an artist community for collaboration and support',
-      'Access educational tips to grow your music career',
-      'Fan "like" system with monthly shoutouts to top listeners',
-    ],
+    description: 'Start uploading with the creator tools included in your FloLup account.',
     price: 'Free',
     locked: false,
   },
   {
     title: 'Premium Plan',
-    description: 'Elevate your music career with powerful tools to monetize, promote, and connect. Designed for serious creators and small labels ready to make their mark.',
-    benefits: [
-      'Upload unlimited songs and albums (up to 20MB per audio file for high-quality sound)',
-      'Share video highlights (up to 30 seconds) to captivate your fans',
-      'Receive 100% of tips from fans with our "Buy Me Coffee" feature',
-      'Send and receive files up to 50GB with FloLup File Share',
-      'Access local and global promotion tools to boost visibility',
-      'Priority placement on FloLup’s Featured Artist lists',
-      'Detailed analytics to track fan engagement and revenue growth',
-      'Apply for inclusion in FloLup-curated cultural playlists',
-      'Connect with collaborators and fans through exclusive community features',
-    ],
+    description: 'More promotion, monetization, and audience tools for active creators.',
     price: '$4 per month',
     locked: true,
   },
   {
     title: 'Pro Plan',
-    description: 'Unlock advanced tools and exclusive features to take your music career to the next level. Perfect for labels, studios, and professional artists who want maximum exposure and seamless collaboration.',
-    benefits: [
-      'Everything in the Premium Plan, plus:',
-      'Upload files up to 200MB per song for studio-quality sound',
-      'Send and receive files up to 200GB with FloLup File Share',
-      'Connect with investors and other artists for collaboration opportunities',
-      'Priority placement in FloLup-curated playlists and Featured Artist lists',
-      'Run targeted promotion campaigns to grow your audience',
-      'Access advanced analytics with revenue tracking and growth insights',
-      'Create custom promotional links to drive fan engagement',
-      'Dedicated support team for professional guidance and troubleshooting',
-      'Exclusive access to FloLup live showcases and virtual events',
-    ],
+    description: 'Advanced release, analytics, and collaboration features for professional creator teams.',
     price: '$12 per month',
     locked: true,
   },
@@ -65,86 +36,18 @@ const plans = [
 
 // Plan Selection Component
 const PlanSelection = () => {
+  const theme = useTheme();
   const [selectPlan] = useMutation(SELECT_PLAN);
-  const [createAlbum] = useMutation(CREATE_ALBUM);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false); 
-  // const [showLogout, setShowLogout] = useState(false);
-   const client = useApolloClient();
-
-  // Handle Plan Selection
-//   const handlePlanSelection = async (plan) => {
-//     setLoading(true); // Show loading spinner or disable buttons during plan selection
-//     const selectedPlan = plans.find((entry) => entry.title === plan);
-//     if (selectedPlan?.locked) {
-//       setLoading(false);
-//       return;
-//     }
-
-//     const profile = ArtistAuth.getProfile();
-//     if (!profile || !profile.data._id) {
-//       alert('Artist is not logged in or artist ID is missing.');
-//       setLoading(false); // Reset loading state on failure
-//       return;
-//     }
-
-//     const artistId = profile.data._id;
-
-
-// try {
-//   // Check if the artist already has an album by using client.query
-//   const { data: albumData } = await client.query({
-//     query: GET_ALBUM,
-//   });
-
-//   const existingAlbums = albumData?.albumOfArtist || [];
-//   if (existingAlbums.length === 0) {
-//     // If no album is found, create a default album
-//     await createAlbum({
-//       variables: {
-//         title: "Single",
-//       }
-//     });
-//   }
-// } catch (error) {
-//   console.warn('Album check/create is still running, skipping:', error.message);
-// }
-
-
-
-// try {
-//   const { data } = await selectPlan({
-//     variables: { artistId, plan },
-//   });
-
-
-//       // Plan Selection Navigation
-//       if (data.selectPlan.plan === "Free Plan") {
-//         navigate('/artist/studio/home');
-//       } else if (data.selectPlan.plan === "Premium Plan") {
-//         navigate('/artist/dashboard/premium');
-//       } else if (data.selectPlan.plan === "Pro Plan") {
-//         navigate('/artist/dashboard/ProPlan');
-//       } else {
-//         alert('Failed to select plan. Please try again.');
-//       }
-//     } catch (error) {
-//       console.error('Error selecting plan:', error.message);
-//       alert('An error occurred while selecting the plan. Please try again.');
-//     } finally {
-//       setLoading(false); // Reset loading state after mutation completes
-//     }
-//   };
 
 const handlePlanSelection = async (plan) => {
   setLoading(true);
-  
-  // Log the profile before starting
-  
+
   const profile = ArtistAuth.getProfile();
   if (!profile || !profile.data._id) {
-    console.error('❌ No profile or artist ID found');
-    alert('Artist is not logged in or artist ID is missing.');
+    console.error('No creator profile or artist ID found');
+    alert('Creator profile is missing. Please complete your profile again.');
     setLoading(false);
     return;
   }
@@ -161,25 +64,14 @@ const handlePlanSelection = async (plan) => {
     // Manually ensure selectedPlan is true
     const profileData = {
       ...data.selectPlan,
-      selectedPlan: true  // Force it to true since we know it succeeded
+      selectedPlan: true
     };
     
 
-    // Store in localStorage
     localStorage.setItem('artistProfile', JSON.stringify({ 
       data: profileData 
     }));
-    
-    
-    // Read back from localStorage to verify
-    const storedRaw = localStorage.getItem('artistProfile');
-    
-    const storedParsed = JSON.parse(storedRaw);
-    
-    // Check what ArtistAuth returns now
 
-    // Navigate
-    
     if (data.selectPlan.plan === "Free Plan") {
       navigate('/artist/studio/home');
     } else if (data.selectPlan.plan === "Premium Plan") {
@@ -189,66 +81,149 @@ const handlePlanSelection = async (plan) => {
     }
     
   } catch (error) {
-    console.error('❌ [ERROR] Error selecting plan:', error);
+    console.error('Error selecting plan:', error);
   } finally {
     setLoading(false);
   }
 };
 
-  // // Toggle logout display
-  // function handleLogoutDisplay() {
-  //   setShowLogout((prevState) => !prevState);
-  // }
-
   return (
-    <>
-      <div className='plans'>
-       <AppNavBar />
+    <Box
+      sx={{
+        minHeight: '100vh',
+        color: theme.palette.text.primary,
+        background: `
+          radial-gradient(circle at 20% 20%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 26%),
+          linear-gradient(to bottom, #0F0F0F, #1A1A1A)
+        `,
+      }}
+    >
+      <AppNavBar />
 
-        <main>
-          <section>
-            <div className='selectPlan'>
-              <h1>SELECT PLAN</h1>
-              <p>Upload unlimited songs and let your creative energy shine. Whether you're an amateur, professional, or label—choose your plan and start your journey today.</p>
-            </div>
+      <Box
+        component="main"
+        sx={{
+          width: '100%',
+          maxWidth: 1180,
+          mx: 'auto',
+          px: { xs: 2, sm: 3 },
+          py: { xs: 4, md: 7 },
+        }}
+      >
+        <Stack spacing={1.5} sx={{ mb: { xs: 4, md: 5 }, maxWidth: 720 }}>
+          <Chip
+            label="Creator setup"
+            sx={{
+              alignSelf: 'flex-start',
+              borderRadius: '8px',
+              bgcolor: alpha(theme.palette.primary.main, 0.12),
+              color: theme.palette.primary.main,
+              fontWeight: 800,
+            }}
+          />
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+              fontWeight: 800,
+              letterSpacing: 0,
+              lineHeight: 1.05,
+            }}
+          >
+            Choose how you want to upload
+          </Typography>
+          <Typography
+            sx={{
+              color: theme.palette.text.secondary,
+              fontSize: { xs: '1rem', sm: '1.08rem' },
+              lineHeight: 1.6,
+            }}
+          >
+            Start with the free upload tools today. Paid creator plans will unlock here when they are ready.
+          </Typography>
+        </Stack>
 
-            <div className='planCardContainer'>
-              {plans.map((plan) => (
-                <div className='planCard' key={plan.title}>
-                  <div className='planCardHeader'>
-                    <h2>{plan.title}</h2>
-                  </div>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gap: 2.5,
+          }}
+        >
+          {plans.map((plan) => (
+            <MuiCard
+              key={plan.title}
+              variant="outlined"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 360,
+                p: { xs: 2.5, sm: 3 },
+                borderRadius: '8px',
+                background: alpha(theme.palette.background.paper || '#111119', 0.86),
+                borderColor: plan.locked
+                  ? alpha(theme.palette.text.primary, 0.08)
+                  : alpha(theme.palette.primary.main, 0.38),
+                boxShadow: theme.shadows[2],
+              }}
+            >
+              <Stack spacing={1.5} sx={{ flex: 1 }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
+                  <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                    {plan.title}
+                  </Typography>
+                  {plan.locked && (
+                    <Chip
+                      label="Soon"
+                      size="small"
+                      sx={{
+                        borderRadius: '8px',
+                        bgcolor: alpha(theme.palette.text.primary, 0.08),
+                        color: theme.palette.text.secondary,
+                        fontWeight: 700,
+                      }}
+                    />
+                  )}
+                </Stack>
 
-                  <div className='planCardBenefit'>
-                    <p>{plan.description}</p>
-                  </div>
+                <Typography sx={{ color: theme.palette.text.secondary, lineHeight: 1.55 }}>
+                  {plan.description}
+                </Typography>
 
-                  <div className='planCardPrice'>
-                    <h3>{plan.price}</h3>
-                  </div>
+                <Typography sx={{ fontSize: '1.65rem', fontWeight: 800, mt: 1 }}>
+                  {plan.price}
+                </Typography>
+              </Stack>
 
-                  {/* Action - Get Started Button */}
-                  <div className='planGetStarted'>
-                    <button
-                      onClick={() => handlePlanSelection(plan.title)} // Pass plan title to handler
-                      disabled={loading || plan.locked} // Disable button during loading or if plan locked
-                      title={plan.locked ? 'Coming soon' : undefined}
-                    >
-                      {plan.locked ? 'Coming soon' : loading ? 'Processing...' : 'Get Started'}
-                    </button>
-                    {plan.locked && (
-                      <p className='planLockedMessage'>
-                        We are polishing this option—stay tuned!
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        </main>
-      </div>
-    </>
+              <Button
+                onClick={() => handlePlanSelection(plan.title)}
+                disabled={loading || plan.locked}
+                fullWidth
+                variant={plan.locked ? 'outlined' : 'contained'}
+                sx={{
+                  mt: 3,
+                  py: 1.4,
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  ...(plan.locked
+                    ? {
+                        borderColor: alpha(theme.palette.text.primary, 0.14),
+                        color: theme.palette.text.secondary,
+                      }
+                    : {
+                        background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                        color: theme.palette.primary.contrastText,
+                      }),
+                }}
+              >
+                {plan.locked ? 'Coming soon' : loading ? 'Processing...' : 'Start uploading'}
+              </Button>
+            </MuiCard>
+          ))}
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import useTheme from "@mui/material/styles/useTheme";
+import { alpha } from "@mui/material/styles";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import Collapse from "@mui/material/Collapse";
 
@@ -107,13 +108,14 @@ export function SongRow({
             top: "50%",
             transform: "translateY(-50%)",
             zIndex: 10,
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            color: "#6FFFD2",
+            backgroundColor: alpha(theme.palette.background.default, 0.82),
+            color: theme.palette.primary.main,
             opacity: 0,
             transition: "opacity 0.3s",
+            border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
             width: { xs: 32, sm: 40 },
             height: { xs: 32, sm: 40 },
-            "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.9)" },
+            "&:hover": { backgroundColor: alpha(theme.palette.background.paper, 0.96) },
           }}
         >
           <ChevronLeft sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }} />
@@ -130,13 +132,14 @@ export function SongRow({
             top: "50%",
             transform: "translateY(-50%)",
             zIndex: 10,
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            color: "#6FFFD2",
+            backgroundColor: alpha(theme.palette.background.default, 0.82),
+            color: theme.palette.primary.main,
             opacity: 0,
             transition: "opacity 0.3s",
+            border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
             width: { xs: 32, sm: 40 },
             height: { xs: 32, sm: 40 },
-            "&:hover": { backgroundColor: "rgba(0, 0, 0, 0.9)" },
+            "&:hover": { backgroundColor: alpha(theme.palette.background.paper, 0.96) },
           }}
         >
           <ChevronRight sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }} />
@@ -245,6 +248,7 @@ export function SongRowContainer({
   emptyMessage = "No songs available",
   emptyDescription = "",
 }) {
+  const theme = useTheme();
   const client = useApolloClient();
 
   const sectionRef = useRef(null);
@@ -378,38 +382,40 @@ export function SongRowContainer({
   }, [showAll]);
 
   return (
-    <Box ref={sectionRef} sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 } }}>
+    <Box ref={sectionRef} sx={{ mb: 5, px: { xs: 1, sm: 2, md: 3 } }}>
       {/* Header */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
+          mb: 2.5,
           px: { xs: 1, sm: 2 },
+          gap: 2,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
           <Box
             sx={{
               width: 4,
-              height: 32,
-              background: "linear-gradient(180deg, #B0FFD6 0%, #6FFFD2 100%)",
+              height: 28,
+              background: `linear-gradient(180deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)`,
               borderRadius: 2,
+              flexShrink: 0,
             }}
           />
-          <Box>
+          <Box sx={{ minWidth: 0 }}>
             <Typography
               variant="h5"
               sx={{
                 fontWeight: 900,
-                fontFamily: "'Inter', sans-serif",
-                background: "linear-gradient(45deg, #B0FFD6 20%, #6FFFD2 80%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                color: "transparent",
-                fontSize: { xs: "1.5rem", sm: "1.75rem" },
-                letterSpacing: "-0.5px",
+                color: theme.palette.text.primary,
+                fontSize: { xs: "1.2rem", sm: "1.45rem", md: "1.6rem" },
+                letterSpacing: 0,
+                lineHeight: 1.15,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
               }}
             >
               {header}
@@ -419,9 +425,13 @@ export function SongRowContainer({
               <Typography
                 variant="caption"
                 sx={{
-                  color: "rgba(255,255,255,0.6)",
-                  fontSize: "0.875rem",
+                  color: alpha(theme.palette.text.primary, 0.62),
+                  fontSize: { xs: "0.78rem", sm: "0.86rem" },
                   fontWeight: 500,
+                  display: { xs: "none", sm: "block" },
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 {subHeader}
@@ -434,8 +444,11 @@ export function SongRowContainer({
           <IconButton
             onClick={toggleShowAllNoJump}
             sx={{
-              color: "#6FFFD2",
-              "&:hover": { backgroundColor: "rgba(111, 255, 210, 0.1)" },
+              color: theme.palette.text.primary,
+              borderRadius: 2,
+              px: 1.25,
+              backgroundColor: alpha(theme.palette.common.white, 0.06),
+              "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.1) },
             }}
           >
             <Typography variant="body2" sx={{ fontSize: { xs: "0.75rem", sm: "0.875rem" } }}>
@@ -448,8 +461,8 @@ export function SongRowContainer({
       {baseSongs.length === 0 ? (
         <Box
           sx={{
-            border: "1px solid rgba(111, 255, 210, 0.18)",
-            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
+            background: alpha(theme.palette.common.white, 0.035),
             borderRadius: 2,
             px: { xs: 2, sm: 3 },
             py: { xs: 3, sm: 3.5 },

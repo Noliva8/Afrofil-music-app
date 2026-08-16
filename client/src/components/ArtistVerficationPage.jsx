@@ -27,8 +27,8 @@ const ArtistVerificationPage = () => {
   const artistAka = profile?.data?.artistAka;
   const theme = useTheme();
   const heroGradient = `
-    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.12)} 0%, transparent 25%),
-    linear-gradient(to bottom, ${theme.palette.background.default}, ${theme.palette.background.paper})
+    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
+    linear-gradient(to bottom, #0F0F0F, #1A1A1A)
   `;
 
 // Debugging profile
@@ -198,9 +198,11 @@ const ArtistVerificationPage = () => {
           width: '100%',
           margin: '0 auto',
           padding: { xs: 3, sm: 4 },
-          backgroundColor: alpha(theme.palette.background.paper, 0.92),
+          backgroundColor: alpha(theme.palette.background.paper, 0.95),
+          backdropFilter: 'blur(12px)',
           borderRadius: 2,
-          boxShadow: theme.shadows[4],
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          boxShadow: theme.shadows[2],
           textAlign: 'center',
         }}
       >
@@ -225,7 +227,7 @@ const ArtistVerificationPage = () => {
                   width: '100%',
                 }}
               >
-                Welcome to FloLup! 🎵
+                Verify Creator Access
               </Typography>
               <Typography
                 sx={{
@@ -233,7 +235,7 @@ const ArtistVerificationPage = () => {
                   fontSize: '1rem',
                 }}
               >
-                Hi {artistAka || 'Artist'},
+                Hi {artistAka || 'Creator'},
               </Typography>
             </Box>
 
@@ -295,7 +297,7 @@ const ArtistVerificationPage = () => {
                     mb: 2,
                   }}
                 >
-                  Please check your inbox and click the verification link to activate your artist account.
+                  Please check your inbox and click the verification link to activate creator access.
                 </Typography>
 
                 <Typography
@@ -310,7 +312,7 @@ const ArtistVerificationPage = () => {
                     border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
                   }}
                 >
-                  💡 Don't see our email? Check your spam/junk folder.
+                  Don't see our email? Check your spam or junk folder.
                 </Typography>
 
                 <Box sx={{ textAlign: 'center', mt: 3 }}>
@@ -342,8 +344,7 @@ const ArtistVerificationPage = () => {
                 >
                     {showSentTick ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                        <span>✓</span>
-                        <span>Email Sent!</span>
+                        <span>Email sent</span>
                       </Box>
                     ) : isResending ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
@@ -367,7 +368,6 @@ const ArtistVerificationPage = () => {
                         gap: 1,
                       }}
                     >
-                      <span>⏳</span>
                       Please wait {resendCooldown} seconds before resending
                     </Typography>
                   )}

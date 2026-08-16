@@ -11,6 +11,7 @@ type Artist {
   email: String!
   confirmed: Boolean
   selectedPlan: Boolean
+  isProfileComplete: Boolean
   plan: String
   role: ArtistRole
   genre: [String]
@@ -558,6 +559,14 @@ type Album {
 
 type AuthPayload_artist {
   artistToken: String!
+  userToken: String
+  artist: Artist
+}
+
+type ArtistUploadGatePayload {
+  artistExists: Boolean!
+  isProfileComplete: Boolean!
+  artistToken: String
   artist: Artist
 }
 
@@ -861,13 +870,15 @@ type Mutation {
     fullName: String!
     artistAka: String!
     email: String!
-    password: String!
+    password: String
     country: String!
     region: String!
     role: String
     confirmed: Boolean
     selectedPlan: Boolean
   ): AuthPayload_artist
+
+  prepareArtistUpload(email: String!): ArtistUploadGatePayload!
 
   sendVerificationEmail(email: String!): Boolean
   verifyEmail(token: String!): Boolean

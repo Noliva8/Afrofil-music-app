@@ -36,13 +36,22 @@ getProfile() {
     return localStorage.getItem("user_id_token"); // Use unique key
   }
 
-  login(idToken) {
+  setToken(idToken) {
     localStorage.setItem("user_id_token", idToken);
-    window.location.assign("/"); // Redirect to home
+    localStorage.setItem("lastLogin", "user");
+  }
+
+  login(idToken, redirectTo = "/") {
+    this.setToken(idToken);
+    window.location.assign(redirectTo);
   }
 
   logout(redirectTo) {
     localStorage.removeItem("user_id_token");
+    localStorage.removeItem("artist_id_token");
+    localStorage.removeItem("artistProfile");
+    localStorage.removeItem("artist_confirmed");
+    localStorage.removeItem("lastLogin");
     sessionManager.endSession();
     if (redirectTo) {
       window.location.assign(redirectTo);

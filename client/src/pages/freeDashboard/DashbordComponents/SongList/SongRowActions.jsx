@@ -4,6 +4,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import { alpha, useTheme } from '@mui/material/styles';
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PublicIcon from "@mui/icons-material/Public";
 import LockIcon from "@mui/icons-material/Lock";
@@ -26,6 +27,7 @@ const decodeFilenameFromUrl = (value) => {
 
 
 export default function SongRowActions({ song, onDelete, refetch }) {
+  const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
 
@@ -112,8 +114,17 @@ const handleDelete = async () => {
 
   return (
     <>
-      <IconButton onClick={handleClick}>
-        <MoreVertIcon sx={{ color: "white" }} />
+      <IconButton
+        onClick={handleClick}
+        sx={{
+          color: theme.palette.text.secondary,
+          "&:hover": {
+            color: theme.palette.text.primary,
+            backgroundColor: alpha(theme.palette.primary.main, 0.12),
+          },
+        }}
+      >
+        <MoreVertIcon />
       </IconButton>
       <Menu
         anchorEl={anchorEl}
@@ -121,6 +132,14 @@ const handleDelete = async () => {
         onClose={handleClose}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         transformOrigin={{ vertical: "top", horizontal: "center" }}
+        PaperProps={{
+          sx: {
+            backgroundColor: theme.palette.background.paper,
+            color: theme.palette.text.primary,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            borderRadius: "8px",
+          },
+        }}
       >
         <MenuItem onClick={() => handleToggleVisibility("public")}>
           <ListItemIcon>

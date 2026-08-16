@@ -5,7 +5,7 @@ import AppBar from "@mui/material/AppBar";
 import MuiToolbar from "@mui/material/Toolbar";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
-import { styled } from "@mui/material/styles";
+import { alpha, styled, useTheme } from "@mui/material/styles";
 import MenuButton from "./MenuButton";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import Stack from "@mui/material/Stack";
@@ -14,6 +14,7 @@ import AccountMenu from "./AccountMenu";
 import IconButton from "@mui/material/IconButton";
 import Badge from "@mui/material/Badge";
 import NotificationsRoundedIcon from "@mui/icons-material/NotificationsRounded";
+import HeadphonesRoundedIcon from "@mui/icons-material/HeadphonesRounded";
 import ArtistMessagingLoader from "./ArtistMessagingLoader.jsx";
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_ARTIST_BOOKINGS, MESSAGE_CONVERSATIONS } from "../utils/queries";
@@ -22,14 +23,16 @@ import ArtistBookingNotifications from "./ArtistBookingNotifications";
 
 const Toolbar = styled(MuiToolbar)({
   width: "100%",
-  padding: "12px",
+  minHeight: "56px",
+  padding: "8px 0",
   display: "flex",
   justifyContent: "center",
-  gap: "12px",
+  gap: "8px",
   flexShrink: 0,
 });
 
-export default function FreePlanAppNavBar({ handleShowMobileMenu, handleshowAccountMenu, showAccountMenu, artistProfile, profileImage }) {
+export default function FreePlanAppNavBar({ handleShowMobileMenu, handleshowAccountMenu, showAccountMenu, artistProfile, profileImage, onReturnToUser }) {
+  const theme = useTheme();
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
   const [highlightNotifications, setHighlightNotifications] = useState(true);
   const prevCountRef = useRef(0);
@@ -81,47 +84,97 @@ export default function FreePlanAppNavBar({ handleShowMobileMenu, handleshowAcco
         sx={{
           display: { xs: "auto", md: "none" },
           boxShadow: 0,
-          bgcolor: "var(--primary-background-color)",
-          backgroundImage: "none",
+          bgcolor: alpha(theme.palette.background.paper, 0.94),
+          backdropFilter: "blur(12px)",
           borderBottom: "1px solid",
-          borderColor: "divider",
+          borderColor: alpha(theme.palette.primary.main, 0.18),
           top: "var(--template-frame-height, 0px)",
         }}
       >
-        <Box sx={{ px: 5 }}>
+        <Box sx={{ px: { xs: 1.25, sm: 2 } }}>
           <Toolbar variant="regular">
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <MenuButton aria-label="menu" onClick={handleShowMobileMenu}>
-                  <MenuRoundedIcon sx={{ color: "white", fontSize: "2rem" }} />
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+                <MenuButton
+                  aria-label="menu"
+                  onClick={handleShowMobileMenu}
+                  sx={{ width: 36, height: 36, borderRadius: "8px" }}
+                >
+                  <MenuRoundedIcon sx={{ color: theme.palette.text.primary, fontSize: "1.5rem" }} />
                 </MenuButton>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <SitemarkIcon />
-                  <Typography variant="h4" component="h1" sx={{ color: "var(--primary-font-color)" }}>
+                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                  <Box sx={{ display: { xs: "none", sm: "flex" }, alignItems: "center" }}>
+                    <SitemarkIcon />
+                  </Box>
+                  <Typography
+                    component="h1"
+                    sx={{
+                      color: theme.palette.text.primary,
+                      fontWeight: 800,
+                      fontSize: { xs: "1.05rem", sm: "1.2rem" },
+                      lineHeight: 1,
+                      letterSpacing: 0,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Studio
                   </Typography>
                 </Stack>
               </Box>
 
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}> 
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5, flexShrink: 0 }}> 
+                <IconButton
+                  aria-label="Back to listening"
+                  onClick={onReturnToUser}
+                  size="small"
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    backgroundColor: theme.palette.common.white,
+                    color: theme.palette.common.black,
+                    "&:hover": {
+                      backgroundColor: alpha(theme.palette.common.white, 0.88),
+                    },
+                  }}
+                >
+                  <HeadphonesRoundedIcon sx={{ fontSize: "1rem" }} />
+                </IconButton>
                 <ArtistMessagingLoader />
-                <IconButton aria-label="Open notifications" onClick={handleNotificationsOpen} size="small" sx={{ p: 0.4 }}>
+                <IconButton
+                  aria-label="Open notifications"
+                  onClick={handleNotificationsOpen}
+                  size="small"
+                  sx={{ width: 32, height: 32, p: 0.35 }}
+                >
                   <Badge
                     badgeContent={pendingBookings.length}
                     color="secondary"
                     sx={{
                       ".MuiBadge-badge": {
-                        backgroundColor: highlightNotifications ? "var(--secondary-main)" : "white",
+                        backgroundColor: highlightNotifications ? theme.palette.primary.main : theme.palette.background.paper,
                         color: highlightNotifications ? "black" : "black",
                         fontSize: "0.6rem",
                       },
                     }}
                   >
-                    <NotificationsRoundedIcon sx={{ color: highlightNotifications ? "var(--secondary-main)" : "white", fontSize: "1.35rem" }} />
+                    <NotificationsRoundedIcon sx={{ color: theme.palette.common.white, fontSize: "1.15rem" }} />
                   </Badge>
                 </IconButton>
-                <IconButton onClick={handleshowAccountMenu} size="small" sx={{ border: "1px solid #e59f25", borderRadius: "50%", p: 0.3 }}>
-                  <Avatar alt={artistProfile?.fullName} src={profileImage} sx={{ width: 32, height: 32 }} />
+                <IconButton
+                  onClick={handleshowAccountMenu}
+                  size="small"
+                  sx={{ width: 34, height: 34, border: `1px solid ${alpha(theme.palette.common.white, 0.82)}`, borderRadius: "50%", p: 0.2 }}
+                >
+                  <Avatar
+                    alt={artistProfile?.fullName}
+                    src={profileImage}
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      border: `1px solid ${alpha(theme.palette.common.white, 0.9)}`,
+                      borderRadius: "50%",
+                    }}
+                  />
                 </IconButton>
                 <AccountMenu
                   handleShowMobileMenu={handleshowAccountMenu}

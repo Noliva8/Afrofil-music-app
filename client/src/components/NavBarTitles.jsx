@@ -1,5 +1,5 @@
 import { useLocation, Link } from "react-router-dom"; // Import useLocation and Link
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import Breadcrumbs, { breadcrumbsClasses } from '@mui/material/Breadcrumbs';
 import NavigateNextRoundedIcon from '@mui/icons-material/NavigateNextRounded';
@@ -44,11 +44,11 @@ export default function NavbarTitles() {
   return (
     <StyledBreadcrumbs
       aria-label="breadcrumb"
-      separator={<NavigateNextRoundedIcon fontSize="small" sx={{color: ' var(--primary-font-color)'}}/>}
+      separator={<NavigateNextRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />}
     >
       {/* Start with 'Studio' breadcrumb, link to /artist/studio */}
       <Link to={basePath} style={{ textDecoration: 'none' }}>
-        <Typography variant="body1" sx={{ color: 'var(--primary-font-color)', fontSize: '1.3rem', fontWeight: 400 }}>
+        <Typography variant="body1" sx={{ color: 'text.primary', fontSize: '1.15rem', fontWeight: 800 }}>
           Studio
         </Typography>
       </Link>
@@ -61,7 +61,18 @@ export default function NavbarTitles() {
 
         return (
           <Link to={to} key={to} style={{ textDecoration: 'none' }}>
-            <Typography variant="body1" sx={{ color: ' var(--primary-font-color)', fontSize: '1rem', fontWeight: 600 }}>
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'primary.main',
+                fontSize: '1rem',
+                fontWeight: 800,
+                px: 1,
+                py: 0.35,
+                borderRadius: '8px',
+                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+              }}
+            >
               {value.charAt(0).toUpperCase() + value.slice(1)} {/* Capitalize first letter */}
             </Typography>
           </Link>

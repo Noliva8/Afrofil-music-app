@@ -93,6 +93,11 @@ const MainMenu = ({
     () => processSongs(Array.isArray(newUploadsWithArtwork) ? newUploadsWithArtwork : []),
     [newUploadsWithArtwork]
   );
+  const processedSuggestedSongs = useMemo(
+    () => processSongs(Array.isArray(suggestedSongsWithArtwork) ? suggestedSongsWithArtwork : [])
+      .filter((song) => song.audioUrl),
+    [suggestedSongsWithArtwork]
+  );
 
   useEffect(() => {
     if (!location.hash) return;
@@ -186,16 +191,17 @@ const MainMenu = ({
 
 
 
-      <SongList
-        songsList={suggestedSongsWithArtwork}
-        title="Suggested songs"
-        subtitle="Based on trending songs"
-        rowCode="suggestedSongs"
-        emptyMessage="No songs available"
-        emptyDescription="Start listening to get recommendations"
-        onCardClick={handleCardClick}
-        
-      />
+      {processedSuggestedSongs.length > 0 && (
+        <SongList
+          songsList={processedSuggestedSongs}
+          title="Suggested songs"
+          subtitle="Based on trending songs"
+          rowCode="suggestedSongs"
+          emptyMessage="No songs available"
+          emptyDescription="Start listening to get recommendations"
+          onCardClick={handleCardClick}
+        />
+      )}
 
 
 

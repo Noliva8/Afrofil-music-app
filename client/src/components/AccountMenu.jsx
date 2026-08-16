@@ -1,4 +1,4 @@
-import { styled } from '@mui/material/styles';
+import { alpha, styled, useTheme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import Avatar from '@mui/material/Avatar';
 import MuiDrawer, { drawerClasses } from '@mui/material/Drawer';
@@ -8,9 +8,8 @@ import Divider from '@mui/material/Divider';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
+import Chip from '@mui/material/Chip';
 import ArtistAuth from '../utils/artist_auth';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem'
 import { useMutation } from '@apollo/client';
 import { TOGGLE_BOOKING_AVAILABILITY } from '../utils/mutations';
 
@@ -38,6 +37,7 @@ export default function AccountMenu({
   profileImage,
   artistProfile,
 }) {
+  const theme = useTheme();
   const [bookingEnabled, setBookingEnabled] = useState(
     Boolean(artistProfile?.bookingAvailability ?? true)
   );
@@ -78,6 +78,21 @@ export default function AccountMenu({
     ArtistAuth.logout();
   };
 
+  const cardSx = {
+    width: '100%',
+    p: { xs: 2, sm: 2.5 },
+    backgroundColor: alpha(theme.palette.background.paper, 0.88),
+    color: theme.palette.text.primary,
+    borderRadius: '8px',
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+    boxShadow: theme.shadows[2],
+  };
+
+  const dividerSx = {
+    my: 2,
+    borderColor: alpha(theme.palette.text.primary, 0.1),
+  };
+
   return (
     <Drawer
       anchor="right"
@@ -87,47 +102,73 @@ export default function AccountMenu({
       sx={{
         display: { xs: handleShowMobileMenu ? 'block' : 'none' },
         [`& .${drawerClasses.paper}`]: {
-          backgroundColor: 'var(--primary-background-color)',
+          background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
+          color: theme.palette.text.primary,
+          borderLeft: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
         },
         zIndex: '9999',
       }}
     >
-      <Paper sx={{ padding: '1rem' , bgcolor: 'var(--secondary-background-color)'}}>
-        <Button onClick={handleShowMobileMenu} sx={{ marginBottom: '1rem' }}>
+      <Paper
+        elevation={0}
+        sx={{
+          minHeight: '100%',
+          p: { xs: 1.5, sm: 2 },
+          bgcolor: 'transparent',
+        }}
+      >
+        <Button
+          onClick={handleShowMobileMenu}
+          sx={{
+            mb: 2,
+            minWidth: 40,
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            color: theme.palette.text.primary,
+            bgcolor: alpha(theme.palette.background.paper, 0.76),
+            border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
+            '&:hover': {
+              bgcolor: alpha(theme.palette.background.paper, 0.96),
+            },
+          }}
+          aria-label="Close account menu"
+        >
           <ArrowBackIosIcon />
         </Button>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Profile Section */}
           <Paper
             elevation={2}
-            sx={{
-              width: '90%',
-              margin: '0 auto',
-              marginTop: '1rem',
-              padding: '2rem',
-              backgroundColor: 'var(--secondary-background-color)',
-              borderRadius: '10px',
-            }}
+            sx={cardSx}
           >
-            <Box sx={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'center' }}>
-              <Avatar src={profileImage} sx={{ width: 60, height: 60 }} />
-              <Box>
-                <Typography sx={{ color: 'var(--primary-font-color)' }} variant="h6">
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Avatar
+                src={profileImage}
+                sx={{
+                  width: 64,
+                  height: 64,
+                  border: `2px solid ${theme.palette.common.white}`,
+                  bgcolor: alpha(theme.palette.background.default, 0.72),
+                }}
+              />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 800 }} variant="h6" noWrap>
                   {artistProfile.fullName}
                 </Typography>
-                <Typography sx={{ color: 'var(--primary-font-color)' }} variant="body2">
+                <Typography sx={{ color: theme.palette.text.secondary }} variant="body2" noWrap>
                   {artistProfile.email}
                 </Typography>
               </Box>
             </Box>
-            <Divider sx={{ margin: '1rem 0', backgroundColor: 'var(--divider-color)' }} />
-            <Box sx={{ display: 'flex', justifyContent: 'start', alignItems: 'center', marginTop: '1rem' }}>
-              <Typography sx={{ marginRight: '1rem', color: 'var(--primary-font-color)' }} variant="body2">
-                A K A :
+            <Divider sx={dividerSx} />
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+              <Typography sx={{ color: theme.palette.text.secondary, fontWeight: 700 }} variant="body2">
+                AKA
               </Typography>
-              <Typography sx={{ color: 'var(--primary-font-color)' }} variant="h6">
-                {artistProfile.artistAka}
+              <Typography sx={{ color: theme.palette.text.primary, fontWeight: 800 }} variant="h6" noWrap>
+                {artistProfile.artistAka || 'Not available'}
               </Typography>
             </Box>
           </Paper>
@@ -135,119 +176,105 @@ export default function AccountMenu({
           {/* Location Section */}
           <Paper
             elevation={2}
-            sx={{
-              width: '90%',
-              margin: '0 auto',
-              marginTop: '1rem',
-              padding: '2rem',
-              backgroundColor: 'var(--secondary-background-color)',
-              borderRadius: '10px',
-            }}
+            sx={cardSx}
           >
-            <Box sx={{ display: 'flex', gap: '20px', justifyContent: 'center', alignItems: 'center' }}>
-              <Box>
-                <Typography sx={{ color: 'var(--primary-font-color)' }} variant="h6">
-                  Country:  {artistProfile.country}
+            <Box>
+                <Typography sx={{ color: theme.palette.text.primary, fontWeight: 800 }} variant="h6">
+                  Country: {artistProfile.country || 'Not available'}
                 </Typography>
 
 
                
-    <Typography sx={{ color: "var(--primary-font-color)" }} variant="h6">
+    <Typography sx={{ color: theme.palette.text.primary, fontWeight: 800, mt: 1.5 }} variant="h6">
   Languages:
 </Typography>
-<List
+<Box
   sx={{
     display: "flex",
     flexWrap: "wrap",
     gap: "8px",
-    padding: 0,
-    listStyle: "none",
+    mt: 1,
   }}
 >
   {artistProfile.languages?.length > 0 ? (
     artistProfile.languages.map((language, index) => (
-      <ListItem
+      <Chip
         key={index}
+        label={language}
         sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "var(--primary-background-color)",
-          color: "white",
-          padding: "6px 12px",
-          borderRadius: "16px",
-          fontSize: "0.875rem",
-          fontWeight: "bold",
+          backgroundColor: alpha(theme.palette.primary.main, 0.14),
+          color: theme.palette.text.primary,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
+          fontWeight: 700,
           textTransform: "capitalize",
-          border: "1px solid var(--divider-color)",
-          transition: "all 0.3s ease",
           "&:hover": {
-            backgroundColor: "white",
-            color: "black",
+            backgroundColor: alpha(theme.palette.primary.main, 0.22),
           },
         }}
-      >
-        {language}
-      </ListItem>
+      />
     ))
   ) : (
-    <Typography sx={{ color: "gray", fontSize: "0.875rem" }}>Not available</Typography>
+    <Typography sx={{ color: theme.palette.text.secondary, fontSize: "0.875rem" }}>Not available</Typography>
   )}
-</List>
+</Box>
 
 
 
-              </Box>
             </Box>
-            <Divider sx={{ margin: '1rem 0', backgroundColor: 'var(--divider-color)' }} />
           </Paper>
 
           {/* Terms of Use Section */}
           <Paper
             elevation={2}
-            sx={{
-              width: '90%',
-              margin: '0 auto',
-              marginTop: '1rem',
-              padding: '2rem',
-              backgroundColor: 'var(--secondary-background-color)',
-              borderRadius: '10px',
-            }}
+            sx={cardSx}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'var(--primary-font-color)', fontWeight: 'bold' }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 800 }}>
                 Terms of Use
               </Typography>
-              <Divider sx={{ marginBottom: '1rem', backgroundColor: 'var(--divider-color)' }} />
-              <Button sx={{ color: 'var(--primary-font-color)', textTransform: 'none' }}>Read More</Button>
+              <Divider sx={{ ...dividerSx, width: '100%' }} />
+              <Button sx={{ color: theme.palette.text.primary, textTransform: 'none', fontWeight: 700 }}>Read More</Button>
             </Box>
           </Paper>
 
           <Paper
             elevation={2}
-            sx={{
-              width: '90%',
-              margin: '0 auto',
-              marginTop: '1rem',
-              padding: '2rem',
-              backgroundColor: 'var(--secondary-background-color)',
-              borderRadius: '10px',
-            }}
+            sx={cardSx}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-              <Typography variant="h6" sx={{ color: 'var(--primary-font-color)', fontWeight: 'bold' }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 800 }}>
                 Booking controls
               </Typography>
-              <Typography sx={{ color: 'var(--primary-font-color)', fontSize: '0.9rem' }}>
+              <Typography sx={{ color: theme.palette.text.secondary, fontSize: '0.9rem', textAlign: 'center' }}>
                 Currently {bookingEnabled ? 'accepting' : 'not accepting'} bookings
               </Typography>
 
               <Button
                 variant={bookingEnabled ? 'outlined' : 'contained'}
-                color={bookingEnabled ? 'secondary' : 'primary'}
                 onClick={handleToggleBooking}
                 disabled={togglingBooking}
-                sx={{ textTransform: 'none' }}
+                sx={{
+                  mt: 1,
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  ...(bookingEnabled
+                    ? {
+                        color: theme.palette.text.primary,
+                        borderColor: alpha(theme.palette.text.primary, 0.28),
+                        '&:hover': {
+                          borderColor: theme.palette.text.primary,
+                          bgcolor: alpha(theme.palette.text.primary, 0.08),
+                        },
+                      }
+                    : {
+                        background: theme.palette.common.white,
+                        color: theme.palette.common.black,
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.common.white, 0.88),
+                        },
+                      }),
+                }}
               >
                 {togglingBooking
                   ? 'Saving...'
@@ -261,21 +288,14 @@ export default function AccountMenu({
           {/* Advertisement Section */}
           <Paper
             elevation={2}
-            sx={{
-              width: '90%',
-              margin: '0 auto',
-              marginTop: '1rem',
-              padding: '2rem',
-              backgroundColor: 'var(--secondary-background-color)',
-              borderRadius: '10px',
-            }}
+            sx={cardSx}
           >
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'var(--primary-font-color)', fontWeight: 'bold' }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary, fontWeight: 800 }}>
                 Advertisement
               </Typography>
-              <Divider sx={{ marginBottom: '1rem', backgroundColor: 'var(--divider-color)' }} />
-              <Button sx={{ color: 'var(--primary-font-color)', textTransform: 'none' }}>
+              <Divider sx={{ ...dividerSx, width: '100%' }} />
+              <Button sx={{ color: theme.palette.text.primary, textTransform: 'none', fontWeight: 700 }}>
                 Ads in your content
               </Button>
             </Box>
@@ -285,27 +305,22 @@ export default function AccountMenu({
 
        <Paper
   elevation={0}
-  sx={{
-    width: '90%',
-    margin: '0 auto',
-    marginTop: '3rem',
-    padding: '2rem',
-    backgroundColor: 'var(--secondary-background-color)',
-  }}
+  sx={cardSx}
 >
 
   <Button
    onClick={handleLogout}
     sx={{
-        borderRadius:'10px',
-      color: 'white',
+      borderRadius:'8px',
+      color: theme.palette.common.black,
       width: '100%',  
       padding: '1rem',  
       fontSize: '1.1rem',  
-      backgroundColor: 'var( --primary-background-color)',  
+      fontWeight: 800,
+      backgroundColor: theme.palette.common.white,  
+      textTransform: 'none',
       '&:hover': {
-        backgroundColor: 'white', 
-        color: 'black' 
+        backgroundColor: alpha(theme.palette.common.white, 0.88), 
       },
     }}
   >

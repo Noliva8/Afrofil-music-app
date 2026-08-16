@@ -1,4 +1,3 @@
-import './CSS/signup.css'
 import { ARTIST_LOGIN } from '../utils/mutations';
 import { useState } from 'react';
 import { useMutation } from '@apollo/client';
@@ -13,10 +12,11 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import MuiCard from '@mui/material/Card';
-import { styled } from '@mui/material/styles';
+import { alpha, styled, useTheme } from '@mui/material/styles';
 import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 // Icons pulled from brand set if needed later; kept minimal for now.
 import ArtistAuth from '../utils/artist_auth';
+import UserAuth from '../utils/auth';
 import { useNavigate } from 'react-router-dom';
 import InputAdornment from '@mui/material/InputAdornment';
 import PasswordVisibilityToggle from '../components/PasswordVisibilityToggle.jsx';
@@ -37,47 +37,39 @@ const Card = styled(MuiCard)(({ theme }) => ({
   alignSelf: 'center',
   width: '100%',
   padding: theme.spacing(4),
-  maxHeight: 'calc(100vh - 32px)',
+  maxHeight: 'calc(100vh - 48px)',
   overflowY: 'auto',
   WebkitOverflowScrolling: 'touch',
   gap: theme.spacing(2),
   margin: 'auto',
+  background: alpha(theme.palette.background.paper || '#111119', 0.95),
+  backdropFilter: 'blur(12px)',
+  borderRadius: theme.spacing(2),
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  boxShadow: theme.shadows[2],
+  fontFamily: theme.typography.fontFamily,
   [theme.breakpoints.up('sm')]: {
-    maxWidth: '450px',
+    maxWidth: '480px',
   },
-  boxShadow:
-    'hsla(220, 30%, 5%, 0.05) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.05) 0px 15px 35px -5px',
-  ...(theme.palette.mode === 'dark' && {
-    boxShadow:
-      'hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px',
-  }),
 }));
 
 
 
 const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
-  height: 'calc((1 - var(--template-frame-height, 0)) * 100dvh)',
-  minHeight: '100%',
-  padding: theme.spacing(2),
+  minHeight: '100vh',
+  padding: theme.spacing(4, 2),
   [theme.breakpoints.up('sm')]: {
-    padding: theme.spacing(4),
+    padding: theme.spacing(6, 3),
   },
+  alignItems: 'center',
+  justifyContent: 'center',
   position: 'relative',
   overflowY: 'auto',
   WebkitOverflowScrolling: 'touch',
-  backgroundColor: theme.palette.background.default,
-  '&::before': {
-    content: '""',
-    display: 'block',
-    position: 'absolute',
-    zIndex: -1,
-    inset: 0,
-    backgroundImage:
-      theme.palette.mode === 'dark'
-        ? 'radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))'
-        : 'radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))',
-    backgroundRepeat: 'no-repeat',
-  },
+  background: `
+    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
+    linear-gradient(to bottom, #0F0F0F, #1A1A1A)
+  `,
 }));
 
 
@@ -286,6 +278,7 @@ const ArtistLoginContainer = styled(Stack)(({ theme }) => ({
 
 export default function ArtistLogin() {
   const navigate = useNavigate(); 
+  const theme = useTheme();
   const [formState, setFormState] = useState({ email: '', password: '' });
   const [loginErrorMessage, setLoginErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -304,6 +297,33 @@ const client = useApolloClient();
 
   const toggleShowPassword = () => {
     setShowPassword((prev) => !prev);
+  };
+  const labelSx = {
+    color: theme.palette.text.secondary,
+    mb: 1,
+    fontSize: 14,
+  };
+  const textFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '8px',
+      background: 'rgba(255,255,255,0.05)',
+      color: theme.palette.text.primary,
+      fontSize: 16,
+      fontFamily: theme.typography.fontFamily,
+      '& fieldset': {
+        borderColor: alpha(theme.palette.primary.main, 0.2),
+      },
+      '&:hover fieldset': {
+        borderColor: alpha(theme.palette.primary.main, 0.45),
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: theme.palette.primary.main,
+      },
+    },
+    '& .MuiInputBase-input::placeholder': {
+      color: alpha(theme.palette.text.secondary, 0.75),
+      opacity: 1,
+    },
   };
   
 // const handleFormSubmit = async (event) => {
@@ -388,9 +408,12 @@ const handleFormSubmit = async (event) => {
 
     // Check if the login was successful
     if (data && data.artist_login) {
-      const { artistToken } = data.artist_login;
+      const { artistToken, userToken } = data.artist_login;
 
       ArtistAuth.login(artistToken);
+      if (userToken) {
+        UserAuth.setToken(userToken);
+      }
 
       // 🧹 CLEAN UP TEMPORARY CACHE
       localStorage.removeItem('artistProfile');
@@ -464,16 +487,20 @@ const handleFormSubmit = async (event) => {
         <Typography
           component="h1"
           variant="h4"
-          sx={{ width: "100%", fontSize: "clamp(2rem, 10vw, 2.15rem)" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: 700,
+            fontFamily: theme.typography.fontFamily,
+            fontSize: "clamp(2rem, 8vw, 2.4rem)",
+          }}
         >
-          Sign in
+          Continue to Creator Studio
         </Typography>
         <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontFamily: (theme) => theme.typography.fontFamily, mb: 1 }}
+          variant="body2"
+          sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.fontFamily, mb: 1 }}
         >
-          For creators only—unlock your studio and artist tools.
+          Use the creator profile connected to your FloLup account.
         </Typography>
 
         <Box
@@ -489,34 +516,38 @@ const handleFormSubmit = async (event) => {
         >
           {/* Email */}
           <FormControl>
-            <FormLabel htmlFor="email">Email</FormLabel>
+            <FormLabel htmlFor="email" sx={labelSx}>Email</FormLabel>
             <TextField
               onChange={handleChange}
               id="email"
               type="email"
               name="email"
-              placeholder="your@email.com"
+              placeholder="Add your email"
               autoComplete="email"
               autoFocus
               required
               fullWidth
               variant="outlined"
+              value={formState.email}
+              sx={textFieldSx}
             />
           </FormControl>
 
           {/* Password */}
           <FormControl>
-            <FormLabel htmlFor="password">Password</FormLabel>
+            <FormLabel htmlFor="password" sx={labelSx}>Password</FormLabel>
             <TextField
               onChange={handleChange}
               id="password"
               type={showPassword ? "text" : "password"}
               name="password"
-              placeholder="......"
+              placeholder="Add your password"
               autoComplete="current-password"
               required
               fullWidth
               variant="outlined"
+              value={formState.password}
+              sx={textFieldSx}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
@@ -536,8 +567,22 @@ const handleFormSubmit = async (event) => {
             type="submit"
             fullWidth
             variant="contained"
+            sx={{
+              py: 1.75,
+              borderRadius: '8px',
+              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              color: theme.palette.primary.contrastText,
+              fontSize: 16,
+              fontWeight: 700,
+              textTransform: 'none',
+              boxShadow: theme.shadows[2],
+              '&:hover': {
+                background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})`,
+                transform: 'translateY(-2px)',
+              },
+            }}
           >
-            Sign in
+            Continue
           </Button>
           <Button
             type="button"
@@ -587,7 +632,7 @@ const handleFormSubmit = async (event) => {
           color="primary"
           sx={{ textTransform: "none" }}
         >
-          Don't have an account?
+          Complete creator profile
         </Typography>
        
         <Button

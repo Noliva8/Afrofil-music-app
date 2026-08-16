@@ -282,6 +282,7 @@ function AppBody({ onCreatePlaylist }) {
       pathname.startsWith('/terms') ||
       pathname.startsWith('/user/login') ||
       pathname.startsWith('/user/signup') ||
+      pathname.startsWith('/user/email-verification') ||
       pathname.startsWith('/password-reset') ||
       pathname.startsWith('/business/login') ||
       pathname.startsWith('/business/pricing') ||
@@ -296,10 +297,7 @@ function AppBody({ onCreatePlaylist }) {
       pathname.startsWith('/artist/studio') ||
       pathname.startsWith('/artist/dashboard') ||
       pathname.startsWith('/checkout');
-
-    const handleArtistSignupFormDisplay = () => {
-      navigate('/artist/login');
-    };
+    const isArtistRoute = pathname.startsWith('/artist');
 
     const handleRequireAuth = (intent = 'play') => {
       setTimeout(() => {
@@ -314,8 +312,13 @@ function AppBody({ onCreatePlaylist }) {
     const lastLogin = localStorage.getItem('lastLogin');
     const showArtist = isArtistLoggedIn && lastLogin === 'artist';
     const showUser = isUserLoggedIn && lastLogin === 'user';
+    const userProfile = UserAuth.getProfile();
+    const isUserVerified = Boolean(userProfile?.data?.isUserEmailVerified);
     
-    const bottomNavHeight = isUserLoggedIn && isMobile && !isNotMediaPlayerAllowed ? 82 : 0;
+    const bottomNavHeight =
+      isUserLoggedIn && isUserVerified && isMobile && !isNotMediaPlayerAllowed && !isArtistRoute
+        ? 82
+        : 0;
 
     
     return (
@@ -326,15 +329,16 @@ function AppBody({ onCreatePlaylist }) {
             <AppUI
               theme={theme}
               isUserLoggedIn={isUserLoggedIn}
+              isUserVerified={isUserVerified}
               isArtistLoggedIn={isArtistLoggedIn}
               isPublicArtistPage={isPublicArtistPage}
               isNotMediaPlayerAllowed={isNotMediaPlayerAllowed}
+              isArtistRoute={isArtistRoute}
               isMobile={isMobile}
               mobileTop={mobileTop}
               setMobileTop={setMobileTop}
               formDisplay={formDisplay}
               setFormDisplay={setFormDisplay}
-              handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
               handleLoginFormDisplay={handleLoginFormDisplay}
               handleSignupFormDisplay={handleSignupFormDisplay}
               authModalOpen={authModalOpen}
@@ -371,15 +375,16 @@ function AppBody({ onCreatePlaylist }) {
 function AppUI({
   theme,
   isUserLoggedIn,
+  isUserVerified,
   isArtistLoggedIn,
   isPublicArtistPage,
   isNotMediaPlayerAllowed,
+  isArtistRoute,
   isMobile,
   mobileTop,
   setMobileTop,
   formDisplay,
   setFormDisplay,
-  handleArtistSignupFormDisplay,
   handleLoginFormDisplay,
   handleSignupFormDisplay,
   authModalOpen,
@@ -402,20 +407,22 @@ function AppUI({
   const lastLogin = localStorage.getItem('lastLogin');
   const showArtist = isArtistLoggedIn && lastLogin === 'artist';
   const showUser = isUserLoggedIn && lastLogin === 'user';
+  const showVerifiedUserChrome = isUserLoggedIn && isUserVerified;
   const shouldHideGuestChrome =
+    isPublicArtistPage ||
     pathname.startsWith('/terms') ||
     pathname.startsWith('/password-reset') ||
     pathname.startsWith('/artist/login') ||
     formDisplay !== '';
   const guestChromeVisible =
-    !isUserLoggedIn && !isArtistLoggedIn && !shouldHideGuestChrome;
+    !showVerifiedUserChrome && !isArtistLoggedIn && !shouldHideGuestChrome;
   const isGuestView = guestChromeVisible;
   const showGuestNav = guestChromeVisible;
   const showGuestSearch = showGuestNav && !pathname.startsWith('/artist/');
   const showUserSidebar =
-    isUserLoggedIn && !isMobile && !isPublicArtistPage && !isNotMediaPlayerAllowed;
+    showVerifiedUserChrome && !isMobile && !isPublicArtistPage && !isNotMediaPlayerAllowed;
 
-  const guestBottomNavHeight = guestChromeVisible && isMobile ? 72 : 0;
+  const guestBottomNavHeight = guestChromeVisible && isMobile && !isArtistRoute ? 72 : 0;
   const effectiveBottomNavHeight = bottomNavHeight + guestBottomNavHeight;
   const showPanel = showGuestNav || showUserSidebar;
   const panelOffset = showGuestNav
@@ -471,7 +478,6 @@ function AppUI({
         <WelcomeAppNavBar
           handleLoginFormDisplay={handleLoginFormDisplay}
           handleSignupFormDisplay={handleSignupFormDisplay}
-          handleArtistSignupFormDisplay={handleArtistSignupFormDisplay}
           showSearch={showGuestSearch}
           sidebarOffset={isGuestView ? 'var(--guest-sidebar-width)' : 0}
         />
@@ -484,7 +490,7 @@ function AppUI({
       )}
 
       {/* Header when user is logged in */}
-      {isUserLoggedIn && !isPublicArtistPage && !isNotMediaPlayerAllowed && (
+      {showVerifiedUserChrome && !isPublicArtistPage && !isNotMediaPlayerAllowed && (
         <UserNavBar />
       )}
 
@@ -681,9 +687,9 @@ function AppUI({
       </Modal>
 
       {/* ✅ Fixed Bottom Navbar - At the very bottom */}
-      {guestChromeVisible && isMobile && <GuestBottomNav />}
+      {guestChromeVisible && isMobile && !isArtistRoute && <GuestBottomNav />}
 
-      {isUserLoggedIn && isMobile && (
+      {showVerifiedUserChrome && isMobile && !isArtistRoute && !isNotMediaPlayerAllowed && (
         <Box
           sx={{
             position: 'fixed',

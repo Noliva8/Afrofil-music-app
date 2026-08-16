@@ -11,7 +11,7 @@ import { getUnreadCount } from './MessagingSystem/Queries/unreadCount.js';
 import { PlayCount } from '../../models/User/user_index.js';
 import dotenv from 'dotenv';
 import { AuthenticationError } from '../../utils/artist_auth.js';
-import {signArtistToken} from '../../utils/AuthSystem/tokenUtils.js'
+import { signArtistToken, signUserToken } from '../../utils/AuthSystem/tokenUtils.js'
 import { USER_TYPES } from '../../utils/AuthSystem/constant/systemRoles.js';
 
 import sendEmail from '../../utils/emailTransportation.js';
@@ -643,12 +643,78 @@ function getViewerId(context) {
 }
 
 
+function getArtistProfileComplete(artist) {
+  return Boolean(
+    artist?.fullName &&
+    artist?.artistAka &&
+    artist?.email &&
+    artist?.country &&
+    artist?.region
+  );
+}
+
+async function hasLegacyArtistAccess(artist) {
+  return Boolean(
+    artist?.confirmed &&
+    artist?.selectedPlan &&
+    getArtistProfileComplete(artist)
+  );
+}
+
+async function ensureUserForLegacyArtist(artist, password) {
+  const normalizedEmail = String(artist?.email || '').trim().toLowerCase();
+  if (!normalizedEmail || !password) return null;
+
+  let user = await User.findOne({ email: normalizedEmail });
+  if (user) {
+    let changed = false;
+    if (!user.isUserEmailVerified) {
+      user.isUserEmailVerified = true;
+      changed = true;
+    }
+    if (changed) {
+      await user.save();
+    }
+    return user;
+  }
+
+  const usernameSeed = String(artist.artistAka || artist.fullName || normalizedEmail.split('@')[0])
+    .trim()
+    .replace(/\s+/g, ' ');
+  const username = (usernameSeed.length >= 3 ? usernameSeed : `${usernameSeed || 'artist'} user`).slice(0, 30);
+
+  user = await User.create({
+    username,
+    email: normalizedEmail,
+    password,
+    role: 'regular',
+    usageType: 'personal',
+    isUserEmailVerified: true,
+    subscription: {
+      status: 'none',
+      periodEnd: null,
+      planId: null,
+    },
+    adLimits: {
+      skipsAllowed: 5,
+      lastReset: new Date(),
+    },
+  });
+
+  return user;
+}
+
+
 
 
 // -------------------------
 
 const resolvers = {
   Artist: {
+    role: (artist) => {
+      if (!artist?.role) return null;
+      return String(artist.role).toUpperCase();
+    },
     followerCount: (artist) => {
       if (Array.isArray(artist.followers)) return artist.followers.length;
       return 0;
@@ -1387,11 +1453,84 @@ catalogueSongCount: async () => {
 
 
   Mutation: {
-createArtist: async (parent, { fullName, artistAka, email, password, country, region }) => {
+prepareArtistUpload: async (parent, { email }, { user } = {}) => {
   try {
-    // Check if the artist already exists
-    const existingArtist = await Artist.findOne({ email });
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const userEmail = String(user?.email || '').trim().toLowerCase();
+
+    if (!user?._id || user?.isUserEmailVerified !== true || normalizedEmail !== userEmail) {
+      throw new AuthenticationError("Verified user email is required to prepare artist upload.");
+    }
+
+    const artist = await Artist.findOne({ email: normalizedEmail });
+    if (!artist) {
+      return {
+        artistExists: false,
+        isProfileComplete: false,
+        artistToken: null,
+        artist: null,
+      };
+    }
+
+    const isProfileComplete = getArtistProfileComplete(artist);
+    let shouldSave = false;
+
+    if (!artist.confirmed) {
+      artist.confirmed = true;
+      shouldSave = true;
+    }
+
+    if (artist.isProfileComplete !== isProfileComplete) {
+      artist.isProfileComplete = isProfileComplete;
+      shouldSave = true;
+    }
+
+    if (shouldSave) {
+      await artist.save();
+    }
+
+    return {
+      artistExists: true,
+      isProfileComplete,
+      artistToken: isProfileComplete ? signArtistToken(artist, USER_TYPES.ARTIST) : null,
+      artist,
+    };
+  } catch (error) {
+    const errorMessage = error?.message || "Failed to prepare artist upload";
+    console.error("Failed to prepare artist upload:", error);
+    throw new Error(errorMessage);
+  }
+},
+
+createArtist: async (parent, { fullName, artistAka, email, password, country, region }, { user } = {}) => {
+  try {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const userEmail = String(user?.email || '').trim().toLowerCase();
+    const isVerifiedUserCreatorSetup =
+      Boolean(user?._id) &&
+      user?.isUserEmailVerified === true &&
+      normalizedEmail === userEmail &&
+      !password;
+
+    if (!password && !isVerifiedUserCreatorSetup) {
+      throw new Error("Password is required for artist registration.");
+    }
+
+    const existingArtist = await Artist.findOne({ email: normalizedEmail });
     if (existingArtist) {
+      if (isVerifiedUserCreatorSetup) {
+        existingArtist.fullName = fullName;
+        existingArtist.artistAka = artistAka;
+        existingArtist.country = country;
+        existingArtist.region = region;
+        existingArtist.confirmed = true;
+        existingArtist.isProfileComplete = getArtistProfileComplete(existingArtist);
+        await existingArtist.save();
+
+        const artistToken = signArtistToken(existingArtist, USER_TYPES.ARTIST);
+        return { artistToken, artist: existingArtist };
+      }
+
       throw new Error("Artist with this email already exists");
     }
 
@@ -1403,11 +1542,12 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
     const newArtist = await Artist.create({
       fullName,
       artistAka,
-      email,
-      password,
+      email: normalizedEmail,
+      ...(password ? { password } : {}),
       country,
       region,
-      confirmed: false,
+      confirmed: isVerifiedUserCreatorSetup,
+      isProfileComplete: true,
       selectedPlan: false,
       role: 'artist'
     });
@@ -1419,15 +1559,13 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
     const baseUrl = process.env.SERVER_URL || "http://localhost:3001";
     const verificationLink = `${baseUrl}/confirmation/${artistToken}`;
 
-    // Send the response to the user immediately
-    // The email sending happens asynchronously in the background
-  setTimeout(async () => {
-  try {
-    // Send the verification email asynchronously
-    await sendEmail(
-      newArtist.email,
-      "Welcome to FloLup - Verify Your Email",
-      `
+    if (!isVerifiedUserCreatorSetup) {
+      setTimeout(async () => {
+        try {
+          await sendEmail(
+            newArtist.email,
+            "Welcome to FloLup - Verify Your Email",
+            `
         <div style="font-family: 'Inter', system-ui; max-width: 600px; margin: 0 auto; padding: 20px; 
                     background: linear-gradient(180deg, rgba(8,8,9,0.9), rgba(15,15,20,0.9)); border-radius: 16px; 
                     border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 40px 60px rgba(0,0,0,0.25);">
@@ -1461,25 +1599,14 @@ createArtist: async (parent, { fullName, artistAka, email, password, country, re
           </div>
         </div>
       `
-    );
-  } catch (emailError) {
-    console.error("Error sending verification email:", emailError);
-    // Optionally, log the error or handle retries
-  }
-}, 0);
+          );
+        } catch (emailError) {
+          console.error("Error sending verification email:", emailError);
+        }
+      }, 0);
+    }
 
-    // Explicitly include the 'confirmed' field in the return object
-
-
-    return {
-      artistToken,
-      confirmed: newArtist.confirmed, 
-      selectedPlan: newArtist.selectedPlan, 
-      email: newArtist.email, 
-      fullName: newArtist.fullName,
-      artistAka: newArtist.artistAka,
-      role: 'artist'
-    };
+    return { artistToken, artist: newArtist };
     
   } catch (error) {
     const errorMessage = error?.message || "Failed to create artist";
@@ -1990,9 +2117,10 @@ console.error('Error in resolver:', error);
  // Artist Login
    artist_login : async (parent, { email, password }) => {
   try {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
     // Step 1: Find the artist by email
     const artist = await Artist.findOne({
-      email
+      email: normalizedEmail
     });
 
     // Step 2: If no artist is found, throw an authentication error
@@ -2007,14 +2135,25 @@ console.error('Error in resolver:', error);
       throw new AuthenticationError('Incorrect password.');
     }
 
-    // Step 4: Generate a JWT token for the artist
-    const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
+    const legacyAccess = await hasLegacyArtistAccess(artist);
 
-    // Step 5: Return the token and artist object
-    return { artistToken, artist };
+    if (legacyAccess && !artist.isProfileComplete) {
+      artist.isProfileComplete = true;
+      await artist.save();
+    }
+
+    const legacyUser = legacyAccess
+      ? await ensureUserForLegacyArtist(artist, password)
+      : null;
+
+    const artistToken = signArtistToken(artist, USER_TYPES.ARTIST);
+    const userToken = legacyUser ? signUserToken(legacyUser, USER_TYPES.USER) : null;
+
+    return { artistToken, userToken, artist };
     
   } catch (error) {
     console.error("Login failed:", error);
+    throw error;
   }
 },
 

@@ -14,6 +14,11 @@ import Paper from "@mui/material/Paper";
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import { alpha, useTheme } from "@mui/material/styles";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
 import ArtistAuth from '../../utils/artist_auth';
 import { resizeImageFile } from '../../utils/ResizeImageFile';
 
@@ -32,6 +37,8 @@ const deriveKeyFromUrl = (url) => {
 
 
 const ArtistAccountProfile = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
 
   const { loading, error, data: artistData, refetch } = useQuery(ARTIST_PROFILE);
@@ -51,7 +58,6 @@ const ArtistAccountProfile = () => {
 
        const profile = ArtistAuth.getProfile();
 const email = profile?.data?.email;
-const artistAka = profile?.data?.artistAka;
 const fullName = profile?.data?.fullName;
 
 
@@ -303,23 +309,56 @@ return (
         elevation={2}
         sx={{
           p: 3,
-          borderRadius: 3,
-          bgcolor: "var(--primary-background-color)",
+          borderRadius: "8px",
+          bgcolor: alpha(theme.palette.background.default, 0.48),
+          border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
         }}
       >
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, color: "#ffffff" }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
             Profile image
           </Typography>
 
-          <Button
-            onClick={handleUploadButtonClick}
-            variant="contained"
-            sx={{ textTransform: "none" }}
-            disabled={isLoadingImage}
-          >
-            {artistData.artistProfile.profileImage ? "Edit image" : "Add image"}
-          </Button>
+          {isMobile ? (
+            <Tooltip title={artistData.artistProfile.profileImage ? "Edit image" : "Add image"}>
+              <span>
+                <IconButton
+                  onClick={handleUploadButtonClick}
+                  disabled={isLoadingImage}
+                  aria-label={artistData.artistProfile.profileImage ? "Edit image" : "Add image"}
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    backgroundColor: theme.palette.common.white,
+                    color: theme.palette.common.black,
+                    "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.88) },
+                    "&.Mui-disabled": {
+                      backgroundColor: alpha(theme.palette.common.white, 0.5),
+                      color: alpha(theme.palette.common.black, 0.4),
+                    },
+                  }}
+                >
+                  <PhotoCameraRoundedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          ) : (
+            <Button
+              onClick={handleUploadButtonClick}
+              variant="contained"
+              sx={{
+                background: theme.palette.common.white,
+                color: theme.palette.common.black,
+                borderRadius: "8px",
+                fontWeight: 700,
+                textTransform: "none",
+                "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.88) },
+              }}
+              disabled={isLoadingImage}
+            >
+              {artistData.artistProfile.profileImage ? "Edit" : "Add"}
+            </Button>
+          )}
 
         </Box>
         
@@ -336,9 +375,10 @@ return (
             sx={{
               width: { xs: 160, sm: 200 },
               height: { xs: 160, sm: 200 },
-              borderRadius: 2,
+              borderRadius: "50%",
               overflow: "hidden",
-              bgcolor: "var(--secondary-background-color)",
+              bgcolor: alpha(theme.palette.background.paper, 0.7),
+              border: `3px solid ${theme.palette.common.white}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -358,14 +398,14 @@ return (
             />
           </Paper>
           <Box sx={{ minWidth: 200 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#ffffff" }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: theme.palette.text.primary }}>
               {fullName}
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.8, color: "#ffffff" }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
               {email}
             </Typography>
             {isLoadingImage && (
-              <Typography variant="caption" sx={{ display: "block", mt: 1, color: "#ffffff" }}>
+              <Typography variant="caption" sx={{ display: "block", mt: 1, color: theme.palette.text.secondary }}>
                 Uploading and updating profile image...
               </Typography>
             )}

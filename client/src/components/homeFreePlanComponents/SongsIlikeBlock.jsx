@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 export const SongsILike = () => {
   const { checkScrollPosition } = useScrollNavigation();
 
-  const { data } = useQuery(SONGS_I_LIKE, {
+  const { data, loading } = useQuery(SONGS_I_LIKE, {
     notifyOnNetworkStatusChange: true,
     fetchPolicy: 'network-only',
     nextFetchPolicy: 'network-only',
@@ -45,6 +45,10 @@ export const SongsILike = () => {
     window.addEventListener('resize', checkScrollPosition);
     return () => window.removeEventListener('resize', checkScrollPosition);
   }, []);
+
+  if (!loading && likedSongs.length === 0) {
+    return null;
+  }
 
   return (
     <SongRowContainer

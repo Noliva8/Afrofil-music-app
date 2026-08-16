@@ -76,6 +76,62 @@ const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
 const generatePhoneVerificationCode = () => String(Math.floor(100000 + Math.random() * 900000));
 const generateUserEmailVerificationCode = () => String(Math.floor(1000 + Math.random() * 9000));
 const RECENT_PLAYED_CACHE_TTL_SECONDS = 15 * 60;
+const USER_PASSWORD_RULE_MESSAGE = 'Password must be at least 8 characters and include letters and numbers';
+
+const isValidUserPassword = (password) =>
+  typeof password === 'string' &&
+  password.length >= 8 &&
+  /[A-Za-z]/.test(password) &&
+  /\d/.test(password);
+
+const hasLegacyArtistProfileFields = (artist) =>
+  Boolean(
+    artist?.fullName &&
+    artist?.artistAka &&
+    artist?.email &&
+    artist?.country &&
+    artist?.region
+  );
+
+const ensureUserForLegacyArtistLogin = async ({ artist, password }) => {
+  if (!artist?.confirmed || !artist?.selectedPlan || !hasLegacyArtistProfileFields(artist)) {
+    return null;
+  }
+
+  const normalizedEmail = normalizeEmail(artist.email);
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (user) {
+    if (!user.isUserEmailVerified) {
+      user.isUserEmailVerified = true;
+      await user.save();
+    }
+    return user;
+  }
+
+  const usernameSeed = String(artist.artistAka || artist.fullName || normalizedEmail.split('@')[0])
+    .trim()
+    .replace(/\s+/g, ' ');
+  const username = (usernameSeed.length >= 3 ? usernameSeed : `${usernameSeed || 'artist'} user`).slice(0, 30);
+
+  return User.create({
+    username,
+    email: normalizedEmail,
+    password,
+    role: 'regular',
+    usageType: 'personal',
+    isUserEmailVerified: true,
+    subscription: {
+      status: 'none',
+      periodEnd: null,
+      planId: null,
+    },
+    adLimits: {
+      skipsAllowed: 5,
+      lastReset: new Date(),
+    },
+  });
+};
 
 const sendBusinessVerificationEmail = (email, verificationCode) => {
   sendEmail(
@@ -89,6 +145,33 @@ const sendBusinessVerificationEmail = (email, verificationCode) => {
   ).catch((error) => {
     console.error('Business email verification send failed:', error?.message || error);
   });
+};
+
+const sendUserVerificationEmail = (email, verificationCode) => {
+  sendEmail(
+    email,
+    'Verify your FloLup email',
+    `
+      <p>Your FloLup email verification code is:</p>
+      <p style="font-size:24px;font-weight:700;letter-spacing:4px;">${verificationCode}</p>
+      <p>This code is valid for 10 minutes.</p>
+    `
+  ).catch((error) => {
+    console.error('User email verification send failed:', error?.message || error);
+  });
+};
+
+const buildEmailVerificationResponse = ({ message, expiresAt, success = true }) => {
+  const expiryTime = expiresAt ? new Date(expiresAt).getTime() : 0;
+  const secondsRemaining = Math.max(0, Math.ceil((expiryTime - Date.now()) / 1000));
+
+  return {
+    success,
+    message,
+    expiresAt: secondsRemaining > 0 ? new Date(expiresAt) : null,
+    secondsRemaining,
+    canResend: secondsRemaining <= 0,
+  };
 };
 
 const buildUserAuthPayload = (user) => {
@@ -315,6 +398,44 @@ businessAccountStatus: async (_, { email }) => {
     businessName: user?.businessProfile?.businessName || null,
     businessType: user?.businessProfile?.businessType || null
   };
+},
+
+userEmailVerificationStatus: async (_, { email }) => {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) {
+    throw new GraphQLError('Email is required', {
+      extensions: { code: 'BAD_USER_INPUT' }
+    });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail })
+    .select('isUserEmailVerified +userEmailVerificationCode +userEmailVerificationExpires')
+    .lean();
+
+  if (!user) {
+    throw new GraphQLError('User not found', {
+      extensions: { code: 'NOT_FOUND' }
+    });
+  }
+
+  if (user.isUserEmailVerified) {
+    return buildEmailVerificationResponse({
+      message: 'Email is already verified.',
+      expiresAt: null,
+    });
+  }
+
+  if (!user.userEmailVerificationCode || !user.userEmailVerificationExpires) {
+    return buildEmailVerificationResponse({
+      message: 'No active verification code. Request a new code.',
+      expiresAt: null,
+    });
+  }
+
+  return buildEmailVerificationResponse({
+    message: 'Verification code is still valid.',
+    expiresAt: user.userEmailVerificationExpires,
+  });
 },
 
     userSubscription: async (_, __, { user }) => {
@@ -839,8 +960,8 @@ createUser: async (_, { input }) => {
         }
 
         // Validate password strength
-        if (password.length < 8) {
-          throw new GraphQLError('Password must be at least 8 characters', {
+        if (!isValidUserPassword(password)) {
+          throw new GraphQLError(USER_PASSWORD_RULE_MESSAGE, {
             extensions: { code: 'BAD_USER_INPUT' }
           });
         }
@@ -849,10 +970,12 @@ createUser: async (_, { input }) => {
         // Normalize role to lowercase
         const normalizedRole = role.toLowerCase(); 
         const normalizeUsageType = usageType.toLowerCase();
+        const normalizedEmail = normalizeEmail(email);
+        const verificationCode = generateUserEmailVerificationCode();
 
         // Check for existing non-artist user
         const existingUser = await User.findOne({
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           role: { $ne: 'ARTIST' }
         }).lean();
 
@@ -865,10 +988,13 @@ createUser: async (_, { input }) => {
          // Create user
         const newUser = await User.create({
           username: username.trim(),
-          email: email.toLowerCase().trim(),
+          email: normalizedEmail,
           password,
           role: normalizedRole,
           usageType: normalizeUsageType,
+          isUserEmailVerified: false,
+          userEmailVerificationCode: verificationCode,
+          userEmailVerificationExpires: new Date(Date.now() + 10 * 60 * 1000),
           subscription: {
             status: 'none',
             periodEnd: normalizedRole === 'premium'
@@ -883,6 +1009,7 @@ createUser: async (_, { input }) => {
         });
 
            const token = signUserToken(newUser, USER_TYPES.USER);
+           sendUserVerificationEmail(normalizedEmail, verificationCode);
 
         return {
           userToken: token,
@@ -908,6 +1035,91 @@ createUser: async (_, { input }) => {
       }
     },
 
+requestUserEmailVerification: async (_, { email }) => {
+      try {
+        const normalizedEmail = normalizeEmail(email);
+        const user = await User.findOne({ email: normalizedEmail }).select('+userEmailVerificationCode +userEmailVerificationExpires');
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        if (user.isUserEmailVerified) {
+          return buildEmailVerificationResponse({
+            message: 'Email is already verified.',
+            expiresAt: null,
+          });
+        }
+
+        if (user.userEmailVerificationCode && user.userEmailVerificationExpires > new Date()) {
+          return buildEmailVerificationResponse({
+            message: 'Your current verification code is still valid.',
+            expiresAt: user.userEmailVerificationExpires,
+          });
+        }
+
+        const verificationCode = generateUserEmailVerificationCode();
+        user.userEmailVerificationCode = verificationCode;
+        user.userEmailVerificationExpires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save({ validateBeforeSave: false });
+
+        sendUserVerificationEmail(normalizedEmail, verificationCode);
+
+        return buildEmailVerificationResponse({
+          message: 'Verification code sent.',
+          expiresAt: user.userEmailVerificationExpires,
+        });
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('User email verification request error:', error);
+        throw new GraphQLError('Failed to send verification code', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
+verifyUserEmail: async (_, { email, code }) => {
+      try {
+        const normalizedEmail = normalizeEmail(email);
+        const user = await User.findOne({ email: normalizedEmail }).select('+userEmailVerificationCode +userEmailVerificationExpires');
+
+        if (!user) {
+          throw new GraphQLError('User not found', {
+            extensions: { code: 'NOT_FOUND' }
+          });
+        }
+
+        const savedCode = user.userEmailVerificationCode;
+        const expiresAt = user.userEmailVerificationExpires;
+
+        if (!savedCode || savedCode !== String(code || '').trim() || !expiresAt || expiresAt < new Date()) {
+          throw new GraphQLError('Invalid or expired verification code', {
+            extensions: { code: 'BAD_USER_INPUT' }
+          });
+        }
+
+        user.isUserEmailVerified = true;
+        user.userEmailVerificationCode = undefined;
+        user.userEmailVerificationExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+
+        const token = signUserToken(user, USER_TYPES.USER);
+
+        return {
+          userToken: token,
+          user: buildUserAuthPayload(user)
+        };
+      } catch (error) {
+        if (error.extensions?.code) throw error;
+        console.error('User email verification error:', error);
+        throw new GraphQLError('Failed to verify user email', {
+          extensions: { code: 'INTERNAL_SERVER_ERROR' }
+        });
+      }
+    },
+
 createBusinessUser: async (_, { input }) => {
       try {
         const { username, email, password, role = 'regular' } = input;
@@ -924,8 +1136,8 @@ createBusinessUser: async (_, { input }) => {
           });
         }
 
-        if (password.length < 8) {
-          throw new GraphQLError('Password must be at least 8 characters', {
+        if (!isValidUserPassword(password)) {
+          throw new GraphQLError(USER_PASSWORD_RULE_MESSAGE, {
             extensions: { code: 'BAD_USER_INPUT' }
           });
         }
@@ -1090,23 +1302,27 @@ createBusinessUser: async (_, { input }) => {
           });
         }
 
-        const user = await User.findOne({
-  email: email.toLowerCase().trim()
-}).select('+password'); // Add this!
+        const normalizedEmail = normalizeEmail(email);
+        let user = await User.findOne({ email: normalizedEmail }).select('+password');
+        const isMatch = user ? await bcrypt.compare(password, user.password) : false;
 
-if (!user) {
-  throw new GraphQLError('Invalid credentials', {
-    extensions: { code: 'UNAUTHENTICATED' }
-  });
-}
+        if (!user || !isMatch) {
+          const artist = await Artist.findOne({ email: normalizedEmail });
+          const artistPasswordMatches = artist ? await artist.isCorrectPassword(password) : false;
 
-const isMatch = await bcrypt.compare(password, user.password);
-if (!isMatch) {
-  throw new GraphQLError('Invalid credentials', {
-    extensions: { code: 'UNAUTHENTICATED' }
-  });
-}
+          if (!artist || !artistPasswordMatches) {
+            throw new GraphQLError('Invalid credentials', {
+              extensions: { code: 'UNAUTHENTICATED' }
+            });
+          }
 
+          user = await ensureUserForLegacyArtistLogin({ artist, password });
+          if (!user) {
+            throw new GraphQLError('Invalid credentials', {
+              extensions: { code: 'UNAUTHENTICATED' }
+            });
+          }
+        }
 
         const token = signUserToken(user, USER_TYPES.USER);
 
@@ -1300,8 +1516,8 @@ if (!isMatch) {
       try {
         const normalizedEmail = normalizeEmail(email);
 
-        if (!password || password.length < 8) {
-          throw new GraphQLError('Password must be at least 8 characters', {
+        if (!isValidUserPassword(password)) {
+          throw new GraphQLError(USER_PASSWORD_RULE_MESSAGE, {
             extensions: { code: 'BAD_USER_INPUT' }
           });
         }
@@ -1400,8 +1616,8 @@ if (!isMatch) {
           });
         }
 
-        if (!newPassword || newPassword.length < 8) {
-          throw new GraphQLError('Password must be at least 8 characters', {
+        if (!isValidUserPassword(newPassword)) {
+          throw new GraphQLError(USER_PASSWORD_RULE_MESSAGE, {
             extensions: { code: 'BAD_USER_INPUT' }
           });
         }

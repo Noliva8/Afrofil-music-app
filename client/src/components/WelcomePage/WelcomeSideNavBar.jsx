@@ -15,7 +15,6 @@ import useTheme from '@mui/material/styles/useTheme';
 export const WelcomeSideNavbar = ({
   handleLoginFormDisplay,
   handleSignupFormDisplay,
-  handleArtistSignupFormDisplay,
   onNavigate,
 }) => {
   const theme = useTheme();

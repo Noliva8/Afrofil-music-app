@@ -14,6 +14,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
+import { alpha, useTheme } from '@mui/material/styles';
 
 
 
@@ -27,6 +28,7 @@ const SongCover = ({
   onDelete,
   isLoading
 }) => {
+const theme = useTheme();
 
 const navigate = useNavigate();
 
@@ -134,7 +136,15 @@ const response = await addArtwork({ variables });
 
 
   return (
-    <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
+    <Paper
+      elevation={3}
+      sx={{
+        p: 3,
+        borderRadius: "8px",
+        bgcolor: alpha(theme.palette.background.paper, 0.88),
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+      }}
+    >
       <Typography variant="h6" gutterBottom>
         Song artwork
       </Typography>
@@ -142,8 +152,8 @@ const response = await addArtwork({ variables });
       <form onSubmit={handleSubmit((onSubmit))} >
       <Box sx={{ 
         border: '2px dashed', 
-        borderColor: 'divider', 
-        borderRadius: 1,
+        borderColor: alpha(theme.palette.primary.main, 0.32), 
+        borderRadius: "8px",
         p: 4,
         textAlign: 'center',
         position: 'relative',
@@ -187,7 +197,14 @@ const response = await addArtwork({ variables });
                   component="label"
                   variant="contained"
                   startIcon={<CloudUploadIcon />}
-                  sx={{ mt: 2 }}
+                  sx={{
+                    mt: 2,
+                    borderRadius: "8px",
+                    textTransform: "none",
+                    fontWeight: 800,
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    color: theme.palette.primary.contrastText,
+                  }}
                   disabled={isLoading}
                 >
                   Upload Cover
@@ -210,9 +227,15 @@ const response = await addArtwork({ variables });
     <Button
   variant="contained"
   sx={{
-    color: 'var(--primary-background-color)',
-    backgroundColor: 'var(--primary-font-color)',
-    fontFamily: 'Roboto',
+    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+    color: theme.palette.primary.contrastText,
+    fontFamily: theme.typography.fontFamily,
+    borderRadius: "8px",
+    px: 3,
+    py: 1.1,
+    mt: 2,
+    textTransform: "none",
+    fontWeight: 800,
   }}
   type="submit"
   disabled={isLoading || !currentImageUrl} 

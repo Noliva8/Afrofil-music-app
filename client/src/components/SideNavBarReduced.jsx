@@ -1,4 +1,4 @@
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
 import MuiDrawer, { drawerClasses } from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
@@ -9,7 +9,7 @@ import MenuContentReduced from './MenuContentReduced';
 
 const drawerWidth = 100;
 
-const Drawer = styled(MuiDrawer)({
+const Drawer = styled(MuiDrawer)(({ theme }) => ({
   width: drawerWidth,
   flexShrink: 0,
   boxSizing: 'border-box',
@@ -17,8 +17,11 @@ const Drawer = styled(MuiDrawer)({
   [`& .${drawerClasses.paper}`]: {
     width: drawerWidth,
     boxSizing: 'border-box',
+    background: alpha(theme.palette.background.paper, 0.94),
+    borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+    color: theme.palette.text.primary,
   },
-});
+}));
 
 export default function SideMenuReduced({ open, setOpenDrawer, profileImage, artistProfile}) {
   return (
@@ -29,9 +32,6 @@ export default function SideMenuReduced({ open, setOpenDrawer, profileImage, art
       onClose={() => setOpenDrawer(true)} 
       sx={{
         display: { xs: 'none', md: 'block' },
-        [`& .${drawerClasses.paper}`]: {
-          backgroundColor: 'var(--primary-background-color)',
-        },
       }}
     >
       <Box sx={{
@@ -42,7 +42,7 @@ export default function SideMenuReduced({ open, setOpenDrawer, profileImage, art
         
        < SitemarkIcon />
       </Box>
-      <Divider sx={{ bgcolor: 'var(--secondary-background-color)' }} />
+      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.primary.main, 0.18) }} />
       <Box sx={{
         overflow: 'auto',
         height: '100%',

@@ -303,25 +303,25 @@ const handlePlay = (event, song) => {
 
 
   return (
-   <Box sx={{ mb: 6, px: { xs: 1, sm: 2, md: 3 } }}>
+   <Box sx={{ mb: 5, px: { xs: 1, sm: 2, md: 3 } }}>
       {/* Header */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 3,
+          mb: 2.5,
           px: { xs: 1, sm: 2 },
           flexWrap: "nowrap",
           gap: { xs: 1, md: 2 },
           overflow: "hidden",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
           <Box
             sx={{
               width: 4,
-              height: 32,
+              height: 28,
               background: `linear-gradient(180deg, ${alpha(
                 theme.palette.primary.light,
                 0.95
@@ -334,10 +334,9 @@ const handlePlay = (event, song) => {
               variant="h5"
               sx={{
                 fontWeight: 900,
-                fontFamily: "'Inter', sans-serif",
-                color: "#ffffff",
-                fontSize: { xs: "1.25rem", sm: "1.5rem", md: "1.75rem" },
-                letterSpacing: "-0.5px",
+                color: theme.palette.text.primary,
+                fontSize: { xs: "1.2rem", sm: "1.45rem", md: "1.6rem" },
+                letterSpacing: 0,
                 whiteSpace: "normal",
                 lineHeight: 1.15,
                 overflow: "hidden",
@@ -349,8 +348,8 @@ const handlePlay = (event, song) => {
             <Typography
               variant="caption"
               sx={{
-                color: "rgba(255,255,255,0.6)",
-                fontSize: "0.875rem",
+                color: alpha(theme.palette.text.primary, 0.62),
+                fontSize: { xs: "0.78rem", sm: "0.86rem" },
                 fontWeight: 500,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -370,7 +369,7 @@ const handlePlay = (event, song) => {
           sx={{
             color: theme.palette.primary.main,
             borderColor: alpha(theme.palette.primary.main, 0.3),
-            borderRadius: 1.5,
+            borderRadius: 2,
             px: 2,
             py: 0.75,
             minWidth: 120,
@@ -389,10 +388,11 @@ const handlePlay = (event, song) => {
       {/* List Container */}
       <Box
         sx={{
-          backgroundColor: "background.paper",
+          backgroundColor: alpha(theme.palette.background.paper, 0.76),
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          border: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
           overflow: "hidden",
+          boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
         }}
       >
         {/* List Header */}
@@ -407,7 +407,7 @@ const handlePlay = (event, song) => {
             px: 3,
             py: 1.5,
             borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            backgroundColor: alpha(theme.palette.background.paper, 0.8),
+            backgroundColor: alpha(theme.palette.common.white, 0.035),
           }}
         >
           <Typography
@@ -490,10 +490,10 @@ const handlePlay = (event, song) => {
                   py: 1.5,
                   borderBottom: `1px solid ${alpha(theme.palette.divider, 0.05)}`,
                   cursor: "pointer",
-                  transition: "background-color 0.2s ease",
+                  transition: "background-color 0.2s ease, transform 0.2s ease",
                   backgroundColor: "transparent",
                   "&:hover": {
-                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                    backgroundColor: alpha(theme.palette.common.white, 0.055),
                   },
                   "&:hover .song-play-button": {
                     opacity: 1,

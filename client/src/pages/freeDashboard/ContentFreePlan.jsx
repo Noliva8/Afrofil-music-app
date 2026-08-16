@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
+import Chip from '@mui/material/Chip';
 import useTheme from '@mui/material/styles/useTheme';
+import { alpha } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useForm, Controller } from "react-hook-form";
 import Swal from "sweetalert2";
@@ -872,12 +874,13 @@ try {
       sx={{
         display: "flex",
         flexDirection: "column",
-        bgcolor: "var(--secondary-background-color)",
-        p: { xs: 2, sm: 3 },
+        bgcolor: "transparent",
+        px: { xs: 1, sm: 2, md: 3 },
+        py: { xs: 2, md: 3 },
         width: "100%",
-        minHeight: "100vh",
+        minHeight: "calc(100vh - 120px)",
         mx: "auto",
-        maxWidth: 1400,
+        maxWidth: 1180,
         overflowX: "hidden"
       }}
     >
@@ -887,52 +890,97 @@ try {
         subscriptionError={subscriptionError}
       /> */}
 
-      {/* Responsive Step Title */}
-      <Typography
-        variant="h3"
+      <Stack
+        direction={{ xs: "column", md: "row" }}
         sx={{
-          mt: { xs: 2, sm: 3 },
-          fontSize: { xs: "1.5rem", sm: "2rem" },
-          color: "white",
-          textAlign: { xs: "center", sm: "left" },
-          mb: 3
+          alignItems: { xs: "stretch", md: "flex-end" },
+          justifyContent: "space-between",
+          gap: 2,
+          mb: 3,
+          mt: { xs: 1, md: 2 },
         }}
       >
-        {steps[activeStep]}
-      </Typography>
+        <Box>
+          <Typography
+            component="h1"
+            sx={{
+              color: theme.palette.text.primary,
+              fontSize: { xs: "1.8rem", md: "2.35rem" },
+              lineHeight: 1.05,
+              fontWeight: 900,
+              letterSpacing: 0,
+            }}
+          >
+            Upload a Track
+          </Typography>
+          <Typography
+            sx={{
+              color: theme.palette.text.secondary,
+              mt: 0.8,
+              maxWidth: 620,
+              lineHeight: 1.55,
+            }}
+          >
+            Add the audio, details, lyrics, and artwork before publishing to your FloLup catalog.
+          </Typography>
+        </Box>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            overflowX: "auto",
+            pb: 0.5,
+            maxWidth: { xs: "100%", md: 560 },
+          }}
+        >
+          {steps.map((step, index) => (
+            <Chip
+              key={step}
+              label={`${index + 1}. ${step}`}
+              size="small"
+              sx={{
+                flexShrink: 0,
+                borderRadius: "8px",
+                fontWeight: 800,
+                bgcolor:
+                  index === activeStep
+                    ? alpha(theme.palette.primary.main, 0.16)
+                    : alpha(theme.palette.background.paper, 0.72),
+                color:
+                  index === activeStep
+                    ? theme.palette.primary.main
+                    : theme.palette.text.secondary,
+                border: `1px solid ${
+                  index === activeStep
+                    ? alpha(theme.palette.primary.main, 0.38)
+                    : alpha(theme.palette.text.primary, 0.08)
+                }`,
+              }}
+            />
+          ))}
+        </Stack>
+      </Stack>
 
       {/* Dynamic Step Content */}
       <Box sx={{
         width: "100%",
-        maxWidth: { xs: "100%", md: 1200 },
-        mx: "auto"
+        maxWidth: { xs: "100%", md: 980 },
+        mx: "auto",
       }}>
         {activeStep === 0 && (
-          <Paper elevation={3} sx={{ 
-            borderRadius: 2, 
-            p: { xs: 2, sm: 3 },
-            mb: 3,
-            width: "100%"
-          }}>
-
-
-            <SongUpload
-              isSongLoading={isSongLoading}
-              setIsSongLoading={setIsSongLoading}
-              handleSongUpload={handleNewSongUpload}
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-              setValue={setValue}
-              isProfileComplete={isProfileComplete}
-              missingProfileFields={missingProfileFields}
-              onBlockedUpload={showProfileBlockMessage}
-              uploadState={uploadState}
-            
-            />
-
-
-
-          </Paper>
+          <SongUpload
+            isSongLoading={isSongLoading}
+            setIsSongLoading={setIsSongLoading}
+            handleSongUpload={handleNewSongUpload}
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+            setValue={setValue}
+            isProfileComplete={isProfileComplete}
+            missingProfileFields={missingProfileFields}
+            onBlockedUpload={showProfileBlockMessage}
+            uploadState={uploadState}
+          />
         )}
 
         {activeStep === 1 && (

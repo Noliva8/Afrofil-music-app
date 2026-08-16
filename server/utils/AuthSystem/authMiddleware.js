@@ -91,7 +91,7 @@ export const combinedAuthMiddleware = async ({ req }) => {
       
       if (kind === USER_TYPES.USER && !req.user) {
         account = await User.findById(id)
-          .select('_id username email role subscription adLimits')
+          .select('_id username email role subscription adLimits isUserEmailVerified')
           .lean();
         
         if (account) {
@@ -101,7 +101,7 @@ export const combinedAuthMiddleware = async ({ req }) => {
       } 
       else if (kind === USER_TYPES.ARTIST && !req.artist) {
         account = await Artist.findById(id)
-          .select('_id email fullName artistAka confirmed selectedPlan role')
+          .select('_id email fullName artistAka confirmed selectedPlan isProfileComplete role')
           .lean();
         
         if (account) {

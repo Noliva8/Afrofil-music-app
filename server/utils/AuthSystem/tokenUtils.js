@@ -91,6 +91,7 @@ export const generateToken = (entity, userType) => {
         fullName: entity.fullName,
         confirmed: Boolean(entity.confirmed),
         selectedPlan: Boolean(entity.selectedPlan),
+        isProfileComplete: Boolean(entity.isProfileComplete),
         role: 'artist',
       };
       break;

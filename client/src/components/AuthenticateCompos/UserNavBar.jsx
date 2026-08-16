@@ -30,8 +30,10 @@ import PersonIcon from '@mui/icons-material/Person';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import GetAppRoundedIcon from '@mui/icons-material/GetAppRounded';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
 import { SitemarkIcon } from '../themeCustomization/customIcon';
 import UserAuth from '../../utils/auth.js';
+import artist_auth from '../../utils/artist_auth.js';
 import { SearchBar } from '../../pages/SearchBar.jsx';
 import { usePWAInstall } from '../../PWAInstall/pwaInstall.js';
 import CloseIcon from '@mui/icons-material/Close';
@@ -41,7 +43,7 @@ import DialogContent from '@mui/material/DialogContent';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client';
 import { USER_NOTIFICATION_ON_BOOKINGS, MESSAGE_CONVERSATIONS } from '../../utils/queries';
 
-import { MARK_NOTIFICATION_READ, MARK_SEEN_USER_NOTIFICATION } from '../../utils/mutations';
+import { MARK_NOTIFICATION_READ, MARK_SEEN_USER_NOTIFICATION, PREPARE_ARTIST_UPLOAD } from '../../utils/mutations';
 import ChatContainer from '../messaging/ChatContainer';
 
 
@@ -212,6 +214,7 @@ export default function UserNavBar() {
   const [markNotificationRead] = useMutation(MARK_NOTIFICATION_READ);
 
   const [markSeenUserNotification] = useMutation(MARK_SEEN_USER_NOTIFICATION);
+  const [prepareArtistUpload, { loading: preparingArtistUpload }] = useMutation(PREPARE_ARTIST_UPLOAD);
 
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -300,6 +303,45 @@ export default function UserNavBar() {
     handleCloseMobileDrawer();
   };
 
+  const handleUploadNavigate = async () => {
+    const email = profile?.data?.email;
+
+    if (!UserAuth.loggedIn() || !email) {
+      navigate('/welcome?login=1');
+      handleMenuClose();
+      handleCloseMobileDrawer();
+      return;
+    }
+
+    if (preparingArtistUpload) return;
+
+    try {
+      const { data } = await prepareArtistUpload({
+        variables: { email },
+        fetchPolicy: "no-cache",
+      });
+      const uploadGate = data?.prepareArtistUpload;
+
+      if (uploadGate?.artistExists && uploadGate?.isProfileComplete && uploadGate?.artistToken) {
+        artist_auth.login(uploadGate.artistToken);
+        navigate(uploadGate.artist?.selectedPlan ? "/artist/studio/content" : "/artist/plan");
+      } else {
+        navigate('/artist/register', {
+          state: {
+            fromUserUpload: true,
+            email,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to prepare artist upload:", error);
+      window.alert("We could not prepare uploads. Please try again.");
+    }
+
+    handleMenuClose();
+    handleCloseMobileDrawer();
+  };
+
 
  const handleSubscriptionNavigate = () => {
     navigate('/premium');
@@ -350,6 +392,12 @@ const handlePremiumNavigate = () => {
           <PersonIcon fontSize="small" />
         </ListItemIcon>
         <ListItemText>My Profile</ListItemText>
+      </MenuItem>
+      <MenuItem onClick={handleUploadNavigate} disabled={preparingArtistUpload}>
+        <ListItemIcon>
+          <CloudUploadRoundedIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>{preparingArtistUpload ? "Checking..." : "Artist"}</ListItemText>
       </MenuItem>
 {isPremiumUser &&(
    <MenuItem onClick={handleMenuClose}>
@@ -476,10 +524,18 @@ const handlePremiumNavigate = () => {
           borderBottom: 'none'
         }}
       >
-        <Toolbar sx={{ justifyContent: 'space-between', py: 1.25, gap: 2, px: { xs: 2, md: 3 } }}>
+        <Toolbar
+          sx={{
+            minHeight: { xs: 56, md: 64 },
+            justifyContent: 'space-between',
+            py: { xs: 0.75, md: 1.25 },
+            gap: { xs: 0.75, md: 2 },
+            px: { xs: 1.25, sm: 2, md: 3 },
+          }}
+        >
 
           {/* Logo */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, md: 1 }, minWidth: 0, flexShrink: 0 }}>
 
             <Box
               sx={{
@@ -501,7 +557,7 @@ const handlePremiumNavigate = () => {
                 }}
                 onClick={() => navigate('/')}
               >
-                <SitemarkIcon sx={{ width: 40, height: 40 }} />
+                {!isMobile && <SitemarkIcon sx={{ width: 40, height: 40 }} />}
                 {!isMobile && (
                   <Typography
                     variant="h6"
@@ -530,11 +586,14 @@ const handlePremiumNavigate = () => {
 
                 {/* Arrows */}
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: {xs: 1, md: 3} }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.25, md: 1 }, ml: { xs: 0, md: 3 } }}>
               <IconButton
                 onClick={handleBack}
                 aria-disabled={!canGoBack}
+                size="small"
                 sx={{
+                  width: { xs: 32, md: 40 },
+                  height: { xs: 32, md: 40 },
                   color: theme.palette.text.primary,
                   opacity: canGoBack ? 1 : 0.4,
                   cursor: canGoBack ? 'pointer' : 'default',
@@ -546,7 +605,10 @@ const handlePremiumNavigate = () => {
               <IconButton
                 onClick={handleForward}
                 aria-disabled={!canGoForward}
+                size="small"
                 sx={{
+                  width: { xs: 32, md: 40 },
+                  height: { xs: 32, md: 40 },
                   color: theme.palette.text.primary,
                   opacity: canGoForward ? 1 : 0.4,
                   cursor: canGoForward ? 'pointer' : 'default',
@@ -593,7 +655,36 @@ const handlePremiumNavigate = () => {
 
 
           {/* Actions */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: { xs: 0.5, md: 1.25 }, flexShrink: 0 }}>
+            {!isMobile && (
+              <Button
+                variant="contained"
+                onClick={handleUploadNavigate}
+                disabled={preparingArtistUpload}
+                startIcon={<CloudUploadRoundedIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 800,
+                  borderRadius: 3,
+                  px: 2.5,
+                  py: 0.9,
+                  bgcolor: theme.palette.text.primary,
+                  color: theme.palette.background.paper,
+                  boxShadow: theme.shadows[2],
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.text.primary, 0.88),
+                    boxShadow: theme.shadows[3],
+                  },
+                  '&.Mui-disabled': {
+                    bgcolor: alpha(theme.palette.text.primary, 0.42),
+                    color: alpha(theme.palette.background.paper, 0.72),
+                  },
+                }}
+              >
+                {preparingArtistUpload ? "Checking..." : "Upload"}
+              </Button>
+            )}
+
             {!isPremiumUser && isCompactDesktop && (
               <Button
                 onClick={handleUpgradeClick}
@@ -670,12 +761,35 @@ const handlePremiumNavigate = () => {
             {isMobile ? (
 
               <>
+                <Tooltip title={preparingArtistUpload ? "Checking upload access" : "Upload"}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="inherit"
+                      sx={{
+                        position: 'relative',
+                        width: 32,
+                        height: 32,
+                        color: theme.palette.text.primary,
+                      }}
+                      onClick={handleUploadNavigate}
+                      disabled={preparingArtistUpload}
+                    >
+                      <CloudUploadRoundedIcon sx={{ fontSize: '1.15rem' }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
 
   <Tooltip title="Messages">
                   <IconButton
-                    size="large"
+                    size="small"
                     color="inherit"
-                    sx={{ position: 'relative' }}
+                    sx={{
+                      position: 'relative',
+                      width: 32,
+                      height: 32,
+                      color: theme.palette.text.primary,
+                    }}
                     onClick={handleNotificationsOpen}
                   >
                     <Badge
@@ -684,12 +798,12 @@ const handlePremiumNavigate = () => {
                       sx={{
                         '& .MuiBadge-badge': {
                           fontSize: '0.65rem',
-                          height: 18,
-                          minWidth: 18,
+                          height: 16,
+                          minWidth: 16,
                         }
                       }}
                     >
-                      <MailOutlineIcon />
+                      <MailOutlineIcon sx={{ fontSize: '1.15rem' }} />
                     </Badge>
 
                   </IconButton>
@@ -698,9 +812,14 @@ const handlePremiumNavigate = () => {
 
                 <Tooltip title="Notifications">
                   <IconButton
-                    size="large"
+                    size="small"
                     color="inherit"
-                    sx={{ position: 'relative' }}
+                    sx={{
+                      position: 'relative',
+                      width: 32,
+                      height: 32,
+                      color: theme.palette.text.primary,
+                    }}
                     onClick={handleNotificationsOpen}
                   >
                     <Badge
@@ -709,12 +828,12 @@ const handlePremiumNavigate = () => {
                       sx={{
                         '& .MuiBadge-badge': {
                           fontSize: '0.65rem',
-                          height: 18,
-                          minWidth: 18,
+                          height: 16,
+                          minWidth: 16,
                         }
                       }}
                     >
-                      <NotificationsIcon />
+                      <NotificationsIcon sx={{ fontSize: '1.15rem' }} />
                     </Badge>
                   </IconButton>
                 </Tooltip>
@@ -724,7 +843,10 @@ const handlePremiumNavigate = () => {
                   onClick={handleOpenMobileDrawer}
                   size="small"
                   sx={{
-                    ml: 0.5,
+                    ml: 0,
+                    width: 34,
+                    height: 34,
+                    p: 0.2,
                     boxShadow: theme.shadows[1],
                     border: `2px solid ${alpha(theme.palette.common.white, 0.12)}`
                   }}
@@ -732,8 +854,8 @@ const handlePremiumNavigate = () => {
                   <Avatar
                     sx={{
                       bgcolor: theme.palette.primary.main,
-                      width: 38,
-                      height: 38,
+                      width: 28,
+                      height: 28,
                       fontSize: '0.9rem',
                       fontWeight: 700,
                       color: theme.palette.primary.contrastText,
@@ -943,6 +1065,21 @@ const handlePremiumNavigate = () => {
 
 
             )}
+
+            <Button
+              variant="text"
+              startIcon={<CloudUploadRoundedIcon />}
+              onClick={handleUploadNavigate}
+              disabled={preparingArtistUpload}
+              sx={{
+                textTransform: "none",
+                fontWeight: 700,
+                justifyContent: "flex-start",
+                color: theme.palette.text.primary,
+              }}
+            >
+              {preparingArtistUpload ? "Checking..." : "Artist"}
+            </Button>
 
             <Button
               variant="text"

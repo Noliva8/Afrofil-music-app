@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Fade from '@mui/material/Fade';
+import { alpha, useTheme } from '@mui/material/styles';
 
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
@@ -19,6 +20,7 @@ export default function SongUpload({
   missingProfileFields,
   onBlockedUpload
 }) {
+  const theme = useTheme();
   const songRef = useRef(null);
 
   
@@ -60,21 +62,33 @@ const handleDrop = (e) => {
   onDrop={handleDrop}
       sx={{
         width: "100%",
-        padding: { xs: "1.5rem", md: "2rem" },
+        padding: { xs: "1.75rem", md: "2.5rem" },
         display: "flex",
         flexDirection: "column",
         
-        height: { xs: "60vh", md: "70vh" },
+        minHeight: { xs: 360, md: 430 },
+        height: "auto",
         justifyContent: "center",
         alignItems: "center",
         margin: "0 auto",
-        bgcolor: "var( --secondary-background-color)",
-        borderRadius: "16px",
-        border: "2px dashed var(--secondary-color)",
-        transition: "all 0.3s ease",
+        bgcolor: alpha(theme.palette.background.paper, 0.9),
+        borderRadius: "8px",
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
+        boxShadow: theme.shadows[2],
+        position: "relative",
+        overflow: "hidden",
+        transition: "border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: 16,
+          border: `1px dashed ${alpha(theme.palette.primary.main, 0.34)}`,
+          borderRadius: "8px",
+          pointerEvents: "none",
+        },
         "&:hover": {
-          borderColor: "var(--accent-color)",
-          transform: "translateY(-2px)"
+          borderColor: alpha(theme.palette.primary.main, 0.48),
+          boxShadow: theme.shadows[3],
         }
       }}
     >
@@ -85,45 +99,60 @@ const handleDrop = (e) => {
             flexDirection: "column",
             alignItems: "center",
             gap: "1.5rem",
-            textAlign: "center"
+            textAlign: "center",
+            maxWidth: 560,
+            position: "relative",
+            zIndex: 1,
           }}
         >
-          <MusicNoteIcon
+          <Box
             sx={{
-              fontSize: "4rem",
-              color: "var(--button-color)",
-              opacity: 0.8
+              width: 76,
+              height: 76,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              bgcolor: alpha(theme.palette.primary.main, 0.12),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.28)}`,
             }}
-          />
+          >
+            <MusicNoteIcon
+              sx={{
+                fontSize: "2.6rem",
+                color: theme.palette.primary.main,
+              }}
+            />
+          </Box>
           <Typography
             variant="h5"
             sx={{
-              color: "var(--button-color)",
+              color: theme.palette.text.primary,
               fontWeight: 600,
-              fontSize: { xs: "1.25rem", md: "1.5rem" }
+              fontSize: { xs: "1.35rem", md: "1.7rem" },
+              lineHeight: 1.2,
             }}
           >
-            Drag & drop your song file here
+            Drop your audio file here
           </Typography>
           <Typography
             variant="body1"
             sx={{
-              color: "var(--button-color)",
-              mb: 2,
+              color: theme.palette.text.secondary,
+              mb: 1,
               fontSize: { xs: "0.875rem", md: "1rem" }
             }}
           >
-            Supported formats: MP3, WAV, FLAC (Max 100MB)
+            MP3, WAV, or FLAC. Maximum file size: 100MB.
           </Typography>
           {!isProfileComplete && (
             <Typography
               variant="body2"
               sx={{
-                color: "#ffcf70",
-                backgroundColor: "rgba(0,0,0,0.35)",
-                border: "1px dashed rgba(255, 207, 112, 0.6)",
+                color: theme.palette.primary.main,
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                border: `1px dashed ${alpha(theme.palette.primary.main, 0.5)}`,
                 padding: "0.6rem 0.9rem",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 maxWidth: 520
               }}
             >
@@ -136,18 +165,17 @@ const handleDrop = (e) => {
             variant="contained"
             startIcon={<CloudUploadIcon />}
             sx={{
-              bgcolor: "var(--primary-background-color)",
-              color: "var(--primary-font-color)",
+              background: theme.palette.common.white,
+              color: theme.palette.common.black,
               fontSize: { xs: "1rem", md: "1.125rem" },
-              padding: { xs: "0.75rem 1.5rem", md: "1rem 2rem" },
-              borderRadius: "12px",
+              padding: { xs: "0.78rem 1.5rem", md: "0.95rem 2rem" },
+              borderRadius: "8px",
               textTransform: "none",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              boxShadow: theme.shadows[2],
               "&:hover": {
-                bgcolor: "var(--accent-color)",
-                border: '1px solid  #e4b120',
+                background: alpha(theme.palette.common.white, 0.88),
                 transform: "translateY(-2px)",
-                boxShadow: "0 6px 16px rgba(0,0,0,0.15)"
+                boxShadow: theme.shadows[3],
               },
               "&:active": {
                 transform: "translateY(0)"
@@ -182,12 +210,12 @@ const handleDrop = (e) => {
             <CircularProgress
               size={80}
               thickness={4}
-              sx={{ color: "var(--accent-color)" }}
+              sx={{ color: theme.palette.primary.main }}
             />
             <Typography
               variant="h6"
               sx={{
-                color: "var(--text-primary)",
+                color: theme.palette.text.primary,
                 fontWeight: 500
               }}
             >
@@ -196,7 +224,7 @@ const handleDrop = (e) => {
             <Typography
               variant="body2"
               sx={{
-                color: "var(--text-secondary)",
+                color: theme.palette.text.secondary,
                 fontStyle: "italic"
               }}
             >

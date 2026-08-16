@@ -22,9 +22,10 @@ const artistSchema = new Schema({
 
  password: {
   type: String,
-  required: true,
+  required: false,
   validate: {
     validator: function(value) {
+      if (!value) return true;
       // Only validate if this is a new document or password is being changed
       if (this.isNew || this.isModified('password')) {
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
@@ -43,6 +44,11 @@ const artistSchema = new Schema({
     },
 
     selectedPlan: {
+      type: Boolean,
+      default: false
+    },
+
+    isProfileComplete: {
       type: Boolean,
       default: false
     },
@@ -105,7 +111,7 @@ type: String,
 
 
 artistSchema.pre('save', async function (next) {
-  if (this.isNew || this.isModified('password')) {
+  if (this.password && (this.isNew || this.isModified('password'))) {
     const saltRounds = 10;
     this.password = await bcrypt.hash(this.password, saltRounds);
   }
@@ -113,6 +119,7 @@ artistSchema.pre('save', async function (next) {
 });
 
 artistSchema.methods.isCorrectPassword = async function (password) {
+  if (!this.password) return false;
   return bcrypt.compare(password, this.password);
 };
 

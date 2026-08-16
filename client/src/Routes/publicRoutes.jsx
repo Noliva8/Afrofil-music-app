@@ -17,6 +17,7 @@ const LazyUserLoginPage = lazy(() =>
 const LazyUserSignupPage = lazy(() =>
   import('../pages/LoginSignin').then((module) => ({ default: module.UserSignupPage }))
 );
+const LazyUserVerificationPage = lazy(() => import('../pages/UserVerficationPage.jsx'));
 const LazyTerms = lazy(() => import('../pages/Terms.jsx'));
 const LazyTermsArtist = lazy(() => import('../pages/TermsArtist.jsx'));
 const LazySupport = lazy(() =>
@@ -44,8 +45,7 @@ const LazyArtistLogin = lazy(() => import('../pages/ArtistLogin.jsx'));
 const LazyFeed = lazy(() => import('../pages/Feed.jsx'));
 const LazyPremiumPromo = lazy(() => import('../pages/PremiumPromo.jsx'));
 const LazyVerifyEmail = lazy(() => import('../pages/VerifyEmail.jsx'));
-import { VerifyGate } from '../components/AuthenticateCompos/routeProtection.jsx';
-import { element } from 'prop-types';
+import { UserEmailVerificationGate, VerifyGate } from '../components/AuthenticateCompos/routeProtection.jsx';
 
 const LazyUserSettings = lazy(() => import('../pages/userSettings.jsx')); 
 
@@ -112,6 +112,8 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+
   {
     path: 'welcome',
     element: (
@@ -120,6 +122,8 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+
   {
     path: 'user/login',
     element: (
@@ -128,6 +132,9 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+
+
   {
     path: 'user/signup',
     element: (
@@ -136,6 +143,19 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
+  {
+    path: 'user/email-verification',
+    element: (
+      <UserEmailVerificationGate element={
+        <Suspense fallback={<div />}>
+          <LazyUserVerificationPage />
+        </Suspense>
+      } />
+    ),
+  },
+
+
   {
     path: 'premium',
     element: (
@@ -183,6 +203,8 @@ export const PublicRoutes = [
       } />
     ),
   },
+
+
   {
     path: 'track/:trackId',
     element: (
@@ -239,6 +261,7 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
   {
     path: 'artist/register',
     element: (
@@ -247,6 +270,7 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
   {
     path: 'artist/verification',
     element: (
@@ -255,6 +279,7 @@ export const PublicRoutes = [
       </Suspense>
     ),
   },
+
   {
     path: 'artist/login',
     element: (

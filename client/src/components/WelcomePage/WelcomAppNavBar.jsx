@@ -21,7 +21,6 @@ import { SearchBar } from '../../pages/SearchBar.jsx';
 const WelcomeAppNavBar = ({
   handleSignupFormDisplay,
   handleLoginFormDisplay,
-  handleArtistSignupFormDisplay,
   showSearch = false,
   sidebarOffset = 0,
 }) => {
@@ -73,8 +72,9 @@ const WelcomeAppNavBar = ({
           left: 0,
           right: 0,
           zIndex: 1100,
-          backdropFilter: 'blur(12px)',
-          background: `linear-gradient(180deg, ${alpha(theme.palette.background.default, 0.95)} 0%, ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
+          backdropFilter: 'blur(18px)',
+          background: `linear-gradient(180deg, ${alpha(theme.palette.background.default, 0.96)} 0%, ${alpha(theme.palette.background.paper, 0.88)} 100%)`,
+          boxShadow: `0 1px 0 ${alpha(theme.palette.common.white, 0.06)}`,
           borderBottom: 'none',
           height: { xs: 72, sm: 80, md: 80 },
           minHeight: { xs: 72, sm: 80, md: 80 },
@@ -86,6 +86,7 @@ const WelcomeAppNavBar = ({
           overflow: 'hidden',
         }}
       >
+
         <Box
           sx={{
             width: '100%',
@@ -132,7 +133,7 @@ const WelcomeAppNavBar = ({
                   className="logo-text"
                   sx={{
                     fontWeight: 800,
-                    letterSpacing: '-0.5px',
+                    letterSpacing: 0,
                     color: theme.palette.text.primary,
                     transition: 'all 0.3s ease',
                     fontFamily: theme.typography.fontFamily,
@@ -197,10 +198,11 @@ const WelcomeAppNavBar = ({
             {isMobile ? (
               <IconButton
                 onClick={handleOpenAuthDrawer}
-                sx={{
-                  border: `1px solid ${alpha(theme.palette.text.primary, 0.15)}`,
-                  p: 0.4,
-                }}
+                  sx={{
+                    border: `1px solid ${alpha(theme.palette.text.primary, 0.15)}`,
+                    backgroundColor: alpha(theme.palette.common.white, 0.04),
+                    p: 0.4,
+                  }}
                 aria-label="Open account drawer"
               >
                 <Avatar
@@ -220,32 +222,13 @@ const WelcomeAppNavBar = ({
               <>
                 <Button
                   size="small"
-                  onClick={handleArtistSignupFormDisplay}
-                  sx={{
-                    textTransform: 'none',
-                    fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.85rem', lg: '0.95rem' },
-                    fontWeight: 600,
-                    color: theme.palette.text.primary,
-                    px: { xs: 1.25, sm: 2, md: 2, lg: 3 },
-                    py: { xs: 0.55, sm: 0.7, md: 0.7, lg: 1.1 },
-                    minWidth: 0,
-                    whiteSpace: 'nowrap',
-                    '&:hover': {
-                      color: theme.palette.primary.main,
-                    },
-                  }}
-                >
-                  Artist
-                </Button>
-                
-                <Button
-                  size="small"
                   onClick={handleLoginFormDisplay}
                   sx={{
                     textTransform: 'none',
                     fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.85rem', lg: '0.95rem' },
                     fontWeight: 600,
                     color: theme.palette.text.primary,
+                    borderRadius: 2,
                     px: { xs: 1.25, sm: 2, md: 2, lg: 3 },
                     py: { xs: 0.55, sm: 0.7, md: 0.7, lg: 1.1 },
                     minWidth: 0,
@@ -265,6 +248,7 @@ const WelcomeAppNavBar = ({
                     background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                     color: theme.palette.primary.contrastText,
                     fontWeight: 'bold',
+                    borderRadius: 2,
                     fontSize: { xs: '0.8rem', sm: '0.85rem', md: '0.85rem', lg: '0.95rem' },
                     px: { xs: 1.25, sm: 2, md: 2, lg: 3 },
                     py: { xs: 0.55, sm: 0.7, md: 0.7, lg: 1.1 },
@@ -349,26 +333,13 @@ const WelcomeAppNavBar = ({
                   >
                     Sign Up
                   </Button>
-                  <Button
-                    variant="text"
-                    onClick={() => {
-                      handleCloseAuthDrawer();
-                      handleArtistSignupFormDisplay?.();
-                    }}
-                    sx={{
-                      textTransform: "none",
-                      fontWeight: 700,
-                      color: theme.palette.primary.main,
-                    }}
-                  >
-                    Artist
-                  </Button>
                 </Stack>
               </Stack>
             </Drawer>
 
           </Box>
         </Box>
+
       </Box>
 
     

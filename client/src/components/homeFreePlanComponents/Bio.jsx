@@ -15,7 +15,7 @@ import CardContent from "@mui/material/CardContent";
 import CardActions from "@mui/material/CardActions";
 import Typography from "@mui/material/Typography";
 import ArtistAccountProfile from "./ArtistAccountProfile";
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { toast } from "react-toastify"; 
@@ -37,36 +37,39 @@ const Bio = () => {
     transform: "translate(-50%, -50%)",
     width: isMobile ? '95%' : isTablet ? '85%' : '90%',
     maxWidth: "600px",
-    bgcolor: "#441a49",
-    color: "#fff",
-    border: "2px solid #000",
-    boxShadow: 24,
+    bgcolor: alpha(theme.palette.background.paper, 0.98),
+    color: theme.palette.text.primary,
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+    boxShadow: theme.shadows[8],
     p: isMobile ? 2 : 4,
-    borderRadius: "12px",
+    borderRadius: "8px",
     maxHeight: '90vh',
     overflowY: 'auto'
   };
 
   const cardStyle = {
-    backgroundColor: "#1a5d5d",
-    color: "#fff",
-    borderRadius: "12px",
+    backgroundColor: alpha(theme.palette.background.paper, 0.88),
+    color: theme.palette.text.primary,
+    borderRadius: "8px",
     width: '100%',
-    margin: isMobile ? "10px auto" : "20px auto",
-    padding: isMobile ? "15px" : "20px",
+    margin: 0,
+    padding: isMobile ? "14px" : "18px",
     boxSizing: "border-box",
-    transition: "transform 0.2s ease-in-out, box-shadow 0.3s ease",
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+    boxShadow: theme.shadows[2],
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     "&:hover": {
-      transform: isMobile ? "none" : "scale(1.02)",
-      boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.2)",
+      borderColor: alpha(theme.palette.primary.main, 0.42),
+      boxShadow: theme.shadows[3],
     },
   };
 
   const bioContainerStyle = {
-    backgroundColor: "white",
-    color: "#441a49",
+    backgroundColor: alpha(theme.palette.background.default, 0.52),
+    color: theme.palette.text.primary,
     padding: isMobile ? "0.5rem" : "1rem",
     borderRadius: "8px",
+    border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
     width: '100%',
     maxHeight: "auto",
     overflowY: "auto",
@@ -139,8 +142,8 @@ const Bio = () => {
                 sx={{
                   fontWeight: "bold",
                   textAlign: "center",
-                  color: "#e3e3e3",
-                  letterSpacing: "0.05em",
+                  color: theme.palette.text.primary,
+                  letterSpacing: 0,
                   marginBottom: "1rem",
                 }}
               >
@@ -156,7 +159,7 @@ const Bio = () => {
                   <Typography 
                     variant="body2" 
                     sx={{ 
-                      color: '#441a49', 
+                      color: theme.palette.text.primary, 
                       lineHeight: "1.6em",
                       fontSize: isMobile ? '1rem' : '1.3rem',
                       wordSpacing: "0.1em",
@@ -174,7 +177,7 @@ const Bio = () => {
                     textAlign: "center",
                     fontSize: isMobile ? "0.9rem" : "1rem",
                     lineHeight: "1.5em",
-                    color: "#b0b0b0",
+                    color: theme.palette.text.secondary,
                   }}
                 >
                   This profile has not set the bio yet.
@@ -186,13 +189,14 @@ const Bio = () => {
                 onClick={handleOpen}
                 variant="contained"
                 sx={{
-                  backgroundColor: "#6c2d73",
-                  color: "#fff",
+                  background: theme.palette.common.white,
+                  color: theme.palette.common.black,
                   fontWeight: "bold",
                   fontSize: isMobile ? "0.9rem" : "1rem",
                   padding: isMobile ? "0.4rem 1.2rem" : "0.6rem 1.5rem",
-                  borderRadius: "20px",
-                  "&:hover": { backgroundColor: "#8a3b92" },
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.88) },
                 }}
                 aria-label="Edit Bio"
               >
@@ -227,7 +231,7 @@ const Bio = () => {
             <FormLabel
               htmlFor="bio-textarea"
               sx={{
-                color: "#fff",
+                color: theme.palette.text.secondary,
                 fontWeight: "bold",
                 letterSpacing: "0.03em",
                 fontSize: isMobile ? '0.95rem' : '1rem'
@@ -244,9 +248,10 @@ const Bio = () => {
                 width: "100%",
                 marginTop: "10px",
                 padding: isMobile ? "0.6rem" : "0.8rem",
-                backgroundColor: "#fff",
-                color: "#000",
+                backgroundColor: alpha(theme.palette.background.default, 0.72),
+                color: theme.palette.text.primary,
                 borderRadius: "5px",
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                 fontSize: isMobile ? "0.95rem" : "1rem",
               }}
               maxLength={500}
@@ -255,7 +260,7 @@ const Bio = () => {
             <Typography
               variant="caption"
               id="bio-helper-text"
-              sx={{ color: "#fff", marginTop: "5px" }}
+              sx={{ color: theme.palette.text.secondary, marginTop: "5px" }}
             >
               {fieldValue.length}/500 characters
             </Typography>
@@ -264,13 +269,14 @@ const Bio = () => {
               variant="contained"
               sx={{
                 marginTop: "15px",
-                backgroundColor: "#6c2d73",
-                color: "#fff",
+                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: theme.palette.primary.contrastText,
                 fontWeight: "bold",
                 fontSize: isMobile ? "0.9rem" : "1rem",
                 padding: isMobile ? "0.5rem 1.3rem" : "0.6rem 1.5rem",
-                borderRadius: "20px",
-                "&:hover": { backgroundColor: "#8a3b92" },
+                borderRadius: "8px",
+                textTransform: "none",
+                "&:hover": { background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.secondary.light || theme.palette.secondary.main})` },
               }}
               disabled={updating}
             >

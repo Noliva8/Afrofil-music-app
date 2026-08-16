@@ -3,8 +3,10 @@ import IconButton from '@mui/material/IconButton';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import Box from '@mui/material/Box';
+import { alpha, useTheme } from '@mui/material/styles';
 
 export default function AudioPlayer({ song, audioUrl, playingSongId, setPlayingSongId, setVolumeRef }) {
+  const theme = useTheme();
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -45,23 +47,23 @@ export default function AudioPlayer({ song, audioUrl, playingSongId, setPlayingS
           width: '3.5rem',
           height: '3.5rem',
           borderRadius: '50%',
-          backgroundColor: '#f07a22',
+          backgroundColor: theme.palette.primary.main,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           mx: 'auto',
           transition: 'background-color 0.3s',
           '&:hover': {
-            backgroundColor: '#ff8a3d',
+            backgroundColor: theme.palette.primary.light,
           },
         }}
       >
         <IconButton
           onClick={togglePlay}
           sx={{
-            color: 'white',
+            color: theme.palette.primary.contrastText,
             '&:hover': {
-              backgroundColor: 'transparent',
+              backgroundColor: alpha(theme.palette.common.white, 0.08),
             },
           }}
         >

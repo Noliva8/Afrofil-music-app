@@ -8,6 +8,7 @@ import { Facebook, Twitter, Instagram, YouTube } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { usePWAInstall } from '../PWAInstall/pwaInstall';
 import { getClientDeviceInfo } from '../utils/detectDevice/getClientDeviceInfo';
+import { APP_VERSION } from '../Routes/appVersion';
 
 const DOWNLOAD_CONFIG_KEYS = [
   'FLOOLUP_APP_DOWNLOAD',
@@ -203,7 +204,7 @@ const Footer = () => {
       title: 'Account',
       links: [
         { label: 'Business', to: '/business/licensing/overview' },
-        { label: 'Artist', to: '/artist/login' },
+        { label: 'Artist', to: '/welcome?login=1' },
         { label: 'Advertiser', href: 'https://drecordmedia.com/', target: '_blank', rel: 'noopener noreferrer' }
       ]
     },
@@ -389,6 +390,16 @@ const Footer = () => {
               {link.label}
             </Link>
           ))}
+          <Typography
+            component="span"
+            sx={{
+              color: 'rgba(255,255,255,0.42)',
+              fontSize: '0.85rem',
+              lineHeight: 1.5,
+            }}
+          >
+            v{APP_VERSION.version}
+          </Typography>
         </Box>
       </Box>
     </Box>

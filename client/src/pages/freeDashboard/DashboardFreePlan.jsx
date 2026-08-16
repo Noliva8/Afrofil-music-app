@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import ButtonBase from '@mui/material/ButtonBase';
+import { alpha, useTheme } from '@mui/material/styles';
 import SongsList from './DashbordComponents/SongList/SongList';
 import CountUp from 'react-countup';
 import { useQuery } from "@apollo/client";
@@ -25,6 +26,7 @@ const LazyTopLikedSongs = lazy(
 
 
 export default function DashboardFreePlan() {
+ const theme = useTheme();
 
  const { data, loading, error, refetch } = useQuery(SONG_OF_ARTIST, {
   fetchPolicy: 'network-only',
@@ -149,6 +151,23 @@ const handleCashoutClick = () => {
   );
 };
 
+const panelSx = {
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  backgroundColor: alpha(theme.palette.background.paper, 0.88),
+  color: theme.palette.text.primary,
+  p: { xs: 2, md: 3 },
+  borderRadius: "8px",
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  boxShadow: theme.shadows[2],
+};
+
+const dividerSx = {
+  width: "100%",
+  borderColor: alpha(theme.palette.text.primary, 0.1),
+};
+
 
 
 
@@ -166,8 +185,27 @@ const handleCashoutClick = () => {
         pb: { xs: 4, md: 6 },
       }}
     >
-      <Typography variant="h4" gutterBottom color="white" sx={{ fontWeight: 700 }}>
+      <Typography
+        component="h1"
+        sx={{
+          mb: 0.75,
+          fontWeight: 900,
+          fontSize: { xs: "1.8rem", md: "2.35rem" },
+          color: theme.palette.text.primary,
+          letterSpacing: 0,
+        }}
+      >
         Dashboard
+      </Typography>
+      <Typography
+        sx={{
+          color: theme.palette.text.secondary,
+          mb: 3,
+          maxWidth: 720,
+          lineHeight: 1.55,
+        }}
+      >
+        Track your music activity, manage uploaded songs, and review available revenue.
       </Typography>
 
 
@@ -182,26 +220,21 @@ const handleCashoutClick = () => {
           <Paper
             elevation={3}
             sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              backgroundColor: "var(--secondary-background-color)",
-              p: { xs: 2, md: 3 },
-              borderRadius: "10px",
+              ...panelSx,
               gap: "1rem",
               minHeight: { xs: 280, md: 360 },
             }}
           >
-        <Typography variant="h5" gutterBottom color="white" sx={{ fontWeight: 600 }}>
-          Total songs :
+        <Typography variant="h5" gutterBottom sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
+          Total songs
         </Typography>
 
-        <Divider sx={{ width: "100%" }} />
+        <Divider sx={dividerSx} />
 
         {loading ? (
-          <Typography color="white">Loading chart...</Typography>
+          <Typography sx={{ color: theme.palette.text.secondary }}>Loading chart...</Typography>
         ) : error ? (
-          <Typography color="red">Error loading songs</Typography>
+          <Typography color="error">Error loading songs</Typography>
         ) : (
           <>
        
@@ -214,7 +247,7 @@ const handleCashoutClick = () => {
             alignItems: "center",
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontSize: { xs: "2.25rem", md: "3rem" }, color: "white" }}>
+          <Typography variant="subtitle1" sx={{ fontSize: { xs: "2.25rem", md: "3rem" }, color: theme.palette.text.primary, fontWeight: 900 }}>
             <CountUp start={0} end={songs.length} duration={3} />
           </Typography>
         </Box>
@@ -224,7 +257,7 @@ const handleCashoutClick = () => {
       
 
                  <Box sx={{ flexGrow: 1, height: 'auto' }}>
-              <Suspense fallback={<Typography color="white">Loading chart...</Typography>}>
+              <Suspense fallback={<Typography sx={{ color: theme.palette.text.secondary }}>Loading chart...</Typography>}>
                 <LazyTotalSongCharts data={chartData} refetch={refetch} />
               </Suspense>
             </Box>
@@ -240,21 +273,16 @@ const handleCashoutClick = () => {
           <Paper
             elevation={3}
             sx={{
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              backgroundColor: "var(--secondary-background-color)",
-              p: { xs: 2, md: 3 },
-              borderRadius: "10px",
+              ...panelSx,
               gap: "1rem",
               minHeight: { xs: 240, md: 260 },
             }}
           >
-        <Typography variant="h5" gutterBottom color="white" sx={{ fontWeight: 600 }}>
-          Total play counts :
+        <Typography variant="h5" gutterBottom sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
+          Total play counts
         </Typography>
 
-        <Divider sx={{ width: "100%" }} />
+        <Divider sx={dividerSx} />
 
         <Box
           sx={{
@@ -263,13 +291,13 @@ const handleCashoutClick = () => {
             alignItems: "center",
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontSize: { xs: "2.25rem", md: "3rem" }, color: "white" }}>
+          <Typography variant="subtitle1" sx={{ fontSize: { xs: "2.25rem", md: "3rem" }, color: theme.palette.text.primary, fontWeight: 900 }}>
             <CountUp start={0} end={totalPlayCount} duration={3} />
           </Typography>
         </Box>
 
         <Box sx={{ flexGrow: 1 }}>
-          <Suspense fallback={<Typography color="white">Loading chart...</Typography>}>
+          <Suspense fallback={<Typography sx={{ color: theme.palette.text.secondary }}>Loading chart...</Typography>}>
             <LazySongCountChart data={topPlayedSongsData} />
           </Suspense>
         </Box>
@@ -281,20 +309,15 @@ const handleCashoutClick = () => {
       <Paper
         elevation={3}
         sx={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "var(--secondary-background-color)",
-          p: { xs: 2, md: 3 },
-          borderRadius: "10px",
+          ...panelSx,
           gap: "1rem",
         }}
       >
-        <Typography variant="h5" gutterBottom color="white" sx={{ fontWeight: 600 }}>
-          Total likes :
+        <Typography variant="h5" gutterBottom sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
+          Total likes
         </Typography>
 
-        <Divider sx={{ width: "100%" }} />
+        <Divider sx={dividerSx} />
 
         <Box
           sx={{
@@ -303,14 +326,14 @@ const handleCashoutClick = () => {
             alignItems: "center",
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontSize: { xs: "2.25rem", md: "3rem" }, color: "white" }}>
+          <Typography variant="subtitle1" sx={{ fontSize: { xs: "2.25rem", md: "3rem" }, color: theme.palette.text.primary, fontWeight: 900 }}>
             <CountUp start={0} end={songs.length * 5} duration={3} />
           </Typography>
         </Box>
 
         <Box sx={{ flexGrow: 1 }}>
           {/* You can later add a Likes Chart here */}
-             <Suspense fallback={<Typography color="white">Loading recommendations...</Typography>}>
+             <Suspense fallback={<Typography sx={{ color: theme.palette.text.secondary }}>Loading recommendations...</Typography>}>
                <LazyTopLikedSongs data={topLikedSongsData} />
              </Suspense>
         </Box>
@@ -328,16 +351,14 @@ const handleCashoutClick = () => {
       <Paper
         elevation={3}
         sx={{
-          
-          backgroundColor: "var(--secondary-background-color)",
-          p: { xs: 2, md: 3 },
-          borderRadius: "10px",
+          ...panelSx,
+          height: "auto",
         }}
       >
-        <Typography variant="h5" gutterBottom color="white">
-          Song list:
+        <Typography variant="h5" gutterBottom sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
+          Song list
         </Typography>
-         <Divider sx={{ width: "100%" }} />
+         <Divider sx={dividerSx} />
 
 
 
@@ -350,9 +371,8 @@ const handleCashoutClick = () => {
       <Paper
         elevation={3}
         sx={{
-          backgroundColor: "var(--secondary-background-color)",
-          p: { xs: 2, md: 3 },
-          borderRadius: "10px",
+          ...panelSx,
+          height: "auto",
         }}
       >
         <Box
@@ -365,10 +385,10 @@ const handleCashoutClick = () => {
           }}
         >
           <Box>
-            <Typography variant="h5" gutterBottom color="white">
+            <Typography variant="h5" gutterBottom sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
               Revenue
             </Typography>
-            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.62)" }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
               Fan support is available now. Other revenue features unlock when the platform catalogue and listening activity are large enough.
             </Typography>
           </Box>
@@ -376,13 +396,13 @@ const handleCashoutClick = () => {
             label={platformMonetizationEligible ? "Platform monetization ready" : "Platform monetization building"}
             color={platformMonetizationEligible ? "success" : "default"}
             sx={{
-              color: platformMonetizationEligible ? undefined : "rgba(255,255,255,0.72)",
-              bgcolor: platformMonetizationEligible ? undefined : "rgba(255,255,255,0.08)",
+              color: platformMonetizationEligible ? undefined : theme.palette.text.secondary,
+              bgcolor: platformMonetizationEligible ? undefined : alpha(theme.palette.text.primary, 0.08),
             }}
           />
         </Box>
 
-        <Divider sx={{ width: "100%", my: 2 }} />
+        <Divider sx={{ ...dividerSx, my: 2 }} />
 
         <Box
           sx={{
@@ -400,32 +420,32 @@ const handleCashoutClick = () => {
               key={card.title}
               onClick={() => setSelectedRevenueCard(card)}
               sx={{
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "10px",
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+                borderRadius: "8px",
                 p: { xs: 1.5, md: 2 },
                 minHeight: 120,
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between",
-                bgcolor: "rgba(255,255,255,0.035)",
+                bgcolor: alpha(theme.palette.background.default, 0.46),
                 minWidth: 0,
                 textAlign: "left",
                 alignItems: "stretch",
                 width: "100%",
                 transition: "border-color 0.2s ease, background-color 0.2s ease",
                 "&:hover": {
-                  borderColor: "rgba(255,255,255,0.22)",
-                  bgcolor: "rgba(255,255,255,0.06)",
+                  borderColor: alpha(theme.palette.primary.main, 0.42),
+                  bgcolor: alpha(theme.palette.background.default, 0.62),
                 },
               }}
             >
-              <Typography variant="subtitle2" sx={{ color: "rgba(255,255,255,0.68)", fontWeight: 700 }}>
+              <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontWeight: 700 }}>
                 {card.title}
               </Typography>
               <Typography
                 variant="h5"
                 sx={{
-                  color: "white",
+                  color: theme.palette.text.primary,
                   fontWeight: 800,
                   mt: 1,
                   wordBreak: "break-word",
@@ -433,7 +453,7 @@ const handleCashoutClick = () => {
               >
                 {card.value}
               </Typography>
-              <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.52)", mt: 1 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, mt: 1 }}>
                 {card.status}
               </Typography>
             </ButtonBase>
@@ -443,7 +463,7 @@ const handleCashoutClick = () => {
         <Box
           sx={{
             mt: 2,
-            borderTop: "1px solid rgba(255,255,255,0.08)",
+            borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
             pt: 2,
             display: "flex",
             alignItems: "center",
@@ -451,27 +471,27 @@ const handleCashoutClick = () => {
             gap: 2,
           }}
         >
-          <Typography variant="subtitle1" sx={{ color: "rgba(255,255,255,0.72)", fontWeight: 700 }}>
+          <Typography variant="subtitle1" sx={{ color: theme.palette.text.secondary, fontWeight: 700 }}>
             Total revenue
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <Typography variant="h5" sx={{ color: "white", fontWeight: 900 }}>
+            <Typography variant="h5" sx={{ color: theme.palette.text.primary, fontWeight: 900 }}>
               ${totalRevenue.toFixed(2)}
             </Typography>
             <ButtonBase
               onClick={handleCashoutClick}
               sx={{
-                border: "1px solid rgba(255,255,255,0.18)",
+                border: `1px solid ${alpha(theme.palette.text.primary, 0.18)}`,
                 borderRadius: "999px",
                 px: 1.5,
                 py: 0.5,
-                color: "#111",
-                bgcolor: "#fff",
+                color: theme.palette.common.black,
+                bgcolor: theme.palette.common.white,
                 fontSize: "0.78rem",
                 fontWeight: 800,
                 lineHeight: 1.4,
                 "&:hover": {
-                  bgcolor: "rgba(255,255,255,0.9)",
+                  bgcolor: alpha(theme.palette.common.white, 0.9),
                 },
               }}
             >

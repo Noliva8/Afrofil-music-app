@@ -1,13 +1,38 @@
 
 import UserAuth from '../../utils/auth.js';
 import ArtistAuth from '../../utils/artist_auth.js';
-import { element } from 'prop-types';
-import { useEffect } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
 export const ProtectedRoute = ({ element }) => {
   const isLoggedIn = UserAuth.loggedIn();
-  return isLoggedIn ? element : <Navigate to="/welcome" replace />;
+  const profile = UserAuth.getProfile();
+  const isEmailVerified = profile?.data?.isUserEmailVerified;
+
+  if (!isLoggedIn) {
+    return <Navigate to="/welcome" replace />;
+  }
+
+  if (!isEmailVerified) {
+    return <Navigate to="/user/email-verification" replace />;
+  }
+
+  return element;
+};
+
+export const UserEmailVerificationGate = ({ element }) => {
+  const isLoggedIn = UserAuth.loggedIn();
+  const profile = UserAuth.getProfile();
+  const isEmailVerified = profile?.data?.isUserEmailVerified;
+
+  if (!isLoggedIn) {
+    return <Navigate to="/user/login" replace />;
+  }
+
+  if (isEmailVerified) {
+    return <Navigate to="/" replace />;
+  }
+
+  return element;
 };
 
 

@@ -1,59 +1,63 @@
-import ListItemButton from "@mui/material/ListItemButton";
 import Stack from "@mui/material/Stack";
 import HomeRoundedIcon from "@mui/icons-material/HomeRounded";
 import DashboardRounded from "@mui/icons-material/DashboardRounded";
-import { Link } from "react-router-dom";
-import { styled } from "@mui/material/styles";
+import { NavLink } from "react-router-dom";
 import Box from "@mui/material/Box";
 import SourceIcon from "@mui/icons-material/Source";
-import "../pages/CSS/CSS-HOME-FREE-PLAN/MenuContent.css";
-
-const StyledListItemButton = styled(ListItemButton)(({ theme }) => ({
-  "&:hover": {
-    backgroundColor: theme.palette.primary.light,
-  },
-  "&.active": {
-    backgroundColor: theme.palette.primary.main,
-    color: theme.palette.common.white,
-    "&:hover": {
-      backgroundColor: theme.palette.primary.dark,
-    },
-  },
-}));
+import { alpha } from "@mui/material/styles";
 
 export default function MenuContentReduced() {
+  const itemSx = (isActive) => (theme) => ({
+    width: 44,
+    height: 44,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "8px",
+    color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+    backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.1) : "transparent",
+    transition: "background-color 0.2s ease, color 0.2s ease",
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+      color: theme.palette.text.primary,
+    },
+  });
+
   return (
-    <Stack sx={{ flexGrow: 1, p: 1, mt: 5, justifyContent: "space-between" }}>
+    <Stack sx={{ flexGrow: 1, p: 1, mt: 3, justifyContent: "space-between" }}>
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
-
-          justifyContent: "flex-start" /* Aligns links to the start */,
+          justifyContent: "flex-start",
           alignItems: "center",
-          gap: "2.5rem" ,
-          width: "100%" ,
-          marginRight: "1rem" ,
-          
+          gap: 1,
+          width: "100%",
         }}
       >
-        <Link to="home" className="nav-item">
-          <span  style={{ fontSize: '18px', fontWeight: '400', color: 'white' }}>
-            <HomeRoundedIcon />
-          </span>
-        </Link>
+        <NavLink to="home" style={{ textDecoration: "none" }}>
+          {({ isActive }) => (
+            <Box sx={itemSx(isActive)}>
+              <HomeRoundedIcon />
+            </Box>
+          )}
+        </NavLink>
 
-        <Link to="content" className="nav-item">
-          <span  style={{ fontSize: '18px', fontWeight: '400', color: 'white' }}>
-            <SourceIcon />
-          </span>
-        </Link>
+        <NavLink to="content" style={{ textDecoration: "none" }}>
+          {({ isActive }) => (
+            <Box sx={itemSx(isActive)}>
+              <SourceIcon />
+            </Box>
+          )}
+        </NavLink>
 
-        <Link to="dashboard" className="nav-item">
-          <span  style={{ fontSize: '18px', fontWeight: '400', color: 'white' }}>
-            <DashboardRounded />
-          </span>
-        </Link>
+        <NavLink to="dashboard" style={{ textDecoration: "none" }}>
+          {({ isActive }) => (
+            <Box sx={itemSx(isActive)}>
+              <DashboardRounded />
+            </Box>
+          )}
+        </NavLink>
       </Box>
     </Stack>
   );

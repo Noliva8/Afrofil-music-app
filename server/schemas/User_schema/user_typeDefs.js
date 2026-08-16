@@ -323,6 +323,7 @@ type Query {
   users: [User]
   userById(userId: ID!): User
   businessAccountStatus(email: String!): BusinessAccountStatus!
+  userEmailVerificationStatus(email: String!): EmailVerificationResponse!
   userSubscription: Subscription
   dailyMix(profileInput: MixProfileInput, limit: Int = 20): DailyMix
   searchUser(username: String!): User
@@ -372,6 +373,14 @@ type PasswordResetResponse {
   message: String!
 }
 
+type EmailVerificationResponse {
+  success: Boolean!
+  message: String!
+  expiresAt: Date
+  secondsRemaining: Int!
+  canResend: Boolean!
+}
+
 input BusinessOnboardingInput {
   email: String!
   businessName: String!
@@ -410,6 +419,8 @@ isNotificationSeen: Boolean
 
   requestPasswordReset(email: String!): PasswordResetResponse
   resetPassword(token: String!, newPassword: String!): PasswordResetResponse
+  requestUserEmailVerification(email: String!): EmailVerificationResponse!
+  verifyUserEmail(email: String!, code: String!): UserAuthPayload!
   requestBusinessUserEmailVerification(email: String!): PasswordResetResponse
   updateBusinessUserProfile(input: BusinessOnboardingInput!): BusinessOnboardingResponse!
   startBusinessOnboarding(input: BusinessOnboardingInput!): BusinessOnboardingResponse!

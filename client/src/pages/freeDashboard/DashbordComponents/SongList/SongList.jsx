@@ -3,6 +3,7 @@ import { useMutation } from '@apollo/client';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import { alpha, useTheme } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import MusicVideoIcon from '@mui/icons-material/MusicVideo';
 import { GET_PRESIGNED_URL_DOWNLOAD, GET_PRESIGNED_URL_DELETE, GET_PRESIGNED_URL_DOWNLOAD_AUDIO } from '../../../../utils/mutations';
@@ -17,6 +18,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 
 
 export default function SongsList({ songs = [], onEdit = () => {}, refetch, onDelete = () => {} }) {
+  const theme = useTheme();
   const [playingSongId, setPlayingSongId] = useState(null);
   const audioRefs = useRef({});
   const [artworkUrls, setArtworkUrls] = useState({});
@@ -162,14 +164,14 @@ const handleDelete = async (songId) => {
     <Box
       sx={{
         width: "100%",
-        padding: 2,
+        p: { xs: 0.5, sm: 2 },
         maxHeight: "60vh",
         overflowY: "auto",
         bgcolor: "transparent",
       }}
     >
       {songs.length === 0 && (
-        <Typography color="white">No songs available.</Typography>
+        <Typography sx={{ color: theme.palette.text.secondary }}>No songs available.</Typography>
       )}
 
       {songs.length > 0 && (
@@ -181,7 +183,7 @@ const handleDelete = async (songId) => {
     sx={{
       display: "flex",
       minWidth: "600px",
-      color: "white",
+      color: theme.palette.text.secondary,
       fontWeight: "bold",
       paddingBottom: "0.5rem",
     }}
@@ -217,10 +219,11 @@ const handleDelete = async (songId) => {
                     display: "flex",
                     minWidth: "600px",
                     alignItems: "center",
-                    borderBottom: "1px solid #333",
+                    borderBottom: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
                     py: 1,
+                    borderRadius: "8px",
                     "&:hover": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                      backgroundColor: alpha(theme.palette.background.default, 0.56),
                     },
                   }}
                 >
@@ -239,8 +242,9 @@ const handleDelete = async (songId) => {
                         height: 64,
                         borderRadius: "12px",
                         overflow: "hidden",
-                        boxShadow: "0 4px 10px rgba(0,0,0,0.3)",
-                        backgroundColor: "var(--primary-background-color)",
+                        boxShadow: theme.shadows[2],
+                        backgroundColor: alpha(theme.palette.background.default, 0.72),
+                        border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
@@ -261,7 +265,7 @@ const handleDelete = async (songId) => {
                           }}
                         />
                       ) : (
-                        <MusicVideoIcon sx={{ fontSize: 40, color: "white" }} />
+                        <MusicVideoIcon sx={{ fontSize: 40, color: theme.palette.text.secondary }} />
                       )}
                     </Box>
                   </Box>
@@ -271,9 +275,8 @@ const handleDelete = async (songId) => {
                     sx={{
                       width: "25%",
                       minWidth: "150px",
-                      color: "white",
-                      opacity: 0.5,
-                      fontWeight: 500,
+                      color: theme.palette.text.primary,
+                      fontWeight: 700,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       paddingRight: 4,
@@ -288,8 +291,7 @@ const handleDelete = async (songId) => {
                     sx={{
                       width: "15%",
                       minWidth: "120px",
-                      color: "white",
-                      opacity: 0.7,
+                      color: theme.palette.text.secondary,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -353,7 +355,7 @@ const handleDelete = async (songId) => {
       }}
     >
       {song.visibility === "public" ? (
-        <VisibilityIcon  sx={{color:"white"}} />
+        <VisibilityIcon sx={{ color: theme.palette.text.primary }} />
       ) : (
         <VisibilityOffIcon color="disabled" />
       )}
@@ -374,7 +376,16 @@ const handleDelete = async (songId) => {
                       alignItems: "center",
                     }}
                   >
-                    <IconButton onClick={() => handleEdit(song)} color="info">
+                    <IconButton
+                      onClick={() => handleEdit(song)}
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        "&:hover": {
+                          color: theme.palette.text.primary,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                        },
+                      }}
+                    >
                       <EditIcon />
                     </IconButton>
                   </Box>

@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "version:deploy": "node scripts/update-version.js",
     "build": "vite build",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "deploy": "npm run build && aws s3 sync dist/ s3://flolup.com --delete"
+    "deploy": "npm run version:deploy && npm run build && aws s3 sync dist/ s3://flolup.com --delete"
   },
   "overrides": {
     "react-refresh": "0.18.0"

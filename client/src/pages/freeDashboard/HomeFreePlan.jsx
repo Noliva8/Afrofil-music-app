@@ -9,6 +9,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import Grid from "@mui/material/Grid2";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 
 
 
@@ -18,50 +19,69 @@ import Typography from "@mui/material/Typography";
 export default function HomeFreePlan() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
   return (
     <Box sx={{ 
       width: '100%',
-      maxWidth: 1200,
+      maxWidth: 1180,
       mx: 'auto',
-      p: isMobile ? 2 : 3
+      px: isMobile ? 1 : 3,
+      py: { xs: 2, md: 3 },
     }}>
       <Typography 
-        component="h2" 
-        variant={isMobile ? "h6" : "h5"} 
+        component="h1" 
         sx={{ 
-          mb: 2, 
-          mt: isMobile ? 4 : 9,
-          fontWeight: 600,
-          color: '#ffffff'
+          mb: 0.75, 
+          mt: isMobile ? 2 : 5,
+          fontWeight: 900,
+          fontSize: { xs: "1.8rem", md: "2.35rem" },
+          color: theme.palette.text.primary,
+          letterSpacing: 0,
         }}
       >
-        Profile Information
+        Creator Profile
+      </Typography>
+      <Typography
+        sx={{
+          color: theme.palette.text.secondary,
+          mb: 3,
+          maxWidth: 680,
+          lineHeight: 1.55,
+        }}
+      >
+        Keep your public creator details current so listeners know where you are from, what you make, and how to discover your work.
       </Typography>
 
       {/* Bio */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2.5} sx={{ mb: 2 }}>
         <Grid size={{ xs: 12}} >
           <Bio />
         </Grid>
       </Grid>
 
-      {/* Details Section - Responsive columns */}
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, sm: 6, md: 4}} >
+      {/* Details Section */}
+      <Grid
+        container
+        spacing={2.5}
+        sx={{
+          p: { xs: 0, md: 0.5 },
+          borderRadius: "8px",
+          background: alpha(theme.palette.background.paper, 0.2),
+        }}
+      >
+        <Grid size={{ xs: 12, md: 6 }} >
           <Country />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 4}} >
+        <Grid size={{ xs: 12, md: 6 }} >
           <Region />
         </Grid> 
 
-        <Grid size={{ xs: 12, sm: 6, md: 4}}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Language />
         </Grid>
 
-        <Grid size={{ xs: 12, sm: 6, md: 4}}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Genre />
         </Grid>
       </Grid>

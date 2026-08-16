@@ -8,8 +8,9 @@ import Search from "./Search";
 import Button from "@mui/material/Button";
 import Badge from "@mui/material/Badge";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
+import HeadphonesRoundedIcon from "@mui/icons-material/HeadphonesRounded";
 import Box from "@mui/material/Box";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_ARTIST_BOOKINGS, MESSAGE_CONVERSATIONS } from "../utils/queries";
 import { RESPOND_TO_BOOKING_ARTIST } from "../utils/mutations";
@@ -19,7 +20,7 @@ import ArtistMessagingLoader from "./ArtistMessagingLoader.jsx";
 
 
 
-export default function StudioHeader({ openDrawer, handleShowDrawers, handleshowAccountMenu, profileImage, artistProfile }) {
+export default function StudioHeader({ openDrawer, handleShowDrawers, handleshowAccountMenu, profileImage, artistProfile, onReturnToUser }) {
 
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
   
@@ -97,6 +98,7 @@ export default function StudioHeader({ openDrawer, handleShowDrawers, handleshow
         justifyContent: "space-between",
         maxWidth: { sm: "100%", md: "1700px" },
         pt: 4.5,
+        pb: 2,
       }}
       spacing={2}
     >
@@ -105,13 +107,26 @@ export default function StudioHeader({ openDrawer, handleShowDrawers, handleshow
       <Box
         sx={{
           display: "flex",
-          gap: "4rem",
-          color: "var(--button-color)",
+          gap: 3,
+          alignItems: "center",
+          color: theme.palette.text.primary,
           fontSize: "1.8rem",
         }}
       >
-        <MenuButton sx={{bgcolor: 'var(--button-color)', borderRadius: '10px', width: '40px', height: '40px'}} onClick={handleShowDrawers}>
-          <MenuRoundedIcon sx={{ color: "black" }} />
+        <MenuButton
+          sx={{
+            bgcolor: alpha(theme.palette.background.paper, 0.86),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+            borderRadius: '8px',
+            width: '40px',
+            height: '40px',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.primary.main, 0.08),
+            },
+          }}
+          onClick={handleShowDrawers}
+        >
+          <MenuRoundedIcon sx={{ color: theme.palette.text.primary }} />
         </MenuButton>
 
         <NavbarTitles />
@@ -130,6 +145,27 @@ export default function StudioHeader({ openDrawer, handleShowDrawers, handleshow
       >
         <Search />
 
+        <Button
+          onClick={onReturnToUser}
+          startIcon={<HeadphonesRoundedIcon />}
+          sx={{
+            display: { xs: "none", lg: "inline-flex" },
+            borderRadius: "8px",
+            px: 1.5,
+            py: 0.8,
+            backgroundColor: theme.palette.common.white,
+            color: theme.palette.common.black,
+            fontWeight: 800,
+            textTransform: "none",
+            whiteSpace: "nowrap",
+            "&:hover": {
+              backgroundColor: alpha(theme.palette.common.white, 0.88),
+            },
+          }}
+        >
+          Back to listening
+        </Button>
+
         <ArtistMessagingLoader />
 
         <MenuButton aria-label="Open notifications" onClick={handleNotificationsOpen}>
@@ -144,13 +180,28 @@ export default function StudioHeader({ openDrawer, handleShowDrawers, handleshow
             }}
           >
             <NotificationsRoundedIcon
-              sx={{ color: highlightNotifications ? theme.palette.secondary.main : "var(--button-color)", fontSize: "1.8rem" }}
+              sx={{ color: theme.palette.common.white, fontSize: "1.8rem" }}
             />
           </Badge>
         </MenuButton>
 
-        <Button onClick={handleshowAccountMenu}>
-          <Avatar src= {profileImage} alt="Remy Sharp" />
+        <Button
+          onClick={handleshowAccountMenu}
+          sx={{
+            minWidth: 0,
+            p: 0.4,
+            borderRadius: '50%',
+            border: `1px solid ${alpha(theme.palette.common.white, 0.82)}`,
+          }}
+        >
+          <Avatar
+            src={profileImage}
+            alt={artistProfile?.fullName || "Creator"}
+            sx={{
+              border: `1px solid ${alpha(theme.palette.common.white, 0.9)}`,
+              borderRadius: '50%',
+            }}
+          />
         </Button>
       </Stack>
 

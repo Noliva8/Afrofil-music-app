@@ -12,6 +12,7 @@ export const CREATE_USER = gql`
         email
         role
         usageType
+        isUserEmailVerified
         isPremium
         shouldSeeAds
       }
@@ -32,6 +33,49 @@ export const LOGIN_USER = gql`
         email
         role
         usageType
+        isUserEmailVerified
+        isPremium
+        shouldSeeAds
+      }
+    }
+  }
+`;
+
+export const REQUEST_USER_EMAIL_VERIFICATION = gql`
+  mutation RequestUserEmailVerification($email: String!) {
+    requestUserEmailVerification(email: $email) {
+      success
+      message
+      expiresAt
+      secondsRemaining
+      canResend
+    }
+  }
+`;
+
+export const USER_EMAIL_VERIFICATION_STATUS = gql`
+  query UserEmailVerificationStatus($email: String!) {
+    userEmailVerificationStatus(email: $email) {
+      success
+      message
+      expiresAt
+      secondsRemaining
+      canResend
+    }
+  }
+`;
+
+export const VERIFY_USER_EMAIL = gql`
+  mutation VerifyUserEmail($email: String!, $code: String!) {
+    verifyUserEmail(email: $email, code: $code) {
+      userToken
+      user {
+        _id
+        username
+        email
+        role
+        usageType
+        isUserEmailVerified
         isPremium
         shouldSeeAds
       }
@@ -107,13 +151,14 @@ export const REORDER_PLAYLIST_SONGS = gql`
 `;
 
 export const CREATE_ARTIST = gql`
-mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, $password: String!, $country: String!, $region: String!) {
+mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, $password: String, $country: String!, $region: String!) {
   createArtist(fullName: $fullName, artistAka: $artistAka, email: $email, password: $password, country: $country, region: $region) {
     artist {
       _id
       artistAka
       confirmed
       selectedPlan
+      isProfileComplete
       role
       fullName
       email
@@ -121,6 +166,28 @@ mutation createArtist($fullName: String!, $artistAka: String!, $email: String!, 
       region
     }
     artistToken
+  }
+}
+`;
+
+export const PREPARE_ARTIST_UPLOAD = gql`
+mutation PrepareArtistUpload($email: String!) {
+  prepareArtistUpload(email: $email) {
+    artistExists
+    isProfileComplete
+    artistToken
+    artist {
+      _id
+      artistAka
+      confirmed
+      selectedPlan
+      isProfileComplete
+      role
+      fullName
+      email
+      country
+      region
+    }
   }
 }
 `;
@@ -139,6 +206,7 @@ export const ARTIST_LOGIN = gql`
 mutation artist_login($email: String!, $password: String!) {
   artist_login(email: $email, password: $password) {
      artistToken
+     userToken
     artist {
        email
       _id

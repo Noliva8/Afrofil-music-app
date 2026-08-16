@@ -1,6 +1,5 @@
-import './CSS/signup.css'
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { CREATE_ARTIST } from "../utils/mutations";
 import artist_auth from "../utils/artist_auth";
@@ -19,7 +18,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Stack from "@mui/material/Stack";
 import MuiCard from "@mui/material/Card";
-import { styled } from "@mui/material/styles";
+import { alpha, styled, useTheme } from "@mui/material/styles";
 import MenuItem from "@mui/material/MenuItem";
 import { Link } from "react-router-dom";
 import { SitemarkIcon } from "../components/themeCustomization/customIcon";
@@ -32,49 +31,46 @@ const Card = styled(MuiCard)(({ theme }) => ({
   padding: theme.spacing(4),
   gap: theme.spacing(2),
   margin: "auto",
-
-  boxShadow:
-    "hsla(220, 30%, 5%, 0.5) 0px 5px 15px 0px, hsla(220, 25%, 10%, 0.08) 0px 15px 35px -5px",
+  background: alpha(theme.palette.background.paper || "#111119", 0.95),
+  backdropFilter: "blur(12px)",
+  borderRadius: theme.spacing(2),
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  boxShadow: theme.shadows[2],
   [theme.breakpoints.up("sm")]: {
-    width: "450px",
+    maxWidth: "480px",
   },
-  maxHeight: "95vh",
+  maxHeight: "calc(100vh - 48px)",
   overflowY: "auto",
-  
- 
+  fontFamily: theme.typography.fontFamily,
 }));
 
 const SignUpContainer = styled(Stack)(({ theme }) => ({
-  height: "calc((1 - var(--template-frame-height, 0)) * 100dvh)",
-  minHeight: "100%",
-  padding: theme.spacing(2),
+  minHeight: "100vh",
+  padding: theme.spacing(4, 2),
   [theme.breakpoints.up("sm")]: {
-    padding: theme.spacing(4),
+    padding: theme.spacing(6, 3),
   },
-  position: 'relative',
-  backgroundColor: theme.palette.background.default,
+  alignItems: "center",
+  justifyContent: "center",
+  position: "relative",
+  background: `
+    radial-gradient(circle at 20% 30%, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 25%),
+    linear-gradient(to bottom, #0F0F0F, #1A1A1A)
+  `,
   overflowY: "auto",
   scrollBehavior: "smooth",
   WebkitOverflowScrolling: "touch",
-  "&::before": {
-    content: '""',
-    display: "block",
-    position: "absolute",
-    zIndex: -1,
-    inset: 0,
-    backgroundImage:
-      theme.palette.mode === 'dark'
-        ? "radial-gradient(at 50% 50%, hsla(210, 100%, 16%, 0.5), hsl(220, 30%, 5%))"
-        : "radial-gradient(ellipse at 50% 50%, hsl(210, 100%, 97%), hsl(0, 0%, 100%))",
-    backgroundRepeat: "no-repeat",
-  },
 }));
 
 export default function ArtistRegister() {
+  const theme = useTheme();
+  const location = useLocation();
+  const uploadFlowEmail = location.state?.fromUserUpload ? location.state?.email || "" : "";
+  const isUserUploadFlow = Boolean(uploadFlowEmail);
   const [signupFormState, setSignupFormState] = useState({
     fullName: "",
     artistAka: "",
-    email: "",
+    email: uploadFlowEmail,
     password: "",
     country: "",
     region: "",
@@ -85,6 +81,33 @@ export default function ArtistRegister() {
   const [createArtist] = useMutation(CREATE_ARTIST);
 
   const navigate = useNavigate();
+  const labelSx = {
+    color: theme.palette.text.secondary,
+    mb: 1,
+    fontSize: 14,
+  };
+  const textFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '8px',
+      background: 'rgba(255,255,255,0.05)',
+      color: theme.palette.text.primary,
+      fontSize: 16,
+      fontFamily: theme.typography.fontFamily,
+      '& fieldset': {
+        borderColor: alpha(theme.palette.primary.main, 0.2),
+      },
+      '&:hover fieldset': {
+        borderColor: alpha(theme.palette.primary.main, 0.45),
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: theme.palette.primary.main,
+      },
+    },
+    '& .MuiInputBase-input::placeholder': {
+      color: alpha(theme.palette.text.secondary, 0.75),
+      opacity: 1,
+    },
+  };
 
   const handleSignupChange = (event) => {
     const { name, value } = event.target;
@@ -113,14 +136,25 @@ export default function ArtistRegister() {
     }
 
     try {
+      const artistInput = {
+        fullName: signupFormState.fullName,
+        artistAka: signupFormState.artistAka,
+        email: signupFormState.email,
+        country: signupFormState.country,
+        region: signupFormState.region,
+        ...(isUserUploadFlow ? {} : { password: signupFormState.password }),
+      };
       const { data } = await createArtist({
-        variables: { ...signupFormState },
+        variables: artistInput,
       });
 
       artist_auth.login(data.createArtist.artistToken);
 
-      // navigate("/artist/login"); 
-       navigate("/artist/verification", { state: { email: signupFormState.email } });
+      if (isUserUploadFlow) {
+        navigate("/artist/plan");
+      } else {
+        navigate("/artist/verification", { state: { email: signupFormState.email } });
+      }
 
       setSignupErrorMessage("");
       setSignupFormState({
@@ -154,7 +188,7 @@ export default function ArtistRegister() {
   };
 
   return (
-    <SignUpContainer className='signupage'
+    <SignUpContainer
       direction="column"
       justifyContent="space-between"
     >
@@ -163,17 +197,23 @@ export default function ArtistRegister() {
         <Typography
           component="h1"
           variant="h4"
-          sx={{ fontSize: "clamp(2rem, 10vw, 2.6rem)" }}
+          sx={{
+            color: theme.palette.text.primary,
+            fontWeight: 700,
+            fontFamily: theme.typography.fontFamily,
+            fontSize: "clamp(2rem, 8vw, 2.4rem)",
+          }}
           
         >
-          Sign up
+          {isUserUploadFlow ? "Complete Creator Profile" : "Create Creator Profile"}
         </Typography>
         <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontFamily: (theme) => theme.typography.fontFamily, mb: 1 }}
+          variant="body2"
+          sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.fontFamily, mb: 1 }}
         >
-          For creators only—secure your artist dashboard and releases.
+          {isUserUploadFlow
+            ? "Add the creator details we need before your first upload."
+            : "Complete your creator details to unlock uploads and your studio."}
         </Typography>
 
         <Box
@@ -183,59 +223,64 @@ export default function ArtistRegister() {
         >
           {/* Full Name */}
           <FormControl>
-            <FormLabel htmlFor="fullName">Full name</FormLabel>
+            <FormLabel htmlFor="fullName" sx={labelSx}>Full name</FormLabel>
             <TextField
               name="fullName"
               required
               fullWidth
               onChange={handleSignupChange}
               value={signupFormState.fullName}
-              placeholder="Logan Keron"
+              placeholder="Add your full name"
+              sx={textFieldSx}
             />
           </FormControl>
 
           {/* Stage Name */}
           <FormControl>
-            <FormLabel htmlFor="artistAka">Stage name</FormLabel>
+            <FormLabel htmlFor="artistAka" sx={labelSx}>Stage name</FormLabel>
             <TextField
               name="artistAka"
               required
               fullWidth
               onChange={handleSignupChange}
               value={signupFormState.artistAka}
-              placeholder="Loka"
+              placeholder="Add your stage name"
+              sx={textFieldSx}
             />
           </FormControl>
 
           {/* Email */}
           <FormControl>
-            <FormLabel htmlFor="email">Email</FormLabel>
+            <FormLabel htmlFor="email" sx={labelSx}>Email</FormLabel>
             <TextField
               name="email"
               required
               fullWidth
               onChange={handleSignupChange}
               value={signupFormState.email}
-              placeholder="your@email.com"
+              placeholder="Add your email"
+              InputProps={{ readOnly: isUserUploadFlow }}
+              sx={textFieldSx}
             />
           </FormControl>
 
           {/* Country */}
           <FormControl>
-            <FormLabel htmlFor="country">Country</FormLabel>
+            <FormLabel htmlFor="country" sx={labelSx}>Country</FormLabel>
             <TextField
               name="country"
               required
               fullWidth
               onChange={handleSignupChange}
               value={signupFormState.country}
-              placeholder="Nigeria"
+              placeholder="Add your country"
+              sx={textFieldSx}
             />
           </FormControl>
 
           {/* Region */}
           <FormControl>
-            <FormLabel htmlFor="region">Region</FormLabel>
+            <FormLabel htmlFor="region" sx={labelSx}>Region</FormLabel>
             <TextField
               name="region"
               select
@@ -244,6 +289,7 @@ export default function ArtistRegister() {
               onChange={handleSignupChange}
               value={signupFormState.region}
               placeholder="Select region"
+              sx={textFieldSx}
             >
               <MenuItem value="">Select region</MenuItem>
               {[
@@ -261,29 +307,31 @@ export default function ArtistRegister() {
             </TextField>
           </FormControl>
 
-          {/* Password */}
-          <FormControl>
-            <FormLabel htmlFor="password">Password</FormLabel>
-            <TextField
-              name="password"
-              required
-              fullWidth
-              type={showPasswordSignup ? "text" : "password"}
-              onChange={handleSignupChange}
-              value={signupFormState.password}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <PasswordVisibilityToggle
-                      show={showPasswordSignup}
-                      onClick={toggleSignupPasswordVisibility}
-                      sx={{ color: "inherit" }}
-                    />
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </FormControl>
+          {!isUserUploadFlow && (
+            <FormControl>
+              <FormLabel htmlFor="password" sx={labelSx}>Password</FormLabel>
+              <TextField
+                name="password"
+                required
+                fullWidth
+                type={showPasswordSignup ? "text" : "password"}
+                onChange={handleSignupChange}
+                value={signupFormState.password}
+                sx={textFieldSx}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <PasswordVisibilityToggle
+                        show={showPasswordSignup}
+                        onClick={toggleSignupPasswordVisibility}
+                        sx={{ color: "inherit" }}
+                      />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </FormControl>
+          )}
 
           {/* Terms Checkbox */}
           <FormControlLabel
@@ -294,6 +342,13 @@ export default function ArtistRegister() {
                 color="primary"
               />
             }
+            sx={{
+              color: theme.palette.text.secondary,
+              '& a': {
+                color: theme.palette.primary.main,
+                fontWeight: 700,
+              },
+            }}
             label={
               <span>
                 I have read{" "}
@@ -305,33 +360,58 @@ export default function ArtistRegister() {
             }
           />
 
-          <Button type="submit" fullWidth variant="contained">
-          Sign up
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            sx={{
+              py: 1.75,
+              borderRadius: '8px',
+              background: 'linear-gradient(90deg, #E4C421, #B25035)',
+              color: '#000',
+              fontSize: 16,
+              fontWeight: 700,
+              textTransform: 'none',
+              boxShadow: theme.shadows[2],
+              '&:hover': {
+                background: 'linear-gradient(90deg, #F8D347, #C96146)',
+                transform: 'translateY(-2px)',
+              },
+            }}
+          >
+          {isUserUploadFlow ? "Continue to Uploads" : "Continue"}
         </Button>
 
           {signupErrorMessage && (
-            <Typography color="error" sx={{ textAlign: "center", mt: 2 }}>
+            <Typography sx={{ color: "#FF4D4D", textAlign: "center", mt: 1, fontSize: 14 }}>
               {signupErrorMessage}
             </Typography>
           )}
 
-          <Typography
-            component={Link}
-            to="/artist/login" 
-            variant="contained"
-            color="primary"
-            className='artistRegistAccount'
-            sx={{ textTransform: "none" }}
-          >
-            Already have an account?
-          </Typography>
+          {!isUserUploadFlow && (
+            <Typography
+              component={Link}
+              to="/artist/login" 
+              variant="contained"
+              color="primary"
+              sx={{ textTransform: "none", textAlign: 'center', fontWeight: 700 }}
+            >
+              Already completed your creator profile?
+            </Typography>
+          )}
 
           <Button
             component={Link}
             to="/"
             variant="text"
             color="inherit"
-            sx={{ mt: 1, alignSelf: 'center' }}
+            sx={{
+              mt: 1,
+              alignSelf: 'center',
+              color: theme.palette.text.primary,
+              fontWeight: 600,
+              '&:hover': { color: theme.palette.primary.main, background: 'transparent' },
+            }}
           >
             ← Back to home
           </Button>

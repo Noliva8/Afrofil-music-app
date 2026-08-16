@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { ARTIST_PROFILE } from "../utils/artistQuery";
 import { GET_PRESIGNED_URL_DOWNLOAD } from "../utils/mutations";
@@ -12,34 +12,15 @@ import StudioHeader from "../components/StudioHeader";
 import SideMenu from "../components/SideNavBar";
 import SideMenuReduced from "../components/SideNavBarReduced";
 import MobileSideMenu from "../components/MobileSideMenu";
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-
-
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#441a49'
-    },
-    secondary: {
-      main: '#ffde00'
-    }
-
-  },
-  typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
-    h1: {
-      fontSize: '2.5rem'
-    }
-  },
-  spacing: 8
-});
+import { alpha, useTheme } from '@mui/material/styles';
 
 
 
 
 
 export default function ArtistStudio() {
+  const theme = useTheme();
+  const navigate = useNavigate();
   const {
     loading,
     error,
@@ -72,6 +53,15 @@ export default function ArtistStudio() {
 
   const handleshowAccountMenu = () => {
     setShowAccountMenu((prev) => !prev);
+  };
+
+  const handleReturnToUser = () => {
+    localStorage.removeItem("artist_id_token");
+    localStorage.removeItem("artistProfile");
+    localStorage.removeItem("artist_confirmed");
+    localStorage.setItem("lastLogin", "user");
+    navigate("/", { replace: true });
+    window.dispatchEvent(new Event("storage"));
   };
 
   // Show profile image anytime this profile loads (keep folder path)
@@ -153,17 +143,20 @@ export default function ArtistStudio() {
     <>
 
 
-<ThemeProvider theme={theme}>
-
-
-  
       <CssBaseline enableColorScheme />
-      <Box sx={{ display: "flex", 
+      <Box sx={{
+        display: "flex",
+        minHeight: "100vh",
+        background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${alpha(
+          theme.palette.background.paper,
+          0.82
+        )} 100%)`,
       }}>
         <SideMenu
           openDrawer={openDrawer}
           profileImage={profileImage}
           artistProfile={artistProfile}
+          onReturnToUser={handleReturnToUser}
         />
         {!openDrawer && (
           <SideMenuReduced
@@ -186,6 +179,7 @@ export default function ArtistStudio() {
           handleShowMobileMenu={handleShowMobileMenu}
           handleshowAccountMenu={handleshowAccountMenu}
           showAccountMenu={showAccountMenu}
+          onReturnToUser={handleReturnToUser}
         />
 
         {/* Main content */}
@@ -195,12 +189,11 @@ export default function ArtistStudio() {
          sx={{
            flexGrow: 1,
             width: '100%',
-            height: 'auto',
-
+            minHeight: '100vh',
             overflow: "auto",
-            bgcolor: "var(--primary-background-color)",
+            bgcolor: "transparent",
             alignItems: "center",
-            mt: -3
+            mt: { xs: 0, md: -3 },
          }}
         >
           <Box
@@ -219,9 +212,11 @@ export default function ArtistStudio() {
               handleshowAccountMenu={handleshowAccountMenu}
               profileImage={profileImage}
               artistProfile={artistProfile}
+              onReturnToUser={handleReturnToUser}
             />
-             <Box sx={{ overflowY: 'scroll',
-           
+             <Box sx={{
+              overflowY: 'auto',
+              pb: 4,
              }}  >
               <Outlet />
           </Box>
@@ -231,7 +226,6 @@ export default function ArtistStudio() {
           </Box>
         </Box>
       </Box>
-</ThemeProvider>
     </>
   );
 }

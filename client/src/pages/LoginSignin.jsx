@@ -47,8 +47,8 @@ const validateSignupForm = ({ username, email, password }) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error('Please enter a valid email address');
   }
-  if (password.length < 8) {
-    throw new Error('Password must be at least 8 characters');
+  if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    throw new Error('Password must be at least 8 characters and include letters and numbers');
   }
 };
 
@@ -112,7 +112,8 @@ const useAuthFormLogic = ({ onClose } = {}) => {
       });
       const token = data?.createUser?.userToken;
       if (token) {
-        UserAuth.login(token);
+        const isUserEmailVerified = Boolean(data?.createUser?.user?.isUserEmailVerified);
+        UserAuth.login(token, isUserEmailVerified ? '/' : '/user/email-verification');
         resetSignup();
         setAgreedToTerms(false);
         onClose?.();
@@ -136,7 +137,8 @@ const useAuthFormLogic = ({ onClose } = {}) => {
       });
       const token = data?.login?.userToken;
       if (token) {
-        UserAuth.login(token);
+        const isUserEmailVerified = Boolean(data?.login?.user?.isUserEmailVerified);
+        UserAuth.login(token, isUserEmailVerified ? '/' : '/user/email-verification');
         resetLogin();
         onClose?.();
       }
@@ -456,7 +458,7 @@ export const SignupForm = ({
             Password:
           </Typography>
           <Box sx={{ position: 'relative' }}>
-            <Box component="input" type={showPasswordSignup ? 'text' : 'password'} id="password" name="password" onChange={handleSignupChange} value={signupFormState.password} required sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily, paddingRight: '40px' }} />
+            <Box component="input" type={showPasswordSignup ? 'text' : 'password'} id="password" name="password" onChange={handleSignupChange} value={signupFormState.password} required minLength={8} sx={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: 'rgba(255,255,255,0.05)', color: theme.palette.text.primary, fontSize: 16, fontFamily: theme.typography.fontFamily, paddingRight: '40px' }} />
             <PasswordVisibilityToggle
               show={showPasswordSignup}
               onClick={toggleShowPasswordSignup}
@@ -470,6 +472,9 @@ export const SignupForm = ({
               }}
             />
           </Box>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.75 }}>
+            Password must be at least 8 characters and include letters and numbers.
+          </Typography>
         </Box>
 
         <Box sx={{ mb: 2 }}>

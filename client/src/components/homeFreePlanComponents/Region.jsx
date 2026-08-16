@@ -14,6 +14,8 @@ import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid2';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
+import { alpha, useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { toast } from "react-toastify";
 
 const REGIONS = [
@@ -25,53 +27,61 @@ const REGIONS = [
   "Diaspora",
 ];
 
-const modalStyle = {
-  position: "absolute",
-  top: "50%",
-  left: "50%",
-  transform: "translate(-50%, -50%)",
-  width: "90%",
-  maxWidth: "400px",
-  bgcolor: "#441a49",
-  color: "#fff",
-  border: "2px solid #000",
-  boxShadow: 24,
-  p: 4,
-  borderRadius: "12px",
-};
-
-const cardStyle = {
-  backgroundColor: "#1a5d5d",
-  color: "#fff",
-  borderRadius: "12px",
-  maxWidth: "600px",
-  margin: "20px auto",
-  padding: "20px",
-  boxSizing: "border-box",
-  transition: "transform 0.2s ease-in-out, box-shadow 0.3s ease",
-  "&:hover": {
-    transform: "scale(1.05)",
-    boxShadow: "0px 4px 20px rgba(0, 0, 0, 0.2)",
-  },
-};
-
-const bioContainerStyle = {
-  backgroundColor: "white",
-  color: "#441a49",
-  padding: "1rem",
-  borderRadius: "8px",
-  minWidth: "400px",
-  maxHeight: "300px",
-  overflowY: "auto",
-  textAlign: "justify",
-  whiteSpace: "pre-wrap",
-};
-
 const Region = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [fieldValue, setFieldValue] = useState("");
   const { loading, data, refetch } = useQuery(ARTIST_PROFILE);
   const [addRegion, { loading: updating }] = useMutation(ADD_REGION);
   const [open, setOpen] = useState(false);
+  const modalStyle = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: isMobile ? "calc(100% - 24px)" : "90%",
+    maxWidth: "400px",
+    bgcolor: alpha(theme.palette.background.paper, 0.98),
+    color: theme.palette.text.primary,
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+    boxShadow: theme.shadows[8],
+    p: isMobile ? 2 : 4,
+    borderRadius: "8px",
+  };
+  const cardStyle = {
+    backgroundColor: alpha(theme.palette.background.paper, 0.88),
+    color: theme.palette.text.primary,
+    borderRadius: "8px",
+    width: "100%",
+    maxWidth: { xs: "100%", sm: 600 },
+    minHeight: { xs: "auto", sm: 210 },
+    height: "100%",
+    margin: 0,
+    padding: { xs: "12px", sm: "18px" },
+    boxSizing: "border-box",
+    display: "flex",
+    flexDirection: "column",
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+    boxShadow: theme.shadows[2],
+    transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+    "&:hover": {
+      borderColor: alpha(theme.palette.primary.main, 0.42),
+      boxShadow: theme.shadows[3],
+    },
+  };
+  const bioContainerStyle = {
+    backgroundColor: alpha(theme.palette.background.default, 0.52),
+    color: theme.palette.text.primary,
+    padding: { xs: "0.75rem", sm: "1rem" },
+    borderRadius: "8px",
+    border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+    minHeight: 56,
+    maxWidth: "100%",
+    overflowY: "auto",
+    overflowWrap: "anywhere",
+    textAlign: "left",
+    whiteSpace: "pre-wrap",
+  };
 
   const handleOpen = () => {
     setFieldValue(data?.artistProfile?.region || "");
@@ -111,7 +121,7 @@ const Region = () => {
         container
         justifyContent="center"
         alignItems="center"
-        style={{ marginTop: "20px", padding: "10px" }}
+        sx={{ mt: { xs: 1, sm: 2.5 }, p: { xs: 0, sm: 1.25 }, width: "100%" }}
       >
         {loading ? (
           <Typography variant="h6" color="textSecondary">
@@ -119,7 +129,7 @@ const Region = () => {
           </Typography>
         ) : (
           <Card sx={cardStyle}>
-            <CardContent>
+            <CardContent sx={{ flexGrow: 1, p: { xs: 1.25, sm: 2 }, "&:last-child": { pb: { xs: 1.25, sm: 2 } } }}>
               <Typography
                 variant="h4"
                 component="div"
@@ -127,9 +137,10 @@ const Region = () => {
                 sx={{
                   fontWeight: "bold",
                   textAlign: "center",
-                  color: "#e3e3e3",
-                  letterSpacing: "0.05em",
+                  color: theme.palette.text.primary,
+                  letterSpacing: 0,
                   marginBottom: "1rem",
+                  fontSize: { xs: "1.35rem", sm: "1.75rem", md: "2rem" },
                 }}
               >
                 Region
@@ -139,7 +150,7 @@ const Region = () => {
                 <Box sx={bioContainerStyle}>
                   <Typography
                     variant="body2"
-                    sx={{ color: "#441a49", fontSize: "1.3rem", fontWeight: "400" }}
+                    sx={{ color: theme.palette.text.primary, fontSize: { xs: "1rem", sm: "1.1rem" }, fontWeight: 700, overflowWrap: "anywhere" }}
                   >
                     {data.artistProfile.region}
                   </Typography>
@@ -151,25 +162,26 @@ const Region = () => {
                     textAlign: "center",
                     fontSize: "1rem",
                     lineHeight: "1.5em",
-                    color: "#b0b0b0",
+                    color: theme.palette.text.secondary,
                   }}
                 >
                   This profile has not set a region yet.
                 </Typography>
               )}
             </CardContent>
-            <CardActions style={{ justifyContent: "center" }}>
+            <CardActions sx={{ justifyContent: "center", pt: 0 }}>
               <Button
                 onClick={handleOpen}
                 variant="contained"
                 sx={{
-                  backgroundColor: "#6c2d73",
-                  color: "#fff",
+                  background: theme.palette.common.white,
+                  color: theme.palette.common.black,
                   fontWeight: "bold",
                   fontSize: "1rem",
                   padding: "0.6rem 1.5rem",
-                  borderRadius: "20px",
-                  "&:hover": { backgroundColor: "#8a3b92" },
+                  borderRadius: "8px",
+                  textTransform: "none",
+                  "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.88) },
                 }}
                 aria-label="Edit Region"
               >
@@ -204,7 +216,7 @@ const Region = () => {
             <FormLabel
               htmlFor="region-select"
               sx={{
-                color: "#fff",
+                color: theme.palette.text.secondary,
                 fontWeight: "bold",
                 letterSpacing: "0.03em",
               }}
@@ -219,8 +231,10 @@ const Region = () => {
               fullWidth
               sx={{
                 marginTop: "10px",
-                backgroundColor: "#fff",
+                backgroundColor: alpha(theme.palette.background.default, 0.72),
                 borderRadius: "5px",
+                "& .MuiInputBase-input": { color: theme.palette.text.primary },
+                "& fieldset": { borderColor: alpha(theme.palette.primary.main, 0.2) },
               }}
             >
               <MenuItem value="">Select region</MenuItem>
@@ -235,13 +249,13 @@ const Region = () => {
               variant="contained"
               sx={{
                 marginTop: "15px",
-                backgroundColor: "#6c2d73",
-                color: "#fff",
+                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: theme.palette.primary.contrastText,
                 fontWeight: "bold",
                 fontSize: "1rem",
                 padding: "0.6rem 1.5rem",
-                borderRadius: "20px",
-                "&:hover": { backgroundColor: "#8a3b92" },
+                borderRadius: "8px",
+                textTransform: "none",
               }}
               disabled={updating}
             >

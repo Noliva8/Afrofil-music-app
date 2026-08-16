@@ -1,4 +1,4 @@
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
 import MuiDrawer, { drawerClasses } from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
@@ -24,7 +24,7 @@ import MenuContent from './MenuContent';
 
 const Drawer = styled(MuiDrawer, {
   shouldForwardProp: (prop) => prop !== "openDrawer", 
-})(({ openDrawer }) => ({
+})(({ openDrawer, theme }) => ({
   width: openDrawer ? 240 : 0,
   flexShrink: 0,
   boxSizing: "border-box",
@@ -34,6 +34,9 @@ const Drawer = styled(MuiDrawer, {
     width: openDrawer ? 240 : 0,
     boxSizing: "border-box",
     overflow: openDrawer ? "visible" : "hidden",
+    background: alpha(theme.palette.background.paper, 0.94),
+    borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+    color: theme.palette.text.primary,
   },
 }));
 
@@ -50,9 +53,6 @@ export default function SideMenu({openDrawer, profileImage, artistProfile }){
        
       sx={{
         display: { xs: 'none', md: 'block', },
-        [`& .${drawerClasses.paper}`]: {
-          backgroundColor: 'var(--primary-background-color)',
-        }, 
       }}
     >
       <Box
@@ -69,7 +69,7 @@ export default function SideMenu({openDrawer, profileImage, artistProfile }){
 
       </Box>
 
-      <Divider sx={{bgcolor: 'var(--secondary-background-color)' }}/>
+      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.primary.main, 0.18) }}/>
       <Box
         sx={{
           overflow: 'auto',
@@ -104,7 +104,7 @@ export default function SideMenu({openDrawer, profileImage, artistProfile }){
           <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: '16px' }}>
             {artistProfile.fullName}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'white' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
             {artistProfile.email}
           </Typography>
         </Box>

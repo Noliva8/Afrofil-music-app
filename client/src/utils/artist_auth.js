@@ -43,7 +43,9 @@ class ArtistAuth {
   logout() {
     localStorage.removeItem("artist_id_token");
     localStorage.removeItem("artistProfile");
-     localStorage.removeItem("artist_confirmed");
+    localStorage.removeItem("artist_confirmed");
+    localStorage.removeItem("user_id_token");
+    localStorage.removeItem("lastLogin");
     window.location.assign("/welcome"); // Redirect to welcome
   }
 }

@@ -2,20 +2,35 @@ import { useState, useCallback, lazy, Suspense } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Badge from '@mui/material/Badge';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import { useTheme } from '@mui/material/styles';
 
 const LazyArtistMessagingPanel = lazy(() => import('./ArtistMessagingPanel.jsx'));
 
-const PlaceholderButton = ({ onClick }) => (
-  <IconButton
-    aria-label="Open chat menu"
-    onClick={onClick}
-    sx={{ color: 'white' }}
-  >
-    <Badge badgeContent={0} color="secondary" showZero>
-      <MailOutlineIcon fontSize="large" />
-    </Badge>
-  </IconButton>
-);
+const PlaceholderButton = ({ onClick }) => {
+  const theme = useTheme();
+
+  return (
+    <IconButton
+      aria-label="Open chat menu"
+      onClick={onClick}
+      size="small"
+      sx={{
+        width: 32,
+        height: 32,
+        color: theme.palette.common.white,
+      }}
+    >
+      <Badge
+        badgeContent={0}
+        color="secondary"
+        showZero
+        sx={{ ".MuiBadge-badge": { fontSize: "0.6rem" } }}
+      >
+        <MailOutlineIcon sx={{ fontSize: "1.15rem" }} />
+      </Badge>
+    </IconButton>
+  );
+};
 
 export default function ArtistMessagingLoader() {
   const [panelVisible, setPanelVisible] = useState(false);

@@ -10,7 +10,6 @@ import { SongsILike } from '../components/homeFreePlanComponents/SongsIlikeBlock
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import LinearProgress from '@mui/material/LinearProgress';
-import useTheme from '@mui/material/styles/useTheme';
 
 import { useQuery } from '@apollo/client';
 import {
@@ -60,7 +59,6 @@ const Home = ({ upgradeToPremium }) => {
   // Checkout Visibility
   // ------------------
   const [showCheckout, setShowCheckout] = useState(false);
-  const theme = useTheme();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -218,16 +216,25 @@ const Home = ({ upgradeToPremium }) => {
 
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         minHeight: "100vh",
         overflowX: "hidden",
-        bgcolor: "background.default",
-        py: 5,
-      }}
+        background: `linear-gradient(180deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 38%, ${theme.palette.background.default} 100%)`,
+        py: { xs: 2, md: 4 },
+      })}
     >
-     
-       
-       
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: 1680,
+          mx: "auto",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: { lg: 2.5, xl: 3 },
+          px: { xs: 0.5, sm: 1.5, lg: 2.5 },
+        }}
+      >
+        <Box sx={{ minWidth: 0, flex: 1 }}>
             {isLoggedIn && (
               <>
                 {hasListeningHistory ? (
@@ -315,17 +322,6 @@ const Home = ({ upgradeToPremium }) => {
                       />
                     )}
 
-                    <SongList
-                      title="Recently played"
-                      subtitle="Your history will appear here after you start listening."
-                      rowCode="recentlyPlayed"
-                      songsList={recentSongsWithArtwork}
-                      onCardClick={handleCardClick}
-                      loading={recentPlayedLoading || recentSongsLoading}
-                      lightweight
-                      emptyMessage="No recent plays yet"
-                      emptyDescription="Play a song and this section becomes your shortcut back."
-                    />
                   </>
                 )}
 
@@ -372,11 +368,10 @@ const Home = ({ upgradeToPremium }) => {
                 )}
               </>
             )}
-     
+        </Box>
 
-          {!isMobile && <PromotedArtists />}
-     
-     
+        {!isMobile && <PromotedArtists />}
+      </Box>
 
       <NowPlayingBar
         currentSong={currentSong}

@@ -8,6 +8,7 @@ import TextareaAutosize from "@mui/material/TextareaAutosize";
 import { useForm } from "react-hook-form";
 import {ADD_LYRICS} from "../../utils/mutations";
 import Swal from "sweetalert2";
+import { alpha, useTheme } from "@mui/material/styles";
 
 
 
@@ -17,6 +18,7 @@ import Swal from "sweetalert2";
 
 
 export default function Lyrics ({songId, setActiveStep}) {
+const theme = useTheme();
 
 const { register, handleSubmit, formState: { errors } } = useForm();
   const [UpdateSong] = useMutation(ADD_LYRICS);
@@ -71,8 +73,9 @@ setActiveStep(3);
       elevation={3}
       sx={{
         p: 3,
-        borderRadius: 2,
-        bgcolor: "background.paper",
+        borderRadius: "8px",
+        bgcolor: alpha(theme.palette.background.paper, 0.88),
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
          width: '100%' ,
         height: "100%",
         display: "flex",
@@ -97,14 +100,14 @@ setActiveStep(3);
             width: '100%' ,
             
             padding: "16px",
-            border: errors.lyrics ? "1px solid #d32f2f" : "1px solid #ced4da",
-            borderRadius: "4px",
+            border: errors.lyrics ? "1px solid #d32f2f" : `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            borderRadius: "8px",
             fontFamily: "inherit",
             fontSize: "0.875rem",
             lineHeight: 1.5,
             resize: "vertical",
-            backgroundColor: "background.paper",
-            color: "text.primary"
+            backgroundColor: alpha(theme.palette.background.paper, 0.7),
+            color: theme.palette.text.primary
           }}
           placeholder="Enter your lyrics here...\n\n[Verse 1]\n...\n\n[Chorus]\n..."
         />
@@ -124,9 +127,14 @@ setActiveStep(3);
             <Button
     variant="contained"
     sx={{
-      color: 'var(--primary-background-color)',
-      backgroundColor: 'var(--primary-font-color)',
-      fontFamily: 'Roboto',
+      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+      color: theme.palette.primary.contrastText,
+      fontFamily: theme.typography.fontFamily,
+      borderRadius: "8px",
+      px: 3,
+      py: 1.1,
+      textTransform: "none",
+      fontWeight: 800,
     }}
     type="submit"
   >
@@ -138,4 +146,3 @@ setActiveStep(3);
   
   );
 }
-

@@ -209,7 +209,7 @@ const BusinessAppBar = ({ businessName = "" }) => {
           </ListItemIcon>
           <ListItemText>Personal</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => handleAccountSwitch("/artist/login")}>
+        <MenuItem onClick={() => handleAccountSwitch("/welcome?login=1")}>
           <ListItemIcon>
             <MusicNoteRoundedIcon fontSize="small" />
           </ListItemIcon>

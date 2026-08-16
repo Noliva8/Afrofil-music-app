@@ -9,7 +9,7 @@ import { useAudioPlayer } from '../../utils/Contexts/AudioPlayerContext.jsx';
 import { eventBus } from '../../utils/Contexts/playerAdapters.js';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 
 const getArtistDisplayName = (song) =>
   song?.artistAka || song?.artist?.artistAka || song?.artistName || '';
@@ -27,7 +27,6 @@ export function SongCard({
   imgLoading = "lazy",
 }) {
   const theme = useTheme();
-  const background = theme.palette.primary.background;
   const navigate = useNavigate();
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
@@ -61,11 +60,17 @@ export function SongCard({
    
       width: '100%',
       maxWidth: (theme) => ({
-        xs: theme.customSizes?.musicCard?.xs ?? 140,
-        sm: theme.customSizes?.musicCard?.sm ?? 160,
-        md: theme.customSizes?.musicCard?.md ?? 180,
-        lg: theme.customSizes?.musicCard?.lg ?? 200,
+        xs: theme.customSizes?.musicCard?.xs ?? 148,
+        sm: theme.customSizes?.musicCard?.sm ?? 168,
+        md: theme.customSizes?.musicCard?.md ?? 188,
+        lg: theme.customSizes?.musicCard?.lg ?? 204,
       }),
+      borderRadius: 2,
+      p: 1,
+      transition: "background-color 0.2s ease, transform 0.2s ease",
+      "&:hover": {
+        backgroundColor: alpha(theme.palette.common.white, 0.055),
+      },
     }}>
 
 
@@ -108,17 +113,21 @@ export function SongCard({
         sx={{
           width: '100%',
           aspectRatio: '1 / 1', // Perfect square
-          borderRadius: 3,
+          borderRadius: 2,
           overflow: "hidden",
-          transition: "transform 0.3s ease, box-shadow 0.3s ease",
+          boxShadow: "0 12px 26px rgba(0,0,0,0.28)",
+          transition: "transform 0.22s ease, box-shadow 0.22s ease",
           cursor: 'pointer',
           position: 'relative',
           "&:hover": {
-            transform: "translateY(-6px)",
-            boxShadow: "0 12px 24px rgba(228, 196, 33, 0.3)",
+            transform: "translateY(-4px)",
+            boxShadow: `0 18px 34px ${alpha(theme.palette.primary.main, 0.22)}`,
             "& .play-button": {
               opacity: 1,
               transform: "translateY(0)",
+            },
+            "& .hover-overlay": {
+              opacity: 1,
             }
           },
         }}
@@ -151,14 +160,14 @@ export function SongCard({
                 position: "absolute",
                 top: 8,
                 left: 8,
-                backgroundColor: "rgba(0,0,0,0.7)",
-                color: "#E4C421",
+                backgroundColor: alpha(theme.palette.background.default, 0.78),
+                color: theme.palette.primary.main,
                 fontWeight: 600,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: 1,
                 fontSize: { xs: '0.7rem', sm: '0.8rem', md: '0.9rem' },
-                backdropFilter: 'blur(4px)',
+                backdropFilter: 'blur(8px)',
                 zIndex: 2,
               }}
             >
@@ -177,11 +186,12 @@ export function SongCard({
               position: "absolute",
               bottom: 12,
               right: 12,
-              backgroundColor: "#E4C421",
+              backgroundColor: theme.palette.primary.main,
+              boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
               width: { xs: 36, sm: 40, md: 44 },
               height: { xs: 36, sm: 40, md: 44 },
               "&:hover": { 
-                backgroundColor: "#F8D347",
+                backgroundColor: theme.palette.primary.light,
                 transform: 'scale(1.1) !important',
               },
               transition: 'all 0.2s ease',
@@ -206,12 +216,9 @@ export function SongCard({
               left: 0,
               width: '100%',
               height: '100%',
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              background: "linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.48) 100%)",
               opacity: 0,
               transition: 'opacity 0.2s ease',
-              '&:hover': {
-                opacity: 1,
-              },
             }}
           />
 
@@ -222,7 +229,7 @@ export function SongCard({
 
       {/* Info Underneath the Card */}
       <Box sx={{ 
-        mt: 2, 
+        mt: 1.25,
         px: 0.5,
         width: '100%',
         display: 'flex',
@@ -239,7 +246,7 @@ export function SongCard({
     position: "relative",
     overflow: "hidden",
     width: "100%",
-    height: "1.8em",
+    height: "1.45em",
   }}
 >
   {/* Normal (not hovered): ellipsis */}
@@ -247,10 +254,10 @@ export function SongCard({
     <Typography
       variant="subtitle1"
       sx={{
-        fontWeight: "bold",
-        color: "white",
+        fontWeight: 800,
+        color: theme.palette.text.primary,
         lineHeight: 1.4,
-        fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
+        fontSize: { xs: "0.9rem", sm: "0.95rem", md: "1rem" },
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -279,10 +286,10 @@ export function SongCard({
       <Typography
         variant="subtitle1"
         sx={{
-          fontWeight: "bold",
-          color: "white",
+          fontWeight: 800,
+          color: theme.palette.text.primary,
           lineHeight: 1.4,
-          fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
+          fontSize: { xs: "0.9rem", sm: "0.95rem", md: "1rem" },
           pr: 4, // spacing between duplicates
         }}
       >
@@ -292,10 +299,10 @@ export function SongCard({
       <Typography
         variant="subtitle1"
         sx={{
-          fontWeight: "bold",
-          color: "white",
+          fontWeight: 800,
+          color: theme.palette.text.primary,
           lineHeight: 1.4,
-          fontSize: { xs: "0.95rem", sm: "1rem", md: "1.1rem" },
+          fontSize: { xs: "0.9rem", sm: "0.95rem", md: "1rem" },
           pr: 4,
         }}
         aria-hidden="true"
@@ -308,7 +315,7 @@ export function SongCard({
 
 
         {/* Artist Name and Likes */}
-        <Box display={'flex'} justifyContent={'space-between'} alignItems={'center'} mb={0.75}>
+        <Box display={'flex'} justifyContent={'space-between'} alignItems={'center'} mb={0.5}>
 
           <Typography
             variant="body1"
@@ -318,18 +325,17 @@ export function SongCard({
               if (artistId) navigate(`/artist/${artistId}`);
             }}
             sx={{
-              color: "rgba(255,255,255,0.7)",
+              color: alpha(theme.palette.text.primary, 0.64),
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              fontSize: { xs: '1rem', sm: '1.1rem', md: '1.3rem' },
+              fontSize: { xs: '0.78rem', sm: '0.82rem', md: '0.86rem' },
               cursor: 'pointer',
               flex: 1,
               minWidth: 0,
               mr: 1,
               '&:hover': { 
-                color: "#E4C421",
-                textDecoration: 'underline'
+                color: theme.palette.primary.main,
               },
             }}
           >
@@ -354,7 +360,7 @@ export function SongCard({
           <Typography 
             variant="body2"
             sx={{ 
-              color: "#E4C421", 
+              color: alpha(theme.palette.text.primary, 0.58),
               fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -368,7 +374,7 @@ export function SongCard({
           <Typography 
             variant="body2"
             sx={{ 
-              color: "rgba(255,255,255,0.6)", 
+              color: alpha(theme.palette.text.primary, 0.5),
               fontSize: { xs: '0.75rem', sm: '0.8rem', md: '0.85rem' },
               flexShrink: 0,
               fontWeight: 500,
@@ -393,6 +399,7 @@ export function CompactSongCard({
   imgLoading = 'lazy',
 }) {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { isAdPlaying } = useAudioPlayer();
 
   // Title hover state (same behavior as SongCard)
@@ -432,11 +439,17 @@ export function CompactSongCard({
         flexShrink: 0,
         width: "100%",
         maxWidth: (theme) => ({
-          xs: theme.customSizes?.musicCard?.xs ?? 140,
-          sm: theme.customSizes?.musicCard?.sm ?? 160,
-          md: theme.customSizes?.musicCard?.md ?? 180,
-          lg: theme.customSizes?.musicCard?.lg ?? 200,
+          xs: theme.customSizes?.musicCard?.xs ?? 148,
+          sm: theme.customSizes?.musicCard?.sm ?? 168,
+          md: theme.customSizes?.musicCard?.md ?? 188,
+          lg: theme.customSizes?.musicCard?.lg ?? 204,
         }),
+        borderRadius: 2,
+        p: 1,
+        transition: "background-color 0.2s ease",
+        "&:hover": {
+          backgroundColor: alpha(theme.palette.common.white, 0.055),
+        },
       }}
     >
       {/* Image Card (same hover behavior as SongCard) */}
@@ -476,14 +489,15 @@ export function CompactSongCard({
         sx={{
           width: "100%",
           aspectRatio: "1 / 1",
-          borderRadius: 3,
+          borderRadius: 2,
           overflow: "hidden",
-          transition: "transform 0.3s ease, box-shadow 0.3s ease",
+          boxShadow: "0 12px 26px rgba(0,0,0,0.28)",
+          transition: "transform 0.22s ease, box-shadow 0.22s ease",
           cursor: "pointer",
           position: "relative",
           "&:hover": {
-            transform: "translateY(-6px)",
-            boxShadow: "0 12px 24px rgba(228, 196, 33, 0.3)",
+            transform: "translateY(-4px)",
+            boxShadow: `0 18px 34px ${alpha(theme.palette.primary.main, 0.22)}`,
             "& .compact-play-button": {
               opacity: 1,
               transform: "translateY(0)",
@@ -520,8 +534,8 @@ export function CompactSongCard({
                 position: "absolute",
                 top: 8,
                 left: 8,
-                backgroundColor: "rgba(0,0,0,0.7)",
-                color: "#E4C421",
+                backgroundColor: alpha(theme.palette.background.default, 0.78),
+                color: theme.palette.primary.main,
                 fontWeight: 600,
                 px: 1,
                 py: 0.25,
@@ -544,7 +558,7 @@ export function CompactSongCard({
               top: 8,
               right: 8,
               zIndex: 3,
-              backgroundColor: "rgba(0,0,0,0.75)",
+              backgroundColor: alpha(theme.palette.background.default, 0.78),
               borderRadius: "999px",
               px: 0.5,
               py: 0.25,
@@ -568,11 +582,12 @@ export function CompactSongCard({
               position: "absolute",
               bottom: 12,
               right: 12,
-              backgroundColor: "#E4C421",
+              backgroundColor: theme.palette.primary.main,
+              boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
               width: { xs: 34, sm: 38, md: 42 },
               height: { xs: 34, sm: 38, md: 42 },
               "&:hover": {
-                backgroundColor: "#F8D347",
+                backgroundColor: theme.palette.primary.light,
                 transform: "scale(1.1) !important",
               },
               transition: "all 0.2s ease",
@@ -594,7 +609,7 @@ export function CompactSongCard({
             sx={{
               position: "absolute",
               inset: 0,
-              backgroundColor: "rgba(0,0,0,0.3)",
+              background: "linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.48) 100%)",
               opacity: 0,
               transition: "opacity 0.2s ease",
             }}
@@ -603,7 +618,7 @@ export function CompactSongCard({
       </Card>
 
       {/* Info Underneath (same spacing style as SongCard, but compact typography) */}
-      <Box sx={{ mt: 2, px: 0.5, width: "100%" }}>
+      <Box sx={{ mt: 1.25, px: 0.5, width: "100%" }}>
         {/* Title with same marquee behavior as SongCard */}
         <Box
           onMouseEnter={() => setIsTitleHovered(true)}
@@ -619,8 +634,8 @@ export function CompactSongCard({
             <Typography
               variant="subtitle2"
               sx={{
-                fontWeight: "bold",
-                color: "white",
+                fontWeight: 800,
+                color: theme.palette.text.primary,
                 lineHeight: 1.3,
                 fontSize: { xs: "0.9rem", sm: "0.95rem", md: "1rem" },
                 whiteSpace: "nowrap",
@@ -650,8 +665,8 @@ export function CompactSongCard({
               <Typography
                 variant="subtitle2"
                 sx={{
-                  fontWeight: "bold",
-                  color: "white",
+                  fontWeight: 800,
+                  color: theme.palette.text.primary,
                   lineHeight: 1.3,
                   fontSize: { xs: "0.9rem", sm: "0.95rem", md: "1rem" },
                   pr: 4,
@@ -663,8 +678,8 @@ export function CompactSongCard({
                 variant="subtitle2"
                 aria-hidden="true"
                 sx={{
-                  fontWeight: "bold",
-                  color: "white",
+                  fontWeight: 800,
+                  color: theme.palette.text.primary,
                   lineHeight: 1.3,
                   fontSize: { xs: "0.9rem", sm: "0.95rem", md: "1rem" },
                   pr: 4,
@@ -686,7 +701,7 @@ export function CompactSongCard({
               if (artistId) navigate(`/artist/${artistId}`);
             }}
             sx={{
-              color: "rgba(255,255,255,0.7)",
+              color: alpha(theme.palette.text.primary, 0.64),
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -695,7 +710,7 @@ export function CompactSongCard({
               flex: 1,
               minWidth: 0,
               mr: 1,
-              "&:hover": { color: "#E4C421", textDecoration: "underline" },
+              "&:hover": { color: theme.palette.primary.main },
             }}
           >
             {getArtistDisplayName(song)}
@@ -712,7 +727,7 @@ export function CompactSongCard({
           <Typography
             variant="caption"
             sx={{
-              color: "#E4C421",
+              color: alpha(theme.palette.text.primary, 0.58),
               fontSize: { xs: "0.7rem", sm: "0.75rem" },
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -726,7 +741,7 @@ export function CompactSongCard({
           <Typography
             variant="caption"
             sx={{
-              color: "rgba(255,255,255,0.6)",
+              color: alpha(theme.palette.text.primary, 0.5),
               fontSize: { xs: "0.7rem", sm: "0.75rem" },
               flexShrink: 0,
               fontWeight: 500,
