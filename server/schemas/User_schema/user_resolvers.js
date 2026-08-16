@@ -98,6 +98,11 @@ const ensureUserForLegacyArtistLogin = async ({ artist, password }) => {
     return null;
   }
 
+  if (!artist.isProfileComplete) {
+    artist.isProfileComplete = true;
+    await artist.save();
+  }
+
   const normalizedEmail = normalizeEmail(artist.email);
   let user = await User.findOne({ email: normalizedEmail });
 
