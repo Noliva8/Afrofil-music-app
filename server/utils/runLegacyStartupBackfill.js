@@ -3,6 +3,7 @@ import { Artist } from '../models/Artist/index_artist.js';
 import { User } from '../models/User/user_index.js';
 
 const DEFAULT_MIGRATION_ID = 'legacy-user-artist-unified-flow-v1';
+const STALE_LOCK_MS = 10 * 60 * 1000;
 
 const hasArtistProfileFields = (artist) =>
   Boolean(
@@ -12,6 +13,22 @@ const hasArtistProfileFields = (artist) =>
     artist?.country &&
     artist?.region
   );
+
+const legacyUserFilter = (cutoff) => ({
+  isUserEmailVerified: { $ne: true },
+  createdAt: { $lt: cutoff },
+});
+
+const incompleteQualifiedArtistFilter = {
+  confirmed: true,
+  selectedPlan: true,
+  isProfileComplete: { $ne: true },
+  fullName: { $exists: true, $nin: [null, ''] },
+  artistAka: { $exists: true, $nin: [null, ''] },
+  email: { $exists: true, $nin: [null, ''] },
+  country: { $exists: true, $nin: [null, ''] },
+  region: { $exists: true, $nin: [null, ''] },
+};
 
 const getCutoffDate = () => {
   const raw = process.env.LEGACY_BACKFILL_BEFORE;
@@ -26,17 +43,24 @@ const getCutoffDate = () => {
 
 export const runLegacyStartupBackfill = async () => {
   if (process.env.RUN_LEGACY_BACKFILL_ON_START !== 'true') {
+    console.log('[legacy-backfill] Skipped because RUN_LEGACY_BACKFILL_ON_START is not true');
     return;
   }
 
   const migrationId = process.env.LEGACY_BACKFILL_ID || DEFAULT_MIGRATION_ID;
   const cutoff = getCutoffDate();
   const locks = mongoose.connection.collection('migrationLocks');
+  const now = new Date();
 
   const lock = await locks.findOne({ _id: migrationId });
   if (lock?.completedAt) {
     console.log(`[legacy-backfill] ${migrationId} already completed at ${lock.completedAt.toISOString()}`);
     return;
+  }
+
+  if (lock?.startedAt && now.getTime() - new Date(lock.startedAt).getTime() > STALE_LOCK_MS) {
+    console.log(`[legacy-backfill] Reclaiming stale lock for ${migrationId}`);
+    await locks.deleteOne({ _id: migrationId, completedAt: { $exists: false } });
   }
 
   const claimed = await locks.findOneAndUpdate(
@@ -61,11 +85,16 @@ export const runLegacyStartupBackfill = async () => {
 
   console.log(`[legacy-backfill] Starting ${migrationId} with cutoff ${cutoff.toISOString()}`);
 
+  const usersPendingBefore = await User.countDocuments(legacyUserFilter(cutoff));
+  const artistsPendingBefore = await Artist.countDocuments(incompleteQualifiedArtistFilter);
+
+  console.log('[legacy-backfill] Pending before update', {
+    usersPendingBefore,
+    artistsPendingBefore,
+  });
+
   const userResult = await User.updateMany(
-    {
-      isUserEmailVerified: { $ne: true },
-      createdAt: { $lt: cutoff },
-    },
+    legacyUserFilter(cutoff),
     {
       $set: { isUserEmailVerified: true },
       $unset: {
@@ -75,11 +104,7 @@ export const runLegacyStartupBackfill = async () => {
     }
   );
 
-  const artists = await Artist.find({
-    confirmed: true,
-    selectedPlan: true,
-    isProfileComplete: { $ne: true },
-  }).select('_id email fullName artistAka country region');
+  const artists = await Artist.find(incompleteQualifiedArtistFilter).select('_id email fullName artistAka country region');
 
   const qualifiedArtistIds = artists
     .filter(hasArtistProfileFields)
@@ -89,8 +114,16 @@ export const runLegacyStartupBackfill = async () => {
     ? await Artist.updateMany(
         { _id: { $in: qualifiedArtistIds } },
         { $set: { isProfileComplete: true } }
-      )
+    )
     : { matchedCount: 0, modifiedCount: 0 };
+
+  const usersPendingAfter = await User.countDocuments(legacyUserFilter(cutoff));
+  const artistsPendingAfter = await Artist.countDocuments(incompleteQualifiedArtistFilter);
+
+  console.log('[legacy-backfill] Pending after update', {
+    usersPendingAfter,
+    artistsPendingAfter,
+  });
 
   const completedAt = new Date();
   await locks.updateOne(
@@ -111,7 +144,11 @@ export const runLegacyStartupBackfill = async () => {
     migrationId,
     usersMatched: userResult.matchedCount || 0,
     usersModified: userResult.modifiedCount || 0,
+    usersPendingBefore,
+    usersPendingAfter,
     artistsMatched: artistResult.matchedCount || 0,
     artistsModified: artistResult.modifiedCount || 0,
+    artistsPendingBefore,
+    artistsPendingAfter,
   });
 };

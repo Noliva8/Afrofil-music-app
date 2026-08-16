@@ -9,6 +9,19 @@ import { rotateTrendingSongs } from "./fairTrendingRotation.js";
 
 import {admin, owner, superAdmin } from "../../../utils/owner.js";
 
+import { runLegacyStartupBackfill } from "../../../utils/runLegacyStartupBackfill.js";
+
+let legacyBackfillTriggered = false;
+
+const triggerLegacyBackfillOnce = () => {
+  if (legacyBackfillTriggered) return;
+  legacyBackfillTriggered = true;
+
+  console.log("[legacy-backfill] Trending trigger called");
+  runLegacyStartupBackfill().catch((error) => {
+    console.error("[legacy-backfill] Trending trigger failed:", error?.message || error);
+  });
+};
 // const normalizeSong = (song) => ({
 //   ...song,
 //   artistFollowers: Array.isArray(song.artist?.followers)
@@ -27,7 +40,9 @@ import {admin, owner, superAdmin } from "../../../utils/owner.js";
 export const trendingSongsV2 = async (_parent, { limit }) => {
 // owner();
 // admin();
-superAdmin();
+// superAdmin();
+triggerLegacyBackfillOnce();
+
 
   const requested = Math.max(1, Math.min(Number(limit) || 10, 50)); // guard
   const CACHE_LIMIT = 20; 
