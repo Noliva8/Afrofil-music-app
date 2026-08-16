@@ -70,6 +70,7 @@ import geoip from 'geoip-lite';
 import aiMixRoutes from "./routes/aiMix.js";
 import { signArtistToken } from "./utils/artist_auth.js";
 import { USER_TYPES } from "./utils/AuthSystem/constant/systemRoles.js";
+import { runLegacyStartupBackfill } from "./utils/runLegacyStartupBackfill.js";
 
 
 import { resolve } from "dns";
@@ -778,6 +779,7 @@ const startApolloServer = async () => {
 
  // Connect to database
     await connectDB();
+    await runLegacyStartupBackfill();
 
     const ensureRadioStations = async () => {
       const existing = await RadioStation.countDocuments();
