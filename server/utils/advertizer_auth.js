@@ -2,6 +2,7 @@ import { GraphQLError } from 'graphql';
 import jwt from 'jsonwebtoken';
 import Advertizer from '../models/Advertizer/Advertizer.js'; // add .js if using ES Modules
 import dotenv from 'dotenv';
+import { getAccountTypeForAccount, getPermissionSectionsForAccount, getRoleLabelForAccount } from './owner.js';
 
 dotenv.config();
 
@@ -33,12 +34,23 @@ export const getAdvertizerFromToken = async (token) => {
     }
 
     const advertizer = await Advertizer.findById(data._id)
-      .select('_id companyName businessEmail role isConfirmed isPhoneVerified phoneNumber')
+      .select('_id companyName businessEmail role isSuperAdmin permissions isConfirmed isPhoneConfirmed phoneNumber')
       .lean();
 
     if (!advertizer) {
       throw new AuthenticationError('Advertizer not found');
     }
+
+    const permissions = Array.isArray(advertizer.permissions) ? advertizer.permissions : [];
+    const permissionSections = getPermissionSectionsForAccount({
+      role: advertizer.role,
+      isSuperAdmin: advertizer.isSuperAdmin,
+      permissions,
+    });
+
+    advertizer.permissionSections = permissionSections;
+    advertizer.accountType = getAccountTypeForAccount(advertizer);
+    advertizer.roleLabel = getRoleLabelForAccount(advertizer);
 
     return advertizer;
   } catch (error) {
@@ -124,7 +136,9 @@ export const signAdminToken = ({
   isPhoneConfirmed, 
   phoneNumber,
   isSuperAdmin,
-  permissions
+  accountType,
+  roleLabel,
+  permissionSections
 
 }) => {
 
@@ -138,7 +152,9 @@ export const signAdminToken = ({
     isPhoneConfirmed,
     phoneNumber,
     isSuperAdmin: !!isSuperAdmin, 
-    permissions: Array.isArray(permissions) ? permissions : []
+    accountType,
+    roleLabel,
+    permissionSections: Array.isArray(permissionSections) ? permissionSections : []
 
   };
 
@@ -156,7 +172,9 @@ export const signOwnerToken = ({
   isPhoneConfirmed,
   phoneNumber,
   isSuperAdmin,
-  permissions
+  accountType,
+  roleLabel,
+  permissionSections
 }) => {
 
   const payload = {
@@ -169,7 +187,9 @@ export const signOwnerToken = ({
     isPhoneConfirmed,
     phoneNumber,
     isSuperAdmin: !!isSuperAdmin,
-    permissions: Array.isArray(permissions) ? permissions : []
+    accountType,
+    roleLabel,
+    permissionSections: Array.isArray(permissionSections) ? permissionSections : []
   };
 
   return jwt.sign({ data: payload }, secret, { expiresIn: expiration });

@@ -50,6 +50,16 @@ enum PlatformType {
   all
 }
 
+type PermissionSection {
+  label: String!
+  permissions: [PermissionTask!]!
+}
+
+type PermissionTask {
+  key: String!
+  label: String!
+}
+
 
 
 
@@ -65,7 +75,9 @@ type Advertizer {
   companyWebsite: String
   brandType: BrandTypes!
 isSuperAdmin: Boolean
-permissions:[String]
+accountType: String
+roleLabel: String
+permissionSections: [PermissionSection!]
   isConfirmed: Boolean
   confirmationToken: String
   confirmationTokenExpire: Date

@@ -33,9 +33,10 @@ const Drawer = styled(MuiDrawer, {
   [`& .${drawerClasses.paper}`]: {
     width: openDrawer ? 240 : 0,
     boxSizing: "border-box",
-    overflow: openDrawer ? "visible" : "hidden",
-    background: alpha(theme.palette.background.paper, 0.94),
-    borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+    overflow: openDrawer ? "hidden" : "hidden",
+    background: `linear-gradient(180deg, ${alpha(theme.palette.background.default, 0.98)} 0%, ${alpha(theme.palette.background.paper, 0.96)} 100%)`,
+    borderRight: `1px solid ${alpha(theme.palette.primary.main, 0.16)}`,
+    boxShadow: `18px 0 40px ${alpha(theme.palette.common.black, 0.24)}`,
     color: theme.palette.text.primary,
   },
 }));
@@ -57,25 +58,38 @@ export default function SideMenu({openDrawer, profileImage, artistProfile }){
     >
       <Box
         sx={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           mt: 'calc(var(--template-frame-height, 0px) + 4px)',
-          p: 1.5,
+          px: 2,
+          py: 2.25,
         }}
       >
-
-       
-
-       <SitemarkIcon />
-
+        <Box
+          sx={(theme) => ({
+            width: '100%',
+            minHeight: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 2,
+            background: alpha(theme.palette.common.white, 0.04),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+          })}
+        >
+          <SitemarkIcon />
+        </Box>
       </Box>
 
-      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.primary.main, 0.18) }}/>
+      <Divider sx={{ borderColor: (theme) => alpha(theme.palette.text.primary, 0.08), mx: 2 }}/>
       <Box
         sx={{
-          overflow: 'auto',
+          overflow: 'hidden auto',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
+          px: 1,
         }}
       >
 
@@ -85,27 +99,68 @@ export default function SideMenu({openDrawer, profileImage, artistProfile }){
 
 
       <Stack
-        direction="row"
+        direction="column"
         sx={{
-          p: 2,
-          gap: 1,
+          m: 1.5,
+          p: 1.5,
+          gap: 0.9,
+          width: 'calc(100% - 24px)',
           alignItems: 'center',
-          borderTop: '1px solid',
-          borderColor: 'divider',
+          justifyContent: 'center',
+          textAlign: 'center',
+          borderRadius: 2,
+          border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.14)}`,
+          backgroundColor: (theme) => alpha(theme.palette.common.white, 0.04),
         }}
       >
         <Avatar
           sizes="small"
-          alt="Riley Carter"
+          alt={artistProfile?.fullName || 'Artist'}
           src= {profileImage}
-          sx={{ width: 36, height: 36 }}
+          sx={(theme) => ({
+            width: 38,
+            height: 38,
+            mx: 'auto',
+            bgcolor: alpha(theme.palette.primary.main, 0.18),
+            color: theme.palette.primary.main,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.26)}`,
+          })}
         />
-        <Box sx={{ mr: 'auto' }}>
-          <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: '16px' }}>
-            {artistProfile.fullName}
+        <Box
+          sx={{
+            minWidth: 0,
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{
+              width: '100%',
+              maxWidth: 180,
+              fontWeight: 800,
+              lineHeight: '18px',
+              textAlign: 'center',
+            }}
+          >
+            {artistProfile?.fullName || 'Artist studio'}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            {artistProfile.email}
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              width: '100%',
+              maxWidth: 180,
+              color: 'text.secondary',
+              display: 'block',
+              mt: 0.25,
+              textAlign: 'center',
+            }}
+          >
+            {artistProfile?.email || 'Studio account'}
           </Typography>
         </Box>
         {/* <OptionsMenu /> */}

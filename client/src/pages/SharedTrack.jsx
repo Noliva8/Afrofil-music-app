@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useApolloClient, useQuery } from '@apollo/client';
 import Box from '@mui/material/Box';
@@ -12,6 +12,47 @@ import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPres
 import { useAudioPlayer } from '../utils/Contexts/AudioPlayerContext';
 import { eventBus } from '../utils/Contexts/playerAdapters';
 import { presignAudioForTrack } from '../utils/plabackUtls/handleSongPlayBack';
+
+const isHttpUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const isS3Url = (url) => {
+  if (!isHttpUrl(url)) return false;
+  try {
+    const hostname = new URL(url).hostname;
+    return /^s3[.-]/.test(hostname) || /\.s3[.-]/.test(hostname);
+  } catch {
+    return false;
+  }
+};
+
+const isPlayableCdnUrl = (url) => isHttpUrl(url) && !isS3Url(url);
+
+const withCloudFrontAudio = (song) => {
+  if (!song) return song;
+  const signedAudioUrl = song.audioPresignedUrl || null;
+  if (isPlayableCdnUrl(signedAudioUrl)) {
+    return {
+      ...song,
+      audioUrl: signedAudioUrl,
+      url: signedAudioUrl,
+    };
+  }
+
+  return {
+    ...song,
+    // streamAudioFileUrl is a storage pointer only; never hand a raw S3 URL to playback.
+    audioUrl: isPlayableCdnUrl(song.audioUrl) ? song.audioUrl : null,
+    url: isPlayableCdnUrl(song.url) ? song.url : null,
+  };
+};
 
 const SharedTrack = () => {
   const { trackId } = useParams();
@@ -90,12 +131,13 @@ const SharedTrack = () => {
       if (!processedSong) return;
       setIsPreparing(true);
       try {
-        const signedTrack = processedSong.audioUrl
-          ? processedSong
-          : await presignAudioForTrack(processedSong, client);
+        const cloudFrontTrack = withCloudFrontAudio(processedSong);
+        const signedTrack = cloudFrontTrack.audioUrl
+          ? cloudFrontTrack
+          : await presignAudioForTrack(cloudFrontTrack, client);
 
         if (!cancelled) {
-          setPreparedTrack(signedTrack);
+          setPreparedTrack(withCloudFrontAudio(signedTrack));
         }
       } finally {
         if (!cancelled) {
@@ -112,10 +154,10 @@ const SharedTrack = () => {
   }, [client, processedSong]);
 
   useEffect(() => {
-    if (!processedSong || autoPlayAttemptedRef.current) return;
+    if (!preparedTrack || autoPlayAttemptedRef.current) return;
     autoPlayAttemptedRef.current = true;
     playSharedTrack();
-  }, [playSharedTrack, processedSong]);
+  }, [playSharedTrack, preparedTrack]);
 
   if (loading || presignLoading) {
     return (

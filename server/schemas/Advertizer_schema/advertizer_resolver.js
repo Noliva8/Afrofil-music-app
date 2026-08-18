@@ -20,11 +20,17 @@ import { getPlaybackContextState } from "./resolvers/playbackContext/getPlayback
 
 import { clearPlaybackContextState } from "./resolvers/playbackContext/clearPlaybackContextState.js";
 import { getAudioAd } from "./resolvers/getAudioAd.js";
+import { getAccountTypeForAccount, getPermissionSectionsForAccount, getRoleLabelForAccount } from "../../utils/owner.js";
 
 
 
 const resolvers = {
      Upload: GraphQLUpload,
+     Advertizer: {
+accountType: (advertizer) => getAccountTypeForAccount(advertizer),
+roleLabel: (advertizer) => getRoleLabelForAccount(advertizer),
+permissionSections: (advertizer) => getPermissionSectionsForAccount(advertizer),
+     },
      Query: {
 myAds,
 getPlaybackContextState,

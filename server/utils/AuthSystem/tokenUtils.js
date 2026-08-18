@@ -12,6 +12,21 @@ const SECRET_BY_KIND = {
 
 const AUD_BY_KIND = JWT_CONFIG.audience;
 
+function getAdvertiserAccountType(entity) {
+  if (entity.role === 'owner') return 'owner';
+  if (entity.role === 'admin' && entity.isSuperAdmin) return 'super_admin';
+  if (entity.role === 'admin') return 'admin';
+  return 'advertiser';
+}
+
+function getAdvertiserRoleLabel(entity) {
+  if (entity.roleLabel) return entity.roleLabel;
+  if (entity.role === 'owner') return 'Owner';
+  if (entity.role === 'admin' && entity.isSuperAdmin) return 'Super admin';
+  if (entity.role === 'admin') return 'Admin';
+  return 'Advertiser';
+}
+
 
 
 // extract info from token
@@ -106,7 +121,9 @@ export const generateToken = (entity, userType) => {
         isPhoneConfirmed: Boolean(entity.isPhoneConfirmed),
         role: entity.role ?? 'advertiser',
         isSuperAdmin: Boolean(entity.isSuperAdmin),
-        permissions: Array.isArray(entity.permissions) ? entity.permissions : [],
+        accountType: entity.accountType || getAdvertiserAccountType(entity),
+        roleLabel: getAdvertiserRoleLabel(entity),
+        permissionSections: Array.isArray(entity.permissionSections) ? entity.permissionSections : [],
       };
       break;
   }

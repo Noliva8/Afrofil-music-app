@@ -11,34 +11,41 @@ export default function MenuContent({handleShowMobileMenu}) {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    gap: 1.25,
-    px: 1.5,
-    py: 1.15,
+    gap: 1.35,
+    px: 1.25,
+    py: 1.2,
     borderRadius: '8px',
-    color: isActive ? theme.palette.primary.main : theme.palette.text.secondary,
+    color: isActive ? theme.palette.text.primary : theme.palette.text.secondary,
     textDecoration: 'none',
+    fontSize: 14,
     fontWeight: isActive ? 800 : 650,
-    backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-    transition: 'background-color 0.2s ease, color 0.2s ease',
+    backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.14) : 'transparent',
+    border: `1px solid ${isActive ? alpha(theme.palette.primary.main, 0.24) : 'transparent'}`,
+    boxShadow: isActive ? `0 10px 24px ${alpha(theme.palette.common.black, 0.18)}` : 'none',
+    transition: 'background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease',
     '&:hover': {
-      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+      backgroundColor: isActive ? alpha(theme.palette.primary.main, 0.16) : alpha(theme.palette.common.white, 0.06),
+      borderColor: isActive ? alpha(theme.palette.primary.main, 0.3) : alpha(theme.palette.text.primary, 0.08),
       color: theme.palette.text.primary,
+      transform: 'translateX(2px)',
     },
     '& svg': {
-      fontSize: 22,
+      fontSize: 21,
+      color: isActive ? theme.palette.primary.main : alpha(theme.palette.text.primary, 0.62),
+      transition: 'color 0.2s ease',
     },
   });
 
   return (
 
-    <Stack sx={{ flexGrow: 1, p: 1.25, mt: 3, justifyContent: 'space-between' }}>
+    <Stack sx={{ flexGrow: 1, p: 1, mt: 2, justifyContent: 'space-between' }}>
       
 <Box sx={{
   display: 'flex', 
   flexDirection: 'column',
   justifyContent: 'flex-start',
   alignItems: 'stretch', 
-  gap: 1,
+  gap: 0.75,
   width: '100%',
 }}>
  

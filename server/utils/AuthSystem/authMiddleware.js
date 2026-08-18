@@ -5,6 +5,11 @@ import { USER_TYPES } from './constant/systemRoles.js';
 import {User} from '../../models/User/user_index.js';
 import {Artist} from '../../models/Artist/index_artist.js';
 import {Advertizer} from '../../models/Advertizer/index_advertizer.js'; 
+import {
+  getAccountTypeForAccount,
+  getPermissionSectionsForAccount,
+  getRoleLabelForAccount
+} from '../owner.js';
 
 
 export class AuthenticationError extends GraphQLError {
@@ -114,6 +119,9 @@ export const combinedAuthMiddleware = async ({ req }) => {
           .lean();
         
         if (account) {
+          account.accountType = getAccountTypeForAccount(account);
+          account.roleLabel = getRoleLabelForAccount(account);
+          account.permissionSections = getPermissionSectionsForAccount(account);
           req.advertiser = account;
         }
       }

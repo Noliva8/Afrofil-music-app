@@ -588,6 +588,7 @@ profileImage
     }
     artwork
     artworkPresignedUrl
+    audioPresignedUrl
     streamAudioFileUrl
     audioFileUrl
     createdAt

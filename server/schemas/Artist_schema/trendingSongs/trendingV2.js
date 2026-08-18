@@ -41,7 +41,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
 // owner();
 // admin();
 // superAdmin();
-triggerLegacyBackfillOnce();
+// triggerLegacyBackfillOnce();
 
 
   const requested = Math.max(1, Math.min(Number(limit) || 10, 50)); // guard
