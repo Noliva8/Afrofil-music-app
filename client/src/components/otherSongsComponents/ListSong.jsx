@@ -86,6 +86,7 @@ const SongList = ({
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
   const [shareSongMutation] = useMutation(SHARE_SONG);
+  const isRecentRow = rowCode === "recentlyPlayed";
 
   const rowConfig = rowCode ? ROW_QUERY_CONFIG[rowCode] : null;
   const shouldFetchRowQuery = Boolean(rowConfig && showAll);
@@ -100,8 +101,9 @@ const SongList = ({
   );
 
   const baseSongs = useMemo(() => {
-    return processSongs(songsList).filter((song) => song.audioUrl);
-  }, [songsList]);
+    const songs = processSongs(songsList).filter((song) => song.audioUrl);
+    return isRecentRow ? songs.slice(0, 6) : songs;
+  }, [isRecentRow, songsList]);
 
   const baseIdSet = useMemo(() => {
     return new Set(baseSongs.map((song) => song.id));
@@ -127,12 +129,16 @@ const SongList = ({
   );
 
   const displayedSongs = useMemo(() => {
+    if (isRecentRow) {
+      return baseSongs.slice(0, 6);
+    }
+
     if (showAll) {
       const merged = [...baseSongs, ...extraSongsWithArtwork];
       return merged.slice(0, LIST_SHOW_ALL_LIMIT);
     }
     return baseSongs.slice(0, LIST_BASE_LIMIT);
-  }, [baseSongs, extraSongsWithArtwork, showAll]);
+  }, [baseSongs, extraSongsWithArtwork, isRecentRow, showAll]);
 
 
 const handleCloseAddToPlaylist = useCallback(() => {
@@ -362,43 +368,46 @@ const handlePlay = (event, song) => {
           </Box>
         </Box>
 
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={() => setShowAll(!showAll)}
-          sx={{
-            color: theme.palette.primary.main,
-            borderColor: alpha(theme.palette.primary.main, 0.3),
-            borderRadius: 2,
-            px: 2,
-            py: 0.75,
-            minWidth: 120,
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-            "&:hover": {
-              borderColor: theme.palette.primary.main,
-              backgroundColor: alpha(theme.palette.primary.main, 0.05),
-            },
-          }}
-        >
-          {showAll ? "Show Less" : "View All"}
-        </Button>
+        {!isRecentRow && (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setShowAll(!showAll)}
+            sx={{
+              color: theme.palette.primary.main,
+              borderColor: alpha(theme.palette.primary.main, 0.3),
+              borderRadius: 2,
+              px: 2,
+              py: 0.75,
+              minWidth: 120,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              "&:hover": {
+                borderColor: theme.palette.primary.main,
+                backgroundColor: alpha(theme.palette.primary.main, 0.05),
+              },
+            }}
+          >
+            {showAll ? "Show Less" : "View All"}
+          </Button>
+        )}
       </Box>
 
       {/* List Container */}
       <Box
         sx={{
-          backgroundColor: alpha(theme.palette.background.paper, 0.76),
+          backgroundColor: isRecentRow ? "transparent" : alpha(theme.palette.background.paper, 0.76),
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
+          border: isRecentRow ? "none" : `1px solid ${alpha(theme.palette.common.white, 0.08)}`,
           overflow: "hidden",
-          boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
+          boxShadow: isRecentRow ? "none" : "0 18px 40px rgba(0,0,0,0.18)",
+          px: isRecentRow ? { xs: 1, sm: 2 } : 0,
         }}
       >
         {/* List Header */}
         <Box
           sx={{
-            display: { xs: "none", md: lightweight ? "none" : "grid" },
+            display: { xs: "none", md: lightweight || isRecentRow ? "none" : "grid" },
             gridTemplateColumns: {
               md: "50px minmax(0,1fr) repeat(3, 120px)",
               lg: "50px minmax(0,1fr) repeat(4, 120px)",
@@ -477,34 +486,137 @@ const handlePlay = (event, song) => {
         </Box>
 
         {/* Songs List */}
-        <List sx={{ py: 0 }}>
-          {displayedSongs.map((song, index) => {
-            const isCurrent = currentTrack?.id === song.id;
-            return (
-              <ListItem
-                key={song.id}
-                className="song-list-item"
-                onClick={() => onCardClick?.(song)}
-                sx={{
-                  px: { xs: 2, md: 3 },
-                  py: 1.5,
-                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.05)}`,
-                  cursor: "pointer",
-                  transition: "background-color 0.2s ease, transform 0.2s ease",
-                  backgroundColor: "transparent",
-                  "&:hover": {
-                    backgroundColor: alpha(theme.palette.common.white, 0.055),
-                  },
-                  "&:hover .song-play-button": {
-                    opacity: 1,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.2),
-                  },
-                  "&:last-child": {
-                    borderBottom: "none",
-                  },
-                }}
-              >
+        {isRecentRow ? (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(3, minmax(0, 1fr))",
+              },
+              gap: { xs: 1, sm: 1.25, md: 1.5 },
+            }}
+          >
+            {displayedSongs.map((song) => {
+              const isCurrent = currentTrack?.id === song.id;
+              const artistName = song.artistName || song.artistAka || song.artist?.artistAka || "Unknown artist";
 
+              return (
+                <Box
+                  key={song.id}
+                  onClick={() => onCardClick?.(song)}
+                  sx={{
+                    minWidth: 0,
+                    height: { xs: 74, sm: 82 },
+                    borderRadius: "8px",
+                    border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
+                    backgroundColor: alpha(theme.palette.common.white, 0.045),
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) 34px",
+                    alignItems: "center",
+                    gap: 1,
+                    px: { xs: 1.1, sm: 1.4 },
+                    py: 1,
+                    cursor: "pointer",
+                    transition: "background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: alpha(theme.palette.common.white, 0.07),
+                      borderColor: alpha(theme.palette.primary.main, 0.24),
+                      transform: "translateY(-1px)",
+                    },
+                  }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="subtitle2"
+                      title={song.title}
+                      sx={{
+                        color: isCurrent ? theme.palette.primary.main : theme.palette.text.primary,
+                        fontWeight: 850,
+                        lineHeight: 1.2,
+                        fontSize: { xs: "0.82rem", sm: "0.92rem" },
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {song.title || "Untitled"}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      title={artistName}
+                      sx={{
+                        display: "block",
+                        mt: 0.45,
+                        color: alpha(theme.palette.text.primary, 0.64),
+                        fontWeight: 650,
+                        fontSize: { xs: "0.72rem", sm: "0.78rem" },
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {artistName}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    onClick={(event) => handlePlay(event, song)}
+                    aria-label={isCurrent && isPlaying ? "Pause song" : "Play song"}
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      bgcolor: isCurrent && isPlaying
+                        ? theme.palette.primary.main
+                        : alpha(theme.palette.common.white, 0.08),
+                      color: isCurrent && isPlaying
+                        ? theme.palette.primary.contrastText
+                        : theme.palette.text.primary,
+                      border: `1px solid ${
+                        isCurrent && isPlaying
+                          ? alpha(theme.palette.primary.main, 0.45)
+                          : alpha(theme.palette.text.primary, 0.1)
+                      }`,
+                      "&:hover": {
+                        bgcolor: isCurrent && isPlaying
+                          ? theme.palette.primary.light
+                          : alpha(theme.palette.common.white, 0.12),
+                      },
+                    }}
+                  >
+                    {isCurrent && isPlaying ? <Pause sx={{ fontSize: 18 }} /> : <PlayArrow sx={{ fontSize: 19 }} />}
+                  </IconButton>
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <List sx={{ py: 0 }}>
+            {displayedSongs.map((song, index) => {
+              const isCurrent = currentTrack?.id === song.id;
+              return (
+                <ListItem
+                  key={song.id}
+                  className="song-list-item"
+                  onClick={() => onCardClick?.(song)}
+                  sx={{
+                    px: { xs: 2, md: 3 },
+                    py: 1.5,
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.05)}`,
+                    cursor: "pointer",
+                    transition: "background-color 0.2s ease, transform 0.2s ease",
+                    backgroundColor: "transparent",
+                    "&:hover": {
+                      backgroundColor: alpha(theme.palette.common.white, 0.055),
+                    },
+                    "&:hover .song-play-button": {
+                      opacity: 1,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                    },
+                    "&:last-child": {
+                      borderBottom: "none",
+                    },
+                  }}
+                >
 
 
 
@@ -779,10 +891,11 @@ const handlePlay = (event, song) => {
 
                   
                 </Box>
-              </ListItem>
-            );
-          })}
-        </List>
+                </ListItem>
+              );
+            })}
+          </List>
+        )}
 
         {loading && displayedSongs.length === 0 && (
           <LinearProgress

@@ -96,7 +96,7 @@ const Home = ({ upgradeToPremium }) => {
   const { data: recentPlayedData, loading: recentPlayedLoading } = useQuery(
     QUERY_RECENT_PLAYED,
     {
-      variables: { limit: HORIZONTAL_LIMIT },
+      variables: { limit: 6 },
     },
   );
 
