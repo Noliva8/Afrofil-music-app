@@ -1,4 +1,4 @@
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
 import MuiDrawer from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
@@ -18,7 +18,10 @@ const MobileDrawer = styled(MuiDrawer)(({ theme }) => ({
     width: '100%',
     maxWidth: 440,
     boxSizing: 'border-box',
-    backgroundColor: 'var(--primary-background-color)',
+    background: `linear-gradient(180deg, ${alpha(theme.palette.background.default, 0.98)} 0%, ${alpha(theme.palette.background.paper, 0.96)} 100%)`,
+    borderLeft: `1px solid ${alpha(theme.palette.primary.main, 0.16)}`,
+    boxShadow: `-18px 0 40px ${alpha(theme.palette.common.black, 0.24)}`,
+    color: theme.palette.text.primary,
     [theme.breakpoints.down('sm')]: {
       maxWidth: '100%',
     },
@@ -52,15 +55,56 @@ export default function MobileSideMenu({
         sx={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
+          gap: 1.25,
           mt: 'calc(var(--template-frame-height, 0px) + 4px)',
-          p: isSmallMobile ? 1 : 1.5,
+          px: isSmallMobile ? 1.25 : 2,
+          py: isSmallMobile ? 1.25 : 1.75,
         }}
       >
-        <SitemarkIcon />
+        <Box
+          sx={{
+            width: 44,
+            height: 44,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '8px',
+            backgroundColor: alpha(theme.palette.common.white, 0.04),
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+            flexShrink: 0,
+          }}
+        >
+          <SitemarkIcon sx={{ width: 28, height: 28, mr: 0 }} />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="subtitle1"
+            noWrap
+            sx={{
+              fontWeight: 900,
+              lineHeight: 1.1,
+              color: theme.palette.text.primary,
+            }}
+          >
+            Flolup Studio
+          </Typography>
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              display: 'block',
+              mt: 0.25,
+              color: theme.palette.text.secondary,
+              maxWidth: 280,
+            }}
+          >
+            {artistProfile?.artistAka || 'Artist workspace'}
+          </Typography>
+        </Box>
       </Box>
 
-      <Divider sx={{ bgcolor: 'var(--secondary-background-color)' }} />
+      <Divider sx={{ borderColor: alpha(theme.palette.text.primary, 0.08), mx: 2 }} />
       
       <Box
         sx={{
@@ -68,6 +112,7 @@ export default function MobileSideMenu({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
+          px: 1,
           pb: 2
         }}
       >
@@ -84,7 +129,8 @@ export default function MobileSideMenu({
           gap: 1,
           alignItems: 'center',
           borderTop: '1px solid',
-          borderColor: 'divider',
+          borderColor: alpha(theme.palette.text.primary, 0.08),
+          backgroundColor: alpha(theme.palette.common.white, 0.03),
         }}
       >
         <Avatar
@@ -112,7 +158,7 @@ export default function MobileSideMenu({
           <Typography 
             variant="caption" 
             sx={{ 
-              color: 'var(--primary-font-color)',
+              color: theme.palette.text.secondary,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis'

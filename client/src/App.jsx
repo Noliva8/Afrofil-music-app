@@ -10,6 +10,7 @@ import {
   ApolloProvider,
   split,
 } from "@apollo/client";
+
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
 import { createClient } from "graphql-ws";
 import { getMainDefinition } from "@apollo/client/utilities";
@@ -49,9 +50,21 @@ import "react-toastify/dist/ReactToastify.css";
 import ArtistGuestViewAppBar from "./components/AuthenticateCompos/ArtistGuestViewAppBar.jsx";
 
 import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
+import {VisitorTracker} from "./components/Analytics/VisitorTracker.jsx";
+
+
+
+
+
 
 // Apollo Client setup remains the same...
 // const httpLink = createUploadLink({ uri: "/graphql" });
+
+
+
+
+
+
 
 const httpLink = createUploadLink({
   uri: import.meta.env.VITE_HTTP_URL,
@@ -326,6 +339,7 @@ function AppBody({ onCreatePlaylist }) {
         <AdAudioProvider>
           <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
             <Orchestrator />
+            
             <AppUI
               theme={theme}
               isUserLoggedIn={isUserLoggedIn}
@@ -471,6 +485,8 @@ function AppUI({
         position: 'relative',
       }}
     >
+
+   
 
 
       {/* Guest NavBar */}
@@ -724,12 +740,20 @@ function AppUI({
 function App() {
   const [createPlaylistModalOpen, setCreatePlaylistModalOpen] = useState(false);
 
+
+
+
   return (
     <ApolloProvider client={client}>
+       
       <UserProvider>
         <LocationProvider>
+        
           <LocationGate>
             <ToastContainer position="top-right" autoClose={3000} />
+            
+              <VisitorTracker />
+
             <AppBody
               onCreatePlaylist={() => setCreatePlaylistModalOpen(true)}
             />
@@ -747,6 +771,9 @@ function App() {
 
 
 export default App;
+
+
+
 
 // Player slot that hides when no track is loaded
 function PlayerSlot({ isPublicArtistPage, isNotMediaPlayerAllowed, formDisplay, isUserLoggedIn, isMobile, theme, bottomOffset }) {

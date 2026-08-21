@@ -23,6 +23,7 @@ import { notificationOnArtistMessages } from '../Artist_schema/MessagingSystem/N
 
 import { notificationOnCreatedBookings } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnCreatedBookings.js';
 import { sendSupportMessage } from './resolvers/supportResolvers.js';
+import { attachVisitorToUser, startVisitorVisit, visitorAnalyticsStats } from './resolvers/visitorAnalytics.js';
 
 
 
@@ -932,17 +933,22 @@ commentsForSong: async (parent, { songId }) => {
   }
 },
 
-  notificationOnCreatedBookings,
-  notificationOnArtistMessages,
- 
+	  notificationOnCreatedBookings,
+	  notificationOnArtistMessages,
+    visitorAnalyticsStats,
+	 
 
-  },
+	  },
 
 
   Mutation: {
     
-sendSupportMessage,
-     markSeenUserNotification,
+	sendSupportMessage,
+	     markSeenUserNotification,
+
+       
+      startVisitorVisit,
+      attachVisitorToUser,
 
 
 // Create a new user

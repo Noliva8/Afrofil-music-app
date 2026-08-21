@@ -93,6 +93,30 @@ const artistSupportSchema = new Schema({
     trim: true
   },
 
+  payoutStatus: {
+    type: String,
+    enum: ['AVAILABLE', 'PROCESSING', 'PAID'],
+    default: 'AVAILABLE',
+    index: true
+  },
+
+  payoutPhone: {
+    type: String,
+    default: null,
+    trim: true
+  },
+
+  cashoutRequestedAt: {
+    type: Date,
+    default: null
+  },
+
+  cashoutRequestId: {
+    type: String,
+    default: null,
+    index: true
+  },
+
   supporterCountry: {
     type: String,
     trim: true

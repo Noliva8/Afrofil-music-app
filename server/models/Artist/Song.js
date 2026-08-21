@@ -303,6 +303,10 @@ processingAttempts: { type: Number, default: 0 },
     type: Number,
     default: 0
   },
+  previousWeekPlayCount: {
+    type: Number,
+    default: 0
+  },
   weeklyLikeCount: {
     type: Number,
     default: 0
@@ -326,6 +330,18 @@ processingAttempts: { type: Number, default: 0 },
   songOfTheWeekWinnerWeekStartDate: {
     type: Date,
     default: null
+  },
+  songOfTheWeekWinningPlayCount: {
+    type: Number,
+    default: 0
+  },
+  songOfTheWeekWinningLikeCount: {
+    type: Number,
+    default: 0
+  },
+  songOfTheWeekWinningShareCount: {
+    type: Number,
+    default: 0
   },
 
   createdAt: {

@@ -551,6 +551,34 @@ export const ARTIST_SUPPORT_REVENUE = gql`
   }
 `;
 
+export const ARTIST_REWARD_REVENUE = gql`
+  query ArtistRewardRevenue {
+    artistRewardRevenue {
+      totalRewardAmount
+      totalRewardAmountUsd
+      availableRewardAmount
+      availableRewardAmountUsd
+      rewardCount
+      currency
+      rewards {
+        _id
+        weeklyPlayCount
+        weeklyLikeCount
+        rewardAmount
+        rewardAmountUsd
+        weekStartDate
+        weekEndDate
+        status
+        songId {
+          _id
+          title
+          artwork
+        }
+      }
+    }
+  }
+`;
+
 
 
 
@@ -656,6 +684,9 @@ export const TRENDING_SONGS_PUBLIC = gql`
       hasWonSongOfTheWeek
       lastSongOfTheWeekWonAt
       songOfTheWeekWinnerWeekStartDate
+      songOfTheWeekWinningPlayCount
+      songOfTheWeekWinningLikeCount
+      songOfTheWeekWinningShareCount
       trendingScore
 
       # content
@@ -806,6 +837,9 @@ export const NEW_UPLOADS_PUBLIC = gql`
       hasWonSongOfTheWeek
       lastSongOfTheWeekWonAt
       songOfTheWeekWinnerWeekStartDate
+      songOfTheWeekWinningPlayCount
+      songOfTheWeekWinningLikeCount
+      songOfTheWeekWinningShareCount
       trendingScore
 
       # content
@@ -980,6 +1014,9 @@ export const SONG_OF_THE_WEEK_PUBLIC = gql`
       hasWonSongOfTheWeek
       lastSongOfTheWeekWonAt
       songOfTheWeekWinnerWeekStartDate
+      songOfTheWeekWinningPlayCount
+      songOfTheWeekWinningLikeCount
+      songOfTheWeekWinningShareCount
       trendingScore
 
       # content
@@ -1038,6 +1075,9 @@ export const SONGS_COMPETING_THIS_WEEK_PUBLIC = gql`
       hasWonSongOfTheWeek
       lastSongOfTheWeekWonAt
       songOfTheWeekWinnerWeekStartDate
+      songOfTheWeekWinningPlayCount
+      songOfTheWeekWinningLikeCount
+      songOfTheWeekWinningShareCount
       trendingScore
       lyrics
       composer { name contribution }
@@ -1817,6 +1857,29 @@ export const ARTIST_SUPPORT_SONG_STATS = gql`
         _id
         artistAka
         profileImage
+      }
+    }
+  }
+`;
+
+export const GET_VISITOR_ANALYTICS_STATS = gql`
+  query VisitorAnalyticsStats {
+    visitorAnalyticsStats {
+      totalVisitors
+      newVisitors
+      returningVisitors
+      anonymousVisitors
+      convertedVisitors
+      eligibleAnonymousVisitors
+      conversionRate
+      totalVisits
+      busiestDay
+      busiestDayVisits
+      dailyVisits {
+        date
+        label
+        visits
+        uniqueVisitors
       }
     }
   }

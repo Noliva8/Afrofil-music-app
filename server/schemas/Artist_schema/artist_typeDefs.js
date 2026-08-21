@@ -102,6 +102,9 @@ processingAttempts: Int
   hasWonSongOfTheWeek: Boolean
   lastSongOfTheWeekWonAt: Date
   songOfTheWeekWinnerWeekStartDate: Date
+  songOfTheWeekWinningPlayCount: Int
+  songOfTheWeekWinningLikeCount: Int
+  songOfTheWeekWinningShareCount: Int
 }
 
 
@@ -168,6 +171,43 @@ type ArtistSupportRevenue {
   totalArtistAmount: Int!
   paidSupportCount: Int!
   currency: String!
+}
+
+type ArtistReward {
+  _id: ID!
+  songId: Song!
+  artistId: Artist!
+  weeklyPlayCount: Int!
+  weeklyLikeCount: Int!
+  rewardAmount: Int!
+  rewardAmountUsd: Float!
+  weekStartDate: Date!
+  weekEndDate: Date!
+  status: String!
+  payoutPhone: String
+  cashoutRequestedAt: Date
+  paidAt: Date
+  createdAt: Date
+}
+
+type ArtistRewardRevenue {
+  totalRewardAmount: Int!
+  totalRewardAmountUsd: Float!
+  availableRewardAmount: Int!
+  availableRewardAmountUsd: Float!
+  rewardCount: Int!
+  currency: String!
+  rewards: [ArtistReward!]!
+}
+
+type ArtistCashoutPayload {
+  success: Boolean!
+  message: String!
+  grossAmountUsd: Float!
+  processingFeeUsd: Float!
+  payoutAmountUsd: Float!
+  supportAmountUsd: Float!
+  rewardAmountUsd: Float!
 }
 
 
@@ -774,14 +814,43 @@ enum ViewPoint {
 }
 
 
+type ArtistDashboardStats {
+  total: Int!
+  thisWeek: Int!
+}
 
+type SongsDashboardStats {
+  total: Int!
+  thisWeek: Int!
+}
 
+type UsersDashboardStats {
+  total: Int!
+  thisWeek: Int!
+}
+
+type PlaysDashboardStats {
+  total: Int!
+  thisWeek: Int!
+  previousWeek: Int!
+  changePercent: Float!
+}
 
 
 
 
 
 type Query {
+
+
+  artistDashboardStats: ArtistDashboardStats!
+  songsDashboardStats: SongsDashboardStats!
+  usersDashboardStats: UsersDashboardStats!
+  playsDashboardStats: PlaysDashboardStats!
+
+
+
+
 
   # Get messages for a booking
   getmessages(bookingId: ID!): [Message!]!
@@ -798,6 +867,7 @@ type Query {
   artistProfile: Artist
   songsOfArtist: [Song]
   artistSupportRevenue: ArtistSupportRevenue!
+  artistRewardRevenue: ArtistRewardRevenue!
  getArtistSongs(artistId: ID!): [Song]
   songHash(audioHash: String):Song
   albumOfArtist: [Album]
@@ -844,11 +914,16 @@ type Query {
    otherAlbumsByArtist(albumId: ID!, artistId: ID!): [Album]
 }
 
+
+
+
 type SearchResults {
   songs: [Song!]!
   artists: [Artist!]!
   albums: [Album!]!
 }
+
+
 
 
 type Mutation {
@@ -1027,6 +1102,11 @@ confirmArtistSupportMobileMoney(
  supportId: ID!
  flutterwaveTransactionId: String!
 ): ArtistSupportMobileMoneyConfirmationPayload!
+
+processArtistCashout(
+ fullName: String!
+ phoneNumber: String!
+): ArtistCashoutPayload!
 
 toggleLikeSong(songId: ID!): Song
 

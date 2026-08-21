@@ -53,6 +53,74 @@ type BusinessOnboardingResponse {
   user: User
 }
 
+
+
+
+type Visit {
+  _id: ID!
+  visitorId: String!
+  userId: ID
+  startedAt: Date
+  lastSeenAt: Date
+  endedAt: Date
+  startedAnonymous: Boolean
+  isAnonymous: Boolean
+  conversionType: String
+  convertedAt: Date
+}
+
+type Visitor {
+  _id: ID!
+  visitorId: String!
+  userId: ID
+  firstSeenAt: Date
+  lastSeenAt: Date
+  becameUserAt: Date
+  conversionType: String
+}
+
+
+
+
+type VisitorAnalyticsStats {
+  visits: Int!
+  visitsThisWeek: Int!
+  previousWeekVisits: Int!
+  visitsChangePercent: Float!
+  uniqueVisitors: Int!
+  anonymousVisitors: Int!
+  newUsers: Int!
+  visitorToSignupRate: Float!
+  totalVisitors: Int!
+  newVisitors: Int!
+  returningVisitors: Int!
+  convertedVisitors: Int!
+  eligibleAnonymousVisitors: Int!
+  conversionRate: Float!
+  totalVisits: Int!
+  busiestDay: String
+  busiestDayVisits: Int!
+  dailyVisits: [DailyVisitMetric!]!
+  hasPreviousWeekData: Boolean!
+}
+
+type DailyVisitMetric {
+  date: String!
+  label: String!
+  visits: Int!
+  uniqueVisitors: Int!
+}
+
+
+
+
+type VisitorVisitPayload {
+  visitorId: String!
+  visitId: ID!
+}
+
+
+
 enum UsageType {
 personal
 business
@@ -349,8 +417,9 @@ type Query {
 
   # Comments
   comments: [Comment]
-  commentsForSong(songId: ID!): [Comment]
-  userNotifications(status: NotificationStatus): [UserNotification!]!
+	  commentsForSong(songId: ID!): [Comment]
+	  userNotifications(status: NotificationStatus): [UserNotification!]!
+    visitorAnalyticsStats: VisitorAnalyticsStats!
 
  
 }
@@ -399,6 +468,11 @@ type Mutation {
  markSeenUserNotification(notificationId: ID!
 isNotificationSeen: Boolean
 ): UserNotification
+
+  startVisitorVisit(visitorId: String!): VisitorVisitPayload!
+  
+
+  attachVisitorToUser(visitorId: String!, visitId: ID, isNewUser: Boolean!): Boolean!
 
 
  createUser(input: CreateUserInput!): UserAuthPayload

@@ -41,14 +41,27 @@ const resetSongOfTheWeekCountersIfNeeded = async (redis, weekStartDate, weekEndD
   if (!acquired) return;
 
   try {
+    const staleWeekFilter = {
+      $or: [
+        { weekStartDate: { $exists: false } },
+        { weekStartDate: null },
+        { weekStartDate: { $ne: weekStartDate } },
+      ],
+    };
+
     await Song.updateMany(
-      {
-        $or: [
-          { weekStartDate: { $exists: false } },
-          { weekStartDate: null },
-          { weekStartDate: { $ne: weekStartDate } },
-        ],
-      },
+      staleWeekFilter,
+      [
+        {
+          $set: {
+            previousWeekPlayCount: { $ifNull: ['$weeklyPlayCount', 0] },
+          },
+        },
+      ]
+    );
+
+    await Song.updateMany(
+      staleWeekFilter,
       {
         $set: {
           weekStartDate,

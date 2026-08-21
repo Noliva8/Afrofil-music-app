@@ -1,7 +1,8 @@
 
 import fs from 'fs'
+import mongoose from 'mongoose';
 import { ApolloError } from 'apollo-server-express';
-import  { Artist, Album, Song, User, Fingerprint, RadioStation , Message, ArtistSupport} from '../../models/Artist/index_artist.js';
+import  { Artist, Album, Song, User, Fingerprint, RadioStation , Message, ArtistSupport, ArtistReward} from '../../models/Artist/index_artist.js';
 import BookArtist from '../../models/Artist/bookArtist.js';
 import { getMessages } from './MessagingSystem/Queries/getmessages.js';
 import { getConversations } from './MessagingSystem/Queries/conversation.js';
@@ -102,6 +103,10 @@ import { confirmArtistSupportMobileMoney } from './artistSupport/confirmArtistSu
 import jwt from 'jsonwebtoken';
 
 import { newSongUpload } from './newSongUpload/newSongUpload.js';
+import { artistDashboardStats } from './generalDashboard/artistDashboardStats.js';
+import { songsDashboardStats } from './generalDashboard/songsDashboardStart.js';
+import { usersDashboardStats } from './generalDashboard/usersDashboardStart.js';
+import { playsDashboardStats } from './generalDashboard/playsDashboardStats.js';
 
 
 
@@ -146,6 +151,120 @@ const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
 };
 
 const SONG_OF_THE_WEEK_LOCKOUT_MS = 28 * 24 * 60 * 60 * 1000;
+const MAX_SONG_OF_THE_WEEK_REWARD_RWF = 100000;
+
+const getRwfPerUsd = () => {
+  const rwfPerUsd = Number(process.env.RWF_PER_USD);
+  return Number.isFinite(rwfPerUsd) && rwfPerUsd > 0 ? rwfPerUsd : 1400;
+};
+
+const convertRwfToUsd = (amountRwf) => Number((Number(amountRwf || 0) / getRwfPerUsd()).toFixed(2));
+const calculateProcessingFeeUsd = (amountUsd) => Number((Number(amountUsd || 0) * 0.04).toFixed(2));
+const normalizeCashoutName = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+const normalizeCashoutPhone = (value) => String(value || '').trim().replace(/[\s-]/g, '');
+const isValidCashoutPhone = (value) => /^(?:0\d{9}|\+250\d{9})$/.test(normalizeCashoutPhone(value));
+
+const calculateSongOfTheWeekRewardRwf = ({ weeklyPlayCount = 0, weeklyLikeCount = 0 }) => {
+  const plays = Math.max(0, Number(weeklyPlayCount) || 0);
+  const likes = Math.max(0, Number(weeklyLikeCount) || 0);
+
+  if (plays >= 1000) return MAX_SONG_OF_THE_WEEK_REWARD_RWF;
+
+  const score = plays + likes;
+  return Math.min(
+    MAX_SONG_OF_THE_WEEK_REWARD_RWF,
+    Math.round((score / 1000) * MAX_SONG_OF_THE_WEEK_REWARD_RWF)
+  );
+};
+
+const sendSongOfTheWeekRewardEmails = async ({ reward, winner }) => {
+  const artistEmail = winner.artist?.email;
+  const adminEmails = [process.env.OWNER_EMAIL, process.env.ADMIN_EMAIL].filter(Boolean);
+  const rewardUsd = convertRwfToUsd(reward.rewardAmount);
+  const artistName = winner.artist?.artistAka || 'Artist';
+  const songTitle = winner.title || 'Untitled song';
+
+  const emailTasks = [];
+
+  if (artistEmail) {
+    emailTasks.push(
+      sendEmail(
+        artistEmail,
+        'Your song won Song of the Week',
+        `
+          <p>Hi ${artistName},</p>
+          <p>Your song <strong>${songTitle}</strong> has been selected as Song of the Week.</p>
+          <p>Reward: <strong>${reward.rewardAmount.toLocaleString()} RWF</strong> (${rewardUsd.toFixed(2)} USD).</p>
+          <p>Weekly plays: ${reward.weeklyPlayCount.toLocaleString()}<br/>
+          Weekly likes: ${reward.weeklyLikeCount.toLocaleString()}</p>
+        `
+      )
+    );
+  }
+
+  if (adminEmails.length > 0) {
+    emailTasks.push(
+      sendEmail(
+        adminEmails.join(','),
+        'Song of the Week reward created',
+        `
+          <p>A Song of the Week reward was created.</p>
+          <p><strong>Artist:</strong> ${artistName}</p>
+          <p><strong>Song:</strong> ${songTitle}</p>
+          <p><strong>Reward:</strong> ${reward.rewardAmount.toLocaleString()} RWF (${rewardUsd.toFixed(2)} USD)</p>
+          <p><strong>Weekly plays:</strong> ${reward.weeklyPlayCount.toLocaleString()}</p>
+          <p><strong>Weekly likes:</strong> ${reward.weeklyLikeCount.toLocaleString()}</p>
+        `
+      )
+    );
+  }
+
+  const results = await Promise.allSettled(emailTasks);
+  results.forEach((result) => {
+    if (result.status === 'rejected') {
+      console.warn('[songOfTheWeek] reward email skipped:', result.reason?.message || result.reason);
+    }
+  });
+};
+
+const ensureSongOfTheWeekReward = async ({ winner, weekStartDate, weekEndDate }) => {
+  const artistId = winner.artist?._id || winner.artist;
+  if (!artistId) return null;
+
+  const existingReward = await ArtistReward.findOne({
+    songId: winner._id,
+    weekStartDate,
+  });
+
+  if (existingReward) return existingReward;
+
+  try {
+    const reward = await ArtistReward.create({
+      artistId,
+      songId: winner._id,
+      weeklyPlayCount: Number(winner.weeklyPlayCount || 0),
+      weeklyLikeCount: Number(winner.weeklyLikeCount || 0),
+      rewardAmount: calculateSongOfTheWeekRewardRwf({
+        weeklyPlayCount: winner.weeklyPlayCount,
+        weeklyLikeCount: winner.weeklyLikeCount,
+      }),
+      weekStartDate,
+      weekEndDate,
+    });
+
+    await sendSongOfTheWeekRewardEmails({ reward, winner });
+    return reward;
+  } catch (error) {
+    if (error?.code === 11000) {
+      return ArtistReward.findOne({
+        songId: winner._id,
+        weekStartDate,
+      });
+    }
+
+    throw error;
+  }
+};
 
 const resetExpiredSongOfTheWeekLockouts = async (date = new Date()) => {
   const cutoff = new Date(date.getTime() - SONG_OF_THE_WEEK_LOCKOUT_MS);
@@ -170,14 +289,27 @@ const resetSongOfTheWeekCountersIfNeeded = async (redisClient, weekStartDate, we
   if (!acquired) return;
 
   try {
+    const staleWeekFilter = {
+      $or: [
+        { weekStartDate: { $exists: false } },
+        { weekStartDate: null },
+        { weekStartDate: { $ne: weekStartDate } },
+      ],
+    };
+
     await Song.updateMany(
-      {
-        $or: [
-          { weekStartDate: { $exists: false } },
-          { weekStartDate: null },
-          { weekStartDate: { $ne: weekStartDate } },
-        ],
-      },
+      staleWeekFilter,
+      [
+        {
+          $set: {
+            previousWeekPlayCount: { $ifNull: ['$weeklyPlayCount', 0] },
+          },
+        },
+      ]
+    );
+
+    await Song.updateMany(
+      staleWeekFilter,
       {
         $set: {
           weekStartDate,
@@ -497,6 +629,9 @@ export const shapeForRedis = (songDoc) => ({
   hasWonSongOfTheWeek: Boolean(songDoc.hasWonSongOfTheWeek),
   lastSongOfTheWeekWonAt: songDoc.lastSongOfTheWeekWonAt ? new Date(songDoc.lastSongOfTheWeekWonAt) : null,
   songOfTheWeekWinnerWeekStartDate: songDoc.songOfTheWeekWinnerWeekStartDate ? new Date(songDoc.songOfTheWeekWinnerWeekStartDate) : null,
+  songOfTheWeekWinningPlayCount: Number(songDoc.songOfTheWeekWinningPlayCount || 0),
+  songOfTheWeekWinningLikeCount: Number(songDoc.songOfTheWeekWinningLikeCount || 0),
+  songOfTheWeekWinningShareCount: Number(songDoc.songOfTheWeekWinningShareCount || 0),
   likesCount: Number(
     // prefer an explicit likesCount if you add it on Mongo,
     // otherwise derive from likedByUsers length when present
@@ -733,14 +868,42 @@ const resolvers = {
       return Number(artist.artistDownloadCounts || 0);
     },
   },
+  Song: {
+    weeklyPlayCount: (song) => {
+      if (song.hasWonSongOfTheWeek && Number(song.songOfTheWeekWinningPlayCount || 0) > 0) {
+        return Number(song.songOfTheWeekWinningPlayCount || 0);
+      }
+      return Number(song.weeklyPlayCount || 0);
+    },
+    weeklyLikeCount: (song) => {
+      if (song.hasWonSongOfTheWeek && Number(song.songOfTheWeekWinningLikeCount || 0) > 0) {
+        return Number(song.songOfTheWeekWinningLikeCount || 0);
+      }
+      return Number(song.weeklyLikeCount || 0);
+    },
+    weeklyShareCount: (song) => {
+      if (song.hasWonSongOfTheWeek && Number(song.songOfTheWeekWinningShareCount || 0) > 0) {
+        return Number(song.songOfTheWeekWinningShareCount || 0);
+      }
+      return Number(song.weeklyShareCount || 0);
+    },
+  },
   RadioStation: {
     type: (station) => mapRadioTypeToEnum(station.type),
+  },
+  ArtistReward: {
+    rewardAmountUsd: (reward) => convertRwfToUsd(reward.rewardAmount),
   },
   RadioSeed: {
     seedType: (seed) => mapSeedTypeToEnum(seed.seedType),
   },
   Upload: GraphQLUpload,
 Query: {
+
+artistDashboardStats,
+songsDashboardStats,
+usersDashboardStats,
+playsDashboardStats,
 
 songOfTheWeek: async () => {
   const now = new Date();
@@ -752,10 +915,18 @@ songOfTheWeek: async () => {
     hasWonSongOfTheWeek: true,
     songOfTheWeekWinnerWeekStartDate: weekStartDate,
   })
-    .populate("artist", "artistAka profileImage country artistDownloadCounts followers")
+    .populate("artist", "artistAka email profileImage country artistDownloadCounts followers")
     .populate("album", "title releaseDate albumCoverImage");
 
-  if (existingWinner) return existingWinner;
+  if (existingWinner) {
+    try {
+      await ensureSongOfTheWeekReward({ winner: existingWinner, weekStartDate, weekEndDate });
+    } catch (error) {
+      console.warn('[songOfTheWeek] reward creation skipped:', error?.message || error);
+    }
+
+    return existingWinner;
+  }
 
   const baseMatch = {
     visibility: "public",
@@ -811,11 +982,14 @@ songOfTheWeek: async () => {
         hasWonSongOfTheWeek: true,
         lastSongOfTheWeekWonAt: now,
         songOfTheWeekWinnerWeekStartDate: weekStartDate,
+        songOfTheWeekWinningPlayCount: Number(song.weeklyPlayCount || 0),
+        songOfTheWeekWinningLikeCount: Number(song.weeklyLikeCount || 0),
+        songOfTheWeekWinningShareCount: Number(song.weeklyShareCount || 0),
       },
     },
     { new: true }
   )
-    .populate("artist", "artistAka profileImage country artistDownloadCounts followers")
+    .populate("artist", "artistAka email profileImage country artistDownloadCounts followers")
     .populate("album", "title releaseDate albumCoverImage");
 
   if (!winner) return null;
@@ -825,9 +999,18 @@ songOfTheWeek: async () => {
       hasWonSongOfTheWeek: winner.hasWonSongOfTheWeek,
       lastSongOfTheWeekWonAt: winner.lastSongOfTheWeekWonAt,
       songOfTheWeekWinnerWeekStartDate: winner.songOfTheWeekWinnerWeekStartDate,
+      songOfTheWeekWinningPlayCount: winner.songOfTheWeekWinningPlayCount,
+      songOfTheWeekWinningLikeCount: winner.songOfTheWeekWinningLikeCount,
+      songOfTheWeekWinningShareCount: winner.songOfTheWeekWinningShareCount,
     });
   } catch (error) {
     console.warn('[songOfTheWeek] Redis winner sync skipped:', error?.message || error);
+  }
+
+  try {
+    await ensureSongOfTheWeekReward({ winner, weekStartDate, weekEndDate });
+  } catch (error) {
+    console.warn('[songOfTheWeek] reward creation skipped:', error?.message || error);
   }
 
   return winner;
@@ -1021,6 +1204,7 @@ artistSupportRevenue: async (_parent, _args, context) => {
         $match: {
           artistId: new mongoose.Types.ObjectId(artistId),
           status: 'paid',
+          payoutStatus: { $nin: ['PROCESSING', 'PAID'] },
         },
       },
       {
@@ -1040,6 +1224,42 @@ artistSupportRevenue: async (_parent, _args, context) => {
   } catch (error) {
     console.error('Error fetching artist support revenue:', error);
     throw new Error('Failed to fetch artist support revenue.');
+  }
+},
+
+artistRewardRevenue: async (_parent, _args, context) => {
+  if (!context.artist?._id) {
+    throw new Error('Unauthorized: You must be logged in to fetch reward revenue.');
+  }
+
+  const artistId = context.artist._id;
+
+  try {
+    const rewards = await ArtistReward.find({ artistId })
+      .sort({ weekStartDate: -1, createdAt: -1 })
+      .populate('songId')
+      .populate('artistId');
+
+    const totalRewardAmount = rewards.reduce(
+      (total, reward) => total + (Number(reward.rewardAmount || 0) || 0),
+      0
+    );
+    const availableRewardAmount = rewards
+      .filter((reward) => reward.status === 'AVAILABLE')
+      .reduce((total, reward) => total + (Number(reward.rewardAmount || 0) || 0), 0);
+
+    return {
+      totalRewardAmount,
+      totalRewardAmountUsd: convertRwfToUsd(totalRewardAmount),
+      availableRewardAmount,
+      availableRewardAmountUsd: convertRwfToUsd(availableRewardAmount),
+      rewardCount: rewards.length,
+      currency: 'usd',
+      rewards,
+    };
+  } catch (error) {
+    console.error('Error fetching artist reward revenue:', error);
+    throw new Error('Failed to fetch artist reward revenue.');
   }
 },
 
@@ -4130,6 +4350,142 @@ nextSongAfterComplete: async (_p, { input }) => {
     createArtistSupport,
     createArtistSupportMobileMoney,
     confirmArtistSupportMobileMoney,
+
+    processArtistCashout: async (_parent, { fullName, phoneNumber }, context) => {
+      if (!context.artist?._id) {
+        throw new Error('Unauthorized: You must be logged in to request cash out.');
+      }
+
+      const artist = await Artist.findById(context.artist._id).select('_id fullName artistAka email');
+      if (!artist) {
+        throw new Error('Artist not found.');
+      }
+
+      if (normalizeCashoutName(fullName) !== normalizeCashoutName(artist.fullName)) {
+        throw new Error('Full name does not match the artist account.');
+      }
+
+      const normalizedPhone = normalizeCashoutPhone(phoneNumber);
+      if (!isValidCashoutPhone(normalizedPhone)) {
+        throw new Error('Enter a valid payout phone number.');
+      }
+
+      const artistId = artist._id;
+      const requestedAt = new Date();
+      const cashoutRequestId = crypto.randomUUID();
+      const adminEmails = [process.env.OWNER_EMAIL, process.env.ADMIN_EMAIL].filter(Boolean);
+      if (adminEmails.length === 0) {
+        throw new Error('Admin payout emails are not configured.');
+      }
+
+      await Promise.all([
+        ArtistSupport.updateMany(
+          {
+            artistId,
+            status: 'paid',
+            payoutStatus: { $nin: ['PROCESSING', 'PAID'] },
+          },
+          {
+            $set: {
+              payoutStatus: 'PROCESSING',
+              payoutPhone: normalizedPhone,
+              cashoutRequestedAt: requestedAt,
+              cashoutRequestId,
+            },
+          }
+        ),
+        ArtistReward.updateMany(
+          {
+            artistId,
+            status: 'AVAILABLE',
+          },
+          {
+            $set: {
+              status: 'PROCESSING',
+              payoutPhone: normalizedPhone,
+              cashoutRequestedAt: requestedAt,
+              cashoutRequestId,
+            },
+          }
+        ),
+      ]);
+
+      const [claimedSupportItems, claimedRewardItems] = await Promise.all([
+        ArtistSupport.find({ artistId, cashoutRequestId }).select('_id artistAmount'),
+        ArtistReward.find({ artistId, cashoutRequestId }).select('_id rewardAmount'),
+      ]);
+
+      const supportAmountUsd = Number((
+        claimedSupportItems.reduce((total, item) => total + (Number(item.artistAmount || 0) || 0), 0) / 100
+      ).toFixed(2));
+      const rewardAmountUsd = Number(claimedRewardItems.reduce(
+        (total, item) => total + convertRwfToUsd(item.rewardAmount),
+        0
+      ).toFixed(2));
+      const grossAmountUsd = Number((supportAmountUsd + rewardAmountUsd).toFixed(2));
+
+      if (grossAmountUsd <= 0) {
+        throw new Error('No available revenue to cash out.');
+      }
+
+      const processingFeeUsd = calculateProcessingFeeUsd(grossAmountUsd);
+      const payoutAmountUsd = Number((grossAmountUsd - processingFeeUsd).toFixed(2));
+
+      try {
+        await sendEmail(
+          adminEmails.join(','),
+          'Artist cash out request',
+          `
+            <p>An artist requested cash out.</p>
+            <p><strong>Name:</strong> ${escapeHtml(artist.fullName)}</p>
+            <p><strong>Stage name:</strong> ${escapeHtml(artist.artistAka || '')}</p>
+            <p><strong>Email:</strong> ${escapeHtml(artist.email || '')}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(normalizedPhone)}</p>
+            <p><strong>Fan support:</strong> $${supportAmountUsd.toFixed(2)}</p>
+            <p><strong>Rewards:</strong> $${rewardAmountUsd.toFixed(2)}</p>
+            <p><strong>Gross amount:</strong> $${grossAmountUsd.toFixed(2)}</p>
+            <p><strong>Processing fee (4%):</strong> -$${processingFeeUsd.toFixed(2)}</p>
+            <p><strong>Amount to pay:</strong> $${payoutAmountUsd.toFixed(2)}</p>
+          `
+        );
+      } catch (error) {
+        await Promise.all([
+          ArtistSupport.updateMany(
+            { artistId, cashoutRequestId },
+            {
+              $set: { payoutStatus: 'AVAILABLE' },
+              $unset: {
+                payoutPhone: '',
+                cashoutRequestedAt: '',
+                cashoutRequestId: '',
+              },
+            }
+          ),
+          ArtistReward.updateMany(
+            { artistId, cashoutRequestId },
+            {
+              $set: { status: 'AVAILABLE' },
+              $unset: {
+                payoutPhone: '',
+                cashoutRequestedAt: '',
+                cashoutRequestId: '',
+              },
+            }
+          ),
+        ]);
+        throw error;
+      }
+
+      return {
+        success: true,
+        message: 'Cash out request received. Payment processing has started.',
+        grossAmountUsd,
+        processingFeeUsd,
+        payoutAmountUsd,
+        supportAmountUsd,
+        rewardAmountUsd,
+      };
+    },
 
     createBookArtist,
     respondToBooking,

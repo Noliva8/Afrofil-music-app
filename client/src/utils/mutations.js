@@ -1017,3 +1017,32 @@ mutation MarkSeenUserNotification($notificationId: ID!, $isNotificationSeen: Boo
   }
 }
 `
+
+export const START_VISITOR_VISIT = gql`
+mutation StartVisitorVisit($visitorId: String!) {
+  startVisitorVisit(visitorId: $visitorId) {
+    visitorId
+    visitId
+  }
+}
+`
+
+export const ATTACH_VISITOR_TO_USER = gql`
+mutation AttachVisitorToUser($visitorId: String!, $visitId: ID, $isNewUser: Boolean!) {
+  attachVisitorToUser(visitorId: $visitorId, visitId: $visitId, isNewUser: $isNewUser)
+}
+`
+
+export const PROCESS_ARTIST_CASHOUT = gql`
+mutation ProcessArtistCashout($fullName: String!, $phoneNumber: String!) {
+  processArtistCashout(fullName: $fullName, phoneNumber: $phoneNumber) {
+    success
+    message
+    grossAmountUsd
+    processingFeeUsd
+    payoutAmountUsd
+    supportAmountUsd
+    rewardAmountUsd
+  }
+}
+`

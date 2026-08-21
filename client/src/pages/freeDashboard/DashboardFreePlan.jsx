@@ -6,11 +6,18 @@ import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Chip from '@mui/material/Chip';
 import ButtonBase from '@mui/material/ButtonBase';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import TextField from '@mui/material/TextField';
 import { alpha, useTheme } from '@mui/material/styles';
 import SongsList from './DashbordComponents/SongList/SongList';
 import CountUp from 'react-countup';
-import { useQuery } from "@apollo/client";
-import { ARTIST_SUPPORT_REVENUE, SONG_OF_ARTIST } from '../../utils/queries';
+import { useMutation, useQuery } from "@apollo/client";
+import { ARTIST_PROFILE, ARTIST_REWARD_REVENUE, ARTIST_SUPPORT_REVENUE, SONG_OF_ARTIST } from '../../utils/queries';
+import { PROCESS_ARTIST_CASHOUT } from '../../utils/mutations';
 import FeedbackModal from '../../components/FeedbackModal.jsx';
 
 const LazyTotalSongCharts = lazy(
@@ -31,15 +38,24 @@ export default function DashboardFreePlan() {
  const { data, loading, error, refetch } = useQuery(SONG_OF_ARTIST, {
   fetchPolicy: 'network-only',
 });
- const { data: supportRevenueData } = useQuery(ARTIST_SUPPORT_REVENUE, {
+ const { data: supportRevenueData, refetch: refetchSupportRevenue } = useQuery(ARTIST_SUPPORT_REVENUE, {
   fetchPolicy: 'network-only',
+});
+ const { data: rewardRevenueData, refetch: refetchRewardRevenue } = useQuery(ARTIST_REWARD_REVENUE, {
+  fetchPolicy: 'network-only',
+});
+ const { data: artistProfileData } = useQuery(ARTIST_PROFILE, {
+  fetchPolicy: 'cache-first',
 });
 
 
   const songs = data?.songsOfArtist || [];
+  const artistFullName = artistProfileData?.artistProfile?.fullName || "";
   const fanSupportAmount =
     (supportRevenueData?.artistSupportRevenue?.totalArtistAmount || 0) / 100;
-  const totalRevenue = fanSupportAmount;
+  const rewardAmount = rewardRevenueData?.artistRewardRevenue?.availableRewardAmountUsd || 0;
+  const rewardCount = rewardRevenueData?.artistRewardRevenue?.rewardCount || 0;
+  const totalRevenue = fanSupportAmount + rewardAmount;
 
 // build uploads per month
 const uploadsPerMonth = {};
@@ -101,6 +117,13 @@ const revenueCards = [
       "Fan support shows your artist share from confirmed support payments. We calculate this from the confirmed support amount: 80% goes to the artist and 20% is kept by the platform. Taxes may apply depending on the supporter country, artist country, and platform requirements.",
   },
   {
+    title: "Rewards",
+    value: `$${rewardAmount.toFixed(2)}`,
+    status: rewardCount > 0 ? `${rewardCount} reward${rewardCount === 1 ? "" : "s"}` : "No rewards yet",
+    detail:
+      "Rewards show Song of the Week bonus earnings converted from RWF to USD. Rewards are created after a weekly winner is selected.",
+  },
+  {
     title: "Ad based revenue",
     value: platformMonetizationEligible ? "$0.00" : "Not eligible",
     status: platformMonetizationEligible ? "Eligible" : "Not eligible",
@@ -136,19 +159,48 @@ function handleDeleteSong() {
 }
 
 const [selectedRevenueCard, setSelectedRevenueCard] = useState(null);
-const [cashoutMessage, setCashoutMessage] = useState(null);
+const [cashoutOpen, setCashoutOpen] = useState(false);
+const [cashoutFullName, setCashoutFullName] = useState("");
+const [cashoutPhone, setCashoutPhone] = useState("");
+const [cashoutResultMessage, setCashoutResultMessage] = useState(null);
+const [processArtistCashout, { loading: processingCashout }] = useMutation(PROCESS_ARTIST_CASHOUT);
+const normalizeCashoutName = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+const normalizeCashoutPhone = (value) => String(value || "").trim().replace(/[\s-]/g, "");
+const isValidCashoutPhone = (value) => /^(?:0\d{9}|\+250\d{9})$/.test(normalizeCashoutPhone(value));
+const isCashoutNameMatched =
+  normalizeCashoutName(cashoutFullName) === normalizeCashoutName(artistFullName);
+const canProcessCashout = isCashoutNameMatched && isValidCashoutPhone(cashoutPhone);
 
 const handleCashoutClick = () => {
-  if (totalRevenue < 50) {
-    setCashoutMessage(
-      `Cash out is available once your available revenue reaches $50. Your current available revenue is $${totalRevenue.toFixed(2)}.`
-    );
-    return;
-  }
+  setCashoutOpen(true);
+};
 
-  setCashoutMessage(
-    "Cash out setup is available. Next we will connect your payout account and collect the information needed to send payments."
-  );
+const handleCashoutClose = () => {
+  setCashoutOpen(false);
+};
+
+const handleProcessCashout = async () => {
+  try {
+    const { data: cashoutData } = await processArtistCashout({
+      variables: {
+        fullName: cashoutFullName,
+        phoneNumber: cashoutPhone,
+      },
+    });
+    const cashout = cashoutData?.processArtistCashout;
+
+    setCashoutOpen(false);
+    setCashoutFullName("");
+    setCashoutPhone("");
+    await Promise.all([refetchSupportRevenue(), refetchRewardRevenue()]);
+    setCashoutResultMessage(
+      cashout
+        ? `${cashout.message} Amount to pay after 4% processing fee: $${cashout.payoutAmountUsd.toFixed(2)}.`
+        : "Cash out request received."
+    );
+  } catch (cashoutError) {
+    setCashoutResultMessage(cashoutError.message || "Failed to process cash out.");
+  }
 };
 
 const panelSx = {
@@ -410,7 +462,7 @@ const dividerSx = {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, minmax(0, 1fr))",
-              lg: "repeat(4, minmax(0, 1fr))",
+              lg: "repeat(5, minmax(0, 1fr))",
             },
             gap: 2,
           }}
@@ -509,11 +561,65 @@ const dividerSx = {
     title={selectedRevenueCard?.title || "Revenue details"}
     message={selectedRevenueCard?.detail || ""}
   />
+  <Dialog
+    open={cashoutOpen}
+    onClose={handleCashoutClose}
+    fullWidth
+    maxWidth="xs"
+  >
+    <DialogTitle sx={{ fontWeight: 800 }}>
+      Cash out
+    </DialogTitle>
+    <DialogContent>
+      <TextField
+        autoFocus
+        fullWidth
+        label="Full name"
+        value={cashoutFullName}
+        onChange={(event) => setCashoutFullName(event.target.value)}
+        margin="dense"
+        error={Boolean(cashoutFullName.trim()) && !isCashoutNameMatched}
+        helperText={
+          Boolean(cashoutFullName.trim()) && !isCashoutNameMatched
+            ? "Enter the full name on your artist account."
+            : " "
+        }
+      />
+      <TextField
+        fullWidth
+        label="Payout phone number"
+        value={cashoutPhone}
+        onChange={(event) => setCashoutPhone(event.target.value)}
+        placeholder="078... or +250..."
+        margin="dense"
+        type="tel"
+        inputMode="tel"
+        error={Boolean(cashoutPhone.trim()) && !isValidCashoutPhone(cashoutPhone)}
+        helperText={
+          Boolean(cashoutPhone.trim()) && !isValidCashoutPhone(cashoutPhone)
+            ? "Use 078... or +250... with 9 digits after the prefix."
+            : " "
+        }
+      />
+    </DialogContent>
+    <DialogActions sx={{ px: 3, pb: 2 }}>
+      <Button onClick={handleCashoutClose} color="inherit">
+        Cancel
+      </Button>
+      <Button
+        onClick={handleProcessCashout}
+        variant="contained"
+        disabled={!canProcessCashout || processingCashout}
+      >
+        {processingCashout ? "Processing..." : "Process payment"}
+      </Button>
+    </DialogActions>
+  </Dialog>
   <FeedbackModal
-    open={Boolean(cashoutMessage)}
-    onClose={() => setCashoutMessage(null)}
+    open={Boolean(cashoutResultMessage)}
+    onClose={() => setCashoutResultMessage(null)}
     title="Cash out"
-    message={cashoutMessage || ""}
+    message={cashoutResultMessage || ""}
   />
 </Box>
 

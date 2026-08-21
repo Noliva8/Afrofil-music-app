@@ -7,9 +7,10 @@ import RadioStation from './RadioStation.js';
 import BookArtist from './bookArtist.js';
 import Message from './Message.js';
 import ArtistSupport from './ArtistSupport.js';
+import ArtistReward from './ArtistReward.js';
 
 
 
 import UserNotification from '../User/Notification.js';
 
-export { Artist, Album, Song, User, Fingerprint, RadioStation, BookArtist, Message,  UserNotification, ArtistSupport };
+export { Artist, Album, Song, User, Fingerprint, RadioStation, BookArtist, Message,  UserNotification, ArtistSupport, ArtistReward };
