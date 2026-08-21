@@ -35,6 +35,7 @@ export const ROW_QUERY_CONFIG = {
   suggestedSongs: {
     query: SUGGESTED_SONGS_PUBLIC,
     dataKey: "suggestedSongs",
+    variables: { limit: LIST_SHOW_ALL_LIMIT },
     fetchPolicy: "network-only",
   },
   songsCompetingThisWeek: {

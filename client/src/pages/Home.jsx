@@ -22,7 +22,7 @@ import {
   SONGS_COMPETING_THIS_WEEK_PUBLIC,
   RADIO_STATIONS_PUBLIC,
 } from '../utils/queries';
-import { HORIZONTAL_LIMIT, COMPACT_LIMIT } from '../CommonSettings/songsRowNumberControl.js';
+import { HORIZONTAL_LIMIT } from '../CommonSettings/songsRowNumberControl.js';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook.js';
 import RecommendedSongsRow from '../components/userComponents/Home/RecommendedSongsRow';
 import SongOfTheWeek from '../components/homeFreePlanComponents/SongOfTheWeek';
@@ -55,6 +55,7 @@ const Home = ({ upgradeToPremium }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const [loadDeferredHome, setLoadDeferredHome] = useState(false);
+  const [loadLatePersonalization, setLoadLatePersonalization] = useState(false);
 
   // Checkout Visibility
   // ------------------
@@ -79,6 +80,13 @@ const Home = ({ upgradeToPremium }) => {
     return () => window.clearTimeout(timeoutId);
   }, []);
 
+  useEffect(() => {
+    if (!loadDeferredHome) return undefined;
+
+    const timeoutId = window.setTimeout(() => setLoadLatePersonalization(true), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadDeferredHome]);
+
   const isMobile = windowWidth < 768;
   const togglePlay = () => setIsPlaying((prev) => !prev);
 
@@ -88,7 +96,7 @@ const Home = ({ upgradeToPremium }) => {
     error: dailyMixError,
   } = useQuery(QUERY_DAILY_MIX, {
     variables: { limit: HORIZONTAL_LIMIT },
-    skip: !loadDeferredHome,
+    skip: !loadLatePersonalization,
     fetchPolicy: "cache-and-network",
     nextFetchPolicy: "cache-first",
   });
@@ -96,7 +104,7 @@ const Home = ({ upgradeToPremium }) => {
   const { data: recentPlayedData, loading: recentPlayedLoading } = useQuery(
     QUERY_RECENT_PLAYED,
     {
-      variables: { limit: 6 },
+      variables: { limit: HORIZONTAL_LIMIT },
     },
   );
 
@@ -127,7 +135,7 @@ const Home = ({ upgradeToPremium }) => {
   const { data: suggestedData } = useQuery(SUGGESTED_SONGS_PUBLIC, {
     skip: !loadDeferredHome,
     notifyOnNetworkStatusChange: true,
-    variables: { limit: COMPACT_LIMIT },
+    variables: { limit: 6 },
     fetchPolicy: "cache-and-network",
     nextFetchPolicy: "cache-first",
   });
@@ -164,10 +172,10 @@ const Home = ({ upgradeToPremium }) => {
   } = useSongsWithPresignedUrls(recentSongs, { includeRelatedImages: false });
 
   const { songsWithArtwork, loading: artworkLoading } =
-    useSongsWithPresignedUrls(mixTracks);
+    useSongsWithPresignedUrls(loadLatePersonalization ? mixTracks : undefined);
 
   const { songsWithArtwork: dailyMixWithArtwork } = useSongsWithPresignedUrls(
-    loadDeferredHome ? dailyMixData?.dailyMix?.tracks : undefined,
+    loadLatePersonalization ? dailyMixData?.dailyMix?.tracks : undefined,
   );
 
   const { songsWithArtwork: trendingSongsWithArtworkV2 } =
@@ -251,29 +259,6 @@ const Home = ({ upgradeToPremium }) => {
                       emptyDescription="Start listening and we'll surface these tracks again."
                     />
 
-                    {loadDeferredHome && (
-                      <>
-                        <SongRowContainer
-                          header={dailyMixTitle}
-                          subHeader="A daily mix shaped by your listening pattern."
-                          songsWithArtwork={dailyMixWithArtwork}
-                          onCardClick={handleCardClick}
-                        />
-
-                        {hasSuggestedSongs && (
-                          <SongList
-                            title={suggestedTitle}
-                            subtitle={suggestedSubtitle}
-                            rowCode="suggestedSongs"
-                            songsList={suggestedSongsWithArtwork}
-                            onCardClick={handleCardClick}
-                            emptyMessage="No songs available"
-                            emptyDescription="Keep listening to improve these recommendations."
-                          />
-                        )}
-                      </>
-                    )}
-
                     <SongRowContainer
                       header="Trending around you"
                       subHeader="Rotating hits from the wider Flolup catalogue"
@@ -290,9 +275,33 @@ const Home = ({ upgradeToPremium }) => {
                       refetch={newUploadRefetch}
                       rowCode="newUpload"
                     />
+
+                    {loadDeferredHome && (
+                      <>
+                        {hasSuggestedSongs && (
+                          <SongList
+                            title={suggestedTitle}
+                            subtitle={suggestedSubtitle}
+                            rowCode="suggestedSongs"
+                            songsList={suggestedSongsWithArtwork}
+                            onCardClick={handleCardClick}
+                            emptyMessage="No songs available"
+                            emptyDescription="Keep listening to improve these recommendations."
+                          />
+                        )}
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
+                    <SongRowContainer
+                      header="Trending now"
+                      subHeader="A rotating view of what listeners are playing"
+                      songsWithArtwork={trendingSongsWithArtworkV2}
+                      onCardClick={handleCardClick}
+                      rowCode="trending"
+                    />
+
                     <SongRowContainer
                       header="Start with fresh releases"
                       subHeader="New music rotated so more artists get early exposure"
@@ -300,14 +309,6 @@ const Home = ({ upgradeToPremium }) => {
                       onCardClick={handleCardClick}
                       refetch={newUploadRefetch}
                       rowCode="newUpload"
-                    />
-
-                    <SongRowContainer
-                      header="Trending now"
-                      subHeader="A rotating view of what listeners are playing"
-                      songsWithArtwork={trendingSongsWithArtworkV2}
-                      onCardClick={handleCardClick}
-                      rowCode="trending"
                     />
 
                     {loadDeferredHome && hasSuggestedSongs && (
@@ -338,6 +339,15 @@ const Home = ({ upgradeToPremium }) => {
                     />
 
                     <SongsILike />
+
+                    {loadLatePersonalization && (
+                      <SongRowContainer
+                        header={dailyMixTitle}
+                        subHeader="A daily mix shaped by your listening pattern."
+                        songsWithArtwork={dailyMixWithArtwork}
+                        onCardClick={handleCardClick}
+                      />
+                    )}
 
                     <SongOfTheWeek
                       songOfTheWeekWithArtwork={songOfTheWeekWithArtwork}

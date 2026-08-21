@@ -71,6 +71,11 @@ const SongList = ({
   loading = false,
   lightweight = false,
 }) => {
+  const PREVIEW_LIMIT_BY_ROW = {
+    recentlyPlayed: 6,
+    suggestedSongs: 6,
+  };
+
   const theme = useTheme();
   const client = useApolloClient();
   const navigate = useNavigate();
@@ -87,6 +92,7 @@ const SongList = ({
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
   const [shareSongMutation] = useMutation(SHARE_SONG);
   const isRecentRow = rowCode === "recentlyPlayed";
+  const previewLimit = PREVIEW_LIMIT_BY_ROW[rowCode] ?? LIST_BASE_LIMIT;
 
   const rowConfig = rowCode ? ROW_QUERY_CONFIG[rowCode] : null;
   const shouldFetchRowQuery = Boolean(rowConfig && showAll);
@@ -102,8 +108,8 @@ const SongList = ({
 
   const baseSongs = useMemo(() => {
     const songs = processSongs(songsList).filter((song) => song.audioUrl);
-    return isRecentRow ? songs.slice(0, 6) : songs;
-  }, [isRecentRow, songsList]);
+    return songs.slice(0, previewLimit);
+  }, [previewLimit, songsList]);
 
   const baseIdSet = useMemo(() => {
     return new Set(baseSongs.map((song) => song.id));
@@ -130,15 +136,15 @@ const SongList = ({
 
   const displayedSongs = useMemo(() => {
     if (isRecentRow) {
-      return baseSongs.slice(0, 6);
+      return baseSongs.slice(0, previewLimit);
     }
 
     if (showAll) {
       const merged = [...baseSongs, ...extraSongsWithArtwork];
       return merged.slice(0, LIST_SHOW_ALL_LIMIT);
     }
-    return baseSongs.slice(0, LIST_BASE_LIMIT);
-  }, [baseSongs, extraSongsWithArtwork, isRecentRow, showAll]);
+    return baseSongs.slice(0, previewLimit);
+  }, [baseSongs, extraSongsWithArtwork, isRecentRow, previewLimit, showAll]);
 
 
 const handleCloseAddToPlaylist = useCallback(() => {
@@ -507,15 +513,15 @@ const handlePlay = (event, song) => {
                   onClick={() => onCardClick?.(song)}
                   sx={{
                     minWidth: 0,
-                    height: { xs: 74, sm: 82 },
+                    height: { xs: 78, sm: 86 },
                     borderRadius: "8px",
                     border: `1px solid ${alpha(theme.palette.text.primary, 0.1)}`,
                     backgroundColor: alpha(theme.palette.common.white, 0.045),
                     display: "grid",
-                    gridTemplateColumns: "minmax(0, 1fr) 34px",
+                    gridTemplateColumns: { xs: "42px minmax(0, 1fr) 32px", sm: "48px minmax(0, 1fr) 34px" },
                     alignItems: "center",
-                    gap: 1,
-                    px: { xs: 1.1, sm: 1.4 },
+                    gap: { xs: 0.85, sm: 1.1 },
+                    px: { xs: 0.85, sm: 1.15 },
                     py: 1,
                     cursor: "pointer",
                     transition: "background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease",
@@ -526,6 +532,21 @@ const handlePlay = (event, song) => {
                     },
                   }}
                 >
+                  <Avatar
+                    variant="rounded"
+                    src={song.artworkUrl}
+                    sx={{
+                      width: { xs: 42, sm: 48 },
+                      height: { xs: 42, sm: 48 },
+                      borderRadius: "6px",
+                      backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                      color: theme.palette.text.primary,
+                      fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                      fontWeight: 800,
+                    }}
+                  >
+                    {song.title?.[0] || "F"}
+                  </Avatar>
                   <Box sx={{ minWidth: 0 }}>
                     <Typography
                       variant="subtitle2"
