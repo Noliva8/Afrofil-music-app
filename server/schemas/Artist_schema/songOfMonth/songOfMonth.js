@@ -8,6 +8,7 @@ const getMonthKey = (date) => {
   return { year, month, key: SONG_OF_MONTH_KEY(year, month) };
 };
 
+
 const getPreviousMonthKey = (date) => {
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth();
@@ -17,6 +18,7 @@ const getPreviousMonthKey = (date) => {
   return { year, month, key: SONG_OF_MONTH_KEY(year, month) };
 };
 
+
 const secondsUntilNextMonth = (date) => {
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth();
@@ -24,6 +26,7 @@ const secondsUntilNextMonth = (date) => {
   const diffMs = nextMonth.getTime() - date.getTime();
   return Math.max(60, Math.floor(diffMs / 1000));
 };
+
 
 const mapSongPayload = (song) => ({
   ...song,

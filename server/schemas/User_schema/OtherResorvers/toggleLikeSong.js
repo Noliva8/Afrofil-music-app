@@ -11,6 +11,23 @@ import { updateSongRedis } from '../../Artist_schema/Redis/songCreateRedis.js';
 import { likesSetExpiration, songHashExpiration } from '../../Artist_schema/Redis/redisExpiration.js';
 import { trendIndexZSet, TRENDING_WEIGHTS } from '../../Artist_schema/Redis/keys.js';
 
+const numberFromEnv = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS = numberFromEnv(
+  process.env.PLAYS_NEEDED_TO_WIN_MAXIMUM_PRIZE_INITIALLY,
+  1000
+);
+const SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS = numberFromEnv(
+  process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS,
+  1000
+);
+const SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES = numberFromEnv(
+  process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES,
+  100
+);
+
 const getSongOfTheWeekStartDate = (date = new Date()) => {
   const weekStartDate = new Date(date);
   const daysSinceSaturday = (weekStartDate.getDay() + 1) % 7;
@@ -29,6 +46,54 @@ const getSongOfTheWeekEndDate = (weekStartDate) => {
 const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
   if (!songWeekStartDate) return false;
   return new Date(songWeekStartDate).getTime() === currentWeekStartDate.getTime();
+};
+
+const songMeetsSongOfTheWeekRepeatThreshold = (song) =>
+  Number(song?.weeklyPlayCount || 0) >= SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS &&
+  Number(song?.weeklyLikeCount || 0) >= SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES;
+
+const songMeetsSongOfTheWeekGrandPrizeThreshold = (song) =>
+  Number(song?.weeklyPlayCount || 0) >= SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS;
+
+const updateSongOfTheWeekCriteriaReachedAt = async ({
+  song,
+  weekStartDate,
+  now = new Date(),
+}) => {
+  if (!song?._id || !isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate)) return song;
+
+  const $set = {};
+  if (songMeetsSongOfTheWeekGrandPrizeThreshold(song)) {
+    if (!song.songOfTheWeekGrandPrizeCriteriaReachedAt) {
+      $set.songOfTheWeekGrandPrizeCriteriaReachedAt = now;
+    }
+  } else if (song.songOfTheWeekGrandPrizeCriteriaReachedAt) {
+    $set.songOfTheWeekGrandPrizeCriteriaReachedAt = null;
+  }
+
+  if (songMeetsSongOfTheWeekRepeatThreshold(song)) {
+    if (!song.songOfTheWeekRepeatCriteriaReachedAt) {
+      $set.songOfTheWeekRepeatCriteriaReachedAt = now;
+    }
+  } else if (song.songOfTheWeekRepeatCriteriaReachedAt) {
+    $set.songOfTheWeekRepeatCriteriaReachedAt = null;
+  }
+
+  if (Object.keys($set).length === 0) return song;
+  return Song.findByIdAndUpdate(song._id, { $set }, { new: true, runValidators: true });
+};
+
+const updateSongOfTheWeekCriteriaReachedAtBestEffort = async ({
+  song,
+  weekStartDate,
+  now = new Date(),
+}) => {
+  try {
+    return await updateSongOfTheWeekCriteriaReachedAt({ song, weekStartDate, now });
+  } catch (error) {
+    console.warn('[songOfTheWeek] criteria timestamp update skipped:', error?.message || error);
+    return song;
+  }
 };
 
 const resetSongOfTheWeekCountersIfNeeded = async (redis, weekStartDate, weekEndDate) => {
@@ -70,6 +135,8 @@ const resetSongOfTheWeekCountersIfNeeded = async (redis, weekStartDate, weekEndD
           weeklyLikeCount: 0,
           weeklyShareCount: 0,
           weeklyDownloadCount: 0,
+          songOfTheWeekGrandPrizeCriteriaReachedAt: null,
+          songOfTheWeekRepeatCriteriaReachedAt: null,
         },
       }
     );
@@ -107,7 +174,7 @@ export const toggleLikeSong = async (_, { songId }, context) => {
     const isCurrentWeek = isSameSongOfTheWeekWindow(existingSong.weekStartDate, weekStartDate);
 
     // 1. MongoDB operation to toggle like AND update trending score
-    const updatedSong = await Song.findOneAndUpdate(
+    let updatedSong = await Song.findOneAndUpdate(
       { _id: songObjectId },
       [
         {
@@ -171,6 +238,8 @@ export const toggleLikeSong = async (_, { songId }, context) => {
               weeklyPlayCount: 0,
               weeklyShareCount: 0,
               weeklyDownloadCount: 0,
+              songOfTheWeekGrandPrizeCriteriaReachedAt: null,
+              songOfTheWeekRepeatCriteriaReachedAt: null,
             } : {})
           }
         }
@@ -184,15 +253,20 @@ export const toggleLikeSong = async (_, { songId }, context) => {
     .populate({ path: 'album', select: 'title cover artworkUrl' });
 
     if (!updatedSong) throw new Error('Song not found');
+    updatedSong = await updateSongOfTheWeekCriteriaReachedAtBestEffort({
+      song: updatedSong,
+      weekStartDate,
+      now: new Date(),
+    });
 
     const isNowLiked = updatedSong.likedByUsers.some(id => String(id) === userId);
 
     // 2. Update Redis user likes set
     await Promise.all([
-      isNowLiked 
+      isNowLiked
         ? redis.sAdd(redisKey, songId)
         : redis.sRem(redisKey, songId),
-      
+
       // Update song cache likes count, trending score, and weekly counters.
       updateSongRedis(songId, {
         likesCount: updatedSong.likesCount,
@@ -203,6 +277,8 @@ export const toggleLikeSong = async (_, { songId }, context) => {
         weeklyLikeCount: updatedSong.weeklyLikeCount,
         weeklyShareCount: updatedSong.weeklyShareCount,
         weeklyDownloadCount: updatedSong.weeklyDownloadCount,
+        songOfTheWeekGrandPrizeCriteriaReachedAt: updatedSong.songOfTheWeekGrandPrizeCriteriaReachedAt,
+        songOfTheWeekRepeatCriteriaReachedAt: updatedSong.songOfTheWeekRepeatCriteriaReachedAt,
         hasWonSongOfTheWeek: updatedSong.hasWonSongOfTheWeek,
         lastSongOfTheWeekWonAt: updatedSong.lastSongOfTheWeekWonAt,
         songOfTheWeekWinnerWeekStartDate: updatedSong.songOfTheWeekWinnerWeekStartDate,

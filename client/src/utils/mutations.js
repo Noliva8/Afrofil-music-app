@@ -750,6 +750,25 @@ export const INCREMENT_PLAY_COUNT = gql`
   }
 `;
 
+export const INCREMENT_WEEKLY_PLAY_COUNT = gql`
+  mutation IncrementWeeklyPlayCount($songId: String!, $visitorId: String, $listenedSeconds: Int!) {
+    handleWeeklyPlayCount(
+      songId: $songId
+      visitorId: $visitorId
+      listenedSeconds: $listenedSeconds
+    ) {
+      _id
+      title
+      weeklyPlayCount
+      weeklyLikeCount
+      weeklyShareCount
+      weeklyDownloadCount
+      songOfTheWeekGrandPrizeCriteriaReachedAt
+      songOfTheWeekRepeatCriteriaReachedAt
+    }
+  }
+`;
+
 
 export const USER_LOCATION_DETECT = gql`
 mutation detectUserLocation($lon: Float, $lat: Float) {

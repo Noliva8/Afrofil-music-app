@@ -6,6 +6,7 @@ import { similarSongsRepair } from "../similarSongs/similasongResolver.js";
 import { TRENDING_SONGS_CACHE_KEY } from "../Redis/keys.js";
 import { TRENDING_PAYLOAD_CACHE_TTL_SECONDS } from "../Redis/keys.js";
 import { rotateTrendingSongs } from "./fairTrendingRotation.js";
+import updateOldSongOfTheWeekWinners from "../../../routes/oldWinnerUpdate.js";
 
 import {admin, owner, superAdmin } from "../../../utils/owner.js";
 
@@ -42,6 +43,7 @@ export const trendingSongsV2 = async (_parent, { limit }) => {
 // admin();
 // superAdmin();
 // triggerLegacyBackfillOnce();
+updateOldSongOfTheWeekWinners();
 
 
   const requested = Math.max(1, Math.min(Number(limit) || 10, 50)); // guard

@@ -9,6 +9,7 @@ import { useLocationContext } from './useLocationContext.jsx';
 import { ensureSessionId } from '../sessions/sessionGenerator.js';
 import UserAuth from "../auth.js";
 import { usePlayCount } from '../handlePlayCount.js';
+import { useWeeklyPlayCount } from '../handleWeeklyPlayCount.js';
 
 import { SAVE_PLAYBACK_SESSION, GET_PRESIGNED_URL_DOWNLOAD_AUDIO, GET_PRESIGNED_URL_DOWNLOAD } from '../mutations.js';
 import { GET_PLAYBACK_SESSION } from '../queries.js';
@@ -23,6 +24,16 @@ createAdPlayerAdapter,
   attachAudioProviderToManager,
   primeManagerFromAudioContext } from './playerAdapters.js';
 import { eventBus } from './playerAdapters.js';
+
+const numberFromEnv = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const WEEKLY_PLAY_MIN_LISTEN_SECONDS = numberFromEnv(
+  import.meta.env.VITE_SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE,
+  30
+);
 
 const sanitizeArtworkUrl = (url) => {
   if (!url) return null;
@@ -239,6 +250,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const { isGuest, isPremium, isRegular } = userContext;
   const isUserLoggedIn = !isGuest;
   const { incrementPlayCount } = usePlayCount();
+  const { incrementWeeklyPlayCount } = useWeeklyPlayCount();
 
   const audioRef = useRef(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
@@ -252,6 +264,12 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const currentSongIdRef = useRef(null);
   const lastProgressUpdateRef = useRef(0);
   const lastArtworkRef = useRef(null);
+  const weeklyPlayTrackerRef = useRef({
+    songId: null,
+    listenedSeconds: 0,
+    lastAudioTime: 0,
+    counted: false,
+  });
 
   const setCanonicalQueue = (tracks = [], guestFullPlaybackTrackId = null) => {
     canonicalQueueRef.current = (tracks || [])
@@ -976,6 +994,48 @@ useEffect(() => {
   if (!trackId) return;
   incrementPlayCount(String(trackId));
 }, [playerState.currentTrack?.id, incrementPlayCount]);
+
+useEffect(() => {
+  weeklyPlayTrackerRef.current = {
+    songId: playerState.currentTrack?.id || null,
+    listenedSeconds: 0,
+    lastAudioTime: 0,
+    counted: false,
+  };
+}, [playerState.currentTrack?.id]);
+
+useEffect(() => {
+  const audio = audioRef.current;
+  const trackId = playerState.currentTrack?.id;
+  if (!audio || !trackId) return;
+
+  const trackWeeklyPlay = () => {
+    if (audio.paused || playerState.isAdPlaying) return;
+
+    const tracker = weeklyPlayTrackerRef.current;
+    if (tracker.counted || tracker.songId !== trackId) return;
+
+    const currentTime = Number(audio.currentTime || 0);
+    const delta = currentTime - Number(tracker.lastAudioTime || 0);
+    tracker.lastAudioTime = currentTime;
+
+    if (delta > 0 && delta <= 5) {
+      tracker.listenedSeconds += delta;
+    }
+
+    if (tracker.listenedSeconds < WEEKLY_PLAY_MIN_LISTEN_SECONDS) return;
+
+    tracker.counted = true;
+    incrementWeeklyPlayCount(String(trackId), tracker.listenedSeconds);
+  };
+
+  audio.addEventListener('timeupdate', trackWeeklyPlay);
+  return () => audio.removeEventListener('timeupdate', trackWeeklyPlay);
+}, [
+  playerState.currentTrack?.id,
+  playerState.isAdPlaying,
+  incrementWeeklyPlayCount,
+]);
 
 useEffect(() => {
   if (playerState.queue && canonicalQueueRef.current) {

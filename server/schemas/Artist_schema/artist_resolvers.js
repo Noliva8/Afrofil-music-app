@@ -9,7 +9,6 @@ import { getConversations } from './MessagingSystem/Queries/conversation.js';
 import { getUnreadCount } from './MessagingSystem/Queries/unreadCount.js';
 
 
-import { PlayCount } from '../../models/User/user_index.js';
 import dotenv from 'dotenv';
 import { AuthenticationError } from '../../utils/artist_auth.js';
 import { signArtistToken, signUserToken } from '../../utils/AuthSystem/tokenUtils.js'
@@ -71,16 +70,13 @@ import { suggestedSongs as fetchSuggestedSongs } from './suggestedSongs/suggeste
 
 import { similarSongs } from './similarSongs/similasongResolver.js'
 import { songsLikedByMe } from '../User_schema/OtherResorvers/songsLikedByMe.js';
-import { addSongRedis } from './Redis/addSongRedis.js';
 import { songKey } from './Redis/keys.js';
 import { songHashExpiration } from './Redis/redisExpiration.js';
 import { addSongToTrendingOnUpload } from './Redis/redisTrendingOnUpload.js';
 import { INITIAL_RECENCY_SCORE } from './Redis/keys.js';
 import { TRENDING_WEIGHTS } from './Redis/keys.js';
 import { trendIndexZSet } from './Redis/keys.js';
-import { RECENT_PLAYED_CACHE_KEY } from './Redis/keys.js';
 import { TRENDING_SONGS_CACHE_KEY } from './Redis/keys.js';
-import { PLAY_COOLDOWN_SECONDS } from './Redis/keys.js';
 import { generateSimilarSongs} from './similarSongs/similasongResolver.js';
 import { savePlaybackSession } from './playbackRestore/savePlaybackSession.js';
 
@@ -107,11 +103,8 @@ import { artistDashboardStats } from './generalDashboard/artistDashboardStats.js
 import { songsDashboardStats } from './generalDashboard/songsDashboardStart.js';
 import { usersDashboardStats } from './generalDashboard/usersDashboardStart.js';
 import { playsDashboardStats } from './generalDashboard/playsDashboardStats.js';
-
-
-
-
-
+import { handlePlayCount } from './HandlePlayCount/handlePlayCount.js';
+import { handleWeeklyPlayCount } from './HandleWeeklyPlayCount/handleWeeklyPlayCount.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -140,7 +133,11 @@ const getSongOfTheWeekEndDate = (weekStartDate) => {
 const getCompletedSongOfTheWeekWindow = (date = new Date()) => {
   const currentWeekStartDate = getSongOfTheWeekStartDate(date);
   const weekStartDate = new Date(currentWeekStartDate);
-  weekStartDate.setDate(weekStartDate.getDate() - 7);
+
+  if (date.getDay() !== 5) {
+    weekStartDate.setDate(weekStartDate.getDate() - 7);
+  }
+
   const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
   return { weekStartDate, weekEndDate };
 };
@@ -150,8 +147,33 @@ const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
   return new Date(songWeekStartDate).getTime() === currentWeekStartDate.getTime();
 };
 
-const SONG_OF_THE_WEEK_LOCKOUT_MS = 28 * 24 * 60 * 60 * 1000;
 const MAX_SONG_OF_THE_WEEK_REWARD_RWF = 100000;
+const numberFromEnv = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const SONG_TO_COME_BACK_IN_COMPETION_PERIOD_DAYS = numberFromEnv(
+  process.env.SONG_TO_COME_BACK_IN_COMPETION_PERIOD,
+  28
+);
+const SONG_OF_THE_WEEK_LOCKOUT_MS =
+  SONG_TO_COME_BACK_IN_COMPETION_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+const SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS = numberFromEnv(
+  process.env.PLAYS_NEEDED_TO_WIN_MAXIMUM_PRIZE_INITIALLY,
+  1000
+);
+const SONG_OF_THE_WEEK_INITIAL_MIN_LIKES = numberFromEnv(
+  process.env.LIKES_NEEDED_TO_WIN_MAXIMUM_PRIZE_INITIALLY,
+  3
+);
+const SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS = numberFromEnv(
+  process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS,
+  1000
+);
+const SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES = numberFromEnv(
+  process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES,
+  100
+);
 
 const getRwfPerUsd = () => {
   const rwfPerUsd = Number(process.env.RWF_PER_USD);
@@ -168,12 +190,18 @@ const calculateSongOfTheWeekRewardRwf = ({ weeklyPlayCount = 0, weeklyLikeCount 
   const plays = Math.max(0, Number(weeklyPlayCount) || 0);
   const likes = Math.max(0, Number(weeklyLikeCount) || 0);
 
-  if (plays >= 1000) return MAX_SONG_OF_THE_WEEK_REWARD_RWF;
+  if (
+    plays >= SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS &&
+    likes >= SONG_OF_THE_WEEK_INITIAL_MIN_LIKES
+  ) {
+    return MAX_SONG_OF_THE_WEEK_REWARD_RWF;
+  }
 
   const score = plays + likes;
+  const fullPrizeScore = Math.max(1, SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS);
   return Math.min(
-    MAX_SONG_OF_THE_WEEK_REWARD_RWF,
-    Math.round((score / 1000) * MAX_SONG_OF_THE_WEEK_REWARD_RWF)
+    MAX_SONG_OF_THE_WEEK_REWARD_RWF - 1,
+    Math.round((score / fullPrizeScore) * MAX_SONG_OF_THE_WEEK_REWARD_RWF)
   );
 };
 
@@ -236,7 +264,7 @@ const ensureSongOfTheWeekReward = async ({ winner, weekStartDate, weekEndDate })
     weekStartDate,
   });
 
-  if (existingReward) return existingReward;
+  if (existingReward) return { reward: existingReward, created: false };
 
   try {
     const reward = await ArtistReward.create({
@@ -253,17 +281,201 @@ const ensureSongOfTheWeekReward = async ({ winner, weekStartDate, weekEndDate })
     });
 
     await sendSongOfTheWeekRewardEmails({ reward, winner });
-    return reward;
+    return { reward, created: true };
   } catch (error) {
     if (error?.code === 11000) {
-      return ArtistReward.findOne({
+      const reward = await ArtistReward.findOne({
         songId: winner._id,
         weekStartDate,
       });
+      return { reward, created: false };
     }
 
     throw error;
   }
+};
+
+const getSongOfTheWeekLockoutUntil = (date = new Date()) =>
+  new Date(date.getTime() + SONG_OF_THE_WEEK_LOCKOUT_MS);
+
+const isWithinSongOfTheWeekLockout = (date, now = new Date()) => {
+  if (!date) return false;
+  return now.getTime() - new Date(date).getTime() < SONG_OF_THE_WEEK_LOCKOUT_MS;
+};
+
+const isArtistBlockedFromSongOfTheWeek = (artist, now = new Date()) => {
+  if (!artist?.songOfTheWeekArtistBlockedUntil) return false;
+  return new Date(artist.songOfTheWeekArtistBlockedUntil).getTime() > now.getTime();
+};
+
+const artistNeedsSongOfTheWeekRepeatThreshold = (artist, now = new Date()) =>
+  isWithinSongOfTheWeekLockout(artist?.songOfTheWeekGrandPrizeWonAt, now);
+
+const songMeetsSongOfTheWeekRepeatThreshold = (song) =>
+  Number(song?.weeklyPlayCount || 0) >= SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS &&
+  Number(song?.weeklyLikeCount || 0) >= SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES;
+
+const songMeetsSongOfTheWeekGrandPrizeThreshold = (song) =>
+  Number(song?.weeklyPlayCount || 0) >= SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS;
+
+const getSongOfTheWeekScoreStage = () => ({
+  $addFields: {
+    songOfTheWeekScore: {
+      $add: [
+        { $ifNull: ["$weeklyPlayCount", 0] },
+        {
+          $cond: [
+            {
+              $gte: [
+                { $ifNull: ["$weeklyPlayCount", 0] },
+                SONG_OF_THE_WEEK_INITIAL_MIN_PLAYS,
+              ],
+            },
+            { $ifNull: ["$weeklyLikeCount", 0] },
+            0,
+          ],
+        },
+      ],
+    },
+  },
+});
+
+const getSongOfTheWeekGrandPrizeCriteriaReachedTime = (song) => {
+  if (!songMeetsSongOfTheWeekGrandPrizeThreshold(song)) return null;
+  if (!song?.songOfTheWeekGrandPrizeCriteriaReachedAt) return null;
+  const reachedAt = new Date(song.songOfTheWeekGrandPrizeCriteriaReachedAt).getTime();
+  return Number.isNaN(reachedAt) ? null : reachedAt;
+};
+
+const getSongOfTheWeekRepeatCriteriaReachedTime = (song) => {
+  if (!songMeetsSongOfTheWeekRepeatThreshold(song)) return null;
+  if (!song?.songOfTheWeekRepeatCriteriaReachedAt) return null;
+  const reachedAt = new Date(song.songOfTheWeekRepeatCriteriaReachedAt).getTime();
+  return Number.isNaN(reachedAt) ? null : reachedAt;
+};
+
+const pickFirstSongToReachCriteria = (songs, getCriteriaReachedTime) => {
+  const songsWithReachedAt = songs
+    .map((song) => ({
+      song,
+      reachedAt: getCriteriaReachedTime(song),
+    }))
+    .filter(({ reachedAt }) => reachedAt != null)
+    .sort((a, b) => a.reachedAt - b.reachedAt);
+
+  return songsWithReachedAt[0]?.song || null;
+};
+
+const pickEligibleSongOfTheWeekCandidate = async (candidates, now = new Date()) => {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+
+  const artistIds = [
+    ...new Set(candidates.map((song) => String(song.artist || '')).filter(Boolean)),
+  ];
+  const artists = await Artist.find({ _id: { $in: artistIds } })
+    .select('songOfTheWeekGrandPrizeWonAt songOfTheWeekRepeatWinCount songOfTheWeekArtistBlockedUntil')
+    .lean();
+  const artistById = new Map(artists.map((artist) => [String(artist._id), artist]));
+
+  const eligibleSongs = [];
+
+  for (const song of candidates) {
+    const score = Number(song.songOfTheWeekScore || 0);
+    if (score <= 0) break;
+
+    const artist = artistById.get(String(song.artist));
+    if (isArtistBlockedFromSongOfTheWeek(artist, now)) continue;
+    if (
+      artistNeedsSongOfTheWeekRepeatThreshold(artist, now) &&
+      !songMeetsSongOfTheWeekRepeatThreshold(song)
+    ) {
+      continue;
+    }
+
+    eligibleSongs.push(song);
+  }
+
+  if (eligibleSongs.length === 0) return null;
+  const topEligibleScore = Number(eligibleSongs[0].songOfTheWeekScore || 0);
+  const topEligibleSongs = eligibleSongs.filter(
+    (song) => Number(song.songOfTheWeekScore || 0) === topEligibleScore
+  );
+  if (topEligibleSongs.length === 0) return null;
+
+  const topEligibleRepeatWindowSongs = topEligibleSongs.filter((song) =>
+    artistNeedsSongOfTheWeekRepeatThreshold(artistById.get(String(song.artist)), now)
+  );
+
+  if (topEligibleRepeatWindowSongs.length === topEligibleSongs.length) {
+    const firstToReachRepeatCriteria = pickFirstSongToReachCriteria(
+      topEligibleSongs,
+      getSongOfTheWeekRepeatCriteriaReachedTime
+    );
+    if (firstToReachRepeatCriteria) return firstToReachRepeatCriteria;
+  }
+
+  const firstToReachGrandPrizeCriteria = pickFirstSongToReachCriteria(
+    topEligibleSongs,
+    getSongOfTheWeekGrandPrizeCriteriaReachedTime
+  );
+  if (firstToReachGrandPrizeCriteria) return firstToReachGrandPrizeCriteria;
+
+  return topEligibleSongs[Math.floor(Math.random() * topEligibleSongs.length)];
+};
+
+const hasArtistSongOfTheWeekStateForWindow = (artist, weekStartDate, weekEndDate) => {
+  if (!artist?.songOfTheWeekGrandPrizeWonAt) return false;
+  const wonAt = new Date(artist.songOfTheWeekGrandPrizeWonAt).getTime();
+  return wonAt >= weekStartDate.getTime() && wonAt <= weekEndDate.getTime();
+};
+
+const updateArtistSongOfTheWeekState = async ({
+  winner,
+  weekStartDate,
+  weekEndDate,
+  rewardAmount,
+  now = new Date(),
+}) => {
+  const artistId = winner?.artist?._id || winner?.artist;
+  if (!artistId) return;
+  const effectiveWinDate = weekEndDate && now.getTime() > weekEndDate.getTime()
+    ? weekEndDate
+    : now;
+
+  const grandPrizeAmount = Number(
+    rewardAmount ??
+    calculateSongOfTheWeekRewardRwf({
+      weeklyPlayCount: winner.weeklyPlayCount,
+      weeklyLikeCount: winner.weeklyLikeCount,
+    })
+  );
+
+  if (grandPrizeAmount < MAX_SONG_OF_THE_WEEK_REWARD_RWF) return;
+
+  const artist = await Artist.findById(artistId)
+    .select('songOfTheWeekGrandPrizeWonAt songOfTheWeekRepeatWinCount')
+    .lean();
+  if (!artist) return;
+  if (hasArtistSongOfTheWeekStateForWindow(artist, weekStartDate, weekEndDate)) return;
+
+  const isRepeatWindow = isWithinSongOfTheWeekLockout(
+    artist.songOfTheWeekGrandPrizeWonAt,
+    effectiveWinDate
+  );
+  const nextRepeatWinCount = isRepeatWindow
+    ? Number(artist.songOfTheWeekRepeatWinCount || 0) + 1
+    : 1;
+
+  const update = {
+    songOfTheWeekGrandPrizeWonAt: effectiveWinDate,
+    songOfTheWeekRepeatWinCount: nextRepeatWinCount,
+  };
+
+  if (nextRepeatWinCount >= 3) {
+    update.songOfTheWeekArtistBlockedUntil = getSongOfTheWeekLockoutUntil(effectiveWinDate);
+  }
+
+  await Artist.findByIdAndUpdate(artistId, { $set: update });
 };
 
 const resetExpiredSongOfTheWeekLockouts = async (date = new Date()) => {
@@ -318,6 +530,8 @@ const resetSongOfTheWeekCountersIfNeeded = async (redisClient, weekStartDate, we
           weeklyLikeCount: 0,
           weeklyShareCount: 0,
           weeklyDownloadCount: 0,
+          songOfTheWeekGrandPrizeCriteriaReachedAt: null,
+          songOfTheWeekRepeatCriteriaReachedAt: null,
         },
       }
     );
@@ -624,6 +838,8 @@ export const shapeForRedis = (songDoc) => ({
   weeklyLikeCount: Number(songDoc.weeklyLikeCount || 0),
   weeklyShareCount: Number(songDoc.weeklyShareCount || 0),
   weeklyDownloadCount: Number(songDoc.weeklyDownloadCount || 0),
+  songOfTheWeekGrandPrizeCriteriaReachedAt: songDoc.songOfTheWeekGrandPrizeCriteriaReachedAt ? new Date(songDoc.songOfTheWeekGrandPrizeCriteriaReachedAt) : null,
+  songOfTheWeekRepeatCriteriaReachedAt: songDoc.songOfTheWeekRepeatCriteriaReachedAt ? new Date(songDoc.songOfTheWeekRepeatCriteriaReachedAt) : null,
   weekStartDate: songDoc.weekStartDate ? new Date(songDoc.weekStartDate) : null,
   weekEndDate: songDoc.weekEndDate ? new Date(songDoc.weekEndDate) : null,
   hasWonSongOfTheWeek: Boolean(songDoc.hasWonSongOfTheWeek),
@@ -757,27 +973,6 @@ const deleteSongAssets = async (song) => {
     }
   }
 };
-
-
-
-
-
-// for handle play counts
-// ---------------------
-
-function getViewerId(context) {
-  if (context?.user?._id)   return `user:${String(context.user._id)}`;
-  if (context?.artist?._id) return `artist:${String(context.artist._id)}`;
-  const ip =
-    (context?.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()) ||
-    context?.req?.ip ||
-    '0.0.0.0';
-  const ua = context?.req?.headers?.['user-agent'] || '';
-  const anon = crypto.createHash('sha256').update(`${ip}|${ua}`).digest('hex').slice(0, 32);
-  return `anon:${anon}`;
-}
-
-
 function getArtistProfileComplete(artist) {
   return Boolean(
     artist?.fullName &&
@@ -920,7 +1115,22 @@ songOfTheWeek: async () => {
 
   if (existingWinner) {
     try {
-      await ensureSongOfTheWeekReward({ winner: existingWinner, weekStartDate, weekEndDate });
+      await updateArtistSongOfTheWeekState({
+        winner: existingWinner,
+        weekStartDate,
+        weekEndDate,
+        now,
+      });
+    } catch (error) {
+      console.warn('[songOfTheWeek] artist state update skipped:', error?.message || error);
+    }
+
+    try {
+      await ensureSongOfTheWeekReward({
+        winner: existingWinner,
+        weekStartDate,
+        weekEndDate,
+      });
     } catch (error) {
       console.warn('[songOfTheWeek] reward creation skipped:', error?.message || error);
     }
@@ -935,43 +1145,27 @@ songOfTheWeek: async () => {
     hasWonSongOfTheWeek: { $ne: true },
     $or: [
       { weeklyPlayCount: { $gt: 0 } },
-      { weeklyShareCount: { $gt: 0 } },
       { weeklyLikeCount: { $gt: 0 } },
     ],
   };
-  const scoreStage = {
-    $addFields: {
-      songOfTheWeekScore: {
-        $add: [
-          { $ifNull: ["$weeklyPlayCount", 0] },
-          { $ifNull: ["$weeklyShareCount", 0] },
-          { $ifNull: ["$weeklyLikeCount", 0] },
-        ],
-      },
-    },
-  };
+  const scoreStage = getSongOfTheWeekScoreStage();
 
-  const [topScoreResult] = await Song.aggregate([
-    { $match: baseMatch },
-    scoreStage,
-    { $sort: { songOfTheWeekScore: -1 } },
-    { $limit: 1 },
-    { $project: { songOfTheWeekScore: 1 } },
-  ]);
-
-  const topScore = Number(topScoreResult?.songOfTheWeekScore || 0);
-  if (topScore <= 0) return null;
-
-  const [song] = await Song.aggregate([
+  const candidates = await Song.aggregate([
     { $match: baseMatch },
     scoreStage,
     {
-      $match: {
-        songOfTheWeekScore: topScore,
+      $sort: {
+        songOfTheWeekScore: -1,
+        weeklyPlayCount: -1,
+        weeklyLikeCount: -1,
+        trendingScore: -1,
+        createdAt: -1,
       },
     },
-    { $sample: { size: 1 } },
+    { $limit: 100 },
   ]);
+
+  const song = await pickEligibleSongOfTheWeekCandidate(candidates, now);
 
   if (!song) return null;
 
@@ -993,6 +1187,17 @@ songOfTheWeek: async () => {
     .populate("album", "title releaseDate albumCoverImage");
 
   if (!winner) return null;
+
+  try {
+    await updateArtistSongOfTheWeekState({
+      winner,
+      weekStartDate,
+      weekEndDate,
+      now,
+    });
+  } catch (error) {
+    console.warn('[songOfTheWeek] artist state update skipped:', error?.message || error);
+  }
 
   try {
     await updateSongRedis(winner._id, {
@@ -1032,27 +1237,15 @@ songsCompetingThisWeek: async (_parent, { limit = 10 }) => {
         hasWonSongOfTheWeek: { $ne: true },
         $or: [
           { weeklyPlayCount: { $gt: 0 } },
-          { weeklyShareCount: { $gt: 0 } },
           { weeklyLikeCount: { $gt: 0 } },
         ],
       },
     },
-    {
-      $addFields: {
-        songOfTheWeekScore: {
-          $add: [
-            { $ifNull: ["$weeklyPlayCount", 0] },
-            { $ifNull: ["$weeklyShareCount", 0] },
-            { $ifNull: ["$weeklyLikeCount", 0] },
-          ],
-        },
-      },
-    },
+    getSongOfTheWeekScoreStage(),
     {
       $sort: {
         songOfTheWeekScore: -1,
         weeklyPlayCount: -1,
-        weeklyShareCount: -1,
         weeklyLikeCount: -1,
         trendingScore: -1,
         createdAt: -1,
@@ -3843,287 +4036,8 @@ nextSongAfterComplete: async (_p, { input }) => {
       const songId = await recommendNextAfterFull(input);
       return { ok: true, songId };
     },
-  // ----------------------------------------------------------------------
-
-
-
-// handlePlayCount: async (_parent, { songId }, context) => {
-//   // Load song first (we need artist id and to fail fast if missing)
-//   const song = await Song.findById(songId).lean();
-//   if (!song) throw new Error('Song not found');
-
-//   // Don't count the artist's own plays
-//   if (context.artist && String(song.artist) === String(context.artist._id)) {
-//     await Song.findByIdAndUpdate(songId, { $set: { lastPlayedAt: new Date() } });
-//   }
-
-//   const viewerId = getViewerId(context);
-//   const r = await getRedis();
-
-//   const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
-//   const onCooldown = await r.exists(cooldownKey);
-
-//   let updatedSong;
-
-//   if (onCooldown) {
-//     // No increment; just keep lastPlayedAt fresh
-//     updatedSong = await Song.findByIdAndUpdate(
-//       songId,
-//       { $set: { lastPlayedAt: new Date() } },
-//       { new: true, runValidators: true }
-//     );
-//   } else {
-//     // Count this as a play (Mongo = source of truth)
-//     updatedSong = await Song.findByIdAndUpdate(
-//       songId,
-//       { $inc: { playCount: 1 }, $set: { lastPlayedAt: new Date() } },
-//       { new: true, runValidators: true }
-//     );
-//     if (!updatedSong) throw new Error('Song not found');
-
-//     // Start cooldown window
-//     try {
-//       await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
-//     } catch {}
-//   }
-
-//   // ALWAYS update Redis cache (both cooldown and non-cooldown cases)
-//   try {
-//     const songCacheKey = songKey(songId);
-//     const songExists = await r.exists(songCacheKey);
-
-//     if (songExists) {
-//       if (!onCooldown) {
-//         // Only increment playCount if not on cooldown
-//         await r
-//           .multi()
-//           .hIncrBy(songCacheKey, 'playCount', 1)
-//           .expire(songCacheKey, songHashExpiration)
-//           .exec();
-//       } else {
-//         // Just refresh TTL during cooldown
-//         await r.expire(songCacheKey, songHashExpiration);
-//       }
-//     } else {
-//       // Song not in cache - add it with current data
-//       await addSongRedis(songId);
-//     }
-//   } catch (e) {
-//     console.warn('[Redis] playCount sync skipped:', e.message);
-//   }
-
-//   return updatedSong;
-// },
-
-
-  handlePlayCount: async (_parent, { songId }, context) => {
-  // Load song first (we need artist id and to fail fast if missing)
-  // Song of the Week runs Saturday through Friday.
-  const weekStartDate = getSongOfTheWeekStartDate();
-  const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
-
-  const song = await Song.findById(songId).lean();
-  if (!song) throw new Error('Song not found');
-
-  // Don't count the artist's own plays
-  if (context.artist && String(song.artist) === String(context.artist._id)) {
-    await Song.findByIdAndUpdate(songId, { $set: { lastPlayedAt: new Date() } });
-    return await Song.findById(songId).lean();
-  }
-
-  const viewerId = getViewerId(context);
-  const r = await getRedis();
-  try {
-    await resetSongOfTheWeekCountersIfNeeded(r, weekStartDate, weekEndDate);
-  } catch (resetError) {
-    console.warn('[SongOfTheWeek] weekly reset skipped:', resetError?.message || resetError);
-  }
-
-  const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
-  const onCooldown = await r.exists(cooldownKey);
-
-  let updatedSong;
-
-  if (onCooldown) {
-    // No increment; just keep lastPlayedAt fresh
-    updatedSong = await Song.findByIdAndUpdate(
-      songId,
-      { $set: { lastPlayedAt: new Date() } },
-      { new: true, runValidators: true }
-    );
-  } else {
-    const isCurrentWeek = isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate);
-    const playUpdate = {
-      $inc: {
-        playCount: 1,
-        trendingScore: TRENDING_WEIGHTS.PLAY_WEIGHT,
-        weeklyPlayCount: 1,
-      },
-      $set: {
-        lastPlayedAt: new Date(),
-        weekStartDate,
-        weekEndDate,
-      },
-    };
-
-    if (!isCurrentWeek) {
-      playUpdate.$set.weeklyPlayCount = 1;
-      playUpdate.$set.weeklyLikeCount = 0;
-      playUpdate.$set.weeklyShareCount = 0;
-      playUpdate.$set.weeklyDownloadCount = 0;
-      delete playUpdate.$inc.weeklyPlayCount;
-    }
-
-    // Count this as a play (Mongo = source of truth)
-    updatedSong = await Song.findByIdAndUpdate(
-      songId,
-      playUpdate,
-      { new: true, runValidators: true }
-    );
-    if (!updatedSong) throw new Error('Song not found');
-
-    // Start cooldown window
-    try {
-      await r.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
-    } catch (cooldownError) {
-      console.warn('Cooldown setting failed:', cooldownError);
-    }
-  }
-
-  // Track user play history for sidebar (update timestamp even on cooldown)
-  if (context?.user?._id) {
-    try {
-      await PlayCount.findOneAndUpdate(
-        { user: context.user._id, played_songs: songId },
-        {
-          $set: { createdAt: new Date() },
-          $inc: { count: onCooldown ? 0 : 1 },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-      await r.del(
-        RECENT_PLAYED_CACHE_KEY(context.user._id, 4),
-        RECENT_PLAYED_CACHE_KEY(context.user._id, 5),
-        RECENT_PLAYED_CACHE_KEY(context.user._id, 10),
-        RECENT_PLAYED_CACHE_KEY(context.user._id, 20),
-        RECENT_PLAYED_CACHE_KEY(context.user._id, 50)
-      );
-    } catch (error) {
-      console.warn('PlayCount update failed:', error?.message || error);
-    }
-  }
-
-  // ✅ Handle ALL Redis operations
-  try {
-    const songCacheKey = songKey(songId);
-    const songExists = await r.exists(songCacheKey);
-
-    // 1. Handle song cache operations
-    if (songExists) {
-      if (!onCooldown) {
-        await updateSongRedis(songId, {
-          playCount: updatedSong.playCount,
-          trendingScore: updatedSong.trendingScore,
-          weekStartDate: updatedSong.weekStartDate,
-          weekEndDate: updatedSong.weekEndDate,
-          weeklyPlayCount: updatedSong.weeklyPlayCount,
-          weeklyLikeCount: updatedSong.weeklyLikeCount,
-          weeklyShareCount: updatedSong.weeklyShareCount,
-          weeklyDownloadCount: updatedSong.weeklyDownloadCount,
-          hasWonSongOfTheWeek: updatedSong.hasWonSongOfTheWeek,
-          lastSongOfTheWeekWonAt: updatedSong.lastSongOfTheWeekWonAt,
-          songOfTheWeekWinnerWeekStartDate: updatedSong.songOfTheWeekWinnerWeekStartDate,
-          lastPlayedAt: updatedSong.lastPlayedAt,
-        });
-      }
-      // Always refresh TTL
-      await r.expire(songCacheKey, songHashExpiration);
-    } else {
-      // Song not in cache - add it
-      await addSongRedis(songId, r);
-    }
-
-    // 2. Handle trending operations (only if not on cooldown)
-    if (!onCooldown) {
-      const currentScore = await r.zScore(trendIndexZSet, songId.toString());
-      
-      if (currentScore !== null) {
-        // Song is already in trending - increment score
-        const newScore = parseFloat(currentScore) + TRENDING_WEIGHTS.PLAY_WEIGHT;
-        await r.zAdd(trendIndexZSet, { 
-          score: newScore, 
-          value: songId.toString() 
-        });
-      } else {
-        // Song is NOT in trending - check if it should enter
-        const songNewScore = updatedSong.trendingScore;
-        
-        const trendingCount = await r.zCard(trendIndexZSet);
-        
-        if (trendingCount < 20) {
-          // Trending has space - add directly
-          await r.zAdd(trendIndexZSet, {
-            score: songNewScore,
-            value: songId.toString()
-          });
-        } else {
-          // Trending is full - check if this song deserves a spot
-          const lowestSongs = await r.zRange(trendIndexZSet, 0, 0, {
-            WITHSCORES: true
-          });
-          
-          const lowestScore = parseFloat(lowestSongs[1]);
-          
-          if (songNewScore >= lowestScore) {
-            // Song qualifies - replace the oldest song with the lowest score
-            const allLowestSongs = await r.zRangeByScore(trendIndexZSet, lowestScore, lowestScore, {
-              WITHSCORES: true
-            });
-            
-            
-            // Find the oldest song among those with lowest score
-            let oldestSongId = allLowestSongs[0];
-            
-            // If multiple songs have same score, find the oldest
-            if (allLowestSongs.length > 2) {
-              const songIds = [];
-              for (let i = 0; i < allLowestSongs.length; i += 2) {
-                songIds.push(allLowestSongs[i]);
-              }
-              
-              const oldestSong = await Song.findOne({ _id: { $in: songIds } })
-                .select('_id createdAt')
-                .sort({ createdAt: 1 })
-                .lean();
-              
-              if (oldestSong) {
-                oldestSongId = oldestSong._id.toString();
-              }
-            }
-            
-            // Replace the oldest lowest-scoring song
-            await r.zRem(trendIndexZSet, oldestSongId);
-            await r.zAdd(trendIndexZSet, {
-              score: songNewScore,
-              value: songId.toString()
-            });
-          } else {
-          }
-        }
-      }
-    }
-
-    if (!onCooldown) {
-      await r.del(TRENDING_SONGS_CACHE_KEY);
-    }
-
-
-  } catch (redisError) {
-    console.warn('[Redis] operations skipped:', redisError.message);
-  }
-
-  return updatedSong;
-},
+    handlePlayCount,
+    handleWeeklyPlayCount,
 
 
 
@@ -4179,7 +4093,6 @@ nextSongAfterComplete: async (_p, { input }) => {
         console.warn('[SongOfTheWeek] weekly reset skipped:', resetError?.message || resetError);
       }
 
-      const isCurrentWeek = isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate);
       const shareUpdate = {
         $inc: {
           shareCount: 1,
@@ -4192,11 +4105,14 @@ nextSongAfterComplete: async (_p, { input }) => {
         },
       };
 
+      const isCurrentWeek = isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate);
       if (!isCurrentWeek) {
         shareUpdate.$set.weeklyPlayCount = 0;
         shareUpdate.$set.weeklyLikeCount = 0;
         shareUpdate.$set.weeklyShareCount = 1;
         shareUpdate.$set.weeklyDownloadCount = 0;
+        shareUpdate.$set.songOfTheWeekGrandPrizeCriteriaReachedAt = null;
+        shareUpdate.$set.songOfTheWeekRepeatCriteriaReachedAt = null;
         delete shareUpdate.$inc.weeklyShareCount;
       }
 
@@ -4220,6 +4136,8 @@ nextSongAfterComplete: async (_p, { input }) => {
             weeklyLikeCount: updatedSong.weeklyLikeCount,
             weeklyShareCount: updatedSong.weeklyShareCount,
             weeklyDownloadCount: updatedSong.weeklyDownloadCount,
+            songOfTheWeekGrandPrizeCriteriaReachedAt: updatedSong.songOfTheWeekGrandPrizeCriteriaReachedAt,
+            songOfTheWeekRepeatCriteriaReachedAt: updatedSong.songOfTheWeekRepeatCriteriaReachedAt,
             hasWonSongOfTheWeek: updatedSong.hasWonSongOfTheWeek,
             lastSongOfTheWeekWonAt: updatedSong.lastSongOfTheWeekWonAt,
             songOfTheWeekWinnerWeekStartDate: updatedSong.songOfTheWeekWinnerWeekStartDate,

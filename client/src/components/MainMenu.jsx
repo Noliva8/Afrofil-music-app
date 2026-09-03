@@ -214,6 +214,8 @@ const MainMenu = ({
      onCardClick={handleCardClick}
    />
 
+
+
    <SongRowContainer
      header="This Week's Race"
      subHeader="Live standings from weekly plays, likes, and shares."

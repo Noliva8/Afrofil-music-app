@@ -1,0 +1,265 @@
+import crypto from 'crypto';
+
+import { Song } from '../../../models/Artist/index_artist.js';
+import { getRedis } from '../../../utils/AdEngine/redis/redisClient.js';
+import { addSongRedis } from '../Redis/addSongRedis.js';
+import { updateSongRedis } from '../Redis/songCreateRedis.js';
+import { songKey } from '../Redis/keys.js';
+import { songHashExpiration } from '../Redis/redisExpiration.js';
+
+const numberFromEnv = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const INITIAL_GRAND_PRIZE_MIN_PLAYS =
+  numberFromEnv(process.env.PLAYS_NEEDED_TO_WIN_MAXIMUM_PRIZE_INITIALLY, 1000);
+const REPEAT_ARTIST_MIN_PLAYS =
+  numberFromEnv(process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS, 1000);
+const REPEAT_ARTIST_MIN_LIKES =
+  numberFromEnv(process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES, 100);
+const MIN_WEEKLY_LISTEN_SECONDS =
+  numberFromEnv(process.env.SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE, 30);
+const WEEKLY_PLAY_COOLDOWN_SECONDS =
+  numberFromEnv(process.env.SONG_OF_THE_WEEK_PLAY_COOLDOWN_SECONDS, 30 * 60);
+
+const getSongOfTheWeekStartDate = (date = new Date()) => {
+  const weekStartDate = new Date(date);
+  const daysSinceSaturday = (weekStartDate.getDay() + 1) % 7;
+  weekStartDate.setDate(weekStartDate.getDate() - daysSinceSaturday);
+  weekStartDate.setHours(0, 0, 0, 0);
+  return weekStartDate;
+};
+
+const getSongOfTheWeekEndDate = (weekStartDate) => {
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 6);
+  weekEndDate.setHours(23, 59, 59, 999);
+  return weekEndDate;
+};
+
+const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
+  if (!songWeekStartDate) return false;
+  return new Date(songWeekStartDate).getTime() === currentWeekStartDate.getTime();
+};
+
+const normalizeVisitorId = (visitorId) => String(visitorId || '').trim();
+
+const getViewerId = (context, visitorId) => {
+  if (context?.user?._id) return `user:${String(context.user._id)}`;
+  if (context?.artist?._id) return `artist:${String(context.artist._id)}`;
+  const normalizedVisitorId = normalizeVisitorId(visitorId);
+  if (normalizedVisitorId) return `visitor:${normalizedVisitorId}`;
+
+  const ip =
+    (context?.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim()) ||
+    context?.req?.ip ||
+    '0.0.0.0';
+  const ua = context?.req?.headers?.['user-agent'] || '';
+  const anon = crypto.createHash('sha256').update(`${ip}|${ua}`).digest('hex').slice(0, 32);
+  return `anon:${anon}`;
+};
+
+const songMeetsSongOfTheWeekRepeatThreshold = (song) =>
+  Number(song?.weeklyPlayCount || 0) >= REPEAT_ARTIST_MIN_PLAYS &&
+  Number(song?.weeklyLikeCount || 0) >= REPEAT_ARTIST_MIN_LIKES;
+
+const songMeetsSongOfTheWeekGrandPrizeThreshold = (song) =>
+  Number(song?.weeklyPlayCount || 0) >= INITIAL_GRAND_PRIZE_MIN_PLAYS;
+
+const updateSongOfTheWeekCriteriaReachedAt = async ({
+  song,
+  weekStartDate,
+  now = new Date(),
+}) => {
+  if (!song?._id || !isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate)) return song;
+
+  const $set = {};
+  if (songMeetsSongOfTheWeekGrandPrizeThreshold(song)) {
+    if (!song.songOfTheWeekGrandPrizeCriteriaReachedAt) {
+      $set.songOfTheWeekGrandPrizeCriteriaReachedAt = now;
+    }
+  } else if (song.songOfTheWeekGrandPrizeCriteriaReachedAt) {
+    $set.songOfTheWeekGrandPrizeCriteriaReachedAt = null;
+  }
+
+  if (songMeetsSongOfTheWeekRepeatThreshold(song)) {
+    if (!song.songOfTheWeekRepeatCriteriaReachedAt) {
+      $set.songOfTheWeekRepeatCriteriaReachedAt = now;
+    }
+  } else if (song.songOfTheWeekRepeatCriteriaReachedAt) {
+    $set.songOfTheWeekRepeatCriteriaReachedAt = null;
+  }
+
+  if (Object.keys($set).length === 0) return song;
+  return Song.findByIdAndUpdate(song._id, { $set }, { new: true, runValidators: true });
+};
+
+const updateSongOfTheWeekCriteriaReachedAtBestEffort = async ({
+  song,
+  weekStartDate,
+  now = new Date(),
+}) => {
+  try {
+    return await updateSongOfTheWeekCriteriaReachedAt({ song, weekStartDate, now });
+  } catch (error) {
+    console.warn('[songOfTheWeek] criteria timestamp update skipped:', error?.message || error);
+    return song;
+  }
+};
+
+const resetSongOfTheWeekCountersIfNeeded = async (redisClient, weekStartDate, weekEndDate) => {
+  const resetKey = `song-of-the-week:reset:${weekStartDate.toISOString().slice(0, 10)}`;
+  const acquired = await redisClient.set(resetKey, '1', {
+    EX: 8 * 24 * 60 * 60,
+    NX: true,
+  });
+
+  if (!acquired) return;
+
+  try {
+    const staleWeekFilter = {
+      $or: [
+        { weekStartDate: { $exists: false } },
+        { weekStartDate: null },
+        { weekStartDate: { $ne: weekStartDate } },
+      ],
+    };
+
+    await Song.updateMany(
+      staleWeekFilter,
+      [
+        {
+          $set: {
+            previousWeekPlayCount: { $ifNull: ['$weeklyPlayCount', 0] },
+          },
+        },
+      ]
+    );
+
+    await Song.updateMany(
+      staleWeekFilter,
+      {
+        $set: {
+          weekStartDate,
+          weekEndDate,
+          weeklyPlayCount: 0,
+          weeklyLikeCount: 0,
+          weeklyShareCount: 0,
+          weeklyDownloadCount: 0,
+          songOfTheWeekGrandPrizeCriteriaReachedAt: null,
+          songOfTheWeekRepeatCriteriaReachedAt: null,
+        },
+      }
+    );
+  } catch (error) {
+    await redisClient.del(resetKey).catch(() => {});
+    throw error;
+  }
+};
+
+// -------------------------------------------------
+
+export const handleWeeklyPlayCount = async (
+  _parent,
+  { songId, visitorId, listenedSeconds = 0 },
+  context
+) => {
+
+
+
+  console.log('handleWeeklyPlayCount called with:', { songId, visitorId, listenedSeconds });
+
+
+
+
+  const song = await Song.findById(songId).lean();
+  if (!song) throw new Error('Song not found');
+
+  if (context?.artist?._id && String(song.artist) === String(context.artist._id)) {
+    return song;
+  }
+
+  if (Number(listenedSeconds || 0) < MIN_WEEKLY_LISTEN_SECONDS) {
+    return song;
+  }
+
+  const r = await getRedis();
+  const weekStartDate = getSongOfTheWeekStartDate();
+  const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
+
+  try {
+    await resetSongOfTheWeekCountersIfNeeded(r, weekStartDate, weekEndDate);
+  } catch (resetError) {
+    console.warn('[SongOfTheWeek] weekly reset skipped:', resetError?.message || resetError);
+  }
+
+  const viewerId = getViewerId(context, visitorId);
+  const cooldownKey = `song-of-the-week:play-cooldown:song:${songId}:viewer:${viewerId}`;
+  const cooldownStarted = await r.set(cooldownKey, '1', {
+    EX: WEEKLY_PLAY_COOLDOWN_SECONDS,
+    NX: true,
+  });
+
+  if (!cooldownStarted) {
+    return Song.findById(songId).lean();
+  }
+
+  const isCurrentWeek = isSameSongOfTheWeekWindow(song.weekStartDate, weekStartDate);
+  const weeklyUpdate = {
+    $set: {
+      weekStartDate,
+      weekEndDate,
+    },
+    $inc: {
+      weeklyPlayCount: 1,
+    },
+  };
+
+  if (!isCurrentWeek) {
+    weeklyUpdate.$set.weeklyPlayCount = 1;
+    weeklyUpdate.$set.weeklyLikeCount = 0;
+    weeklyUpdate.$set.weeklyShareCount = 0;
+    weeklyUpdate.$set.weeklyDownloadCount = 0;
+    weeklyUpdate.$set.songOfTheWeekGrandPrizeCriteriaReachedAt = null;
+    weeklyUpdate.$set.songOfTheWeekRepeatCriteriaReachedAt = null;
+    delete weeklyUpdate.$inc.weeklyPlayCount;
+  }
+
+  let updatedSong = await Song.findByIdAndUpdate(songId, weeklyUpdate, {
+    new: true,
+    runValidators: true,
+  });
+  if (!updatedSong) throw new Error('Song not found');
+
+  updatedSong = await updateSongOfTheWeekCriteriaReachedAtBestEffort({
+    song: updatedSong,
+    weekStartDate,
+    now: new Date(),
+  });
+
+  try {
+    const songCacheKey = songKey(songId);
+    const songExists = await r.exists(songCacheKey);
+
+    if (songExists) {
+      await updateSongRedis(songId, {
+        weekStartDate: updatedSong.weekStartDate,
+        weekEndDate: updatedSong.weekEndDate,
+        weeklyPlayCount: updatedSong.weeklyPlayCount,
+        weeklyLikeCount: updatedSong.weeklyLikeCount,
+        weeklyShareCount: updatedSong.weeklyShareCount,
+        weeklyDownloadCount: updatedSong.weeklyDownloadCount,
+        songOfTheWeekGrandPrizeCriteriaReachedAt: updatedSong.songOfTheWeekGrandPrizeCriteriaReachedAt,
+        songOfTheWeekRepeatCriteriaReachedAt: updatedSong.songOfTheWeekRepeatCriteriaReachedAt,
+      });
+      await r.expire(songCacheKey, songHashExpiration);
+    } else {
+      await addSongRedis(songId, r);
+    }
+  } catch (redisError) {
+    console.warn('[Redis] weekly play count sync skipped:', redisError?.message || redisError);
+  }
+
+  return updatedSong;
+};

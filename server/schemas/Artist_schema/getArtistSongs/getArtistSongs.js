@@ -794,6 +794,10 @@ export const getArtistSongs = async (_, { artistId }, context) => {
     
     // Last resort: try without Redis and with minimal fields
     try {
+
+      console.log('artistId:', artistId);
+console.log('typeof artistId:', typeof artistId);
+
       const fallbackSongs = await Song.find({
         artist: artistId,
         visibility: 'public'

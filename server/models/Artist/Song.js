@@ -319,6 +319,14 @@ processingAttempts: { type: Number, default: 0 },
     type: Number,
     default: 0
   },
+  songOfTheWeekGrandPrizeCriteriaReachedAt: {
+    type: Date,
+    default: null
+  },
+  songOfTheWeekRepeatCriteriaReachedAt: {
+    type: Date,
+    default: null
+  },
   hasWonSongOfTheWeek: {
     type: Boolean,
     default: false

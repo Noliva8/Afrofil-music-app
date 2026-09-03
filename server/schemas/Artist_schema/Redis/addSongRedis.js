@@ -67,6 +67,12 @@ const shapeForRedis = (songDoc) => {
     playCount: song.playCount || 0,
     downloadCount: song.downloadCount || 0,
     likesCount: song.likesCount || 0,
+    weeklyPlayCount: song.weeklyPlayCount || 0,
+    weeklyLikeCount: song.weeklyLikeCount || 0,
+    weeklyShareCount: song.weeklyShareCount || 0,
+    weeklyDownloadCount: song.weeklyDownloadCount || 0,
+    songOfTheWeekGrandPrizeCriteriaReachedAt: song.songOfTheWeekGrandPrizeCriteriaReachedAt || null,
+    songOfTheWeekRepeatCriteriaReachedAt: song.songOfTheWeekRepeatCriteriaReachedAt || null,
 
     // ✅ add duration as a flat number (no name fields involved)
     durationSeconds: Number(song.durationSeconds ?? song.duration ?? 0) || 0,
@@ -129,6 +135,12 @@ export const fieldTypes = {
   playCount: "number",
   downloadCount: "number",
   likesCount: "number",
+  weeklyPlayCount: "number",
+  weeklyLikeCount: "number",
+  weeklyShareCount: "number",
+  weeklyDownloadCount: "number",
+  songOfTheWeekGrandPrizeCriteriaReachedAt: "date",
+  songOfTheWeekRepeatCriteriaReachedAt: "date",
   createdAt: "date",
   updatedAt: "date",
 

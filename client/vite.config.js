@@ -7,7 +7,7 @@ const shouldAnalyzeBundle = process.env.ANALYZE === 'true';
 // https://vitejs.dev/config/
 export default defineConfig({
   esbuild: {
-    drop: ['console', 'debugger'],
+    // drop: ['console', 'debugger'],
   },
   plugins: [
     react(),

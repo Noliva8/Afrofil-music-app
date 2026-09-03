@@ -103,6 +103,26 @@ type: String,
   artistDownloadCounts: { type: Number, default: 0 },
   bookingAvailability: { type: Boolean, default: true },
 
+
+
+// Song of the week fields
+songOfTheWeekGrandPrizeWonAt: {
+    type: Date,
+    default: null
+  },
+ songOfTheWeekRepeatWinCount:{
+    type: Number,
+    default: 0
+  },
+songOfTheWeekArtistBlockedUntil:{
+    type: Date,
+    default: null
+  },  
+
+
+// -------
+
+
   createdAt: {
     type: Date,
     default: Date.now

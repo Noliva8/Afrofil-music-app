@@ -28,6 +28,10 @@ type Artist {
   followerCount: Int
   artistDownloadCounts: Int
   bookingAvailability: Boolean
+  songOfTheWeekGrandPrizeWonAt: Date
+  songOfTheWeekRepeatWinCount: Int
+  songOfTheWeekArtistBlockedUntil: Date
+
   createdAt: Date!
 }
 
@@ -99,6 +103,8 @@ processingAttempts: Int
   weeklyLikeCount: Int
   weeklyShareCount: Int
   weeklyDownloadCount: Int
+  songOfTheWeekGrandPrizeCriteriaReachedAt: Date
+  songOfTheWeekRepeatCriteriaReachedAt: Date
   hasWonSongOfTheWeek: Boolean
   lastSongOfTheWeekWonAt: Date
   songOfTheWeekWinnerWeekStartDate: Date
@@ -1083,6 +1089,12 @@ nextSongAfterComplete(input: NextSongInput!): NextSongPayload!
 handlePlayCount(
   songId: String!
 ):Song
+
+handleWeeklyPlayCount(
+  songId: String!
+  visitorId: String
+  listenedSeconds: Int!
+): Song
 
  shareSong(songId: ID!): Song
  reportSong(songId: ID!, reason: String!): Song

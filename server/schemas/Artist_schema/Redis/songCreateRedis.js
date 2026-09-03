@@ -247,11 +247,21 @@ export function buildDocForRedisJSON(baseDoc, { artistCountry, artistAka } = {})
   out.playCount     = Number(out.playCount || 0);
   out.downloadCount = Number(out.downloadCount || 0);
   out.likesCount    = Number(out.likesCount ?? (Array.isArray(out.likedByUsers) ? out.likedByUsers.length : 0)) || 0;
+  out.weeklyPlayCount = Number(out.weeklyPlayCount || 0);
+  out.weeklyLikeCount = Number(out.weeklyLikeCount || 0);
+  out.weeklyShareCount = Number(out.weeklyShareCount || 0);
+  out.weeklyDownloadCount = Number(out.weeklyDownloadCount || 0);
 
   // timestamps
   out.createdAt  = out.createdAt  ? new Date(out.createdAt)  : new Date();
   out.releaseDate= out.releaseDate? new Date(out.releaseDate): out.createdAt;
   out.updatedAt  = new Date();
+  out.songOfTheWeekGrandPrizeCriteriaReachedAt = out.songOfTheWeekGrandPrizeCriteriaReachedAt
+    ? new Date(out.songOfTheWeekGrandPrizeCriteriaReachedAt)
+    : null;
+  out.songOfTheWeekRepeatCriteriaReachedAt = out.songOfTheWeekRepeatCriteriaReachedAt
+    ? new Date(out.songOfTheWeekRepeatCriteriaReachedAt)
+    : null;
 
   // normalize producers array (keep original structure; add normalized fields for indexing)
   if (Array.isArray(out.producer)) {
