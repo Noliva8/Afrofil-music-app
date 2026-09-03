@@ -1088,6 +1088,7 @@ nextSongAfterComplete(input: NextSongInput!): NextSongPayload!
 
 handlePlayCount(
   songId: String!
+  visitorId: String
 ):Song
 
 handleWeeklyPlayCount(

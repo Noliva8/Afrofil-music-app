@@ -15,9 +15,13 @@ import {
 } from '../Redis/keys.js';
 import { songHashExpiration } from '../Redis/redisExpiration.js';
 
-const getViewerId = (context) => {
+const normalizeVisitorId = (visitorId) => String(visitorId || '').trim();
+
+const getViewerId = (context, visitorId) => {
   if (context?.user?._id) return `user:${String(context.user._id)}`;
   if (context?.artist?._id) return `artist:${String(context.artist._id)}`;
+  const normalizedVisitorId = normalizeVisitorId(visitorId);
+  if (normalizedVisitorId) return `visitor:${normalizedVisitorId}`;
 
   const ip =
     context?.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
@@ -84,7 +88,7 @@ const updateTrendingIndex = async ({ redisClient, songId, updatedSong }) => {
   });
 };
 
-export const handlePlayCount = async (_parent, { songId }, context) => {
+export const handlePlayCount = async (_parent, { songId, visitorId }, context) => {
   const song = await Song.findById(songId).lean();
   if (!song) throw new Error('Song not found');
 
@@ -96,7 +100,7 @@ export const handlePlayCount = async (_parent, { songId }, context) => {
     );
   }
 
-  const viewerId = getViewerId(context);
+  const viewerId = getViewerId(context, visitorId);
   const redisClient = await getRedis();
   const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
   const onCooldown = await redisClient.exists(cooldownKey);

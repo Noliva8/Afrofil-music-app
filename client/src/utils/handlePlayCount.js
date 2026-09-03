@@ -22,7 +22,20 @@ const getVisitorId = () => {
 };
 
 export const usePlayCount = () => {
-  const [handlePlayCount, { loading, error }] = useMutation(INCREMENT_PLAY_COUNT);
+  const [handlePlayCount, { loading, error }] = useMutation(INCREMENT_PLAY_COUNT, {
+    update(cache, { data }) {
+      const updatedSong = data?.handlePlayCount;
+      if (!updatedSong?._id) return;
+
+      cache.modify({
+        id: cache.identify({ __typename: "Song", _id: updatedSong._id }),
+        fields: {
+          playCount: () => updatedSong.playCount,
+          plays: () => updatedSong.playCount,
+        },
+      });
+    },
+  });
   const [handleWeeklyPlayCount] = useMutation(INCREMENT_WEEKLY_PLAY_COUNT);
 
   const incrementPlayCount = useCallback(async (songId) => {
@@ -37,7 +50,10 @@ export const usePlayCount = () => {
 
     try {
       await handlePlayCount({
-        variables: { songId: key }
+        variables: {
+          songId: key,
+          visitorId: getVisitorId(),
+        },
       });
 
       if (WEEKLY_PLAY_MIN_LISTEN_SECONDS <= 0) {

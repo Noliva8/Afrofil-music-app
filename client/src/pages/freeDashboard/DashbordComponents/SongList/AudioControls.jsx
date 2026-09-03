@@ -2,7 +2,7 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import Slider from '@mui/material/Slider';
 import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
-import './toggleplay.css';
+import './togglePlay.css';
 
 export default function AudioControls({ songId, playingSongId, volume, setVolume }) {
   const theme = useTheme();

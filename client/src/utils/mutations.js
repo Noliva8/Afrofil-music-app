@@ -741,8 +741,8 @@ mutation NextSongAfterComplete($input: NextSongInput!) {
 
 
 export const INCREMENT_PLAY_COUNT = gql`
-  mutation IncrementPlayCount($songId: String!) {
-    handlePlayCount(songId: $songId) {
+  mutation IncrementPlayCount($songId: String!, $visitorId: String) {
+    handlePlayCount(songId: $songId, visitorId: $visitorId) {
       _id
       title
       playCount
