@@ -10,18 +10,19 @@ import {
   RECENT_PLAYED_CACHE_KEY,
   TRENDING_SONGS_CACHE_KEY,
   TRENDING_WEIGHTS,
-  songKey,
   trendIndexZSet,
 } from '../Redis/keys.js';
-import { songHashExpiration } from '../Redis/redisExpiration.js';
 
 const normalizeVisitorId = (visitorId) => String(visitorId || '').trim();
 
+
+
 const getViewerId = (context, visitorId) => {
-  if (context?.user?._id) return `user:${String(context.user._id)}`;
-  if (context?.artist?._id) return `artist:${String(context.artist._id)}`;
   const normalizedVisitorId = normalizeVisitorId(visitorId);
   if (normalizedVisitorId) return `visitor:${normalizedVisitorId}`;
+
+
+
 
   const ip =
     context?.req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
@@ -32,18 +33,23 @@ const getViewerId = (context, visitorId) => {
   return `anon:${anon}`;
 };
 
+
+
+
+
+
 const updateTrendingIndex = async ({ redisClient, songId, updatedSong }) => {
   const currentScore = await redisClient.zScore(trendIndexZSet, songId.toString());
+  const songNewScore = Number(updatedSong.trendingScore || 0);
 
   if (currentScore !== null) {
     await redisClient.zAdd(trendIndexZSet, {
-      score: parseFloat(currentScore) + TRENDING_WEIGHTS.PLAY_WEIGHT,
+      score: (Number(currentScore) || 0) + TRENDING_WEIGHTS.PLAY_WEIGHT,
       value: songId.toString(),
     });
     return;
   }
 
-  const songNewScore = updatedSong.trendingScore;
   const trendingCount = await redisClient.zCard(trendIndexZSet);
 
   if (trendingCount < 20) {
@@ -57,21 +63,36 @@ const updateTrendingIndex = async ({ redisClient, songId, updatedSong }) => {
   const lowestSongs = await redisClient.zRange(trendIndexZSet, 0, 0, {
     WITHSCORES: true,
   });
-  const lowestScore = parseFloat(lowestSongs[1]);
+  const lowestEntry = Array.isArray(lowestSongs) ? lowestSongs[0] : null;
+  const lowestScore = Number(
+    typeof lowestEntry === 'object' && lowestEntry !== null
+      ? lowestEntry.score
+      : lowestSongs?.[1]
+  );
+  if (!Number.isFinite(lowestScore)) {
+    await redisClient.zAdd(trendIndexZSet, {
+      score: songNewScore,
+      value: songId.toString(),
+    });
+    return;
+  }
   if (songNewScore < lowestScore) return;
 
   const allLowestSongs = await redisClient.zRangeByScore(trendIndexZSet, lowestScore, lowestScore, {
     WITHSCORES: true,
   });
-  let oldestSongId = allLowestSongs[0];
+  const lowestSongIds = Array.isArray(allLowestSongs)
+    ? allLowestSongs
+        .map((entry, index) => {
+          if (typeof entry === 'object' && entry !== null) return entry.value;
+          return index % 2 === 0 ? entry : null;
+        })
+        .filter(Boolean)
+    : [];
+  let oldestSongId = lowestSongIds[0];
 
-  if (allLowestSongs.length > 2) {
-    const songIds = [];
-    for (let i = 0; i < allLowestSongs.length; i += 2) {
-      songIds.push(allLowestSongs[i]);
-    }
-
-    const oldestSong = await Song.findOne({ _id: { $in: songIds } })
+  if (lowestSongIds.length > 1) {
+    const oldestSong = await Song.findOne({ _id: { $in: lowestSongIds } })
       .select('_id createdAt')
       .sort({ createdAt: 1 })
       .lean();
@@ -81,6 +102,8 @@ const updateTrendingIndex = async ({ redisClient, songId, updatedSong }) => {
     }
   }
 
+  if (!oldestSongId) return;
+
   await redisClient.zRem(trendIndexZSet, oldestSongId);
   await redisClient.zAdd(trendIndexZSet, {
     score: songNewScore,
@@ -88,9 +111,26 @@ const updateTrendingIndex = async ({ redisClient, songId, updatedSong }) => {
   });
 };
 
+const setCooldownIfMissing = async (redisClient, cooldownKey, ttlSeconds) => {
+  const result = await redisClient.sendCommand([
+    'SET',
+    cooldownKey,
+    '1',
+    'EX',
+    String(ttlSeconds),
+    'NX',
+  ]);
+
+  return result === 'OK';
+};
+
 export const handlePlayCount = async (_parent, { songId, visitorId }, context) => {
+
+
   const song = await Song.findById(songId).lean();
   if (!song) throw new Error('Song not found');
+
+
 
   if (context?.artist?._id && String(song.artist) === String(context.artist._id)) {
     return Song.findByIdAndUpdate(
@@ -101,32 +141,58 @@ export const handlePlayCount = async (_parent, { songId, visitorId }, context) =
   }
 
   const viewerId = getViewerId(context, visitorId);
+
+
+
   const redisClient = await getRedis();
+
   const cooldownKey = `cooldown:song:${songId}:viewer:${viewerId}`;
+
+
+
   const onCooldown = await redisClient.exists(cooldownKey);
+  if (onCooldown) {
+    return song;
+  }
+
+  const cooldownStarted = await setCooldownIfMissing(
+    redisClient,
+    cooldownKey,
+    PLAY_COOLDOWN_SECONDS
+  );
+
+  if (!cooldownStarted) {
+    return song;
+  }
+
+  const cooldownTtl = await redisClient.ttl(cooldownKey).catch(() => null);
+  if (!Number.isFinite(cooldownTtl) || cooldownTtl <= 0) {
+    console.warn('[playCount] cooldown key was not confirmed after SET:', {
+      cooldownKey,
+      cooldownStarted,
+      cooldownTtl,
+    });
+  }
 
   const updatedSong = await Song.findByIdAndUpdate(
     songId,
-    onCooldown
-      ? { $set: { lastPlayedAt: new Date() } }
-      : {
-          $inc: {
-            playCount: 1,
-            trendingScore: TRENDING_WEIGHTS.PLAY_WEIGHT,
-          },
-          $set: { lastPlayedAt: new Date() },
-        },
+    {
+      $inc: {
+        playCount: 1,
+        trendingScore: TRENDING_WEIGHTS.PLAY_WEIGHT,
+      },
+      $set: { lastPlayedAt: new Date() },
+    },
     { new: true, runValidators: true }
   );
+
+
+
+
+
   if (!updatedSong) throw new Error('Song not found');
 
-  if (!onCooldown) {
-    try {
-      await redisClient.set(cooldownKey, '1', { EX: PLAY_COOLDOWN_SECONDS, NX: true });
-    } catch (cooldownError) {
-      console.warn('Cooldown setting failed:', cooldownError?.message || cooldownError);
-    }
-  }
+
 
   if (context?.user?._id) {
     try {
@@ -134,7 +200,7 @@ export const handlePlayCount = async (_parent, { songId, visitorId }, context) =
         { user: context.user._id, played_songs: songId },
         {
           $set: { createdAt: new Date() },
-          $inc: { count: onCooldown ? 0 : 1 },
+          $inc: { count: 1 },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
@@ -151,26 +217,22 @@ export const handlePlayCount = async (_parent, { songId, visitorId }, context) =
   }
 
   try {
-    const songCacheKey = songKey(songId);
-    const songExists = await redisClient.exists(songCacheKey);
-
-    if (songExists) {
-      if (!onCooldown) {
-        await updateSongRedis(songId, {
-          playCount: updatedSong.playCount,
-          trendingScore: updatedSong.trendingScore,
-          lastPlayedAt: updatedSong.lastPlayedAt,
-        });
-      }
-      await redisClient.expire(songCacheKey, songHashExpiration);
-    } else {
+    try {
+      await updateSongRedis(songId, {
+        playCount: updatedSong.playCount,
+        trendingScore: updatedSong.trendingScore,
+        lastPlayedAt: updatedSong.lastPlayedAt,
+      });
+    } catch (updateError) {
+      console.warn('[Redis] song cache missing/stale during play count sync; rebuilding:', {
+        songId,
+        error: updateError?.message || updateError,
+      });
       await addSongRedis(songId, redisClient);
     }
 
-    if (!onCooldown) {
-      await updateTrendingIndex({ redisClient, songId, updatedSong });
-      await redisClient.del(TRENDING_SONGS_CACHE_KEY);
-    }
+    await updateTrendingIndex({ redisClient, songId, updatedSong });
+    await redisClient.del(TRENDING_SONGS_CACHE_KEY);
   } catch (redisError) {
     console.warn('[Redis] play count sync skipped:', redisError?.message || redisError);
   }

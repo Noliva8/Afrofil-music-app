@@ -3,17 +3,18 @@ import redisPkg from 'redis';
 const { SchemaFieldTypes } = redisPkg; 
 
 import { getRedis } from "../../../utils/AdEngine/redis/redisClient.js";
-import {Artist,Album} from "../../../models/Artist/index_artist.js"
+import {Artist,Album, Song} from "../../../models/Artist/index_artist.js"
 import { getMultipleArtistsRedis } from './artistCreateRedis.js';
 import { getMultipleAlbumsRedis } from './albumCreateRedis.js';
 import { artistCreateRedis } from './artistCreateRedis.js';
 import { albumCreateRedis } from './albumCreateRedis.js';
+import { SONG_REDIS_PREFIX, songKey } from './keys.js';
 /** ---------- Config ---------- */
 export const C = {
   MAX_N_SONGS: 10_000,
   SCALE: 1_000_000,                 // legacy composite scale (kept if you need it)
   MAX_MB: 15,                       // admin warning threshold (MB)
-  SONG_PREFIX: "song:",             // HASH per song
+  SONG_PREFIX: SONG_REDIS_PREFIX,   // song cache prefix
   IDX_ALL: "index:songs:all",       // SET of songIds
   IDX_SCORE: "index:songs:score",   // ZSET: trending score (higher = hotter)
   IDX_PLAYS: "index:songs:plays",   // ZSET: total playCount (higher = more popular)
@@ -123,7 +124,6 @@ export function simKeysForSongDoc(s) {
   });
 }
 
-const songKey = (id) => `${C.SONG_PREFIX}${id}`;
 const nowSec = () => Math.floor(Date.now() / 1000);
 
 
@@ -279,6 +279,64 @@ export function buildDocForRedisJSON(baseDoc, { artistCountry, artistAka } = {})
   return out;
 }
 
+const parseMaybeJson = (value, fallback) => {
+  if (value == null || value === '') return fallback;
+  if (typeof value !== 'string') return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback ?? value;
+  }
+};
+
+const parseMaybeDate = (value, fallback = null) => {
+  if (!value) return fallback;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed;
+};
+
+const songDocFromFlatHash = (hash, songId) => ({
+  ...hash,
+  _id: hash._id || songId,
+  artist: parseMaybeJson(hash.artist, hash.artist || ''),
+  album: parseMaybeJson(hash.album, hash.album || ''),
+  featuringArtist: parseMaybeJson(hash.featuringArtist, []),
+  mood: parseMaybeJson(hash.mood, []),
+  subMoods: parseMaybeJson(hash.subMoods, []),
+  producer: parseMaybeJson(hash.producer, []),
+  composer: parseMaybeJson(hash.composer, []),
+  playCount: Number(hash.playCount || 0),
+  downloadCount: Number(hash.downloadCount || 0),
+  likesCount: Number(hash.likesCount || 0),
+  weeklyPlayCount: Number(hash.weeklyPlayCount || 0),
+  weeklyLikeCount: Number(hash.weeklyLikeCount || 0),
+  weeklyShareCount: Number(hash.weeklyShareCount || 0),
+  weeklyDownloadCount: Number(hash.weeklyDownloadCount || 0),
+  trackNumber: Number(hash.trackNumber || 0),
+  durationSeconds: Number(hash.durationSeconds || hash.duration || 0),
+  createdAt: parseMaybeDate(hash.createdAt, new Date()),
+  updatedAt: parseMaybeDate(hash.updatedAt, new Date()),
+  releaseDate: parseMaybeDate(hash.releaseDate),
+  songOfTheWeekGrandPrizeCriteriaReachedAt: parseMaybeDate(hash.songOfTheWeekGrandPrizeCriteriaReachedAt),
+  songOfTheWeekRepeatCriteriaReachedAt: parseMaybeDate(hash.songOfTheWeekRepeatCriteriaReachedAt),
+});
+
+const serializeFlatSongHashValue = (value) => {
+  if (value instanceof Date) return value.toISOString();
+  if (value == null) return '';
+  if (Array.isArray(value) || typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const serializeFlatSongHash = (song) => {
+  const hash = {};
+  for (const [key, value] of Object.entries(song || {})) {
+    hash[key] = serializeFlatSongHashValue(value);
+  }
+  return hash;
+};
+
 
 /** Recompute and store trending score for a song */
 async function recomputeTrendingFor(r, songId) {
@@ -398,7 +456,7 @@ export async function createSongRedis(songDoc) {
   }
 
   // write
-  const key = `${C.SONG_PREFIX}${id}`;
+  const key = songKey(id);
   try {
     // If an older HASH (or any non-JSON type) exists under this key, unlink it first
     const existingType = await r.type(key);
@@ -515,7 +573,7 @@ export async function createSongIndex() {
       },
       {
         ON: 'JSON',
-        PREFIX: ['song:'],
+        PREFIX: [C.SONG_PREFIX],
         STOPWORDS: ['the','a','an'],
       }
     );
@@ -713,7 +771,7 @@ export async function debugRedisData() {
   
   
   // Check what keys actually exist
-  const songKeys = await r.keys('song:*');
+  const songKeys = await r.keys(`${C.SONG_PREFIX}*`);
   const artistKeys = await r.keys('artist:*');
   
   
@@ -763,18 +821,24 @@ export async function updateSongRedis(songId, patch) {
 
   const key = songKey(songId);
 
+
+
   // ---- read BEFORE (supports old HASH or JSON) ----
   let beforeRaw;
   let keyType = 'none';
+  let hashWasFlat = false;
   try {
     keyType = await withTimeout(r.type(key), 2000, "Type read timeout");
 
     if (keyType === 'hash') {
       const h = await withTimeout(r.hGetAll(key), 2000, "Hash read timeout");
-      if (!h || !h.doc) throw new Error("updateSongRedis: song not found (hash missing doc)");
+      if (!h || Object.keys(h).length === 0) {
+        throw new Error("updateSongRedis: song not found (hash empty)");
+      }
 
-      // Parse document from stored hash blob
-      beforeRaw = JSON.parse(h.doc);
+      // Supports both legacy { doc: "<json>" } hashes and flat song hashes.
+      hashWasFlat = !h.doc;
+      beforeRaw = h.doc ? JSON.parse(h.doc) : songDocFromFlatHash(h, songId);
 
       // If scalar mirrors exist in hash, prefer them (source of truth drift protection)
       if (h.playCount != null)     beforeRaw.playCount     = Number(h.playCount);
@@ -786,8 +850,12 @@ export async function updateSongRedis(songId, patch) {
     } else if (keyType === 'ReJSON-RL' || keyType === 'json') {
       beforeRaw = await withTimeout(r.json.get(key), 2000, "JSON read timeout");
       if (!beforeRaw) throw new Error("updateSongRedis: song not found (json empty)");
+    } else if (keyType === 'none') {
+      const mongoSong = await Song.findById(songId).lean();
+      if (!mongoSong) throw new Error("updateSongRedis: song not found in MongoDB");
+      beforeRaw = mongoSong;
     } else {
-      throw new Error("updateSongRedis: song not found");
+      throw new Error(`updateSongRedis: unsupported song cache type ${keyType}`);
     }
   } catch (err) {
     console.error("Read failed:", err);
@@ -888,10 +956,16 @@ export async function updateSongRedis(songId, patch) {
 
   // ---- write (migrate hash→json if needed) ----
   try {
-    // If key is a HASH, convert it to JSON first
+    // Preserve flat HASH song records; migrate only doc-wrapped legacy hashes to JSON.
     if (keyType === 'hash') {
-      await r.unlink(key);                 // non-blocking delete
-      await r.json.set(key, '$', after);   // create JSON
+      if (hashWasFlat) {
+        await r.hSet(key, serializeFlatSongHash(after));
+      } else {
+        await r.unlink(key);                 // non-blocking delete
+        await r.json.set(key, '$', after);   // create JSON
+      }
+    } else if (keyType === 'none') {
+      await r.hSet(key, serializeFlatSongHash(after));
     } else {
       // JSON already: set new document
       await r.json.set(key, '$', after);
@@ -1143,20 +1217,23 @@ export async function getSongRedis(songId) {
     }
 
     if (t === 'hash') {
-      // Legacy HASH with { doc: "<json>" }
+      // Legacy HASH with { doc: "<json>" } or flat hash fields.
       const h = await withTimeout(r.hGetAll(key), 2000, "Hash read timeout");
-      if (!h || !h.doc) return null;
+      if (!h || Object.keys(h).length === 0) return null;
 
       // best-effort last-access update
       await withTimeout(r.hSet(key, "lastAccessed", String(Date.now())), 800, "Hash lastAccessed update").catch(() => {});
 
-      // parse stored JSON blob
       let doc;
-      try {
-        doc = JSON.parse(h.doc);
-      } catch (e) {
-        console.warn("getSongRedis: JSON parse failed for", key, e?.message || e);
-        return null;
+      if (h.doc) {
+        try {
+          doc = JSON.parse(h.doc);
+        } catch (e) {
+          console.warn("getSongRedis: JSON parse failed for", key, e?.message || e);
+          return null;
+        }
+      } else {
+        doc = songDocFromFlatHash(h, songId);
       }
 
       // prefer scalar mirrors if present
@@ -1167,6 +1244,13 @@ export async function getSongRedis(songId) {
       if (h.downloadCount != null) doc.downloadCount = Number(h.downloadCount);
 
       return reviveTopLevelDates(doc);
+    }
+
+    if (t === 'none') {
+      const song = await Song.findById(songId).lean();
+      if (!song) return null;
+      await r.hSet(key, serializeFlatSongHash(song)).catch(() => null);
+      return reviveTopLevelDates(song);
     }
 
     // none / unknown

@@ -117,27 +117,32 @@ const RADIO_STATION_COVER_BUCKET =
 
 const getSongOfTheWeekStartDate = (date = new Date()) => {
   const weekStartDate = new Date(date);
-  const daysSinceSaturday = (weekStartDate.getDay() + 1) % 7;
-  weekStartDate.setDate(weekStartDate.getDate() - daysSinceSaturday);
-  weekStartDate.setHours(0, 0, 0, 0);
+  const daysSinceSaturday = (weekStartDate.getUTCDay() + 1) % 7;
+  weekStartDate.setUTCDate(weekStartDate.getUTCDate() - daysSinceSaturday);
+  weekStartDate.setUTCHours(0, 0, 0, 0);
   return weekStartDate;
 };
 
 const getSongOfTheWeekEndDate = (weekStartDate) => {
   const weekEndDate = new Date(weekStartDate);
-  weekEndDate.setDate(weekEndDate.getDate() + 6);
-  weekEndDate.setHours(23, 59, 59, 999);
+  weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+  weekEndDate.setUTCHours(11, 59, 0, 0);
   return weekEndDate;
 };
 
 const getCompletedSongOfTheWeekWindow = (date = new Date()) => {
   const currentWeekStartDate = getSongOfTheWeekStartDate(date);
-  const weekStartDate = new Date(currentWeekStartDate);
+  const currentWeekEndDate = getSongOfTheWeekEndDate(currentWeekStartDate);
 
-  if (date.getDay() !== 5) {
-    weekStartDate.setDate(weekStartDate.getDate() - 7);
+  if (date.getTime() >= currentWeekEndDate.getTime()) {
+    return {
+      weekStartDate: currentWeekStartDate,
+      weekEndDate: currentWeekEndDate,
+    };
   }
 
+  const weekStartDate = new Date(currentWeekStartDate);
+  weekStartDate.setUTCDate(weekStartDate.getUTCDate() - 7);
   const weekEndDate = getSongOfTheWeekEndDate(weekStartDate);
   return { weekStartDate, weekEndDate };
 };
@@ -534,6 +539,38 @@ const resetSongOfTheWeekCountersIfNeeded = async (redisClient, weekStartDate, we
           songOfTheWeekRepeatCriteriaReachedAt: null,
         },
       }
+    );
+  } catch (error) {
+    await redisClient.del(resetKey).catch(() => {});
+    throw error;
+  }
+};
+
+const resetFinalizedSongOfTheWeekCounters = async (redisClient, weekStartDate) => {
+  const resetKey = `song-of-the-week:finalized-reset:${weekStartDate.toISOString().slice(0, 10)}`;
+  const acquired = await redisClient.set(resetKey, '1', {
+    EX: 35 * 24 * 60 * 60,
+    NX: true,
+  });
+
+  if (!acquired) return;
+
+  try {
+    await Song.updateMany(
+      { weekStartDate },
+      [
+        {
+          $set: {
+            previousWeekPlayCount: { $ifNull: ['$weeklyPlayCount', 0] },
+            weeklyPlayCount: 0,
+            weeklyLikeCount: 0,
+            weeklyShareCount: 0,
+            weeklyDownloadCount: 0,
+            songOfTheWeekGrandPrizeCriteriaReachedAt: null,
+            songOfTheWeekRepeatCriteriaReachedAt: null,
+          },
+        },
+      ]
     );
   } catch (error) {
     await redisClient.del(resetKey).catch(() => {});
@@ -1135,13 +1172,19 @@ songOfTheWeek: async () => {
       console.warn('[songOfTheWeek] reward creation skipped:', error?.message || error);
     }
 
+    try {
+      const redisClient = await getRedis();
+      await resetFinalizedSongOfTheWeekCounters(redisClient, weekStartDate);
+    } catch (error) {
+      console.warn('[songOfTheWeek] finalized counter reset skipped:', error?.message || error);
+    }
+
     return existingWinner;
   }
 
   const baseMatch = {
     visibility: "public",
     weekStartDate,
-    weekEndDate,
     hasWonSongOfTheWeek: { $ne: true },
     $or: [
       { weeklyPlayCount: { $gt: 0 } },
@@ -1218,6 +1261,13 @@ songOfTheWeek: async () => {
     console.warn('[songOfTheWeek] reward creation skipped:', error?.message || error);
   }
 
+  try {
+    const redisClient = await getRedis();
+    await resetFinalizedSongOfTheWeekCounters(redisClient, weekStartDate);
+  } catch (error) {
+    console.warn('[songOfTheWeek] finalized counter reset skipped:', error?.message || error);
+  }
+
   return winner;
 },
 
@@ -1233,7 +1283,6 @@ songsCompetingThisWeek: async (_parent, { limit = 10 }) => {
       $match: {
         visibility: "public",
         weekStartDate,
-        weekEndDate,
         hasWonSongOfTheWeek: { $ne: true },
         $or: [
           { weeklyPlayCount: { $gt: 0 } },

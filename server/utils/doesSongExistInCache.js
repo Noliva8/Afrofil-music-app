@@ -4,6 +4,7 @@
 import Song from '../models/Artist/Song.js';
 import { getRedis } from './AdEngine/redis/redisClient.js';
 import { createSongRedis } from '../schemas/Artist_schema/Redis/songCreateRedis.js';
+import { songKey } from '../schemas/Artist_schema/Redis/keys.js';
 
 
 
@@ -38,8 +39,6 @@ const shapeForRedis = (s) => ({
   createdAt: s.createdAt ? new Date(s.createdAt) : new Date(),
   updatedAt: new Date(),
 });
-
-const songKey = (id) => `song:${id}`;
 
 export async function ensureSongCached(songId) {
   const r = await getRedis();

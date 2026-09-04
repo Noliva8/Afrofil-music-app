@@ -4,13 +4,13 @@ import { Song } from '../../../models/Artist/index_artist.js';
 import { getRedis } from '../../../utils/AdEngine/redis/redisClient.js';
 import { addSongRedis } from '../Redis/addSongRedis.js';
 import { updateSongRedis } from '../Redis/songCreateRedis.js';
-import { songKey } from '../Redis/keys.js';
-import { songHashExpiration } from '../Redis/redisExpiration.js';
 
 const numberFromEnv = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+
+
 
 const firstNumberFromEnv = (values, fallback) => {
   for (const value of values) {
@@ -40,16 +40,16 @@ const WEEKLY_PLAY_COOLDOWN_SECONDS =
 
 const getSongOfTheWeekStartDate = (date = new Date()) => {
   const weekStartDate = new Date(date);
-  const daysSinceSaturday = (weekStartDate.getDay() + 1) % 7;
-  weekStartDate.setDate(weekStartDate.getDate() - daysSinceSaturday);
-  weekStartDate.setHours(0, 0, 0, 0);
+  const daysSinceSaturday = (weekStartDate.getUTCDay() + 1) % 7;
+  weekStartDate.setUTCDate(weekStartDate.getUTCDate() - daysSinceSaturday);
+  weekStartDate.setUTCHours(0, 0, 0, 0);
   return weekStartDate;
 };
 
 const getSongOfTheWeekEndDate = (weekStartDate) => {
   const weekEndDate = new Date(weekStartDate);
-  weekEndDate.setDate(weekEndDate.getDate() + 6);
-  weekEndDate.setHours(23, 59, 59, 999);
+  weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+  weekEndDate.setUTCHours(11, 59, 0, 0);
   return weekEndDate;
 };
 
@@ -61,8 +61,6 @@ const isSameSongOfTheWeekWindow = (songWeekStartDate, currentWeekStartDate) => {
 const normalizeVisitorId = (visitorId) => String(visitorId || '').trim();
 
 const getViewerId = (context, visitorId) => {
-  if (context?.user?._id) return `user:${String(context.user._id)}`;
-  if (context?.artist?._id) return `artist:${String(context.artist._id)}`;
   const normalizedVisitorId = normalizeVisitorId(visitorId);
   if (normalizedVisitorId) return `visitor:${normalizedVisitorId}`;
 
@@ -183,7 +181,8 @@ export const handleWeeklyPlayCount = async (
 
 
 
-  console.log('handleWeeklyPlayCount called with:', { songId, visitorId, listenedSeconds });
+
+  console.log('HANDLE WEEKLY PLAY COUNT IS CALLED:', { songId, visitorId, listenedSeconds });
 
 
 
@@ -268,10 +267,7 @@ export const handleWeeklyPlayCount = async (
   });
 
   try {
-    const songCacheKey = songKey(songId);
-    const songExists = await r.exists(songCacheKey);
-
-    if (songExists) {
+    try {
       await updateSongRedis(songId, {
         weekStartDate: updatedSong.weekStartDate,
         weekEndDate: updatedSong.weekEndDate,
@@ -282,8 +278,11 @@ export const handleWeeklyPlayCount = async (
         songOfTheWeekGrandPrizeCriteriaReachedAt: updatedSong.songOfTheWeekGrandPrizeCriteriaReachedAt,
         songOfTheWeekRepeatCriteriaReachedAt: updatedSong.songOfTheWeekRepeatCriteriaReachedAt,
       });
-      await r.expire(songCacheKey, songHashExpiration);
-    } else {
+    } catch (updateError) {
+      console.warn('[Redis] song cache missing/stale during weekly play count sync; rebuilding:', {
+        songId,
+        error: updateError?.message || updateError,
+      });
       await addSongRedis(songId, r);
     }
   } catch (redisError) {

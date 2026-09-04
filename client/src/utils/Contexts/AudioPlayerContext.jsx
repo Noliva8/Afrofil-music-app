@@ -268,6 +268,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
     songId: null,
     listenedSeconds: 0,
     lastAudioTime: 0,
+    inFlight: false,
     counted: false,
   });
 
@@ -1000,6 +1001,7 @@ useEffect(() => {
     songId: playerState.currentTrack?.id || null,
     listenedSeconds: 0,
     lastAudioTime: 0,
+    inFlight: false,
     counted: false,
   };
 }, [playerState.currentTrack?.id]);
@@ -1013,7 +1015,7 @@ useEffect(() => {
     if (audio.paused || playerState.isAdPlaying) return;
 
     const tracker = weeklyPlayTrackerRef.current;
-    if (tracker.counted || tracker.songId !== trackId) return;
+    if (tracker.counted || tracker.inFlight || tracker.songId !== trackId) return;
 
     const currentTime = Number(audio.currentTime || 0);
     const delta = currentTime - Number(tracker.lastAudioTime || 0);
@@ -1025,8 +1027,14 @@ useEffect(() => {
 
     if (tracker.listenedSeconds < WEEKLY_PLAY_MIN_LISTEN_SECONDS) return;
 
-    tracker.counted = true;
-    incrementWeeklyPlayCount(String(trackId), tracker.listenedSeconds);
+    tracker.inFlight = true;
+    incrementWeeklyPlayCount(String(trackId), tracker.listenedSeconds)
+      .then((wasHandled) => {
+        tracker.counted = wasHandled;
+      })
+      .finally(() => {
+        tracker.inFlight = false;
+      });
   };
 
   audio.addEventListener('timeupdate', trackWeeklyPlay);
@@ -1034,6 +1042,7 @@ useEffect(() => {
 }, [
   playerState.currentTrack?.id,
   playerState.isAdPlaying,
+  isAudioReady,
   incrementWeeklyPlayCount,
 ]);
 

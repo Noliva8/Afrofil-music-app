@@ -1,4 +1,5 @@
 
+export const SONG_REDIS_PREFIX = "song#";
 export const songKey = (id) => `song#${id}`;
 
 export const userLikesKey =(id) =>`users:likes#${id}`
@@ -10,7 +11,7 @@ export const SUGGESTED_SONGS_CACHE_KEY = "afrofeel:suggestedSongs:v1";
 export const SONG_OF_MONTH_KEY = (year, month) => `afrofeel:songOfMonth:${year}-${month}`;
 export const INITIAL_RECENCY_SCORE = 1000;
 export const TRENDING_SLOTS = 20;
-export const PLAY_COOLDOWN_SECONDS = 60;
+export const PLAY_COOLDOWN_SECONDS = 1800;
 export const SIMILAR_SONGS_PLAYBACK = (userId) => `sim:songs:${userId}`; 
 export const PLAYBACK_SONGS = (userId) => `playback:${userId}`; // playback session storage
 export const RECENT_PLAYED_CACHE_KEY = (userId, limit) => `afrofeel:user:${userId}:recentPlayed:${limit}`;

@@ -283,7 +283,8 @@ export const addSongRedis = async (id, client) => {
 
 export const getSongRedis = async (id, client) => {
   try {
-    const song = await client.hGetAll(songKey(id));
+    const redisClient = client || await getRedis();
+    const song = await redisClient.hGetAll(songKey(id));
 
     if (!song || Object.keys(song).length === 0) {
       return null; // Explicitly return null
@@ -294,8 +295,7 @@ export const getSongRedis = async (id, client) => {
     
     // Validate we got a proper song object
     if (!deserialized._id) {
-      console.warn(`⚠️ Deserialized song missing _id for ${id}`);
-      return null;
+      deserialized._id = String(id);
     }
     
     return deserialized;
