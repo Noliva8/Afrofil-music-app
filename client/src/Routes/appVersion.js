@@ -1,4 +1,4 @@
 export const APP_VERSION = {
-  version: '26.08.20.2',
-  buildTime: '2026-08-21T04:08:19.435Z',
+  version: '26.09.04.2',
+  buildTime: '2026-09-04T17:17:55.296Z',
 };
