@@ -30,10 +30,24 @@ const numberFromEnv = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const WEEKLY_PLAY_MIN_LISTEN_SECONDS = numberFromEnv(
-  import.meta.env.VITE_SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE,
-  30
+const firstNumberFromEnv = (values, fallback) => {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return fallback;
+};
+
+const WEEKLY_PLAY_MIN_LISTEN_SECONDS = firstNumberFromEnv(
+  [
+    import.meta.env.VITE_SEC_NEEDED_TO_COUNT_WEEKLY_PLAYS,
+    
+  ],
+  15
 );
+
+
 
 const sanitizeArtworkUrl = (url) => {
   if (!url) return null;
@@ -249,7 +263,11 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const userContext = useUser();
   const { isGuest, isPremium, isRegular } = userContext;
   const isUserLoggedIn = !isGuest;
+
+
+
   const { incrementPlayCount } = usePlayCount();
+
   const { incrementWeeklyPlayCount } = useWeeklyPlayCount();
 
   const audioRef = useRef(null);
@@ -264,6 +282,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const currentSongIdRef = useRef(null);
   const lastProgressUpdateRef = useRef(0);
   const lastArtworkRef = useRef(null);
+
   const weeklyPlayTrackerRef = useRef({
     songId: null,
     listenedSeconds: 0,
@@ -313,6 +332,7 @@ export const AudioPlayerProvider = ({ children, onRequireAuth = () => {} }) => {
   const [presignArtwork] = useMutation(GET_PRESIGNED_URL_DOWNLOAD, {
     onError: (err) => console.warn('[AUDIO] presign artwork on resume failed:', err?.message || err),
   });
+
 
   const profile = UserAuth.getProfile?.();
   const userId = profile?.data?._id || null;
@@ -594,10 +614,40 @@ const pickNextIndex = useCallback((reason = "auto") => {
       }
     };
 
+    const logAudioEvent = (eventName) => {
+      console.log(`[AudioDebug] ${eventName}:`, {
+        src: audio.currentSrc || audio.src || null,
+        paused: audio.paused,
+        currentTime: audio.currentTime,
+        duration: audio.duration,
+        readyState: audio.readyState,
+        networkState: audio.networkState,
+      });
+    };
+
+    const handleLoadedMetadata = () => logAudioEvent('loadedmetadata');
+    const handlePlay = () => logAudioEvent('play');
+    const handlePlaying = () => logAudioEvent('playing');
+    const handlePause = () => logAudioEvent('pause');
+    const handleWaiting = () => logAudioEvent('waiting');
+    const handleStalled = () => logAudioEvent('stalled');
+
     audio.addEventListener('error', handleAudioError);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('stalled', handleStalled);
 
     return () => {
       audio.removeEventListener('error', handleAudioError);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('stalled', handleStalled);
       try {
         audio.pause();
         audio.src = '';
@@ -759,6 +809,14 @@ const pickNextIndex = useCallback((reason = "auto") => {
 
     try {
       const audio = audioRef.current;
+      console.log('[AudioDebug] play requested:', {
+        trackId: track?.id || track?._id || null,
+        hasAudio: !!audio,
+        src: audio?.currentSrc || audio?.src || null,
+        paused: audio?.paused,
+        readyState: audio?.readyState,
+        playbackContext,
+      });
       if (!audio) return;
 
       setPlayerState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -840,8 +898,21 @@ const pickNextIndex = useCallback((reason = "auto") => {
     try {
       const normalizedTrack = normalizeArtworkTrack(track);
 
+      console.log('[AudioDebug] load requested:', {
+        trackId: normalizedTrack?.id || normalizedTrack?._id || null,
+        hasAudio: !!audioRef.current,
+        incomingUrl: normalizedTrack?.url || null,
+        incomingAudioUrl: normalizedTrack?.audioUrl || null,
+        incomingFullUrl: normalizedTrack?.fullUrl || null,
+        incomingFullUrlWithAds: normalizedTrack?.fullUrlWithAds || null,
+      });
 
       let config = getAudioConfig(normalizedTrack);
+
+      console.log('[AudioDebug] load config:', {
+        trackId: normalizedTrack?.id || normalizedTrack?._id || null,
+        config,
+      });
 
       // If we don't have a playable URL yet, try to presign on demand.
       if (!config?.url) {
@@ -868,6 +939,10 @@ const pickNextIndex = useCallback((reason = "auto") => {
       }
 
       if (!config) {
+        console.warn('[AudioDebug] load skipped: no valid audio config', {
+          trackId: normalizedTrack?.id || normalizedTrack?._id || null,
+          normalizedTrack,
+        });
         setPlayerState(prev => ({ ...prev, error: 'No valid audio config' }));
         return false;
       }
@@ -921,10 +996,24 @@ const pickNextIndex = useCallback((reason = "auto") => {
       }
 
       const audio = audioRef.current;
+      if (!audio) {
+        console.warn('[AudioDebug] load skipped: missing audio element', {
+          trackId: hydratedTrack?.id || hydratedTrack?._id || null,
+        });
+        return false;
+      }
       audio.pause();
       audio.src = config.url;
       audio.load();
       audio.currentTime = 0;
+
+      console.log('[AudioDebug] audio src assigned:', {
+        trackId: hydratedTrack?.id || hydratedTrack?._id || null,
+        src: audio.currentSrc || audio.src || null,
+        configUrl: config.url,
+        readyState: audio.readyState,
+        networkState: audio.networkState,
+      });
 
       currentSongIdRef.current = hydratedTrack.id;
 
@@ -960,6 +1049,12 @@ const pickNextIndex = useCallback((reason = "auto") => {
       });
 
       await canPlayPromise;
+      console.log('[AudioDebug] load canplay resolved:', {
+        trackId: hydratedTrack?.id || hydratedTrack?._id || null,
+        src: audio.currentSrc || audio.src || null,
+        readyState: audio.readyState,
+        networkState: audio.networkState,
+      });
       setPlayerState(prev => ({ ...prev, isLoading: false }));
       return true;
     } catch (err) {
@@ -1004,18 +1099,61 @@ useEffect(() => {
     inFlight: false,
     counted: false,
   };
+  console.log('[WeeklyPlay] tracker reset:', weeklyPlayTrackerRef.current);
 }, [playerState.currentTrack?.id]);
+
+
 
 useEffect(() => {
   const audio = audioRef.current;
   const trackId = playerState.currentTrack?.id;
-  if (!audio || !trackId) return;
+
+  console.log('[WeeklyPlay] effect ran:', {
+    trackId,
+    hasAudio: !!audio,
+    isAudioReady,
+    isAdPlaying: playerState.isAdPlaying,
+    requiredSeconds: WEEKLY_PLAY_MIN_LISTEN_SECONDS,
+  });
+
+  if (!audio || !trackId) {
+    console.log('[WeeklyPlay] listener not attached:', {
+      reason: !audio ? 'missing audio element' : 'missing track id',
+      trackId,
+      hasAudio: !!audio,
+    });
+    return;
+  }
 
   const trackWeeklyPlay = () => {
-    if (audio.paused || playerState.isAdPlaying) return;
+    console.log('[WeeklyPlay] timeupdate fired:', {
+      trackId,
+      paused: audio.paused,
+      isAdPlaying: playerState.isAdPlaying,
+      currentTime: audio.currentTime,
+    });
+
+    if (audio.paused || playerState.isAdPlaying) {
+      console.log('[WeeklyPlay] timeupdate ignored:', {
+        reason: audio.paused ? 'audio paused' : 'ad playing',
+        trackId,
+      });
+      return;
+    }
 
     const tracker = weeklyPlayTrackerRef.current;
-    if (tracker.counted || tracker.inFlight || tracker.songId !== trackId) return;
+
+    console.log('[WeeklyPlay] tracker before update:', tracker);
+
+    if (tracker.counted || tracker.inFlight || tracker.songId !== trackId) {
+      console.log('[WeeklyPlay] tracker ignored:', {
+        trackId,
+        trackerSongId: tracker.songId,
+        counted: tracker.counted,
+        inFlight: tracker.inFlight,
+      });
+      return;
+    }
 
     const currentTime = Number(audio.currentTime || 0);
     const delta = currentTime - Number(tracker.lastAudioTime || 0);
@@ -1025,26 +1163,70 @@ useEffect(() => {
       tracker.listenedSeconds += delta;
     }
 
-    if (tracker.listenedSeconds < WEEKLY_PLAY_MIN_LISTEN_SECONDS) return;
+    console.log('[WeeklyPlay] tracker after update:', {
+      trackId,
+      currentTime,
+      delta,
+      listenedSeconds: tracker.listenedSeconds,
+      requiredSeconds: WEEKLY_PLAY_MIN_LISTEN_SECONDS,
+    });
+
+    if (tracker.listenedSeconds < WEEKLY_PLAY_MIN_LISTEN_SECONDS) {
+      console.log('[WeeklyPlay] below threshold:', {
+        trackId,
+        listenedSeconds: tracker.listenedSeconds,
+        requiredSeconds: WEEKLY_PLAY_MIN_LISTEN_SECONDS,
+      });
+      return;
+    }
 
     tracker.inFlight = true;
+    console.log('[WeeklyPlay] calling mutation:', {
+      trackId,
+      listenedSeconds: tracker.listenedSeconds,
+    });
     incrementWeeklyPlayCount(String(trackId), tracker.listenedSeconds)
       .then((wasHandled) => {
+        console.log('[WeeklyPlay] mutation resolved:', {
+          trackId,
+          wasHandled,
+        });
         tracker.counted = wasHandled;
+      })
+      .catch((err) => {
+        console.warn('[WeeklyPlay] mutation rejected:', err);
       })
       .finally(() => {
         tracker.inFlight = false;
       });
   };
 
+  console.log('[WeeklyPlay] listener attached:', { trackId });
   audio.addEventListener('timeupdate', trackWeeklyPlay);
-  return () => audio.removeEventListener('timeupdate', trackWeeklyPlay);
+  const weeklyProbeInterval = window.setInterval(() => {
+    console.log('[WeeklyPlay] interval probe:', {
+      trackId,
+      src: audio.currentSrc || audio.src || null,
+      paused: audio.paused,
+      currentTime: audio.currentTime,
+      duration: audio.duration,
+      readyState: audio.readyState,
+      networkState: audio.networkState,
+      listenedSeconds: weeklyPlayTrackerRef.current.listenedSeconds,
+    });
+  }, 3000);
+  return () => {
+    console.log('[WeeklyPlay] listener removed:', { trackId });
+    window.clearInterval(weeklyProbeInterval);
+    audio.removeEventListener('timeupdate', trackWeeklyPlay);
+  };
 }, [
   playerState.currentTrack?.id,
   playerState.isAdPlaying,
   isAudioReady,
   incrementWeeklyPlayCount,
 ]);
+
 
 useEffect(() => {
   if (playerState.queue && canonicalQueueRef.current) {
@@ -1163,6 +1345,14 @@ useEffect(() => {
   // Handle play song
   const handlePlaySong = useCallback(
     async (track, _newQueue = [], incomingContext = null, extras = {}) => {
+      console.log('[AudioDebug] handlePlaySong called:', {
+        trackId: track?.id || track?._id || null,
+        hasAudio: !!audioRef.current,
+        isAdPlaying: playerState.isAdPlaying,
+        queueLength: Array.isArray(_newQueue) ? _newQueue.length : 0,
+        hasPreparedQueue: Array.isArray(extras?.prepared?.queue),
+      });
+
       if (playerState.isAdPlaying) {
         // Block starting another track while an ad is running
         try {

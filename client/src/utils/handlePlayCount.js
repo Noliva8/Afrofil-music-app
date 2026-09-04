@@ -11,8 +11,20 @@ const numberFromEnv = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const WEEKLY_PLAY_MIN_LISTEN_SECONDS = numberFromEnv(
-  import.meta.env.VITE_SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE,
+const firstNumberFromEnv = (values, fallback) => {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return fallback;
+};
+
+const WEEKLY_PLAY_MIN_LISTEN_SECONDS = firstNumberFromEnv(
+  [
+    import.meta.env.VITE_SEC_NEEDED_TO_COUNT_WEEKLY_PLAYS,
+    import.meta.env.VITE_SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE,
+  ],
   30
 );
 

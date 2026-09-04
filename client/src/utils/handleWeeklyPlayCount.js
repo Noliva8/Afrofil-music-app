@@ -18,6 +18,13 @@ export const useWeeklyPlayCount = () => {
       if (!songId) return false;
 
       try {
+        console.log("CHECK listenedSeconds received:", listenedSeconds);
+        console.log("[WeeklyPlay] sending mutation:", {
+          songId: String(songId),
+          visitorId: getVisitorId(),
+          listenedSeconds: Math.floor(Number(listenedSeconds || 0)),
+        });
+
         await handleWeeklyPlayCount({
           variables: {
             songId: String(songId),

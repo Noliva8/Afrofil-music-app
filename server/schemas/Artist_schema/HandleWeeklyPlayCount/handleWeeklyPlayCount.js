@@ -27,14 +27,10 @@ const REPEAT_ARTIST_MIN_PLAYS =
   numberFromEnv(process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_PLAYS, 1000);
 const REPEAT_ARTIST_MIN_LIKES =
   numberFromEnv(process.env.SONG_OF_THE_WEEK_REPEAT_ARTIST_MIN_LIKES, 100);
+
 const MIN_WEEKLY_LISTEN_SECONDS =
-  firstNumberFromEnv(
-    [
-      process.env.SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE,
-      process.env.VITE_SEC_NEEDED_TO_WIN_MAXIMUM_PRIZE,
-    ],
-    30
-  );
+  numberFromEnv(process.env.SEC_NEEDED_TO_COUNT_WEEKLY_PLAYS, 15);
+
 const WEEKLY_PLAY_COOLDOWN_SECONDS =
   numberFromEnv(process.env.SONG_OF_THE_WEEK_PLAY_COOLDOWN_SECONDS, 30 * 60);
 
