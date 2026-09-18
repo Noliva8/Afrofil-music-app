@@ -24,6 +24,12 @@ import { notificationOnArtistMessages } from '../Artist_schema/MessagingSystem/N
 import { notificationOnCreatedBookings } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnCreatedBookings.js';
 import { sendSupportMessage } from './resolvers/supportResolvers.js';
 import { attachVisitorToUser, startVisitorVisit, visitorAnalyticsStats } from './resolvers/visitorAnalytics.js';
+import {
+  ONLINE_USER_PRESENCE_STATS_UPDATED,
+  onlineUserPresenceStats,
+  recordUserPresence,
+} from './resolvers/userPresence.js';
+import { pubsub } from '../../utils/ pubsub.js';
 
 
 
@@ -940,6 +946,22 @@ commentsForSong: async (parent, { songId }) => {
 
 	  },
 
+  Subscription: {
+    onlineUserPresenceStatsUpdated: {
+      subscribe: async function* () {
+        const stats = await onlineUserPresenceStats();
+
+        yield {
+          onlineUserPresenceStatsUpdated: stats,
+        };
+
+        for await (const payload of pubsub.asyncIterableIterator([ONLINE_USER_PRESENCE_STATS_UPDATED])) {
+          yield payload;
+        }
+      },
+    },
+  },
+
 
   Mutation: {
     
@@ -949,6 +971,7 @@ commentsForSong: async (parent, { songId }) => {
        
       startVisitorVisit,
       attachVisitorToUser,
+      recordUserPresence,
 
 
 // Create a new user

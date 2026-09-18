@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { useCallback } from "react";
 // New component for mobile
 import GuestBottomNav from "./components/GuestBottomNav.jsx";
@@ -9,6 +9,7 @@ import {
   InMemoryCache,
   ApolloProvider,
   split,
+  useMutation,
 } from "@apollo/client";
 
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
@@ -50,18 +51,18 @@ import "react-toastify/dist/ReactToastify.css";
 import ArtistGuestViewAppBar from "./components/AuthenticateCompos/ArtistGuestViewAppBar.jsx";
 
 import PauseOnLogin from "./utils/Contexts/pauseOnLogin.js";
-import {VisitorTracker} from "./components/Analytics/VisitorTracker.jsx";
-
-
-
+import { VisitorTracker, getVisitorId } from "./components/Analytics/VisitorTracker.jsx";
+import { RECORD_USER_PRESENCE } from "./utils/mutations.js";
+import {
+  ActivityMonitorContext,
+  PREDEFINED_ACTIVITIES,
+  createInitialUserActivity,
+} from "./utils/Contexts/activityMonitoring.jsx";
 
 
 
 // Apollo Client setup remains the same...
 // const httpLink = createUploadLink({ uri: "/graphql" });
-
-
-
 
 
 
@@ -77,11 +78,6 @@ import UserSideBar from "./components/userComponents/Home/UserSideBar.jsx";
 
 import AddToPlaylistModal from "./components/AddToPlaylistModal.jsx";
 import { UserButtonMobileNavBar } from "./components/AuthenticateCompos/UserButtonMobileNavBar.jsx";
-
-
-
-
-
 
 
 const wsUrl = import.meta.env.VITE_WS_URL
@@ -105,6 +101,10 @@ const wsUrl = import.meta.env.VITE_WS_URL
   
 //   return { headers: headersWithAuth };
 // });
+
+
+
+
 
 
 const authLink = setContext((_, { headers }) => {
@@ -204,6 +204,126 @@ const LazyUserSignupPage = lazy(() =>
   import("./pages/LoginSignin").then((module) => ({ default: module.UserSignupPage }))
 );
 
+const BROWSING_HEARTBEAT_MS = 60000;
+const PRESENCE_SYNC_MS = 60000;
+const LAST_PRESENCE_ID_KEY = "flolup_last_presence_id";
+
+
+function PlaybackActivityTracker() {
+  const { currentTrack, isPlaying, isAdPlaying } = useAudioPlayer();
+  const { setIsUserPlaying } = useContext(ActivityMonitorContext);
+
+  useEffect(() => {
+    setIsUserPlaying(Boolean(isPlaying || isAdPlaying), {
+      isAdPlaying: Boolean(isAdPlaying),
+      trackId: currentTrack?.id || currentTrack?._id || null,
+      title: currentTrack?.title || null,
+    });
+  }, [currentTrack?._id, currentTrack?.id, currentTrack?.title, isPlaying, isAdPlaying, setIsUserPlaying]);
+
+  return null;
+}
+
+function UserPresenceSync() {
+  const { userActivity, activityUpdatedAt } = useContext(ActivityMonitorContext);
+  const [recordUserPresence] = useMutation(RECORD_USER_PRESENCE);
+  const [presenceTick, setPresenceTick] = useState(0);
+  const lastSentRef = useRef({
+    sentAt: 0,
+    action: null,
+    isPlaying: null,
+    presenceId: sessionStorage.getItem(LAST_PRESENCE_ID_KEY),
+  });
+
+  useEffect(() => {
+    const refreshPresenceTick = () => setPresenceTick(Date.now());
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshPresenceTick();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const intervalId = window.setInterval(refreshPresenceTick, PRESENCE_SYNC_MS);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    const profile = UserAuth.getProfile?.();
+    const artistProfile = ArtistAuth.getProfile?.();
+    const visitorId = getVisitorId();
+    const userId = profile?.data?._id || profile?._id;
+    const artistId =
+      artistProfile?.data?._id ||
+      artistProfile?.data?.artistAka ||
+      artistProfile?._id ||
+      artistProfile?.artistAka;
+
+    if (!userActivity?.lastActivityAt) return;
+
+    const action =
+      userActivity.activity === PREDEFINED_ACTIVITIES.UPLOADING
+        ? PREDEFINED_ACTIVITIES.UPLOADING
+        : PREDEFINED_ACTIVITIES.BROWSING;
+    const isPlaying = Boolean(userActivity.isUserPlaying);
+    const presenceId = artistId
+      ? `artist:${artistId}`
+      : userId
+        ? `user:${userId}`
+        : `visitor:${visitorId}`;
+    const canRefreshPresence =
+      document.visibilityState === "visible" ||
+      isPlaying ||
+      action === PREDEFINED_ACTIVITIES.UPLOADING;
+    const now = Date.now();
+    const previous = lastSentRef.current;
+    const statusChanged =
+      action !== previous.action ||
+      isPlaying !== previous.isPlaying ||
+      presenceId !== previous.presenceId;
+    const shouldSend =
+      statusChanged ||
+      (canRefreshPresence && now - previous.sentAt >= PRESENCE_SYNC_MS);
+
+    if (!shouldSend) return;
+
+    const previousPresenceId =
+      previous.presenceId && previous.presenceId !== presenceId
+        ? previous.presenceId
+        : null;
+    const nextSentState = { sentAt: now, action, isPlaying, presenceId };
+
+    recordUserPresence({
+      variables: {
+        input: {
+          visitorId,
+          userId: userId || null,
+          artistId: artistId || null,
+          previousPresenceId,
+          action,
+          isPlaying,
+          pathname: userActivity.browsing?.pathname || window.location.pathname,
+          fullPath:
+            userActivity.browsing?.fullPath ||
+            `${window.location.pathname}${window.location.search}${window.location.hash}`,
+          lastActivityAt: userActivity.lastActivityAt,
+        },
+      },
+    }).then(() => {
+      lastSentRef.current = nextSentState;
+      sessionStorage.setItem(LAST_PRESENCE_ID_KEY, presenceId);
+    }).catch((error) => {
+      lastSentRef.current.sentAt = 0;
+      console.error("Presence sync failed:", error);
+    });
+  }, [activityUpdatedAt, presenceTick, recordUserPresence, userActivity]);
+
+  return null;
+}
 
 
 
@@ -218,6 +338,7 @@ function AppBody({ onCreatePlaylist }) {
     const navigate = useNavigate();
     const location = useLocation();
     const pathname = location.pathname;
+    const fullPath = `${location.pathname}${location.search}${location.hash}`;
 
 
     const [isPlayerActive, setIsPlayerActive] = useState(false);
@@ -283,9 +404,130 @@ function AppBody({ onCreatePlaylist }) {
       setIsHydrated(true);
     }, []);
 
+
+  // ACTIVITY CONTEXT IMPLIMENTATION
+    const [userActivity, setUserActivity] = useState(() =>
+      createInitialUserActivity(pathname)
+    );
+    const [activityUpdatedAt, setActivityUpdatedAt] = useState(Date.now());
+    const lastBrowsingPulseRef = useRef(0);
+
+    const updateActivity = useCallback((activity, metadata = {}) => {
+      const now = Date.now();
+      setUserActivity((prev) => ({
+        ...prev,
+        activity,
+        metadata,
+        lastActivityAt: now,
+      }));
+      setActivityUpdatedAt(now);
+    }, []);
+
+    const updateBrowsingActivity = useCallback((route, options = {}) => {
+      const now = Date.now();
+      const { force = false, reason = "browsing" } = options;
+
+      if (!force && now - lastBrowsingPulseRef.current < BROWSING_HEARTBEAT_MS) {
+        return;
+      }
+
+      lastBrowsingPulseRef.current = now;
+
+      const routeMetadata =
+        typeof route === "string"
+          ? { pathname: route, fullPath: route }
+          : route;
+      const metadata = {
+        ...routeMetadata,
+        reason,
+        updatedAt: now,
+      };
+
+      setUserActivity((prev) => ({
+        ...prev,
+        activity: PREDEFINED_ACTIVITIES.BROWSING,
+        metadata,
+        lastActivityAt: now,
+        browsing: {
+          activity: PREDEFINED_ACTIVITIES.BROWSING,
+          ...metadata,
+        },
+      }));
+      setActivityUpdatedAt(now);
+    }, []);
+
+    const setIsUserPlaying = useCallback((isUserPlaying, metadata = {}) => {
+      const now = Date.now();
+      setUserActivity((prev) => ({
+        ...prev,
+        isUserPlaying,
+        playback: {
+          isPlaying: isUserPlaying,
+          updatedAt: now,
+          ...metadata,
+        },
+        lastActivityAt: now,
+      }));
+      setActivityUpdatedAt(now);
+    }, []);
+
+    useEffect(() => {
+      updateBrowsingActivity({
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+        fullPath,
+        routeKey: location.key,
+      }, { force: true, reason: "route_change" });
+    }, [fullPath, location.hash, location.key, location.pathname, location.search, updateBrowsingActivity]);
+
+    useEffect(() => {
+      const route = {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+        fullPath,
+        routeKey: location.key,
+      };
+
+      const markVisible = () => {
+        if (document.visibilityState !== "visible") return;
+        updateBrowsingActivity(route, { force: true, reason: "visible" });
+      };
+
+      document.addEventListener("visibilitychange", markVisible);
+
+      const heartbeatId = window.setInterval(() => {
+        if (document.visibilityState !== "visible") return;
+        updateBrowsingActivity(route, { force: true, reason: "heartbeat" });
+      }, BROWSING_HEARTBEAT_MS);
+
+      return () => {
+        document.removeEventListener("visibilitychange", markVisible);
+        window.clearInterval(heartbeatId);
+      };
+    }, [fullPath, location.hash, location.key, location.pathname, location.search, updateBrowsingActivity]);
+
+
+    useEffect(() => {
+    console.log("User activity changed:", userActivity);
+
+    // Later:
+    
+    // WE call mutation here to update redis on user activities 
+
+  }, [userActivity, activityUpdatedAt]);
+
+
+
     if (!isHydrated) {
       return null;
     }
+
+
+      
+
+
 
     const isPublicArtistPage =
       pathname.startsWith('/artist/register') ||
@@ -333,11 +575,30 @@ function AppBody({ onCreatePlaylist }) {
         ? 82
         : 0;
 
+
+
+
+
+
+
     
     return (
+
+       <ActivityMonitorContext.Provider
+      value={{
+        userActivity,
+        activityUpdatedAt,
+        updateActivity,
+        updateBrowsingActivity,
+        setIsUserPlaying,
+      }}>
+    
+      <UserPresenceSync />
+
       <BookingIdProvider>
         <AdAudioProvider>
           <AudioPlayerProvider onRequireAuth={handleRequireAuth}>
+            <PlaybackActivityTracker />
             <Orchestrator />
             
             <AppUI
@@ -371,6 +632,8 @@ function AppBody({ onCreatePlaylist }) {
           </AudioPlayerProvider>
         </AdAudioProvider>
       </BookingIdProvider>
+
+       </ActivityMonitorContext.Provider>
     );
   } catch (error) {
     console.error('❌ AppBody crashed:', error);

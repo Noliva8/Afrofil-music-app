@@ -1,8 +1,8 @@
 import '../../components/homeFreePlanComponents/homeFreePlanComponentStyles/artistAccountProfile.css';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useContext } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 
-import { ADD_PROFILE_IMAGE } from '../../utils/mutations';
+import { ADD_PROFILE_IMAGE, UPDATE_ARTIST_IDENTITY } from '../../utils/mutations';
 import { ARTIST_PROFILE } from '../../utils/artistQuery';
 import { GET_PRESIGNED_URL } from '../../utils/mutations';
 import { GET_PRESIGNED_URL_DELETE } from '../../utils/mutations';
@@ -15,12 +15,18 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
+import Modal from "@mui/material/Modal";
+import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import { alpha, useTheme } from "@mui/material/styles";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import PhotoCameraRoundedIcon from "@mui/icons-material/PhotoCameraRounded";
 import ArtistAuth from '../../utils/artist_auth';
 import { resizeImageFile } from '../../utils/ResizeImageFile';
+import {
+  ActivityMonitorContext,
+  PREDEFINED_ACTIVITIES,
+} from '../../utils/Contexts/activityMonitoring.jsx';
 
 // Keep folder path when extracting keys from URLs/keys
 const deriveKeyFromUrl = (url) => {
@@ -39,11 +45,13 @@ const deriveKeyFromUrl = (url) => {
 const ArtistAccountProfile = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { updateActivity } = useContext(ActivityMonitorContext);
 
 
   const { loading, error, data: artistData, refetch } = useQuery(ARTIST_PROFILE);
 
   const [addProfileImage] = useMutation(ADD_PROFILE_IMAGE);
+  const [updateArtistIdentity, { loading: updatingIdentity }] = useMutation(UPDATE_ARTIST_IDENTITY);
 
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
   const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
@@ -53,12 +61,18 @@ const ArtistAccountProfile = () => {
    const fileInputRef = useRef(null);
    const [displayEditButton , setDisplayEditButton] = useState(false);
     const [profileImage, setProfileImage] = useState(null);
+    const [identityModalOpen, setIdentityModalOpen] = useState(false);
+    const [identityForm, setIdentityForm] = useState({
+      fullName: "",
+      artistAka: "",
+    });
      
      const [isLoadingImage, setIsLoadingImage] = useState(true);
 
        const profile = ArtistAuth.getProfile();
-const email = profile?.data?.email;
-const fullName = profile?.data?.fullName;
+const email = artistData?.artistProfile?.email || profile?.data?.email;
+const fullName = artistData?.artistProfile?.fullName || profile?.data?.fullName;
+const artistAka = artistData?.artistProfile?.artistAka || profile?.data?.artistAka;
 
 
 
@@ -102,6 +116,12 @@ const handleProfileImageUpload = async (e) => {
     return;
   }
 
+  updateActivity?.(PREDEFINED_ACTIVITIES.UPLOADING, {
+    uploadType: "artist_profile_image",
+    filename: file.name,
+    fileSize: optimizedFile.size,
+    mimetype: optimizedFile.type,
+  });
 
   let uploadedFileUrl = ""; 
   const uploadPrefix = "profile-picture/";
@@ -299,6 +319,55 @@ const handleProfileImageUpload = async (e) => {
     
   };
 
+  const handleIdentityEditOpen = () => {
+    setIdentityForm({
+      fullName: fullName || "",
+      artistAka: artistAka || "",
+    });
+    setIdentityModalOpen(true);
+  };
+
+  const handleIdentityEditClose = () => {
+    if (updatingIdentity) return;
+    setIdentityModalOpen(false);
+  };
+
+  const handleIdentityChange = (event) => {
+    const { name, value } = event.target;
+    setIdentityForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleIdentityUpdate = async (event) => {
+    event.preventDefault();
+
+    const nextFullName = identityForm.fullName.trim();
+    const nextArtistAka = identityForm.artistAka.trim();
+
+    if (!nextFullName || !nextArtistAka) {
+      toast.error("Name and stage name are required.");
+      return;
+    }
+
+    try {
+      await updateArtistIdentity({
+        variables: {
+          fullName: nextFullName,
+          artistAka: nextArtistAka,
+        },
+      });
+
+      await refetch();
+      toast.success("Creator profile updated successfully.");
+      setIdentityModalOpen(false);
+    } catch (identityError) {
+      console.error("Error updating creator profile:", identityError);
+      toast.error(identityError?.message || "Error updating creator profile.");
+    }
+  };
+
 
 
 
@@ -404,6 +473,32 @@ return (
             <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
               {email}
             </Typography>
+            {artistAka && (
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.25 }}>
+                Stage name:{" "}
+                <Box component="span" sx={{ color: theme.palette.text.primary, fontWeight: 700 }}>
+                  {artistAka}
+                </Box>
+              </Typography>
+            )}
+            <Button
+              onClick={handleIdentityEditOpen}
+              variant="contained"
+              sx={{
+                mt: 1.5,
+                background: theme.palette.common.white,
+                color: theme.palette.common.black,
+                fontWeight: "bold",
+                fontSize: "0.9rem",
+                padding: "0.45rem 1.2rem",
+                borderRadius: "8px",
+                textTransform: "none",
+                "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.88) },
+              }}
+              aria-label="Edit creator name and stage name"
+            >
+              Edit
+            </Button>
             {isLoadingImage && (
               <Typography variant="caption" sx={{ display: "block", mt: 1, color: theme.palette.text.secondary }}>
                 Uploading and updating profile image...
@@ -424,6 +519,84 @@ return (
       ref={fileInputRef}
       style={{ display: 'none' }} // Hide the file input
     />
+
+    <Modal
+      open={identityModalOpen}
+      onClose={handleIdentityEditClose}
+      aria-labelledby="edit-creator-identity-title"
+      aria-describedby="edit-creator-identity-description"
+    >
+      <Box
+        component="form"
+        onSubmit={handleIdentityUpdate}
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: { xs: "92%", sm: 440 },
+          bgcolor: alpha(theme.palette.background.paper, 0.98),
+          color: theme.palette.text.primary,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          boxShadow: theme.shadows[8],
+          borderRadius: "8px",
+          p: { xs: 2.5, sm: 3 },
+        }}
+      >
+        <Typography
+          id="edit-creator-identity-title"
+          variant="h6"
+          sx={{ fontWeight: 800, mb: 2 }}
+        >
+          Edit creator profile
+        </Typography>
+
+        <TextField
+          fullWidth
+          name="fullName"
+          label="Name"
+          value={identityForm.fullName}
+          onChange={handleIdentityChange}
+          margin="normal"
+          disabled={updatingIdentity}
+        />
+        <TextField
+          fullWidth
+          name="artistAka"
+          label="Stage name"
+          value={identityForm.artistAka}
+          onChange={handleIdentityChange}
+          margin="normal"
+          disabled={updatingIdentity}
+        />
+
+        <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.25, mt: 3 }}>
+          <Button
+            type="button"
+            onClick={handleIdentityEditClose}
+            disabled={updatingIdentity}
+            sx={{ textTransform: "none" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={updatingIdentity}
+            sx={{
+              background: theme.palette.common.white,
+              color: theme.palette.common.black,
+              borderRadius: "8px",
+              fontWeight: 700,
+              textTransform: "none",
+              "&:hover": { backgroundColor: alpha(theme.palette.common.white, 0.88) },
+            }}
+          >
+            {updatingIdentity ? "Saving..." : "Save"}
+          </Button>
+        </Box>
+      </Box>
+    </Modal>
   </>
 );
 

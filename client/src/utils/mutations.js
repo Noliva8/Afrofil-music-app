@@ -247,6 +247,17 @@ mutation updateArtistProfile($bio: String, $country: String, $region: String, $l
 
 }`
 
+export const UPDATE_ARTIST_IDENTITY = gql`
+mutation UpdateArtistIdentity($fullName: String!, $artistAka: String!) {
+  updateArtistIdentity(fullName: $fullName, artistAka: $artistAka) {
+    _id
+    fullName
+    artistAka
+    email
+  }
+}
+`
+
 export const ADD_BIO = gql`
 mutation addBio($bio: String) {
   addBio(bio: $bio) {
@@ -1049,6 +1060,18 @@ mutation StartVisitorVisit($visitorId: String!) {
 export const ATTACH_VISITOR_TO_USER = gql`
 mutation AttachVisitorToUser($visitorId: String!, $visitId: ID, $isNewUser: Boolean!) {
   attachVisitorToUser(visitorId: $visitorId, visitId: $visitId, isNewUser: $isNewUser)
+}
+`
+
+export const RECORD_USER_PRESENCE = gql`
+mutation RecordUserPresence($input: UserPresenceInput!) {
+  recordUserPresence(input: $input) {
+    ok
+    presenceId
+    action
+    isPlaying
+    lastSeenAt
+  }
 }
 `
 

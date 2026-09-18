@@ -585,6 +585,7 @@ type UploadProgress {
 type Subscription {
   songUploadProgress: UploadProgress
   newMessage(bookingId: ID!): Message!
+  onlineUserPresenceStatsUpdated: OnlineUserPresenceStats!
 }
 
 
@@ -988,6 +989,11 @@ type Mutation {
     mood: [String]
     profileImage: String
     coverImage: String
+  ): Artist
+
+  updateArtistIdentity(
+    fullName: String!
+    artistAka: String!
   ): Artist
 
 

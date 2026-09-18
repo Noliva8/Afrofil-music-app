@@ -10,15 +10,27 @@ import { PublicRoutes } from './Routes/publicRoutes.jsx';
 import { UserRoutes } from './Routes/userRoute.jsx';
 import { ArtistRoutes } from './Routes/artistRoutes.jsx';
 
+
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 const renderApp = (router) =>
   root.render(
     <ThemeProvider theme={afrofeelTheme}>
       <CssBaseline />
+    
       <RouterProvider router={router} />
     </ThemeProvider>
   );
+
+
+
+
+
+
+
+
+
 
 const router = createBrowserRouter([
   {

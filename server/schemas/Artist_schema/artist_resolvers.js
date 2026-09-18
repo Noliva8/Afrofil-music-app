@@ -1516,9 +1516,6 @@ otherAlbumsByArtist,
 
 
 
-
-
-
 songById : async (parent, { songId }, context) => {
   // Ensure that the user (artist) is logged in
   if (!context.artist) {
@@ -2761,6 +2758,54 @@ updateArtistProfile: async (
     console.error('Error updating artist profile:', error);
     throw new Error('Failed to update artist profile: ' + error.message);
   }
+},
+
+updateArtistIdentity: async (parent, { fullName, artistAka }, context) => {
+  if (!context.artist) {
+    throw new Error('Unauthorized: You must be logged in to update your profile.');
+  }
+
+  const normalizedFullName = String(fullName || '').trim();
+  const normalizedArtistAka = String(artistAka || '').trim();
+
+  if (!normalizedFullName || !normalizedArtistAka) {
+    throw new Error('Full name and stage name are required.');
+  }
+
+  const updatedArtist = await Artist.findOneAndUpdate(
+    { _id: context.artist._id },
+    {
+      fullName: normalizedFullName,
+      artistAka: normalizedArtistAka,
+    },
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedArtist) {
+    throw new Error('Artist not found or update failed.');
+  }
+
+  await artistUpdateRedis(updatedArtist);
+
+  if (updatedArtist.email) {
+    sendEmail(
+      updatedArtist.email,
+      'Your FloLup creator profile was updated',
+      `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111;">
+          <p>Hello ${escapeHtml(updatedArtist.fullName)},</p>
+          <p>Your creator profile details were updated.</p>
+          <p><strong>Name:</strong> ${escapeHtml(updatedArtist.fullName)}</p>
+          <p><strong>Stage name:</strong> ${escapeHtml(updatedArtist.artistAka)}</p>
+          <p>If you did not make this change, please contact FloLup support right away.</p>
+        </div>
+      `
+    ).catch((emailError) => {
+      console.warn('[artistProfile] failed to send identity update email:', emailError?.message || emailError);
+    });
+  }
+
+  return updatedArtist;
 },
 
 addBio: async (parent, { bio }, context) => {

@@ -174,32 +174,14 @@ export const handleWeeklyPlayCount = async (
   { songId, visitorId, listenedSeconds = 0 },
   context
 ) => {
-
-
-
-
-  console.log('HANDLE WEEKLY PLAY COUNT IS CALLED:', { songId, visitorId, listenedSeconds });
-
-
-
-
   const song = await Song.findById(songId).lean();
   if (!song) throw new Error('Song not found');
 
   if (context?.artist?._id && String(song.artist) === String(context.artist._id)) {
-    console.log('[SongOfTheWeek] weekly play skipped: owner playback', {
-      songId,
-      artistId: String(context.artist._id),
-    });
     return song;
   }
 
   if (Number(listenedSeconds || 0) < MIN_WEEKLY_LISTEN_SECONDS) {
-    console.log('[SongOfTheWeek] weekly play skipped: listen seconds below minimum', {
-      songId,
-      listenedSeconds,
-      requiredSeconds: MIN_WEEKLY_LISTEN_SECONDS,
-    });
     return song;
   }
 
@@ -221,11 +203,6 @@ export const handleWeeklyPlayCount = async (
   });
 
   if (!cooldownStarted) {
-    console.log('[SongOfTheWeek] weekly play skipped: viewer cooldown active', {
-      songId,
-      viewerId,
-      cooldownSeconds: WEEKLY_PLAY_COOLDOWN_SECONDS,
-    });
     return Song.findById(songId).lean();
   }
 

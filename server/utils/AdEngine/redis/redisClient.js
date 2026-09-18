@@ -12,12 +12,36 @@ import redis from 'redis';
 let redisClient = null;
 let isConnecting = false;
 let connectionPromise = null;
+let redisConfigLogged = false;
+
+const describeRedisUrl = (redisUrl) => {
+    try {
+        const parsed = new URL(redisUrl);
+        return {
+            host: parsed.hostname,
+            port: parsed.port || '6379',
+            username: parsed.username || null,
+            db: parsed.pathname && parsed.pathname !== '/' ? parsed.pathname.slice(1) : '0',
+            source: process.env.REDIS_URL ? 'REDIS_URL' : 'fallback',
+        };
+    } catch {
+        return {
+            host: 'invalid-url',
+            source: process.env.REDIS_URL ? 'REDIS_URL' : 'fallback',
+        };
+    }
+};
 
 // Create Redis client with correct configuration
 function createRedisClient() {
     // Use the correct URL format from your environment
     const redisUrl = process.env.REDIS_URL || 
         'redis://default:0mdu56G71eupxCZOzpMQYSRVVm6PFy2v@redis-17576.c1.us-west-2-2.ec2.redns.redis-cloud.com:17576';
+
+    if (!redisConfigLogged) {
+        console.log('[redis] connection:', describeRedisUrl(redisUrl));
+        redisConfigLogged = true;
+    }
 
     
     return redis.createClient({

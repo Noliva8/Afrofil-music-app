@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@apollo/client';
 import { LOGIN_USER, CREATE_USER } from '../utils/mutations';
@@ -23,6 +23,13 @@ import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { SitemarkIcon } from '../components/themeCustomization/customIcon';
 import { HORIZONTAL_LIMIT } from '../CommonSettings/songsRowNumberControl';
 import FeedbackModal from '../components/FeedbackModal.jsx';
+
+import {
+  ActivityMonitorContext,
+  PREDEFINED_ACTIVITIES,
+} from '../utils/Contexts/activityMonitoring.jsx';
+
+
 
 const useToggle = (initialState = false) => {
   const [state, setState] = useState(initialState);
@@ -71,7 +78,7 @@ const handleAuthError = (error, setErrorMessage) => {
   setErrorMessage(message);
 };
 
-const useAuthFormLogic = ({ onClose } = {}) => {
+const useAuthFormLogic = ({ onClose, updateActivity } = {}) => {
   const theme = useTheme();
   const [signupFormState, handleSignupChange, resetSignup] = useFormState({
     username: '',
@@ -126,6 +133,7 @@ const useAuthFormLogic = ({ onClose } = {}) => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     try {
+
       if (!loginFormState.email.trim() || !loginFormState.password) {
         throw new Error('Email and password are required');
       }
@@ -138,6 +146,7 @@ const useAuthFormLogic = ({ onClose } = {}) => {
       const token = data?.login?.userToken;
       if (token) {
         const isUserEmailVerified = Boolean(data?.login?.user?.isUserEmailVerified);
+        updateActivity?.(PREDEFINED_ACTIVITIES.LOGIN);
         UserAuth.login(token, isUserEmailVerified ? '/' : '/user/email-verification');
         resetLogin();
         onClose?.();
@@ -241,7 +250,12 @@ export const LoginForm = ({
   onSecondaryAction,
   backHomeLabel = '← Back to home',
   compact = false
-}) => (
+}) => 
+
+
+
+
+(
   <AuthFormContainer heroGradient={heroGradient} theme={theme} compact={compact}>
     <Box
       className="auth-content"
@@ -405,6 +419,11 @@ export const LoginForm = ({
   </AuthFormContainer>
 );
 
+
+
+
+
+
 export const SignupForm = ({
   heroGradient,
   theme,
@@ -522,6 +541,7 @@ export const SignupForm = ({
 
 export const UserLoginPage = ({ onClose, onSwitchToSignup }) => {
   const navigate = useNavigate();
+  const { updateActivity } = useContext(ActivityMonitorContext);
   const {
     theme,
     heroGradient,
@@ -533,7 +553,8 @@ export const UserLoginPage = ({ onClose, onSwitchToSignup }) => {
     toggleShowPasswordLogin,
     loginErrorMessage,
     handleCloseLoginError
-  } = useAuthFormLogic({ onClose });
+  } = useAuthFormLogic({ onClose, updateActivity });
+
 
   const handleBackHome = () => {
     onClose?.();
@@ -578,6 +599,8 @@ export const UserLoginPage = ({ onClose, onSwitchToSignup }) => {
 
 export const UserSignupPage = ({ onClose, onSwitchToLogin }) => {
   const navigate = useNavigate();
+  const { updateActivity } = useContext(ActivityMonitorContext);
+  const lastSignupActivityRef = useRef(0);
   const {
     theme,
     heroGradient,
@@ -590,6 +613,32 @@ export const UserSignupPage = ({ onClose, onSwitchToLogin }) => {
     toggleShowPasswordSignup,
     signupErrorMessage
   } = useAuthFormLogic({ onClose });
+
+  const refreshSignupActivity = useCallback((force = false) => {
+    const now = Date.now();
+    if (!force && now - lastSignupActivityRef.current < 15000) return;
+    lastSignupActivityRef.current = now;
+    updateActivity?.(PREDEFINED_ACTIVITIES.SIGNUP);
+  }, [updateActivity]);
+
+  useEffect(() => {
+    refreshSignupActivity(true);
+  }, [refreshSignupActivity]);
+
+  const handleTrackedSignupChange = (e) => {
+    refreshSignupActivity();
+    handleSignupChange(e);
+  };
+
+  const handleTrackedSignupSubmit = (e) => {
+    refreshSignupActivity(true);
+    handleSignupSubmit(e);
+  };
+
+  const handleTrackedTermsChange = (value) => {
+    refreshSignupActivity(true);
+    setAgreedToTerms(value);
+  };
 
   const handleBackHome = () => {
     onClose?.();
@@ -606,10 +655,10 @@ export const UserSignupPage = ({ onClose, onSwitchToLogin }) => {
       heroGradient={heroGradient}
       theme={theme}
       signupFormState={signupFormState}
-      handleSignupChange={handleSignupChange}
-      handleSignupSubmit={handleSignupSubmit}
+      handleSignupChange={handleTrackedSignupChange}
+      handleSignupSubmit={handleTrackedSignupSubmit}
       agreedToTerms={agreedToTerms}
-      setAgreedToTerms={setAgreedToTerms}
+      setAgreedToTerms={handleTrackedTermsChange}
       showPasswordSignup={showPasswordSignup}
       toggleShowPasswordSignup={toggleShowPasswordSignup}
       signupErrorMessage={signupErrorMessage}

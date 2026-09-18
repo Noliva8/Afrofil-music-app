@@ -2,7 +2,6 @@
 import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
-dotenv.config();
 
 // testing redis
 import { getUserProfile, getSession, K} from "./utils/AdEngine/redis/redisSchema.js";
@@ -55,6 +54,7 @@ import { RADIO_TYPES } from "./utils/radioTypes.js";
 import { getPresignedUrlDownload } from "./utils/cloudFrontUrl.js";
 
 import monitorSubscriptions from "./utils/subscriptionMonitor.js";
+import { startOnlineUserPresenceStatsPublisher } from "./schemas/User_schema/resolvers/userPresence.js";
 import {
   handleInvoicePaymentSucceeded,
   handleSessionExpired,
@@ -76,15 +76,15 @@ import { runLegacyStartupBackfill } from "./utils/runLegacyStartupBackfill.js";
 import { resolve } from "dns";
 
 // Initialize dotenv for environment variables
-dotenv.config();
-
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, ".env") });
+
 // Set up port and express app
 const PORT = process.env.PORT || 3001;
 app.set("trust proxy", 1); // ✅ FIXED
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const escapeHtml = (value = "") =>
   String(value)
@@ -922,6 +922,7 @@ const startApolloServer = async () => {
 
     // Start background monitoring
     monitorSubscriptions();
+    startOnlineUserPresenceStatsPublisher();
 
 
 

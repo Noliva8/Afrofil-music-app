@@ -418,10 +418,37 @@ type Query {
   # Comments
   comments: [Comment]
 	  commentsForSong(songId: ID!): [Comment]
-	  userNotifications(status: NotificationStatus): [UserNotification!]!
+    userNotifications(status: NotificationStatus): [UserNotification!]!
     visitorAnalyticsStats: VisitorAnalyticsStats!
 
  
+}
+
+type OnlineUserPresenceStats {
+  totalOnline: Int!
+  uploading: Int!
+  playing: Int!
+  browsing: Int!
+}
+
+input UserPresenceInput {
+  visitorId: String!
+  userId: ID
+  artistId: ID
+  previousPresenceId: String
+  action: String!
+  isPlaying: Boolean
+  pathname: String
+  fullPath: String
+  lastActivityAt: Float
+}
+
+type UserPresencePayload {
+  ok: Boolean!
+  presenceId: String!
+  action: String!
+  isPlaying: Boolean!
+  lastSeenAt: Date!
 }
 
 input CreateUserInput {
@@ -473,6 +500,8 @@ isNotificationSeen: Boolean
   
 
   attachVisitorToUser(visitorId: String!, visitId: ID, isNewUser: Boolean!): Boolean!
+  
+  recordUserPresence(input: UserPresenceInput!): UserPresencePayload!
 
 
  createUser(input: CreateUserInput!): UserAuthPayload

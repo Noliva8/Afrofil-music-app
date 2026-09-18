@@ -16,7 +16,7 @@ import UserAuth from "../../utils/auth.js";
 
 
 
-const VISITOR_ID_KEY = "flolup_visitor_id";
+export const VISITOR_ID_KEY = "flolup_visitor_id";
 const VISIT_ID_KEY = "flolup_visit_id";
 const ATTACHED_VISIT_KEY = "flolup_attached_visit_id";
 
@@ -31,7 +31,7 @@ const createId = () => {
 };
 
 
-const getVisitorId = () => {
+export const getVisitorId = () => {
   const existingVisitorId = localStorage.getItem(VISITOR_ID_KEY);
 
   if (existingVisitorId) {

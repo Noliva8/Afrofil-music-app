@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useSubscription } from "@apollo/client";
 import Box from '@mui/material/Box';
@@ -38,6 +38,10 @@ import ArtistAuth from "../../utils/artist_auth";
 import detectTimeSignature from "../../utils/timeSignature";
 import { ARTIST_PROFILE } from "../../utils/artistQuery";
 import { resizeImageFile } from "../../utils/ResizeImageFile";
+import {
+  ActivityMonitorContext,
+  PREDEFINED_ACTIVITIES,
+} from "../../utils/Contexts/activityMonitoring.jsx";
 import "../CSS/CSS-HOME-FREE-PLAN/content.css";
 
 const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
@@ -47,6 +51,7 @@ const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
 
 
 export default function ContentFreePlan() {
+  const { updateActivity } = useContext(ActivityMonitorContext);
 
  // State management
   const [uploadState, setUploadState] = useState({
@@ -128,6 +133,10 @@ const [newSongUpload] = useMutation( NEW_SONG_UPLOAD);
 
   const handleSongImageUpload = async (file) => {
     try {
+      updateActivity?.(PREDEFINED_ACTIVITIES.UPLOADING, {
+        uploadType: "song_cover",
+        filename: file?.name,
+      });
       setIsCoverUploading(true);
 
       // 1. Create temporary preview
@@ -535,6 +544,13 @@ const handleNewSongUpload = async (event) => {
       });
       return;
     }
+
+    updateActivity?.(PREDEFINED_ACTIVITIES.UPLOADING, {
+      uploadType: "song",
+      filename: songFile.name,
+      fileSize: songFile.size,
+      mimetype: songFile.type,
+    });
 
     // 1) Create DB record + presigned URL
     const { data } = await newSongUpload({

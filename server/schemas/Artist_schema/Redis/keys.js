@@ -55,3 +55,9 @@ export const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60;
 
 
 export const TRENDING_SONGS_CACHE_KEY =  "afrofeel:trendings:v1";
+
+// User presence
+export const USER_PRESENCE_TTL_SECONDS = 120;
+export const USER_PRESENCE_KEY_PREFIX = "presence:user:";
+export const USER_PRESENCE_KEY_PATTERN = `${USER_PRESENCE_KEY_PREFIX}*`;
+export const userPresenceKey = (presenceId) => `${USER_PRESENCE_KEY_PREFIX}${presenceId}`;

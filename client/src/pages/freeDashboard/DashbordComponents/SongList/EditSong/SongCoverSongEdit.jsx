@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { useForm } from "react-hook-form";
@@ -22,6 +22,10 @@ import {
   ADD_ARTWORK,
 } from "../../../../../utils/mutations";
 import { SONG_OF_ARTIST } from "../../../../../utils/queries";
+import {
+  ActivityMonitorContext,
+  PREDEFINED_ACTIVITIES,
+} from "../../../../../utils/Contexts/activityMonitoring.jsx";
 
 // Helper to keep folder paths when deriving keys from stored URLs
 const deriveKeyFromUrl = (url) => {
@@ -40,6 +44,7 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
   const { handleSubmit } = useForm();
+  const { updateActivity } = useContext(ActivityMonitorContext);
   
   const [displayUrl, setDisplayUrl] = useState(song.artwork || "");
   const [fileKey, setFileKey] = useState("");
@@ -98,6 +103,13 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
     const key = `cover-images/${Date.now()}_${file.name}`;
 
     try {
+      updateActivity?.(PREDEFINED_ACTIVITIES.UPLOADING, {
+        uploadType: "song_cover_edit",
+        songId,
+        filename: file.name,
+        fileSize: file.size,
+        mimetype: file.type,
+      });
       const { data: up } = await getUploadUrl({
         variables: { bucket: "afrofeel-cover-images-for-songs", key, region: "us-east-2" },
       });

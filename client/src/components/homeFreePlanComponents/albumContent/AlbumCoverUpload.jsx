@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useContext } from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
@@ -10,6 +10,10 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useMutation } from "@apollo/client";
 import { GET_PRESIGNED_URL } from "../../../utils/mutations";
 import { UPDATE_ALBUM } from "../../../utils/mutations";
+import {
+  ActivityMonitorContext,
+  PREDEFINED_ACTIVITIES,
+} from "../../../utils/Contexts/activityMonitoring.jsx";
 
 const style = {
   position: "absolute",
@@ -31,6 +35,7 @@ export default function AlbumCoverUpload({
   handleAlbumInputModel,
 }) {
   const fileInputRef = useRef(null);
+  const { updateActivity } = useContext(ActivityMonitorContext);
 
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
@@ -86,6 +91,12 @@ export default function AlbumCoverUpload({
     // File upload
     // -----------
     try {
+      updateActivity?.(PREDEFINED_ACTIVITIES.UPLOADING, {
+        uploadType: "album_cover",
+        filename: file.name,
+        fileSize: file.size,
+        mimetype: file.type,
+      });
       setIsLoadingImage(true);
       setProgress(0); // Reset progress before starting
 
