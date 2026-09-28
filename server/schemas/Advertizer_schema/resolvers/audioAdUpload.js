@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Ffmpeg from "fluent-ffmpeg";
 import { extractDuration } from "../../../utils/songDuration.js";
+import { getAdvertiserFromContext } from "../../../utils/advertiserContext.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,8 +69,8 @@ const validateAd = (ad, advertiserId) => {
 
 export default async function audioAdUpload(_parent, { adId, file }, context) {
   // Authentication
-  const advertizer = context.advertizer || context?.req?.advertizer;
-  if (!advertizer) throw new Error("Could not authenticate advertiser");
+  const advertiser = getAdvertiserFromContext(context);
+  if (!advertiser) throw new Error("Could not authenticate advertiser");
 
   // Temporary file paths
   let tempFiles = {
@@ -81,7 +82,7 @@ export default async function audioAdUpload(_parent, { adId, file }, context) {
   try {
     // Validate ad exists and belongs to advertiser
     const ad = await Ad.findById(adId);
-    validateAd(ad, advertizer._id);
+    validateAd(ad, advertiser._id);
 
     // Process file upload
     const { createReadStream, filename, mimetype } = await file;

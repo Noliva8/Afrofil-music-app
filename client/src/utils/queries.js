@@ -149,6 +149,78 @@ query Songs {
 }
 `;
 
+export const ADMIN_SONGS = gql`
+  query AdminSongs(
+    $limit: Int = 50
+    $offset: Int = 0
+    $search: String
+    $visibility: String
+    $uploadStatus: String
+  ) {
+    adminSongs(
+      limit: $limit
+      offset: $offset
+      search: $search
+      visibility: $visibility
+      uploadStatus: $uploadStatus
+    ) {
+      totalCount
+      hasNextPage
+      hasPreviousPage
+      songs {
+        _id
+        title
+        createdAt
+        releaseDate
+        visibility
+        songUploadStatus
+        artwork
+        audioFileUrl
+        streamAudioFileUrl
+        premiumStreamAudioFileUrl
+        genre
+        songCategory
+        speed
+        mood
+        subMoods
+        label
+        trackNumber
+        duration
+        playCount
+        downloadCount
+        likesCount
+        shareCount
+        reportCount
+        artistFollowers
+        artistDownloadCounts
+        featuringArtist
+        producer {
+          name
+          role
+        }
+        composer {
+          name
+          contribution
+        }
+        artist {
+          _id
+          artistAka
+          fullName
+          email
+          country
+          profileImage
+        }
+        album {
+          _id
+          title
+          releaseDate
+          albumCoverImage
+        }
+      }
+    }
+  }
+`;
+
 export const GET_ARTIST_BOOKINGS = gql`
   query artistBookings($status: BookingStatus) {
     artistBookings(status: $status) {
@@ -465,8 +537,8 @@ query userSubscription {
 
 
 export const ARTIST_PROFILE = gql`
-query Query {
-  artistProfile {
+query ArtistProfile($artistId: ID) {
+  artistProfile(artistId: $artistId) {
     _id
     artistAka
     bio
@@ -527,6 +599,8 @@ export const SONG_OF_ARTIST = gql`
       artistFollowers
       featuringArtist
       genre
+      songCategory
+      speed
       lyrics
       visibility
       label
@@ -1248,7 +1322,9 @@ query getSongMetadata($songId: ID!) {
     genre
     languages
     mood
+    songCategory
     songId
+    speed
     subMoods
     tempo
     title

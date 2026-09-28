@@ -143,11 +143,6 @@ import { GET_PRESIGNED_URL_DOWNLOAD_AUDIO, GET_PRESIGNED_URL_DOWNLOAD } from "..
 // helper
 const pickId = (obj) => obj?.id ?? obj?._id ?? obj?.songId ?? null;
 
-// NEW: tiny normalizers (no rename of existing fields)
-const pickPlayableUrl = (x = {}) =>
-  x.url || x.audioPresignedUrl || x.fullUrl || x.audioUrl || x.fullUrlWithAds || null;
-
-
 const pickArtwork = (x = {}) => {
   const url =
     x.artworkPresignedUrl ||
@@ -422,47 +417,6 @@ const ensureArtworkPresigned = async (items, client) => {
 
 
 
-const normalizeQueueItem = (s) => {
-  const id = String(s?.id ?? s?._id ?? '');
-  if (!id) return null;
-
-  const artSafe = pickArtwork(s);
-
-  return {
-    ...s,
-    id,
-    // keep keys (light payload)
-    artworkKey: s.artworkKey || deriveArtworkKey(s) || null,
-    audioStreamKey: s.audioStreamKey || deriveStreamKey(s) || null,
-
-    // keep artwork in the UI, even if unsigned
-    cover: artSafe || s.cover || null,
-    artworkUrl: artSafe || s.artworkUrl || null,
-    artworkPresignedUrl: s.artworkPresignedUrl || null,
-
-    // do NOT force audioUrl unless signed
-    audioUrl: s.audioPresignedUrl || s.audioUrl || null,
-    url: pickPlayableUrl(s),
-  };
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 // export const handleTrendingSongPlay = async ({
@@ -719,9 +673,6 @@ export const handleTrendingSongPlay = async ({
   const playToken = Symbol("playToken");
   handleTrendingSongPlay._token = playToken;
 
-  // Build the base clicked track (metadata + keys; audio may be null until we presign it)
-  const art = pickArtwork(song);
-
   const releaseYear = song.album?.releaseDate
     ? new Date(song.album.releaseDate).getFullYear()
     : (song.releaseYear || null);
@@ -835,9 +786,6 @@ artworkUrl: song.artworkUrl,
   if (handleTrendingSongPlay._token !== playToken) return;
 
   const queue = builtQueue.map((s) => {
-
-    
-    const artSafe = pickArtwork(s);
     const releaseYearItem = s.album?.releaseDate
       ? new Date(s.album.releaseDate).getFullYear()
       : (s.releaseYear || null);
@@ -973,4 +921,154 @@ artworkUrl: song.artworkUrl,
 
   const loaded = await handlePlaySong(trackReady, patchedRestQueue, context, { prepared });
   if (!loaded) console.error("[Trending] Failed to load and play song.");
+};
+
+const buildPlaybackTrack = (song) => {
+  const rawId = pickId(song);
+  if (!rawId) return null;
+
+  const id = String(rawId);
+  const releaseYear = song.album?.releaseDate
+    ? new Date(song.album.releaseDate).getFullYear()
+    : (song.releaseYear || null);
+
+  const credits = [];
+  if (Array.isArray(song.composer)) {
+    song.composer.forEach((c) => {
+      if (c?.name) credits.push({ type: "Composer", role: c.contribution || "Composer", name: c.name });
+    });
+  }
+  if (Array.isArray(song.producer)) {
+    song.producer.forEach((p) => {
+      if (p?.name) credits.push({ type: "Producer", role: p.role || "Producer", name: p.name });
+    });
+  }
+  if (Array.isArray(song.featuringArtist)) {
+    song.featuringArtist.forEach((f) => {
+      if (f) credits.push({ type: "Featuring", role: "Featuring", name: f });
+    });
+  }
+  if (song.label) {
+    credits.push({ type: "Label", role: "Label", name: song.label });
+  }
+
+  return {
+    id,
+    title: song.title,
+    artist: song.artistName || song.artist?.artistAka || song.artist,
+    artistId: String(song.artistId ?? song.artist?._id ?? song.artist ?? ""),
+    albumId: String(song.albumId ?? song.album?._id ?? song.album ?? ""),
+    album: song.album,
+    albumName: song.album?.title || song.albumTitle || song.albumName || "Single",
+    releaseYear,
+    genre: song.genre ?? null,
+    mood: Array.isArray(song.mood) ? song.mood : (song.mood ? [song.mood] : []),
+    subMood: Array.isArray(song.subMoods) ? song.subMoods : (song.subMoods ? [song.subMoods] : []),
+    tempo: Number(song.tempo) || null,
+    audioUrl: song.audioUrl || song.url || null,
+    streamAudioFileUrl: song.streamAudioFileUrl || song.audioUrl || song.url || null,
+    audioStreamKey: song.audioStreamKey || deriveStreamKey(song),
+    artworkUrl: song.artworkUrl || song.artworkPresignedUrl || pickArtwork(song),
+    artworkPresignedUrl: song.artworkPresignedUrl || song.artworkUrl || null,
+    artworkKey: song.artworkKey || deriveArtworkKey(song),
+    duration: Number(song.durationSeconds ?? song.duration) || 0,
+    country: song.artist?.country || song.country || "",
+    artistBio: song.artist?.bio || song.artistBio || song.fullOriginal?.artist?.bio || "",
+    lyrics: song.lyrics || "",
+    credits,
+    label: song.label || song.fullOriginal?.label || "",
+    featuringArtist: Array.isArray(song.featuringArtist) ? song.featuringArtist : [],
+    downloadCount: Number(song.downloadCount) || 0,
+    playCount: Number(song.playCount ?? song.plays ?? 0) || 0,
+    likesCount: Number(song.likesCount ?? song.fullOriginal?.likesCount ?? 0) || 0,
+    likedByMe: Boolean(song.likedByMe ?? false),
+    shareCount: Number(song.shareCount ?? song.fullOriginal?.shareCount ?? 0) || 0,
+  };
+};
+
+export const handleContextSongPlay = async ({
+  song,
+  incrementPlayCount,
+  handlePlaySong,
+  songs = [],
+  client,
+  source = "context",
+  sourceId = null,
+}) => {
+  const rawId = pickId(song);
+  if (!rawId) return false;
+
+  const id = String(rawId);
+  incrementPlayCount?.(id);
+
+  const sourceSongs = Array.isArray(songs) && songs.length ? songs : [song];
+  const processedSongs = processSongs(sourceSongs);
+  const normalizedQueue = processedSongs
+    .map(buildPlaybackTrack)
+    .filter((track) => track?.id);
+
+  if (!normalizedQueue.some((track) => track.id === id)) {
+    const clickedTrack = buildPlaybackTrack(song);
+    if (clickedTrack) normalizedQueue.unshift(clickedTrack);
+  }
+
+  const currentIndex = normalizedQueue.findIndex((track) => track.id === id);
+  if (currentIndex < 0) return false;
+
+  const currentTrack = normalizedQueue[currentIndex];
+  const trackReady = await presignAudioForTrack(currentTrack, client);
+
+  if (!trackReady?.audioUrl) {
+    console.error("[ContextPlayback] Clicked track missing signed audioUrl; cannot start playback", trackReady);
+    return false;
+  }
+
+  const queue = [...normalizedQueue];
+  queue[currentIndex] = trackReady;
+
+  const restQueue = queue.slice(currentIndex + 1);
+  const PREFETCH_WINDOW = 6;
+  const prefetchTargets = [queue[currentIndex], ...restQueue.slice(0, PREFETCH_WINDOW)];
+  const patchedPrefetch = await ensureAudioPresigned(prefetchTargets, client);
+  const patchedArtwork = await ensureArtworkPresigned(prefetchTargets, client);
+
+  const patchedQueue = [...queue];
+  const patchedCurrent = (patchedPrefetch?.[0] || patchedArtwork?.[0]) || queue[currentIndex];
+  if (patchedCurrent) patchedQueue[currentIndex] = patchedCurrent;
+
+  (patchedPrefetch || []).slice(1).forEach((item, idx) => {
+    const qIdx = currentIndex + 1 + idx;
+    if (item && qIdx < patchedQueue.length) patchedQueue[qIdx] = item;
+  });
+  (patchedArtwork || []).slice(1).forEach((item, idx) => {
+    const qIdx = currentIndex + 1 + idx;
+    if (item && qIdx < patchedQueue.length) {
+      patchedQueue[qIdx] = { ...patchedQueue[qIdx], ...item };
+    }
+  });
+
+  const context = {
+    source,
+    sourceId,
+    queuePosition: currentIndex,
+    queueLength: patchedQueue.length,
+    shuffle: false,
+    repeat: RepeatModes.OFF,
+  };
+
+  const loaded = await handlePlaySong(
+    patchedQueue[currentIndex],
+    patchedQueue.slice(currentIndex + 1),
+    context,
+    {
+      prepared: {
+        queue: patchedQueue,
+        queueIds: patchedQueue.map((track) => track.id),
+        currentIndex,
+      },
+    }
+  );
+
+  if (!loaded) console.error("[ContextPlayback] Failed to load and play song.");
+  return loaded;
 };

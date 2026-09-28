@@ -21,6 +21,7 @@ import { getPlaybackContextState } from "./resolvers/playbackContext/getPlayback
 import { clearPlaybackContextState } from "./resolvers/playbackContext/clearPlaybackContextState.js";
 import { getAudioAd } from "./resolvers/getAudioAd.js";
 import { getAccountTypeForAccount, getPermissionSectionsForAccount, getRoleLabelForAccount } from "../../utils/owner.js";
+import dashboardArtists from "./resolvers/dashboardArtists.js";
 
 
 
@@ -33,6 +34,7 @@ permissionSections: (advertizer) => getPermissionSectionsForAccount(advertizer),
      },
      Query: {
 myAds,
+dashboardArtists,
 getPlaybackContextState,
 getAudioAd
 

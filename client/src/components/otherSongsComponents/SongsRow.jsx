@@ -14,7 +14,10 @@ import { usePlayCount } from "../../utils/handlePlayCount.js";
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils.js";
 import { useScrollNavigation } from "../../utils/someSongsUtils/scrollHooks.js";
 import { SongCard, CompactSongCard } from "./songCard.jsx";
-import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
+import {
+  handleContextSongPlay,
+  handleTrendingSongPlay,
+} from "../../utils/plabackUtls/handleSongPlayBack.js";
 
 import {
   COMPACT_LIMIT,
@@ -59,6 +62,22 @@ const applyRaceDisplayStats = (songs, rowCode) => {
     likesCount: Number(song.weeklyLikeCount || 0),
     shareCount: Number(song.weeklyShareCount || 0),
   }));
+};
+
+const applyPlayCountOverrides = (songs, overrides, rowCode) => {
+  if (rowCode === "songsCompetingThisWeek" || !overrides.size) return songs;
+
+  return songs.map((song) => {
+    const id = String(song?._id ?? song?.id ?? song?.songId ?? "");
+    if (!id || !overrides.has(id)) return song;
+
+    const playCount = overrides.get(id);
+    return {
+      ...song,
+      playCount,
+      plays: playCount,
+    };
+  });
 };
 
 // 1) Horizontal rail
@@ -256,6 +275,7 @@ export function SongRowContainer({
   const savedScrollLeftRef = useRef(0);
 
   const [showAll, setShowAll] = useState(false);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
 
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
@@ -263,8 +283,9 @@ export function SongRowContainer({
   // ✅ Base songs: trust parent (already 10 + presigned + processed)
   const baseSongs = useMemo(() => {
     const items = Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
-    return applyRaceDisplayStats(processSongs(items), rowCode);
-  }, [songsWithArtwork, rowCode]);
+    const processed = applyRaceDisplayStats(processSongs(items), rowCode);
+    return applyPlayCountOverrides(processed, playCountOverrides, rowCode);
+  }, [songsWithArtwork, playCountOverrides, rowCode]);
 
   // ✅ Base IDs for trimming duplicates
   const baseIdSet = useMemo(() => {
@@ -307,6 +328,29 @@ export function SongRowContainer({
   // ✅ Presign ONLY the extra songs
   const { songsWithArtwork: extraPresigned } = useSongsWithPresignedUrls(extraSongsRaw);
 
+  const incrementPlayCountAndUpdateRow = useCallback(
+    async (songId) => {
+      const updatedSong = await incrementPlayCount(songId);
+      const nextPlayCount = Number(updatedSong?.playCount);
+      const updatedSongId = String(updatedSong?._id ?? songId ?? "");
+
+      if (
+        rowCode !== "songsCompetingThisWeek" &&
+        updatedSongId &&
+        Number.isFinite(nextPlayCount)
+      ) {
+        setPlayCountOverrides((prev) => {
+          const next = new Map(prev);
+          next.set(updatedSongId, nextPlayCount);
+          return next;
+        });
+      }
+
+      return updatedSong;
+    },
+    [incrementPlayCount, rowCode]
+  );
+
   // ✅ Merge final list (fallback to base if query fails or still loading)
   const mergedSongs = useMemo(() => {
     if (!showAll) return baseSongs;
@@ -314,8 +358,8 @@ export function SongRowContainer({
     const extra = Array.isArray(extraPresigned) ? extraPresigned : [];
     const merged = [...baseSongs, ...extra];
 
-    return merged.slice(0, COMPACT_LIMIT);
-  }, [baseSongs, extraPresigned, showAll]);
+    return applyPlayCountOverrides(merged.slice(0, COMPACT_LIMIT), playCountOverrides, rowCode);
+  }, [baseSongs, extraPresigned, playCountOverrides, rowCode, showAll]);
 
   const onPlayPause = useCallback(
     (song) => {
@@ -327,22 +371,28 @@ export function SongRowContainer({
         return;
       }
 
-      handleTrendingSongPlay({
+      const useDiscoveryQueue = rowCode === "trending" || rowCode === "newUpload";
+      const playWithQueue = useDiscoveryQueue ? handleTrendingSongPlay : handleContextSongPlay;
+
+      playWithQueue({
         song,
-        incrementPlayCount,
+        incrementPlayCount: incrementPlayCountAndUpdateRow,
         handlePlaySong,
         trendingSongs: mergedSongs,
+        songs: mergedSongs,
         client,
+        source: rowCode || "row",
       });
     },
     [
       currentTrack?.id,
       isPlaying,
       pause,
-      incrementPlayCount,
+      incrementPlayCountAndUpdateRow,
       handlePlaySong,
       mergedSongs,
       client,
+      rowCode,
     ]
   );
 

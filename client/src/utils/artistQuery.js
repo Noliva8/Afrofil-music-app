@@ -3,8 +3,8 @@ import { gql } from '@apollo/client';
 
 
 export const ARTIST_PROFILE = gql`
-query Query {
-  artistProfile {
+query ArtistProfile($artistId: ID) {
+  artistProfile(artistId: $artistId) {
     _id
     artistAka
     bio

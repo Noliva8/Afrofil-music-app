@@ -40,6 +40,18 @@ enum ArtistRole {
   ADMIN
 }
 
+enum SongsCategory {
+SECULAR
+RELIGIOUS
+INSTRUMENTAL
+}
+
+enum songSpead {
+SLOW
+MEDIUM
+FAST}
+  
+
 
 type Song {
   _id: ID!
@@ -53,6 +65,8 @@ type Song {
 
   trackNumber: Int
   genre: String
+  speed: songSpead
+  songCategory: SongsCategory
   mood: [String]
   subMoods: [String]
   producer: [Producer]
@@ -460,6 +474,8 @@ type SongMetadata {
   mood: String!
   subMoods: String
   tempo: Int
+  songCategory: SongsCategory
+  speed: songSpead
   
  
   duration: Int!
@@ -871,7 +887,7 @@ type Query {
 
 
   allArtists: [Artist]
-  artistProfile: Artist
+  artistProfile(artistId: ID): Artist
   songsOfArtist: [Song]
   artistSupportRevenue: ArtistSupportRevenue!
   artistRewardRevenue: ArtistRewardRevenue!
@@ -907,7 +923,14 @@ type Query {
  radioStations(type: RadioStationType, visibility: String = "public", limit: Int): [RadioStation!]!
  radioStation(stationId: ID!): RadioStation
  radioStationSongs(stationId: ID!): [Song!]!
- exploreSongs(type: String!, value: String!): [Song!]!
+  exploreSongs(type: String!, value: String!): [Song!]!
+ adminSongs(
+    limit: Int = 50
+    offset: Int = 0
+    search: String
+    visibility: String
+    uploadStatus: String
+  ): SongConnection!
  searchCatalog(query: String!, limit: Int = 12): SearchResults!
  catalogueSongCount: Int!
 
@@ -994,17 +1017,18 @@ type Mutation {
   updateArtistIdentity(
     fullName: String!
     artistAka: String!
+    artistId: ID
   ): Artist
 
 
-  addBio(bio: String): Artist
-  addCountry(country: String): Artist
-  addRegion(region: String): Artist
-  addLanguages(languages: [String]): Artist
-  addGenre(genre: [String]): Artist
+  addBio(bio: String, artistId: ID): Artist
+  addCountry(country: String, artistId: ID): Artist
+  addRegion(region: String, artistId: ID): Artist
+  addLanguages(languages: [String], artistId: ID): Artist
+  addGenre(genre: [String], artistId: ID): Artist
   addCategory(category: String): Artist
   removeGenre(genre: [String]): Artist
-  addProfileImage(profileImage: String): Artist
+  addProfileImage(profileImage: String, artistId: ID): Artist
   addMood(mood: [String]): Artist
 
 
@@ -1021,6 +1045,8 @@ type Mutation {
   album: ID!
   trackNumber: Int
   genre: String
+  songCategory: SongsCategory
+  speed: songSpead
    producer: [ProducerInput]
   composer: [ComposerInput]
   label: String

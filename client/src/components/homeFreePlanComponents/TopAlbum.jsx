@@ -1,17 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import { useScrollNavigation } from "../../utils/someSongsUtils/scrollHooks.js";
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils.js";
 
 export default function TopAlbum({ songsWithArtwork = [] }) {
-  const theme = useTheme();
   const navigate = useNavigate();
   const containerRef = useRef(null);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
 
   const {
     scrollContainerRef,
@@ -24,11 +23,37 @@ export default function TopAlbum({ songsWithArtwork = [] }) {
     handleShowAll,
   } = useScrollNavigation();
 
+  useEffect(() => {
+    const handlePlayCountUpdated = (event) => {
+      const song = event.detail;
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      const playCount = Number(song?.playCount);
 
+      if (!songId || !Number.isFinite(playCount)) return;
 
+      setPlayCountOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(songId, playCount);
+        return next;
+      });
+    };
 
-  const topAlbums = (() => {
-    const normalizedSongs = processSongs(songsWithArtwork);
+    window.addEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+    return () => window.removeEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+  }, []);
+
+  const topAlbums = useMemo(() => {
+    const normalizedSongs = processSongs(songsWithArtwork).map((song) => {
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      if (!songId || !playCountOverrides.has(songId)) return song;
+
+      const playCount = playCountOverrides.get(songId);
+      return {
+        ...song,
+        playCount,
+        plays: playCount,
+      };
+    });
     const map = new Map();
 
     normalizedSongs.forEach((song) => {
@@ -63,7 +88,7 @@ export default function TopAlbum({ songsWithArtwork = [] }) {
     return Array.from(map.values())
       .sort((a, b) => b.score - a.score)
       .slice(0, 16);
-  })();
+  }, [playCountOverrides, songsWithArtwork]);
 
   useEffect(() => {
     checkScrollPosition();

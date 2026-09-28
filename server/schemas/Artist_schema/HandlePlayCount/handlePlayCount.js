@@ -6,6 +6,7 @@ import { getRedis } from '../../../utils/AdEngine/redis/redisClient.js';
 import { addSongRedis } from '../Redis/addSongRedis.js';
 import { updateSongRedis } from '../Redis/songCreateRedis.js';
 import {
+  NEW_UPLOADS_CACHE_KEY,
   PLAY_COOLDOWN_SECONDS,
   RECENT_PLAYED_CACHE_KEY,
   TRENDING_SONGS_CACHE_KEY,
@@ -232,7 +233,7 @@ export const handlePlayCount = async (_parent, { songId, visitorId }, context) =
     }
 
     await updateTrendingIndex({ redisClient, songId, updatedSong });
-    await redisClient.del(TRENDING_SONGS_CACHE_KEY);
+    await redisClient.del(TRENDING_SONGS_CACHE_KEY, NEW_UPLOADS_CACHE_KEY);
   } catch (redisError) {
     console.warn('[Redis] play count sync skipped:', redisError?.message || redisError);
   }

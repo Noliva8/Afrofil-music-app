@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useMutation } from "@apollo/client";
 import Swal from "sweetalert2";
-import useTheme from '@mui/material/styles/useTheme';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Fade from '@mui/material/Fade';
 import Box from '@mui/material/Box';
@@ -64,8 +64,10 @@ export default function LyricsEditSong({ songId, song, setActiveStep, activeStep
         elevation={3}
         sx={{
           p: isMobile ? 2 : 3,
-          borderRadius: 2,
-          bgcolor: "background.paper",
+          borderRadius: "8px",
+          bgcolor: alpha(theme.palette.background.paper, 0.9),
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          boxShadow: theme.shadows[2],
           width: "100%",
           height: "100%",
           display: "flex",
@@ -119,13 +121,13 @@ export default function LyricsEditSong({ songId, song, setActiveStep, activeStep
                   padding: isMobile ? 12 : 16,
                   border: errors.lyrics
                     ? `1px solid ${theme.palette.error.main}`
-                    : `1px solid ${theme.palette.divider}`,
-                  borderRadius: 4,
+                    : `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  borderRadius: 8,
                   fontFamily: theme.typography.fontFamily,
                   fontSize: "0.875rem",
                   lineHeight: 1.5,
                   resize: "vertical",
-                  backgroundColor: theme.palette.background.default,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.7),
                   color: theme.palette.text.primary,
                 }}
               />
@@ -150,6 +152,14 @@ export default function LyricsEditSong({ songId, song, setActiveStep, activeStep
               variant="outlined" 
               onClick={() => setActiveStep(activeStep - 1)}
               fullWidth={isMobile}
+              sx={{
+                borderColor: alpha(theme.palette.primary.main, 0.45),
+                color: theme.palette.text.primary,
+                "&:hover": {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                },
+              }}
             >
               Back
             </Button>
@@ -160,9 +170,12 @@ export default function LyricsEditSong({ songId, song, setActiveStep, activeStep
               disabled={loading}
               fullWidth={isMobile}
               sx={{
-                backgroundColor: theme.palette.primary.main,
+                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: theme.palette.primary.contrastText,
+                borderRadius: "8px",
+                fontWeight: 800,
                 '&:hover': {
-                  backgroundColor: theme.palette.primary.dark
+                  background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
                 }
               }}
             >

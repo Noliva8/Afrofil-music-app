@@ -793,6 +793,8 @@ const onSubmit = async (formData) => {
 
   trackNumber: Number.isInteger(parseInt(formData.trackNumber)) ? parseInt(formData.trackNumber) : 1,
   genre: formData.genre,
+  songCategory: formData.songCategory ? String(formData.songCategory).toUpperCase() : undefined,
+  speed: formData.speed ? String(formData.speed).toUpperCase() : undefined,
 
 
 producer: Array.isArray(formData.producer)

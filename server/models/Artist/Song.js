@@ -53,84 +53,122 @@ s3Key : {
     type: String
   },
 
+  speed: {
+  type: String,
+  enum: ["SLOW", "MEDIUM", "FAST"]
+},
+
+
+// mood: {
+//   type: [String],
+//   enum: [
+//     "Party",
+//     "Chill",
+//     "Love",
+//     "Focus",
+//     "Workout",
+//     "Spiritual",
+//     "Street",
+//     "Sad",
+//     "Happy",
+//     "Late Night"
+//   ],
+//   default: [],
+// },
 
 mood: {
   type: [String],
   enum: [
-    "Party",
-    "Chill",
-    "Love",
-    "Focus",
-    "Workout",
-    "Spiritual",
-    "Street",
-    "Sad",
     "Happy",
-    "Late Night"
+    "Sad",
+    "Romantic",
+    "Calm",
+    "Energetic"
   ],
   default: [],
 },
 
+
+
+
+// subMoods: {
+//   type: [String],
+//   enum: [
+//     "Turn Up",
+//     "Club",
+//     "Dance",
+//     "Festival",
+//     "Wedding",
+//     "Carnival",
+//     "Hype",
+//     "Smooth",
+//     "Laid Back",
+//     "Relaxing",
+//     "Easy Listening",
+//     "Acoustic",
+//     "Sunday Chill",
+//     "Romantic",
+//     "Heartfelt",
+//     "Valentine",
+//     "Intimate",
+//     "Crush",
+//     "Breakup",
+//     "Study",
+//     "Work",
+//     "Concentration",
+//     "Background",
+//     "Instrumental",
+//     "Creative",
+//     "Gym",
+//     "Run",
+//     "Cardio",
+//     "High Energy",
+//     "Motivation",
+//     "Worship",
+//     "Praise",
+//     "Prayer",
+//     "Meditation",
+//     "Inspirational",
+//     "Hustle",
+//     "Street Vibes",
+//     "Trap",
+//     "Drill",
+//     "Underground",
+//     "Emotional",
+//     "Heartbreak",
+//     "Lonely",
+//     "Reflective",
+//     "Melancholy",
+//     "Feel Good",
+//     "Positive",
+//     "Uplifting",
+//     "Joyful",
+//     "Celebration",
+//     "After Hours",
+//     "Midnight Drive",
+//     "Moody",
+//     "Low Key",
+//     "Smooth R&B"
+//   ],
+//   default: []
+// },
+
+
+
 subMoods: {
   type: [String],
   enum: [
-    "Turn Up",
-    "Club",
-    "Dance",
-    "Festival",
+    "Party",
     "Wedding",
-    "Carnival",
-    "Hype",
-    "Smooth",
-    "Laid Back",
-    "Relaxing",
-    "Easy Listening",
-    "Acoustic",
-    "Sunday Chill",
-    "Romantic",
-    "Heartfelt",
-    "Valentine",
-    "Intimate",
-    "Crush",
-    "Breakup",
-    "Study",
-    "Work",
-    "Concentration",
-    "Background",
-    "Instrumental",
-    "Creative",
-    "Gym",
-    "Run",
-    "Cardio",
-    "High Energy",
-    "Motivation",
+    "Workout",
+    "Focus",
+    "Sleep",
+    "Dance",
+    "Late Night",
     "Worship",
-    "Praise",
-    "Prayer",
-    "Meditation",
-    "Inspirational",
-    "Hustle",
-    "Street Vibes",
-    "Trap",
-    "Drill",
-    "Underground",
-    "Emotional",
-    "Heartbreak",
-    "Lonely",
-    "Reflective",
-    "Melancholy",
-    "Feel Good",
-    "Positive",
-    "Uplifting",
-    "Joyful",
-    "Celebration",
-    "After Hours",
-    "Midnight Drive",
-    "Moody",
-    "Low Key",
-    "Smooth R&B"
+    "Praise"
   ],
-  default: []
+  default: [],
 },
 
 
@@ -175,7 +213,17 @@ composer: [
     type: String
   },
 
+
+
+songCategory:{
+  type: String,
+  enum: ["SECULAR", "RELIGIOUS", "INSTRUMENTAL"],
+  default: "SECULAR"
+},
   
+
+
+
 
    playCount: {
     type: Number,

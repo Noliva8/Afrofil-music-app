@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
@@ -13,7 +13,6 @@ import {
   PlayCircle, 
   Verified 
 } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
 import { useScrollNavigation } from "../../utils/someSongsUtils/scrollHooks.js";
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils.js";
 import { useNavigate } from "react-router-dom";
@@ -34,10 +33,10 @@ const floatAnimation = keyframes`
 `;
 
 export default function TopArtistsRow({ songsWithArtwork = [] }) {
-  const theme = useTheme();
   const containerRef = useRef(null);
   const navigate = useNavigate();
   const [hoveredArtist, setHoveredArtist] = useState(null);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
 
   const {
     scrollContainerRef,
@@ -50,8 +49,37 @@ export default function TopArtistsRow({ songsWithArtwork = [] }) {
     handleShowAll,
   } = useScrollNavigation();
 
-  const topArtists = (() => {
-    const normalizedSongs = processSongs(songsWithArtwork);
+  useEffect(() => {
+    const handlePlayCountUpdated = (event) => {
+      const song = event.detail;
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      const playCount = Number(song?.playCount);
+
+      if (!songId || !Number.isFinite(playCount)) return;
+
+      setPlayCountOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(songId, playCount);
+        return next;
+      });
+    };
+
+    window.addEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+    return () => window.removeEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+  }, []);
+
+  const topArtists = useMemo(() => {
+    const normalizedSongs = processSongs(songsWithArtwork).map((song) => {
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      if (!songId || !playCountOverrides.has(songId)) return song;
+
+      const playCount = playCountOverrides.get(songId);
+      return {
+        ...song,
+        playCount,
+        plays: playCount,
+      };
+    });
     const map = new Map();
     
     (normalizedSongs || []).forEach((song) => {
@@ -90,7 +118,7 @@ export default function TopArtistsRow({ songsWithArtwork = [] }) {
         rank: index + 1,
         rankColor: getRankColor(index + 1),
       }));
-  })();
+  }, [playCountOverrides, songsWithArtwork]);
 
   function getRankColor(rank) {
     switch(rank) {

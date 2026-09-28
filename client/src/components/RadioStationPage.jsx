@@ -27,7 +27,7 @@ import QueueMusicIcon from "@mui/icons-material/QueueMusic";
 import PersonIcon from "@mui/icons-material/Person";
 import { useAudioPlayer } from "../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../utils/handlePlayCount";
-import { handleTrendingSongPlay } from "../utils/plabackUtls/handleSongPlayBack.js";
+import { handleContextSongPlay } from "../utils/plabackUtls/handleSongPlayBack.js";
 import { RADIO_STATION, RADIO_STATION_SONGS, SHARE_SONG } from "../utils/queries";
 import { useSongsWithPresignedUrls } from "../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { processSongs } from "../utils/someSongsUtils/someSongsUtils";
@@ -63,6 +63,7 @@ export const RadioStationPage = () => {
   const [reportTrack, setReportTrack] = useState(null);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [touchTimer, setTouchTimer] = useState(null);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
   const isMobile = useMediaQuery("(max-width:900px)");
 
   const { data: stationData } = useQuery(RADIO_STATION, {
@@ -82,9 +83,40 @@ export const RadioStationPage = () => {
   const { songsWithArtwork } = useSongsWithPresignedUrls(stationSongsRaw);
 
   const stationSongs = useMemo(() => {
-    const processed = processSongs(songsWithArtwork).filter((song) => song.audioUrl);
+    const processed = processSongs(songsWithArtwork)
+      .map((song) => {
+        const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+        if (!songId || !playCountOverrides.has(songId)) return song;
+
+        const playCount = playCountOverrides.get(songId);
+        return {
+          ...song,
+          playCount,
+          plays: playCount,
+        };
+      })
+      .filter((song) => song.audioUrl);
     return processed.sort((a, b) => (b.playCount || 0) - (a.playCount || 0));
-  }, [songsWithArtwork]);
+  }, [playCountOverrides, songsWithArtwork]);
+
+  useEffect(() => {
+    const handlePlayCountUpdated = (event) => {
+      const song = event.detail;
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      const playCount = Number(song?.playCount);
+
+      if (!songId || !Number.isFinite(playCount)) return;
+
+      setPlayCountOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(songId, playCount);
+        return next;
+      });
+    };
+
+    window.addEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+    return () => window.removeEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+  }, []);
 
   useEffect(() => {
     if (!stationId) return;
@@ -102,7 +134,7 @@ export const RadioStationPage = () => {
   );
 
   const { incrementPlayCount } = usePlayCount();
-  const { currentTrack, isPlaying, handlePlaySong, pause, playerState } = useAudioPlayer();
+  const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
 
   const isCurrent = currentTrack?.id === topSong?.id;
   const isPlayingThisSong = isCurrent && isPlaying;
@@ -130,21 +162,25 @@ export const RadioStationPage = () => {
     if (isCurrent) {
       isPlayingThisSong
         ? pause()
-        : handleTrendingSongPlay({
+        : handleContextSongPlay({
             song: topSong,
             incrementPlayCount,
             handlePlaySong,
-            trendingSongs: stationSongs,
+            songs: stationSongs,
             client,
+            source: "radio",
+            sourceId: stationId,
           });
       return;
     }
-    handleTrendingSongPlay({
+    handleContextSongPlay({
       song: topSong,
       incrementPlayCount,
       handlePlaySong,
-      trendingSongs: stationSongs,
+      songs: stationSongs,
       client,
+      source: "radio",
+      sourceId: stationId,
     });
   };
 
@@ -156,24 +192,28 @@ export const RadioStationPage = () => {
       if (currentId && nextId && currentId === nextId) {
         isPlaying
           ? pause()
-          : handleTrendingSongPlay({
+          : handleContextSongPlay({
               song,
               incrementPlayCount,
               handlePlaySong,
-              trendingSongs: stationSongs,
+              songs: stationSongs,
               client,
+              source: "radio",
+              sourceId: stationId,
             });
         return;
       }
-      handleTrendingSongPlay({
+      handleContextSongPlay({
         song,
         incrementPlayCount,
         handlePlaySong,
-        trendingSongs: stationSongs,
+        songs: stationSongs,
         client,
+        source: "radio",
+        sourceId: stationId,
       });
     },
-    [client, currentTrack, getId, handlePlaySong, incrementPlayCount, isPlaying, pause, stationSongs]
+    [client, currentTrack, getId, handlePlaySong, incrementPlayCount, isPlaying, pause, stationId, stationSongs]
   );
 
   const handleAddToPlaylist = useCallback((track) => {
@@ -186,9 +226,6 @@ export const RadioStationPage = () => {
     if (!track) return;
     const songId = getShareableSongId(track) || getId(track);
     if (!songId) return;
-    const title = track.title || track.songTitle || "Song";
-    const artistName = track.artistName || track?.artist?.artistAka || track?.artist?.name || "";
-
     await shareSongLink({
       songId,
       shareSongMutation,

@@ -33,10 +33,10 @@ import {
 import { processSongs } from "../../utils/someSongsUtils/someSongsUtils";
 import { useAudioPlayer } from "../../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../../utils/handlePlayCount";
-import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
+import { handleContextSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
 import { GET_PRESIGNED_URL_DOWNLOAD } from "../../utils/mutations";
 
-const fallbackStationArt = (name, theme) => {
+const fallbackStationArt = (name) => {
   const gradientColors = [
     "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
@@ -142,7 +142,7 @@ const RadioStationCard = ({ station, onOpen, onNavigate }) => {
             }}
           />
         ) : (
-          fallbackStationArt(station.name, theme)
+          fallbackStationArt(station.name)
         )}
         <IconButton
           aria-label={`Play ${station.name}`}
@@ -436,6 +436,7 @@ export default function RadioStations({ stations = [] }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [activeStation, setActiveStation] = useState(null);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
   const [loadSongs, { data, loading }] = useLazyQuery(RADIO_STATION_SONGS, {
     fetchPolicy: "network-only",
   });
@@ -452,9 +453,41 @@ export default function RadioStations({ stations = [] }) {
   );
 
   const stationSongs = useMemo(
-    () => processSongs(stationSongsWithArtwork).filter((song) => song.audioUrl),
-    [stationSongsWithArtwork]
+    () =>
+      processSongs(stationSongsWithArtwork)
+        .map((song) => {
+          const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+          if (!songId || !playCountOverrides.has(songId)) return song;
+
+          const playCount = playCountOverrides.get(songId);
+          return {
+            ...song,
+            playCount,
+            plays: playCount,
+          };
+        })
+        .filter((song) => song.audioUrl),
+    [playCountOverrides, stationSongsWithArtwork]
   );
+
+  useEffect(() => {
+    const handlePlayCountUpdated = (event) => {
+      const song = event.detail;
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      const playCount = Number(song?.playCount);
+
+      if (!songId || !Number.isFinite(playCount)) return;
+
+      setPlayCountOverrides((prev) => {
+        const next = new Map(prev);
+        next.set(songId, playCount);
+        return next;
+      });
+    };
+
+    window.addEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+    return () => window.removeEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+  }, []);
 
   const handleOpen = (station) => {
     setActiveStation(station);
@@ -477,21 +510,25 @@ export default function RadioStations({ stations = [] }) {
     if (isCurrent) {
       isPlaying
         ? pause()
-        : handleTrendingSongPlay({
+        : handleContextSongPlay({
             song,
             incrementPlayCount,
             handlePlaySong,
-            trendingSongs: stationSongs,
+            songs: stationSongs,
             client,
+            source: "radio",
+            sourceId: activeStation?._id,
           });
       return;
     }
-    handleTrendingSongPlay({
+    handleContextSongPlay({
       song,
       incrementPlayCount,
       handlePlaySong,
-      trendingSongs: stationSongs,
+      songs: stationSongs,
       client,
+      source: "radio",
+      sourceId: activeStation?._id,
     });
   };
 

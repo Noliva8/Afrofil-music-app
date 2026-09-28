@@ -2,14 +2,15 @@ import { GraphQLError } from 'graphql';
 import { Advertizer, Ad } from '../../../models/Advertizer/index_advertizer.js'
 import { calculateAdPrice } from '../../../utils/priceCalculator.js';
 import stripe from 'stripe';
+import { getAdvertiserFromContext } from '../../../utils/advertiserContext.js';
 
 
 const stripeEngne = stripe(process.env.STRIPE_SECRET_KEY);
 
 const confirmPrice = async (_parent, { adId, isCostConfirmed, adTitle, campaignId, duration, amount, currency, location, adType }, context) => {
-  const advertizer = context.advertizer || context?.req?.advertizer;
+  const advertiser = getAdvertiserFromContext(context);
 
-  if (!advertizer) {
+  if (!advertiser) {
     throw new GraphQLError('Could not authenticate advertiser', {
       extensions: { code: 'UNAUTHENTICATED' }
     });
@@ -45,7 +46,7 @@ const pi = await stripeEngne.paymentIntents.create({
   metadata: {
     adId: toStr(adId),
     campaignId: toStr(campaignId),
-    advertiserId: toStr(advertizer._id), // ObjectId → string
+    advertiserId: toStr(advertiser._id), // ObjectId -> string
     location: toStr(location),           // Ensure location is string, e.g. "Rwanda, Kigali"
     duration: toStr(duration)            // Number → string
   }

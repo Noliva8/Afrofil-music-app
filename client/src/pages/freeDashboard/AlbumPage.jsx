@@ -33,7 +33,7 @@ import { processSongs } from "../../utils/someSongsUtils/someSongsUtils";
 import { getFullKeyFromUrlOrKey } from "../../utils/someSongsUtils/songsWithPresignedUrlHook";
 import { useAudioPlayer } from "../../utils/Contexts/AudioPlayerContext";
 import { usePlayCount } from "../../utils/handlePlayCount";
-import { handleTrendingSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
+import { handleContextSongPlay } from "../../utils/plabackUtls/handleSongPlayBack.js";
 import { PlayButton } from "../../components/PlayButton.jsx";
 import { ShuffleButton } from "../../components/ShuffleButton.jsx";
 import AddToPlaylistModal from "../../components/AddToPlaylistModal.jsx";
@@ -162,12 +162,14 @@ export const AlbumPage = () => {
       pause();
       return;
     }
-    await handleTrendingSongPlay({
+    await handleContextSongPlay({
       song: playableTrack,
       incrementPlayCount,
       handlePlaySong,
-      trendingSongs: playContextSongs,
+      songs: playContextSongs,
       client,
+      source: "album",
+      sourceId: albumId,
     });
   }, [
     playableTrack,
@@ -188,15 +190,17 @@ export const AlbumPage = () => {
         pause();
         return;
       }
-      await handleTrendingSongPlay({
+      await handleContextSongPlay({
         song: track,
         incrementPlayCount,
         handlePlaySong,
-        trendingSongs: playContextSongs,
+        songs: playContextSongs,
         client,
+        source: "album",
+        sourceId: albumId,
       });
     },
-    [getId, playingId, isPlaying, pause, incrementPlayCount, handlePlaySong, playContextSongs, client]
+    [getId, playingId, isPlaying, pause, incrementPlayCount, handlePlaySong, playContextSongs, client, albumId]
   );
 
   const handleAddToFavorites = useCallback((track) => {

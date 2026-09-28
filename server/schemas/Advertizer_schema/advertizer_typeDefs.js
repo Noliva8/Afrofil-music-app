@@ -5,6 +5,7 @@ scalar Date
 scalar JSON
 
 enum AdvertizerRole {
+  advertiser
   advertizer
   admin
   owner
@@ -138,28 +139,21 @@ enum BANNERFORMAT {
   }
 
   enum Mood {
-    Party
-    Chill
-    Gospel
-    Heartbreak
-    Traditional
+    Happy
+    Sad
     Romantic
-    Motivational
-    Cultural
+    Calm
+    Energetic
   }
 
 
    enum SubMood {
-    Worship
-    Praise
-    Traditional_Gospel
-    Club_Anthem
+    Party
     Wedding
-    Breakup
-    Street
-    Motivation
-    Prayer
-    Rebellion
+    Workout
+    Focus
+    Sleep
+    Dance
   }
 
 
@@ -413,6 +407,30 @@ type AdDecision {
 
 type BookResult {
   ok: Boolean!
+}
+
+type AdminDashboardArtist {
+  id: ID!
+  _id: ID!
+  fullName: String
+  artistAka: String
+  email: String
+  region: String
+  country: String
+  isPlofileComplete: Boolean
+  isProfileComplete: Boolean
+  isVerified: Boolean
+  createdAt: Date
+}
+
+type AdminArtistsPage {
+  artists: [AdminDashboardArtist!]!
+  page: Int!
+  limit: Int!
+  totalArtists: Int!
+  totalPages: Int!
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
 }
 
 
@@ -727,6 +745,7 @@ type Query {
   ad(id: ID!): Ad
   adsByAdvertiser(advertiserId: ID!): [Ad!]!
   myAds: [Ad!]!
+  dashboardArtists(page: Int = 1): AdminArtistsPage!
    getPlaybackContextState(userId: ID, sessionId: ID): PlaybackContextState
 
 getAudioAd(userLocation: UserLocation): AdResponse!

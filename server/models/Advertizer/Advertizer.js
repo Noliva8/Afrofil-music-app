@@ -55,8 +55,8 @@ const AdvertizerSchema = new Schema(
     // Roles & permissions
     role: {
       type: String,
-      enum: ['advertizer', 'admin', 'owner'],
-      default: 'advertizer',
+      enum: ['advertiser', 'advertizer', 'admin', 'owner'],
+      default: 'advertiser',
       index: true
     },
     brandType: {

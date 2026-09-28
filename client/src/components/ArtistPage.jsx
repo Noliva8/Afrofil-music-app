@@ -37,7 +37,8 @@ import { useApolloClient, useMutation, useQuery } from '@apollo/client';
 import { useSongsWithPresignedUrls } from '../utils/someSongsUtils/songsWithPresignedUrlHook.js';
 import { processSongs } from '../utils/someSongsUtils/someSongsUtils.js';
 
-import { handleTrendingSongPlay } from '../utils/plabackUtls/handleSongPlayBack.js';
+import { handleContextSongPlay } from '../utils/plabackUtls/handleSongPlayBack.js';
+import { usePlayCount } from '../utils/handlePlayCount.js';
 import { PlayButton } from './PlayButton.jsx';
 import { ShuffleButton } from './ShuffleButton.jsx';
 import { ActionButtonsGroup } from './ActionButtonsGroup.jsx';
@@ -96,6 +97,7 @@ export const buckets_name =[
 const ArtistPage = () => {
   const { currentTrack: playingTrack, isPlaying: playerIsPlaying, isAdPlaying, handlePlaySong, pause, playerState} = useAudioPlayer();
   const client = useApolloClient();
+  const { incrementPlayCount } = usePlayCount();
   const { user } = useUser();
   const { toggleFollow, loading: followLoading } = useArtistFollowers();
 
@@ -130,6 +132,7 @@ const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const prevAvatarRef = useRef(null);
   const [followerCount, setFollowerCount] = useState(null);
   const [artistHydrated, setArtistHydrated] = useState(false);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
 
   const [adNoticeOpen, setAdNoticeOpen] = useState(false);
   const [adNoticeMessage] = useState('Playback will resume after the advertisement finishes.');
@@ -220,13 +223,46 @@ const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 const { songsWithArtwork: hydratedSongs } = useSongsWithPresignedUrls(rawSongs);
 
 // Songs ready for playback (ids/keys normalized)
-const processedSongs = useMemo(() => processSongs(hydratedSongs), [hydratedSongs]);
+const processedSongs = useMemo(
+  () =>
+    processSongs(hydratedSongs).map((song) => {
+      const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+      if (!songId || !playCountOverrides.has(songId)) return song;
+
+      const playCount = playCountOverrides.get(songId);
+      return {
+        ...song,
+        playCount,
+        plays: playCount,
+      };
+    }),
+  [hydratedSongs, playCountOverrides]
+);
 const secondarySongs = useMemo(() => processedSongs.slice(6, 12), [processedSongs]);
 
 if (songsError) undefined;
 if (shouldSkipSongs) undefined;
 
 const hasServerSongs = Boolean(songsData?.getArtistSongs?.length);
+
+useEffect(() => {
+  const handlePlayCountUpdated = (event) => {
+    const song = event.detail;
+    const songId = String(song?._id ?? song?.id ?? song?.songId ?? "");
+    const playCount = Number(song?.playCount);
+
+    if (!songId || !Number.isFinite(playCount)) return;
+
+    setPlayCountOverrides((prev) => {
+      const next = new Map(prev);
+      next.set(songId, playCount);
+      return next;
+    });
+  };
+
+  window.addEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+  return () => window.removeEventListener("afrofeel:play-count-updated", handlePlayCountUpdated);
+}, []);
 
 
 
@@ -531,12 +567,14 @@ const handleCloseMenu = () => {
       return;
     }
 
-    await handleTrendingSongPlay({
+    await handleContextSongPlay({
       song: playableTrack,
-      incrementPlayCount: () => {},
+      incrementPlayCount,
       handlePlaySong,
-      trendingSongs: processedSongs,
+      songs: processedSongs,
       client,
+      source: "artist",
+      sourceId: resolvedArtistId,
     });
   };
 
@@ -574,15 +612,17 @@ const handleCloseMenu = () => {
     async (track) => {
       if (!track) return;
       const song = track.raw || track;
-      await handleTrendingSongPlay({
+      await handleContextSongPlay({
         song,
-        incrementPlayCount: () => {},
+        incrementPlayCount,
         handlePlaySong,
-        trendingSongs: processedSongs,
+        songs: processedSongs,
         client,
+        source: "artist",
+        sourceId: resolvedArtistId,
       });
     },
-    [handlePlaySong, processedSongs, client]
+    [handlePlaySong, incrementPlayCount, processedSongs, client, resolvedArtistId]
   );
 
   const handleNavigateTrack = useCallback(
@@ -1080,12 +1120,14 @@ const handleCloseMenu = () => {
               song={song}
               isPlayingThisSong={isPlayingThisSong}
               onPlayPause={() =>
-                handleTrendingSongPlay({
+                handleContextSongPlay({
                   song,
-                  incrementPlayCount: () => {},
+                  incrementPlayCount,
                   handlePlaySong,
-                  trendingSongs: processedSongs,
+                  songs: processedSongs,
                   client,
+                  source: "artist",
+                  sourceId: resolvedArtistId,
                 })
               }
               onOpenArtist={() => {

@@ -8,7 +8,7 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Fade from "@mui/material/Fade";
 import Button from "@mui/material/Button";
-import useTheme from '@mui/material/styles/useTheme';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import {
@@ -21,6 +21,7 @@ import FeaturingArtist from "../../../../../components/songContentPart/inputsFor
 import Producer from "../../../../../components/songContentPart/Producer";
 import Composer from "../../../../../components/songContentPart/inputsForSong/Composer";
 import AlbumSong from "../../../../../components/songContentPart/inputsForSong/AlbumInSong";
+import SongCategorySpeed from "../../../../../components/songContentPart/inputsForSong/SongCategorySpeed";
 
 import SongLabel from "../../../../../components/songContentPart/inputsForSong/SongLabel";
 
@@ -77,6 +78,8 @@ const {
       composer: [],
       trackNumber: 1,
       genre: '',
+      songCategory: '',
+      speed: '',
       mood: [],
       subMoods: [],
       label: '',
@@ -148,6 +151,8 @@ useEffect(() => {
 
       trackNumber: song.trackNumber || 1,
       genre: song.genre || '',
+      songCategory: song.songCategory || '',
+      speed: song.speed || '',
       label: song.label || '',
       releaseDate: song.releaseDate
         ? song.releaseDate.split('T')[0] // ISO date for `<input type="date" />`
@@ -187,6 +192,8 @@ setSongId(song._id);
         ? parseInt(formData.trackNumber)
         : 1,
       genre: formData.genre,
+      songCategory: formData.songCategory ? String(formData.songCategory).toUpperCase() : undefined,
+      speed: formData.speed ? String(formData.speed).toUpperCase() : undefined,
        mood: formData.mood || [],
  subMoods: Object.values(formData.subMoods || {}).flat(),
       producer: Array.isArray(formData.producer)
@@ -230,13 +237,14 @@ if (albumError) return `Error! ${albumError.message}`;
           <Paper
             elevation={3}
             sx={{
-              backgroundColor: theme.palette.primary.main,
+              backgroundColor: alpha(theme.palette.background.paper, 0.9),
               padding: isMobile ? 2 : 4,
               width: "100%",
               height: "auto",
-              borderRadius: theme.spacing(4),
+              borderRadius: "8px",
               backdropFilter: "blur(10px)",
-              border: "2px solid rgba(255, 255, 255, 0.2)",
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              boxShadow: theme.shadows[2],
               maxWidth: isMobile ? '100%' : '800px',
               mx: 'auto'
             }}
@@ -246,15 +254,22 @@ if (albumError) return `Error! ${albumError.message}`;
               component="h1"
               gutterBottom
               sx={{
-                fontWeight: 700,
-                background: "linear-gradient(45deg, #6a11cb 30%, #2575fc 90%)",
-                WebkitBackgroundClip: "text",
-                color: "white",
-                textAlign: "center",
-                mb: 3,
+                fontWeight: 900,
+                color: theme.palette.text.primary,
+                textAlign: "left",
+                mb: 0.5,
               }}
             >
               Song Details
+            </Typography>
+            <Typography
+              sx={{
+                color: theme.palette.text.secondary,
+                mb: 3,
+                lineHeight: 1.55,
+              }}
+            >
+              Update the information listeners see for this track.
             </Typography>
 
             <form onSubmit={handleSubmit(onSubmit)}>
@@ -263,7 +278,7 @@ if (albumError) return `Error! ${albumError.message}`;
                 <Typography
                   variant="body1"
                   sx={{
-                    color: "#ffffff",
+                    color: theme.palette.text.primary,
                     fontWeight: 500,
                     mb: 0.5,
                   }}
@@ -288,23 +303,24 @@ if (albumError) return `Error! ${albumError.message}`;
                   }}
                   sx={{
                     "& .MuiOutlinedInput-root": {
-                      backgroundColor: "rgba(255, 255, 255, 0.05)",
-                      color: "#ffffff",
+                      backgroundColor: alpha(theme.palette.background.paper, 0.7),
+                      color: theme.palette.text.primary,
+                      borderRadius: "8px",
                       "& fieldset": {
-                        borderColor: "rgba(255, 255, 255, 0.2)",
+                        borderColor: alpha(theme.palette.primary.main, 0.2),
                       },
                       "&:hover fieldset": {
-                        borderColor: "#ffde00",
+                        borderColor: alpha(theme.palette.primary.main, 0.45),
                       },
                       "&.Mui-focused fieldset": {
-                        borderColor: "#ffde00",
+                        borderColor: theme.palette.primary.main,
                       },
                     },
                     "& .MuiInputLabel-root": {
                       color: "rgba(255, 255, 255, 0.7)",
                     },
                     "& .MuiInputLabel-root.Mui-focused": {
-                      color: "#ffde00",
+                      color: theme.palette.primary.main,
                     },
                   }}
                 />
@@ -356,6 +372,15 @@ if (albumError) return `Error! ${albumError.message}`;
 
               <Box sx={{
                 display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                gap: 2,
+                mt: 2
+              }}>
+                <SongCategorySpeed Controller={Controller} control={control} errors={errors} />
+              </Box>
+
+              <Box sx={{
+                display: 'grid',
                 gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
                 gap: 2,
                 mt: 2
@@ -387,11 +412,14 @@ if (albumError) return `Error! ${albumError.message}`;
                 <Button
                   variant="contained"
                   sx={{
-                    color: 'var(--primary-background-color)',
-                    backgroundColor: 'var(--primary-font-color)',
-                    fontFamily: 'Roboto',
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    color: theme.palette.primary.contrastText,
+                    fontFamily: theme.typography.fontFamily,
+                    borderRadius: "8px",
                     width: isMobile ? '100%' : 'auto',
-                    py: 1.5
+                    px: 3,
+                    py: 1.1,
+                    fontWeight: 800,
                   }}
                   type="submit"
                 >

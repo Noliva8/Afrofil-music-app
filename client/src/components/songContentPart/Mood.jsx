@@ -3,45 +3,102 @@ import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
-import Stack from '@mui/material/Stack';
+import Checkbox from '@mui/material/Checkbox';
+import ListItemText from '@mui/material/ListItemText';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import { alpha, useTheme } from '@mui/material/styles';
 import { Controller } from "react-hook-form";
 
 const MAIN_MOODS = [
-  "Party",
-  "Chill",
-  "Love",
-  "Focus",
-  "Workout",
-  "Spiritual",
-  "Street",
-  "Sad",
-  "Happy",
-  "Late Night",
+ "Happy",
+    "Sad",
+    "Romantic",
+    "Calm",
+    "Energetic"
+
 ];
 
 const SUB_MOODS = {
-  Party: ["Turn Up", "Club", "Dance", "Festival", "Wedding", "Carnival", "Hype"],
-  Chill: ["Smooth", "Laid Back", "Relaxing", "Easy Listening", "Acoustic", "Sunday Chill"],
-  Love: ["Romantic", "Heartfelt", "Valentine", "Intimate", "Crush", "Breakup"],
-  Focus: ["Study", "Work", "Concentration", "Background", "Instrumental", "Creative"],
-  Workout: ["Gym", "Run", "Cardio", "High Energy", "Motivation"],
-  Spiritual: ["Worship", "Praise", "Prayer", "Meditation", "Inspirational"],
-  Street: ["Hustle", "Street Vibes", "Trap", "Drill", "Underground"],
-  Sad: ["Emotional", "Heartbreak", "Lonely", "Reflective", "Melancholy"],
-  Happy: ["Feel Good", "Positive", "Uplifting", "Joyful", "Celebration"],
-  "Late Night": ["After Hours", "Midnight Drive", "Moody", "Low Key", "Smooth R&B"],
+  
+    Happy: [
+       "Party",
+    "Wedding",
+    "Workout",
+    "Focus",
+    "Sleep",
+    "Dance",
+    "Late Night",
+    "Worship",
+    "Praise"
+    ],
+  
+
+    Sad:[
+       "Party",
+    "Wedding",
+    "Workout",
+    "Focus",
+    "Sleep",
+    "Dance",
+    "Late Night",
+    "Praise"
+    ],
+ 
+  Romantic: ["Party",
+    "Wedding",
+    "Workout",
+    "Focus",
+    "Sleep",
+    "Dance",
+    "Late Night",
+    "Worship",
+    "Praise"
+  ],
+  
+
+  Calm: [
+    "Party",
+    "Wedding",
+    "Workout",
+    "Focus",
+    "Sleep",
+    "Dance",
+    "Late Night",
+    "Worship",
+    "Praise"
+  ],
+
+  Energetic: [
+    "Party",
+    "Wedding",
+    "Workout",
+    "Focus",
+    "Sleep",
+    "Dance",
+    "Late Night",
+    "Worship",
+    "Praise"
+  ],
+ 
+ 
+ 
+
+
+
 };
 
 export default function Mood({ control, watch }) {
+  const theme = useTheme();
   const selectedMoods = watch("mood") || [];
 
   return (
     <Box mb={3}>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
+        <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>
           Mood
         </Typography>
-        <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)" }}>
+        <Typography variant="body2" sx={{ color: theme.palette.text.secondary, mt: 0.5 }}>
           How does your song feel? Pick up to 2.
         </Typography>
       </Box>
@@ -51,47 +108,63 @@ export default function Mood({ control, watch }) {
         control={control}
         defaultValue={[]}
         render={({ field: { value, onChange } }) => (
-          <Stack
-            direction="row"
-            flexWrap="wrap"
-            gap={1}
+          <Select
+            multiple
+            fullWidth
+            displayEmpty
+            value={value || []}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              onChange(typeof nextValue === "string" ? nextValue.split(",").slice(0, 2) : nextValue.slice(0, 2));
+            }}
+            renderValue={(selected) => {
+              if (!selected.length) {
+                return (
+                  <Typography component="span" sx={{ color: theme.palette.text.secondary }}>
+                    Select mood
+                  </Typography>
+                );
+              }
+
+              return selected.join(", ");
+            }}
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  backgroundColor: theme.palette.background.paper,
+                  color: theme.palette.text.primary,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                },
+              },
+            }}
             sx={{
-              p: 1.5,
-              borderRadius: 2,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(0,0,0,0.18)",
+              minWidth: 220,
+              width: "100%",
+              backgroundColor: alpha(theme.palette.background.paper, 0.7),
+              color: theme.palette.text.primary,
+              borderRadius: "8px",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: alpha(theme.palette.primary.main, 0.2),
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: alpha(theme.palette.primary.main, 0.45),
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: theme.palette.primary.main,
+              },
             }}
           >
-            {MAIN_MOODS.map((mood) => {
-              const selected = value.includes(mood);
-              return (
-                <Chip
-                  key={mood}
-                  label={mood}
-                  clickable
-                  color={selected ? "primary" : "default"}
-                  onClick={() => {
-                    const updated = selected
-                      ? value.filter((m) => m !== mood)
-                      : [...value, mood].slice(0, 2); // Max 2 moods
-                    onChange(updated);
-                  }}
-                  disabled={value.length >= 2 && !selected}
-                  sx={{
-                    fontSize: "0.875rem",
-                    px: 1,
-                    py: 0.5,
-                    borderColor: selected ? "primary.main" : "rgba(255,255,255,0.2)",
-                    color: selected ? "primary.contrastText" : "white",
-                    backgroundColor: selected ? "primary.main" : "rgba(255,255,255,0.06)",
-                    "&:hover": {
-                      backgroundColor: selected ? "primary.dark" : "rgba(255,255,255,0.12)",
-                    },
-                  }}
-                />
-              );
-            })}
-          </Stack>
+            {MAIN_MOODS.map((mood) => (
+              <MenuItem
+                key={mood}
+                value={mood}
+                disabled={(value || []).length >= 2 && !(value || []).includes(mood)}
+              >
+                <Checkbox checked={(value || []).includes(mood)} />
+                <ListItemText primary={mood} />
+              </MenuItem>
+            ))}
+          </Select>
         )}
       />
 

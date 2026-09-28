@@ -38,7 +38,7 @@ export const getAdvertizerFromToken = async (token) => {
       .lean();
 
     if (!advertizer) {
-      throw new AuthenticationError('Advertizer not found');
+      throw new AuthenticationError('Advertiser not found');
     }
 
     const permissions = Array.isArray(advertizer.permissions) ? advertizer.permissions : [];
@@ -54,7 +54,7 @@ export const getAdvertizerFromToken = async (token) => {
 
     return advertizer;
   } catch (error) {
-    console.error('🔴 Advertizer token verification failed:', error.message);
+    console.error('Advertiser token verification failed:', error.message);
     
     // Convert specific JWT errors to AuthenticationError
     if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
@@ -89,6 +89,7 @@ export const advertizer_authMiddleware = async ({ req }) => {
     
     if (advertizer) {
       req.advertizer = advertizer;
+      req.advertiser = advertizer;
     }
 
     return { req };

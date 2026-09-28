@@ -576,7 +576,7 @@ const serverCleanup = useServer(
 
 
         if (!token) {
-          throw new Error("No token provided");
+          return {};
         }
 
         // Create a mock request object to use with combinedAuthMiddleware
@@ -596,8 +596,9 @@ const serverCleanup = useServer(
         if (reqWithAuth.user) {
           return { user: reqWithAuth.user };
         }
-        if (reqWithAuth.advertizer) {
-          return { advertizer: reqWithAuth.advertizer };
+        const advertizer = reqWithAuth.advertizer || reqWithAuth.advertiser;
+        if (advertizer) {
+          return { advertiser: advertizer, advertizer };
         }
 
         throw new Error("Authentication failed");
@@ -886,7 +887,11 @@ const startApolloServer = async () => {
   // Copy the authenticated properties to the original request
   if (authenticatedReq.user) req.user = authenticatedReq.user;
   if (authenticatedReq.artist) req.artist = authenticatedReq.artist;
-  if (authenticatedReq.advertiser) req.advertiser = authenticatedReq.advertiser;
+  const advertiser = authenticatedReq.advertiser || authenticatedReq.advertizer;
+  if (advertiser) {
+    req.advertiser = advertiser;
+    req.advertizer = advertiser;
+  }
   if (authenticatedReq.auth) req.auth = authenticatedReq.auth;
 
   next();
@@ -899,7 +904,8 @@ const startApolloServer = async () => {
           req,
           artist: req.artist || null,
           user: req.user || null,
-          advertizer: req.advertiser || null,
+          advertiser: req.advertiser || req.advertizer || null,
+          advertizer: req.advertizer || req.advertiser || null,
         }),
       })
     );

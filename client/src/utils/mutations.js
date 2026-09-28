@@ -248,8 +248,8 @@ mutation updateArtistProfile($bio: String, $country: String, $region: String, $l
 }`
 
 export const UPDATE_ARTIST_IDENTITY = gql`
-mutation UpdateArtistIdentity($fullName: String!, $artistAka: String!) {
-  updateArtistIdentity(fullName: $fullName, artistAka: $artistAka) {
+mutation UpdateArtistIdentity($fullName: String!, $artistAka: String!, $artistId: ID) {
+  updateArtistIdentity(fullName: $fullName, artistAka: $artistAka, artistId: $artistId) {
     _id
     fullName
     artistAka
@@ -259,8 +259,8 @@ mutation UpdateArtistIdentity($fullName: String!, $artistAka: String!) {
 `
 
 export const ADD_BIO = gql`
-mutation addBio($bio: String) {
-  addBio(bio: $bio) {
+mutation addBio($bio: String, $artistId: ID) {
+  addBio(bio: $bio, artistId: $artistId) {
     _id
     bio
   }
@@ -270,8 +270,8 @@ mutation addBio($bio: String) {
 
 
 export const ADD_COUNTRY = gql`
-mutation AddCountry($country: String) {
-  addCountry(country: $country) {
+mutation AddCountry($country: String, $artistId: ID) {
+  addCountry(country: $country, artistId: $artistId) {
     _id
     country
   }
@@ -279,8 +279,8 @@ mutation AddCountry($country: String) {
 `
 
 export const ADD_REGION = gql`
-mutation AddRegion($region: String) {
-  addRegion(region: $region) {
+mutation AddRegion($region: String, $artistId: ID) {
+  addRegion(region: $region, artistId: $artistId) {
     _id
     region
   }
@@ -290,8 +290,8 @@ mutation AddRegion($region: String) {
 
 
 export const ADD_LANGUAGES = gql`
-mutation addLanguages($languages: [String]) {
-  addLanguages(languages: $languages) {
+mutation addLanguages($languages: [String], $artistId: ID) {
+  addLanguages(languages: $languages, artistId: $artistId) {
     _id
     languages
   }
@@ -300,8 +300,8 @@ mutation addLanguages($languages: [String]) {
 
 
 export const ADD_GENRE = gql`
-mutation addGenre($genre: [String]) {
-  addGenre(genre: $genre) {
+mutation addGenre($genre: [String], $artistId: ID) {
+  addGenre(genre: $genre, artistId: $artistId) {
     _id
     genre
   }
@@ -354,8 +354,8 @@ mutation addCategory($category: String) {
 `
 
 export const ADD_PROFILE_IMAGE = gql`
-mutation addProfileImage($profileImage: String) {
-  addProfileImage(profileImage: $profileImage) {
+mutation addProfileImage($profileImage: String, $artistId: ID) {
+  addProfileImage(profileImage: $profileImage, artistId: $artistId) {
     _id
     profileImage
   }
@@ -411,6 +411,8 @@ export const UPDATE_SONG = gql`
     $producer: [ProducerInput]
     $trackNumber: Int
     $genre: String
+    $songCategory: SongsCategory
+    $speed: songSpead
     $featuringArtist: [String]
     $lyrics: String
     $artwork: String
@@ -427,6 +429,8 @@ export const UPDATE_SONG = gql`
       producer: $producer
       trackNumber: $trackNumber
       genre: $genre
+      songCategory: $songCategory
+      speed: $speed
       featuringArtist: $featuringArtist
       lyrics: $lyrics
       artwork: $artwork
@@ -435,6 +439,8 @@ export const UPDATE_SONG = gql`
       subMoods: $subMoods
     ) {
       _id
+      songCategory
+      speed
       mood
       subMoods
     }

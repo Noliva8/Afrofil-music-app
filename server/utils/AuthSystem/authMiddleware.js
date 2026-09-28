@@ -123,6 +123,7 @@ export const combinedAuthMiddleware = async ({ req }) => {
           account.roleLabel = getRoleLabelForAccount(account);
           account.permissionSections = getPermissionSectionsForAccount(account);
           req.advertiser = account;
+          req.advertizer = account;
         }
       }
 

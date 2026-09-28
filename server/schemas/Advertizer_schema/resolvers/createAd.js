@@ -3,11 +3,12 @@ import { Advertizer, Ad } from "../../../models/Advertizer/index_advertizer.js";
 import { calculateAdPrice } from '../../../utils/priceCalculator.js';
 
 import { createOrUpdateAdRedis } from './Redis/createAdRedis.js';
+import { getAdvertiserFromContext } from '../../../utils/advertiserContext.js';
 
 
 
 // Define authentication error
-const AuthError = new GraphQLError('Could not authenticate advertizer.', {
+const AuthError = new GraphQLError('Could not authenticate advertiser.', {
   extensions: { code: 'UNAUTHENTICATED' }
 });
 
@@ -21,17 +22,17 @@ const toDate = (dateString) => {
 
 
 export const createAdBasic = async (_, { advertiserId, input }, context) => {
-  const advertizer = context.advertizer || context?.req?.advertizer;
+  const advertiser = getAdvertiserFromContext(context);
 
 await cleanupDraftAds(advertiserId);
 
-  if (!advertizer) {
-    throw new GraphQLError('Could not authenticate advertizer', {
+  if (!advertiser) {
+    throw new GraphQLError('Could not authenticate advertiser', {
       extensions: { code: 'UNAUTHENTICATED' }
     });
   }
 
-  if (String(advertizer._id) !== String(advertiserId)) {
+  if (String(advertiser._id) !== String(advertiserId)) {
     throw new GraphQLError('Advertiser ID mismatch', {
       extensions: { code: 'FORBIDDEN' }
     });
@@ -39,7 +40,7 @@ await cleanupDraftAds(advertiserId);
 
   const exists = await Advertizer.exists({ _id: advertiserId });
   if (!exists) {
-    throw new GraphQLError('Advertizer not found.', {
+    throw new GraphQLError('Advertiser not found.', {
       extensions: { code: 'BAD_USER_INPUT' }
     });
   }

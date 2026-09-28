@@ -5,16 +5,16 @@ import { BsThreeDots } from 'react-icons/bs';
 import { useSongsWithPresignedUrls } from '../../../utils/someSongsUtils/songsWithPresignedUrlHook.js';
 import { useAudioPlayer } from '../../../utils/Contexts/AudioPlayerContext.jsx';
 import { usePlayCount } from '../../../utils/handlePlayCount';
-import { handleTrendingSongPlay } from '../../../utils/plabackUtls/handleSongPlayBack.js';
+import { handleContextSongPlay } from '../../../utils/plabackUtls/handleSongPlayBack.js';
 import { useApolloClient } from '@apollo/client';
 import SectionHeader from '../../common/SectionHeader.jsx';
 
 const MAX_RECENT_SONGS = 4;
 
-const PlaylistSection = ({ songs = [], loading, currentSong, setCurrentSong, setIsPlaying }) => {
+const PlaylistSection = ({ songs = [], loading, setCurrentSong, setIsPlaying }) => {
   const { songsWithArtwork, loading: artworkLoading } = useSongsWithPresignedUrls(songs);
   const client = useApolloClient();
-  const { currentTrack, isPlaying: isTrackPlaying, handlePlaySong, pause } = useAudioPlayer();
+  const { currentTrack, isPlaying: isTrackPlaying, handlePlaySong } = useAudioPlayer();
   const { incrementPlayCount } = usePlayCount();
   const headerTitle = 'Recently Played';
   const playlistDescription = 'Back to the tracks you loved most recently.';
@@ -35,12 +35,13 @@ const PlaylistSection = ({ songs = [], loading, currentSong, setCurrentSong, set
       artist: normalizeArtist(song.artist) || normalizeArtist(song.artistName),
     };
     setCurrentSong(normalizedSong);
-    await handleTrendingSongPlay({
+    await handleContextSongPlay({
       song: normalizedSong,
       incrementPlayCount,
       handlePlaySong,
-      trendingSongs: songsWithArtwork,
+      songs: songsWithArtwork,
       client,
+      source: "recent",
     });
     setIsPlaying(true);
   };

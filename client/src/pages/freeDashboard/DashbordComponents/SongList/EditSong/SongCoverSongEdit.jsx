@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@apollo/client";
 import { useForm } from "react-hook-form";
 import Swal from "sweetalert2";
-import useTheme from '@mui/material/styles/useTheme';
+import { alpha, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -184,8 +184,10 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
       elevation={3}
       sx={{
         p: isMobile ? 2 : 3,
-        borderRadius: 2,
-        backgroundColor: "var(--secondary-background-color)",
+        borderRadius: "8px",
+        backgroundColor: alpha(theme.palette.background.paper, 0.9),
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+        boxShadow: theme.shadows[2],
         width: "100%",
         maxWidth: isMobile ? "100%" : "600px",
         mx: "auto"
@@ -193,9 +195,11 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
     >
       <Typography 
         variant={isMobile ? "h6" : "h5"} 
-        color="white" 
         gutterBottom
-        sx={{ fontWeight: 600 }}
+        sx={{
+          color: theme.palette.text.primary,
+          fontWeight: 600,
+        }}
       >
         Update Song Cover
       </Typography>
@@ -204,8 +208,8 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
         <Box
           sx={{
             border: "2px dashed",
-            borderColor: "divider",
-            borderRadius: 1,
+            borderColor: alpha(theme.palette.primary.main, 0.34),
+            borderRadius: "8px",
             p: isMobile ? 2 : 4,
             textAlign: "center",
             position: "relative",
@@ -214,7 +218,7 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
             flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
-            bgcolor: "rgba(255,255,255,0.05)"
+            bgcolor: alpha(theme.palette.background.paper, 0.7),
           }}
         >
           {displayUrl ? (
@@ -225,7 +229,7 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
                 style={{
                   maxHeight: isMobile ? 180 : 250,
                   maxWidth: "100%",
-                  borderRadius: 4,
+                  borderRadius: 8,
                   objectFit: "contain",
                 }}
                 onError={() => setDisplayUrl("")}
@@ -236,7 +240,7 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
                   position: "absolute",
                   top: 8,
                   right: 8,
-                  bgcolor: "background.paper",
+                  bgcolor: alpha(theme.palette.background.paper, 0.9),
                   "&:hover": { bgcolor: "error.main", color: "#fff" },
                 }}
                 size={isMobile ? "small" : "medium"}
@@ -253,11 +257,12 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
               startIcon={<CloudUploadIcon />}
               size={isMobile ? "medium" : "large"}
               sx={{
-                backgroundColor: "var(--primary-font-color)",
-                color: "var(--primary-background-color)",
+                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: theme.palette.primary.contrastText,
+                borderRadius: "8px",
+                fontWeight: 800,
                 '&:hover': {
-                  backgroundColor: "var(--primary-font-color)",
-                  opacity: 0.9
+                  background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
                 }
               }}
             >
@@ -284,10 +289,11 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
             onClick={onClose}
             disabled={loading}
             sx={{
-              color: "white",
-              borderColor: "white",
+              color: theme.palette.text.primary,
+              borderColor: alpha(theme.palette.primary.main, 0.45),
               '&:hover': {
-                borderColor: "var(--primary-font-color)"
+                borderColor: theme.palette.primary.main,
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
               }
             }}
           >
@@ -300,11 +306,12 @@ export default function SongCoverSongEdit({ song, onClose, songId }) {
             variant="contained"
             disabled={loading || !(fileKey || displayUrl)}
             sx={{
-              backgroundColor: "var(--primary-font-color)",
-              color: "var(--primary-background-color)",
+              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              color: theme.palette.primary.contrastText,
+              borderRadius: "8px",
+              fontWeight: 800,
               '&:hover': {
-                backgroundColor: "var(--primary-font-color)",
-                opacity: 0.9
+                background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
               },
               '&:disabled': {
                 opacity: 0.7

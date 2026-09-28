@@ -13,6 +13,7 @@ import dotenv from 'dotenv';
 import { AuthenticationError } from '../../utils/artist_auth.js';
 import { signArtistToken, signUserToken } from '../../utils/AuthSystem/tokenUtils.js'
 import { USER_TYPES } from '../../utils/AuthSystem/constant/systemRoles.js';
+import { getAdvertiserFromContext, isAdminAdvertiser } from '../../utils/advertiserContext.js';
 
 import sendEmail from '../../utils/emailTransportation.js';
 // import awsS3Utils from '../../utils/awsS3.js';
@@ -721,6 +722,56 @@ const escapeRegex = (value) =>
 
 const buildCaseInsensitiveMatch = (value) => new RegExp(`^${escapeRegex(value)}$`, "i");
 
+const clampAdminSongsLimit = (limit) => {
+  const parsed = Number.parseInt(limit, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 50;
+  return Math.min(parsed, 500);
+};
+
+const normalizeOffset = (offset) => {
+  const parsed = Number.parseInt(offset, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return parsed;
+};
+
+const buildAdminSongSearchQuery = async (search) => {
+  const trimmed = String(search || "").trim();
+  if (!trimmed) return {};
+
+  const regex = new RegExp(escapeRegex(trimmed), "i");
+  const [artists, albums] = await Promise.all([
+    Artist.find({
+      $or: [{ artistAka: regex }, { fullName: regex }, { email: regex }],
+    })
+      .select("_id")
+      .lean(),
+    Album.find({ title: regex }).select("_id").lean(),
+  ]);
+
+  const artistIds = artists.map((artist) => artist._id);
+  const albumIds = albums.map((album) => album._id);
+  const idMatch = mongoose.Types.ObjectId.isValid(trimmed)
+    ? [{ _id: new mongoose.Types.ObjectId(trimmed) }]
+    : [];
+
+  return {
+    $or: [
+      ...idMatch,
+      { title: regex },
+      { genre: regex },
+      { label: regex },
+      { tags: regex },
+      { mood: regex },
+      { subMoods: regex },
+      { featuringArtist: regex },
+      { "producer.name": regex },
+      { "composer.name": regex },
+      ...(artistIds.length ? [{ artist: { $in: artistIds } }] : []),
+      ...(albumIds.length ? [{ album: { $in: albumIds } }] : []),
+    ],
+  };
+};
+
 const buildStationSongQuery = (station) => {
   const or = [];
   for (const seed of station?.seeds || []) {
@@ -1026,6 +1077,29 @@ async function hasLegacyArtistAccess(artist) {
     artist?.selectedPlan &&
     getArtistProfileComplete(artist)
   );
+}
+
+function getProfileMutationArtistId(context, artistId, action = 'update artist profiles') {
+  if (context.artist?._id) return context.artist._id;
+
+  const advertiser = getAdvertiserFromContext(context);
+  if (!advertiser) {
+    throw new Error('Unauthorized: You must be logged in to update an artist profile.');
+  }
+
+  if (!isAdminAdvertiser(advertiser)) {
+    throw new Error(`Forbidden: Only admin, owner, or super admin advertisers can ${action}.`);
+  }
+
+  if (!artistId) {
+    throw new Error('artistId is required for advertiser admin artist profile updates.');
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(artistId)) {
+    throw new Error('Invalid artistId.');
+  }
+
+  return artistId;
 }
 
 async function ensureUserForLegacyArtist(artist, password) {
@@ -1344,7 +1418,7 @@ songsCompetingThisWeek: async (_parent, { limit = 10 }) => {
 
 
 
-artistProfile: async (parent, args, context) => {
+artistProfile: async (parent, { artistId } = {}, context) => {
   
   // SAFELY log context - don't stringify the whole thing!
   
@@ -1353,23 +1427,43 @@ artistProfile: async (parent, args, context) => {
   }
   
   try {
-    if (!context.artist) {
-      console.error('❌ Step 5: No artist in context');
-      throw new Error("Unauthorized: You must be logged in to view your profile.");
+    let profileArtistId = context.artist?._id;
+
+    if (!profileArtistId) {
+      const advertiser = getAdvertiserFromContext(context);
+
+      if (!advertiser) {
+        console.error('❌ Step 5: No artist or advertiser in context');
+        throw new Error("Unauthorized: You must be logged in to view artist profiles.");
+      }
+
+      if (!isAdminAdvertiser(advertiser)) {
+        throw new Error("Forbidden: Only admin, owner, or super admin advertisers can view artist profiles.");
+      }
+
+      if (!artistId) {
+        throw new Error("artistId is required for advertiser admin artist profile access.");
+      }
+
+      profileArtistId = artistId;
     }
 
-    if (!context.artist._id) {
-      console.error('❌ Step 6: Artist has no ID:', context.artist);
+    if (!profileArtistId) {
+      console.error('❌ Step 6: Missing artist ID:', context.artist);
       throw new Error("Unauthorized: Invalid artist data.");
     }
 
+    if (!mongoose.Types.ObjectId.isValid(profileArtistId)) {
+      throw new Error("Invalid artistId.");
+    }
+
     
-    const artist = await Artist.findById(context.artist._id)
+    const artist = await Artist.findById(profileArtistId)
       .populate("songs")
       .populate('followers');
 
     if (!artist) {
-      console.error('❌ Step 8: Artist not found in DB for ID:', context.artist._id);
+      console.error('❌ Step 8: Artist not found in DB for ID:', profileArtistId);
       throw new Error("Artist not found.");
     }
 
@@ -1589,6 +1683,8 @@ getSongMetadata: async (parent, { songId }, context) => {
       subMoods: song.subMoods || '',
       country: song.artist.country,
       tempo: song.tempo || 0,
+      songCategory: song.songCategory || 'SECULAR',
+      speed: song.speed || null,
       album: song.album || null, // Return album object
       albumTitle: song.album?.title || '', // From populated album
       duration: song.duration || 0
@@ -1745,6 +1841,52 @@ exploreSongs: async (_parent, { type, value }) => {
     .lean();
 
   return mapSongListPayload(songs);
+},
+adminSongs: async (_parent, { limit = 50, offset = 0, search, visibility, uploadStatus }, context) => {
+  const advertiser = getAdvertiserFromContext(context);
+
+  if (!advertiser || !isAdminAdvertiser(advertiser)) {
+    throw new Error("Forbidden: Only admin, owner, or super admin advertisers can view admin songs.");
+  }
+
+  const safeLimit = clampAdminSongsLimit(limit);
+  const safeOffset = normalizeOffset(offset);
+  const query = {};
+  const normalizedVisibility = String(visibility || "").trim().toLowerCase();
+  const normalizedUploadStatus = String(uploadStatus || "").trim().toUpperCase();
+
+  if (normalizedVisibility) {
+    query.visibility = normalizedVisibility;
+  }
+
+  if (normalizedUploadStatus) {
+    query.songUploadStatus = normalizedUploadStatus;
+  }
+
+  const searchQuery = await buildAdminSongSearchQuery(search);
+  Object.assign(query, searchQuery);
+
+  const [totalCount, songs] = await Promise.all([
+    Song.countDocuments(query),
+    Song.find(query)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(safeOffset)
+      .limit(safeLimit)
+      .populate({
+        path: "artist",
+        select: "artistAka fullName email country profileImage followers artistDownloadCounts",
+      })
+      .populate({ path: "album", select: "title releaseDate albumCoverImage" })
+      .populate({ path: "likedByUsers", select: "_id username email" })
+      .lean(),
+  ]);
+
+  return {
+    songs: mapSongListPayload(songs),
+    totalCount,
+    hasNextPage: safeOffset + songs.length < totalCount,
+    hasPreviousPage: safeOffset > 0,
+  };
 },
 searchCatalog: async (_parent, { query, limit = 12 }) => {
   const q = String(query || "").trim();
@@ -2760,11 +2902,8 @@ updateArtistProfile: async (
   }
 },
 
-updateArtistIdentity: async (parent, { fullName, artistAka }, context) => {
-  if (!context.artist) {
-    throw new Error('Unauthorized: You must be logged in to update your profile.');
-  }
-
+updateArtistIdentity: async (parent, { fullName, artistAka, artistId }, context) => {
+  const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
   const normalizedFullName = String(fullName || '').trim();
   const normalizedArtistAka = String(artistAka || '').trim();
 
@@ -2773,7 +2912,7 @@ updateArtistIdentity: async (parent, { fullName, artistAka }, context) => {
   }
 
   const updatedArtist = await Artist.findOneAndUpdate(
-    { _id: context.artist._id },
+    { _id: targetArtistId },
     {
       fullName: normalizedFullName,
       artistAka: normalizedArtistAka,
@@ -2808,13 +2947,11 @@ updateArtistIdentity: async (parent, { fullName, artistAka }, context) => {
   return updatedArtist;
 },
 
-addBio: async (parent, { bio }, context) => {
-      if (!context.artist) {
-        throw new Error('Unauthorized: You must be logged in to update your profile.');
-      }
+addBio: async (parent, { bio, artistId }, context) => {
+      const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
 
       const updatedArtist = await Artist.findOneAndUpdate(
-        { _id: context.artist._id },
+        { _id: targetArtistId },
         { bio },
         { new: true }
       );
@@ -2829,13 +2966,11 @@ addBio: async (parent, { bio }, context) => {
     },
 
 
-addCountry: async (parent, { country }, context) => {
-      if (!context.artist) {
-        throw new Error('Unauthorized: You must be logged in to update your profile.');
-      }
+addCountry: async (parent, { country, artistId }, context) => {
+      const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
 
       const updatedArtist = await Artist.findOneAndUpdate(
-        { _id: context.artist._id },
+        { _id: targetArtistId },
         { country },
         { new: true }
       );
@@ -2850,13 +2985,11 @@ addCountry: async (parent, { country }, context) => {
       return updatedArtist;
     },
 
-addRegion: async (parent, { region }, context) => {
-      if (!context.artist) {
-        throw new Error('Unauthorized: You must be logged in to update your profile.');
-      }
+addRegion: async (parent, { region, artistId }, context) => {
+      const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
 
       const updatedArtist = await Artist.findOneAndUpdate(
-        { _id: context.artist._id },
+        { _id: targetArtistId },
         { region },
         { new: true }
       );
@@ -2872,13 +3005,11 @@ addRegion: async (parent, { region }, context) => {
     },
 
 
-    addLanguages: async (parent, { languages }, context) => {
-      if (!context.artist) {
-        throw new Error('Unauthorized: You must be logged in to update your profile.');
-      }
+    addLanguages: async (parent, { languages, artistId }, context) => {
+      const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
 
       const updatedArtist = await Artist.findOneAndUpdate(
-        { _id: context.artist._id },
+        { _id: targetArtistId },
         { languages },
         { new: true }
       );
@@ -2893,13 +3024,11 @@ addRegion: async (parent, { region }, context) => {
       return updatedArtist;
     },
 
-    addGenre: async (parent, { genre }, context) => {
-      if (!context.artist) {
-        throw new Error('Unauthorized: You must be logged in to update your profile.');
-      }
+    addGenre: async (parent, { genre, artistId }, context) => {
+      const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
 
       const updatedArtist = await Artist.findOneAndUpdate(
-        { _id: context.artist._id },
+        { _id: targetArtistId },
         { genre },
         { new: true }
       );
@@ -3027,17 +3156,15 @@ removeGenre: async (_, { genre }, context) => {
 
 
 
-addProfileImage: async (parent , {profileImage}, context) =>{
+addProfileImage: async (parent , { profileImage, artistId }, context) =>{
   try{
-if (!context.artist) {
-    throw new Error('Unauthorized: You must be logged in to update your profile.');
-  }
+const targetArtistId = getProfileMutationArtistId(context, artistId, 'update artist profiles');
 
  
 
 
 const updatedArtist = await Artist.findOneAndUpdate(
-  {_id: context.artist._id},
+  {_id: targetArtistId},
   { profileImage},
   { new: true } 
   );
@@ -3143,6 +3270,8 @@ updateSong: async (
           album,
           trackNumber,
           genre,
+          songCategory,
+          speed,
           mood,
           subMoods,
           producer,
@@ -3161,6 +3290,8 @@ const updatedSong = await Song.findByIdAndUpdate(
     ...(isDefined(album) && { album }),
     ...(isDefined(trackNumber) && { trackNumber }),
     ...(isDefined(genre) && { genre }),
+    ...(isDefined(songCategory) && { songCategory }),
+    ...(isDefined(speed) && { speed }),
     ...(isDefined(mood) && { mood }),
     ...(isDefined(subMoods) && { subMoods }),
     ...(isDefined(producer) && { producer }),

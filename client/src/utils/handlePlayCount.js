@@ -49,12 +49,21 @@ export const usePlayCount = () => {
     lastPlayRequestBySong.set(key, now);
 
     try {
-      await handlePlayCount({
+      const { data } = await handlePlayCount({
         variables: {
           songId: key,
           visitorId: getVisitorId(),
         },
       });
+      const updatedSong = data?.handlePlayCount || null;
+
+      if (updatedSong && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("afrofeel:play-count-updated", {
+            detail: updatedSong,
+          })
+        );
+      }
 
       if (WEEKLY_PLAY_MIN_LISTEN_SECONDS <= 0) {
         handleWeeklyPlayCount({
@@ -68,7 +77,7 @@ export const usePlayCount = () => {
         });
       }
 
-      return true;
+      return updatedSong || true;
     } catch (err) {
       console.warn('Failed to increment play count:', err);
       lastPlayRequestBySong.delete(key);

@@ -5,6 +5,7 @@ import { Ad } from '../../../models/Advertizer/index_advertizer.js';
 import sendEmail from '../../../utils/emailTransportation.js';
 import { mirrorAdToRedis } from '../../../utils/AdEngine/mirrorAdToRedis.js';
 import { createOrUpdateAdRedis } from './Redis/createAdRedis.js';
+import { getAdvertiserFromContext, isAdminAdvertiser } from '../../../utils/advertiserContext.js';
 
 
 const UNAUTH = new GraphQLError('Could not authenticate advertiser', {
@@ -65,9 +66,9 @@ function rejectionEmailHTML({ adTitle, campaignId, fullName, companyName, reason
 
 
 export const AdAprouve = async (_parent, { adId, campaignId }, context) => {
-  const admin = context.advertizer || context?.req?.advertizer;
+  const admin = getAdvertiserFromContext(context);
   if (!admin) throw UNAUTH;
-  if (admin.role !== 'admin') throw FORBIDDEN;
+  if (!isAdminAdvertiser(admin)) throw FORBIDDEN;
 
   ensureId(adId);
 
@@ -151,9 +152,9 @@ export const AdAprouve = async (_parent, { adId, campaignId }, context) => {
 
 
 export const AdReject = async (_parent, { adId, campaignId, rejectionReason }, context) => {
-  const admin = context.advertizer || context?.req?.advertizer;
+  const admin = getAdvertiserFromContext(context);
   if (!admin) throw UNAUTH;
-  if (admin.role !== 'admin') throw FORBIDDEN;
+  if (!isAdminAdvertiser(admin)) throw FORBIDDEN;
 
   ensureId(adId);
 

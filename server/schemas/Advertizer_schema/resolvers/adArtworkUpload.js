@@ -4,6 +4,7 @@ import { Ad } from "../../../models/Advertizer/index_advertizer.js";
 import { S3Client, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import crypto from "crypto";
+import { getAdvertiserFromContext } from "../../../utils/advertiserContext.js";
 
 // ---------- Config ----------
 const CONFIG = {
@@ -111,8 +112,8 @@ async function processAndUploadImage(adId, file) {
 
 // ---------- Resolver ----------
 export default async function uploadArtwork(_parent, { adId, file }, context) {
-  const advertiser = context.advertizer || context?.req?.advertizer;
-  if (!advertiser) throw gqlErr("Could not authenticate advertizer", "UNAUTHENTICATED");
+  const advertiser = getAdvertiserFromContext(context);
+  if (!advertiser) throw gqlErr("Could not authenticate advertiser", "UNAUTHENTICATED");
   if (!CONFIG.bucket) throw gqlErr("Missing BUCKET_NAME_AD_ARTWORK env");
 
   const ad = await Ad.findById(adId);

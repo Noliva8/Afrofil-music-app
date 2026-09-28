@@ -2,6 +2,7 @@
 import { GraphQLError } from 'graphql';
 import { Ad } from '../../../models/Advertizer/index_advertizer.js';
 import mongoose from 'mongoose';
+import { getAdvertiserFromContext, isAdminAdvertiser } from '../../../utils/advertiserContext.js';
 
 
 const UNAUTH = new GraphQLError('Could not authenticate advertiser', {
@@ -15,14 +16,14 @@ const DEFAULT_LIMIT = 50;
 
 
 export default async function myAds(_parent, _args, context) {
-  const me = context.advertizer || context?.req?.advertizer;
+  const me = getAdvertiserFromContext(context);
   if (!me) throw UNAUTH;
 
   const ownerId = mongoose.Types.ObjectId.isValid(me._id)
     ? new mongoose.Types.ObjectId(me._id)
     : me._id;
 
-  const baseQuery = me.role === 'admin' ? {} : { advertiserId: ownerId };
+  const baseQuery = isAdminAdvertiser(me) ? {} : { advertiserId: ownerId };
 
   try {
     const rows = await Ad.find(baseQuery)
@@ -56,6 +57,5 @@ export default async function myAds(_parent, _args, context) {
     });
   }
 }
-
 
 

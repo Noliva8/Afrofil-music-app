@@ -138,10 +138,14 @@ const wsLink = wsUrl
         connectionParams: async () => {
           const artistToken = localStorage.getItem("artist_id_token");
           const userToken = localStorage.getItem("user_id_token");
+          const token = artistToken || userToken;
+
+          if (!token) {
+            return {};
+          }
+
           return {
-            authorization: artistToken
-              ? `Bearer ${artistToken}`
-              : `Bearer ${userToken}`,
+            authorization: `Bearer ${token}`,
           };
         },
         connectionAckWaitTimeout: 10000,
@@ -510,7 +514,7 @@ function AppBody({ onCreatePlaylist }) {
 
 
     useEffect(() => {
-    console.log("User activity changed:", userActivity);
+   
 
     // Later:
     
@@ -564,9 +568,6 @@ function AppBody({ onCreatePlaylist }) {
     const handleLoginFormDisplay = () => setFormDisplay('login');
     const handleSignupFormDisplay = () => setFormDisplay('signup');
 
-    const lastLogin = localStorage.getItem('lastLogin');
-    const showArtist = isArtistLoggedIn && lastLogin === 'artist';
-    const showUser = isUserLoggedIn && lastLogin === 'user';
     const userProfile = UserAuth.getProfile();
     const isUserVerified = Boolean(userProfile?.data?.isUserEmailVerified);
     
@@ -681,10 +682,17 @@ function AppUI({
   const location = useLocation();
   const pathname = location.pathname;
 
-  const lastLogin = localStorage.getItem('lastLogin');
-  const showArtist = isArtistLoggedIn && lastLogin === 'artist';
-  const showUser = isUserLoggedIn && lastLogin === 'user';
-  const showVerifiedUserChrome = isUserLoggedIn && isUserVerified;
+  const isArtistWorkspaceRoute =
+    pathname.startsWith('/artist/studio') ||
+    pathname.startsWith('/artist/dashboard');
+  const showVerifiedUserChrome =
+    isUserLoggedIn && isUserVerified && !isArtistWorkspaceRoute;
+  const showArtistGuestChrome =
+    isArtistLoggedIn &&
+    !showVerifiedUserChrome &&
+    !isArtistWorkspaceRoute &&
+    !isPublicArtistPage &&
+    !isNotMediaPlayerAllowed;
   const shouldHideGuestChrome =
     isPublicArtistPage ||
     pathname.startsWith('/terms') ||
@@ -764,8 +772,8 @@ function AppUI({
 
 
 
-      {isArtistLoggedIn && !isPublicArtistPage  && !isNotMediaPlayerAllowed && (
-<ArtistGuestViewAppBar />
+      {showArtistGuestChrome && (
+        <ArtistGuestViewAppBar />
       )}
 
       {/* Header when user is logged in */}

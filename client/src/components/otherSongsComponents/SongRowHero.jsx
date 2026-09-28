@@ -38,6 +38,22 @@ const getSongTimestamp = (song) => {
   return Number.isFinite(ts) ? ts : 0;
 };
 
+const applyPlayCountOverrides = (songs, overrides) => {
+  if (!overrides.size) return songs;
+
+  return songs.map((song) => {
+    const id = String(song?._id ?? song?.id ?? song?.songId ?? "");
+    if (!id || !overrides.has(id)) return song;
+
+    const playCount = overrides.get(id);
+    return {
+      ...song,
+      playCount,
+      plays: playCount,
+    };
+  });
+};
+
 
 
 
@@ -245,16 +261,13 @@ export function SongRowContainerHero({
 })
  {
   const client = useApolloClient();
-  const theme = useTheme();
-
-
-
 
   const sectionRef = useRef(null);
   const railRef = useRef(null);
   const savedScrollLeftRef = useRef(0);
 
   const [showAll, setShowAll] = useState(false);
+  const [playCountOverrides, setPlayCountOverrides] = useState(() => new Map());
 
   const { incrementPlayCount } = usePlayCount();
   const { currentTrack, isPlaying, handlePlaySong, pause } = useAudioPlayer();
@@ -264,8 +277,8 @@ export function SongRowContainerHero({
   // ✅ Base songs: trust parent (already 10 + presigned + processed)
   const baseSongs = useMemo(() => {
     const items = Array.isArray(songsWithArtwork) ? songsWithArtwork : [];
-    return processSongs(items);
-  }, [songsWithArtwork]);
+    return applyPlayCountOverrides(processSongs(items), playCountOverrides);
+  }, [songsWithArtwork, playCountOverrides]);
 
 
 
@@ -327,6 +340,25 @@ export function SongRowContainerHero({
   // ✅ Presign ONLY the extra songs
   const { songsWithArtwork: extraPresigned } = useSongsWithPresignedUrls(extraSongsRaw);
 
+  const incrementPlayCountAndUpdateRow = useCallback(
+    async (songId) => {
+      const updatedSong = await incrementPlayCount(songId);
+      const nextPlayCount = Number(updatedSong?.playCount);
+      const updatedSongId = String(updatedSong?._id ?? songId ?? "");
+
+      if (updatedSongId && Number.isFinite(nextPlayCount)) {
+        setPlayCountOverrides((prev) => {
+          const next = new Map(prev);
+          next.set(updatedSongId, nextPlayCount);
+          return next;
+        });
+      }
+
+      return updatedSong;
+    },
+    [incrementPlayCount]
+  );
+
   // ✅ Merge final list (fallback to base if query fails or still loading)
   const mergedSongs = useMemo(() => {
     if (!showAll) return baseSongs;
@@ -334,8 +366,8 @@ export function SongRowContainerHero({
     const extra = Array.isArray(extraPresigned) ? extraPresigned : [];
     const merged = [...baseSongs, ...extra];
 
-    return merged.slice(0, COMPACT_LIMIT);
-  }, [baseSongs, extraPresigned, showAll]);
+    return applyPlayCountOverrides(merged.slice(0, COMPACT_LIMIT), playCountOverrides);
+  }, [baseSongs, extraPresigned, playCountOverrides, showAll]);
 
   const isHeroReady = baseSongs.length > 0 && Boolean(baseSongs[0]?.artworkUrl);
 
@@ -351,7 +383,7 @@ export function SongRowContainerHero({
 
       handleTrendingSongPlay({
         song,
-        incrementPlayCount,
+        incrementPlayCount: incrementPlayCountAndUpdateRow,
         handlePlaySong,
         trendingSongs: mergedSongs,
         client,
@@ -361,7 +393,7 @@ export function SongRowContainerHero({
       currentTrack?.id,
       isPlaying,
       pause,
-      incrementPlayCount,
+      incrementPlayCountAndUpdateRow,
       handlePlaySong,
       mergedSongs,
       client,
@@ -503,6 +535,4 @@ export function SongRowContainerHero({
     </Box>
   );
 }
-
-
 

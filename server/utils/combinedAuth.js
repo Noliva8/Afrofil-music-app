@@ -183,7 +183,7 @@ export const combinedAuthMiddleware = async ({ req }) => {
           }
         } catch (err) {
         }
-      } else if (payload.role === 'advertizer' || payload.companyName) {
+      } else if (payload.role === 'advertizer' || payload.role === 'advertiser' || payload.companyName) {
         try {
           advertizer = await getAdvertizerFromToken(token);
           if (advertizer) {
