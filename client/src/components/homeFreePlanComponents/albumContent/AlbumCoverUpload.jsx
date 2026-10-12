@@ -10,35 +10,37 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useMutation } from "@apollo/client";
 import { GET_PRESIGNED_URL } from "../../../utils/mutations";
 import { UPDATE_ALBUM } from "../../../utils/mutations";
+import { alpha, useTheme } from "@mui/material/styles";
 import {
   ActivityMonitorContext,
   PREDEFINED_ACTIVITIES,
 } from "../../../utils/Contexts/activityMonitoring.jsx";
 
-const style = {
+const getModalSx = (theme) => ({
   position: "absolute",
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: { xs: "500px", md: "50%", lg: "900px" },
-  height: "50vh",
-  bgcolor: "#1a5d5d",
-  border: "2px solid #000",
+  width: { xs: "calc(100% - 24px)", sm: "500px", md: "50%", lg: "900px" },
+  minHeight: { xs: 320, sm: 360 },
+  bgcolor: alpha(theme.palette.background.paper, 0.96),
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
   boxShadow: 24,
-  p: 4,
-};
+  borderRadius: "8px",
+  p: { xs: 2, sm: 3 },
+});
 
 export default function AlbumCoverUpload({
   inputModal,
   setInputModel,
   albumId,
-  handleAlbumInputModel,
+  onCoverUploaded,
 }) {
+  const theme = useTheme();
   const fileInputRef = useRef(null);
   const { updateActivity } = useContext(ActivityMonitorContext);
 
   const [isLoadingImage, setIsLoadingImage] = useState(false);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState("");
   const [progress, setProgress] = useState(0); // State for progress bar
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
   const [UpdateAlbum] = useMutation(UPDATE_ALBUM);
@@ -126,9 +128,7 @@ export default function AlbumCoverUpload({
 
       xhr.onload = async () => {
         if (xhr.status === 200) {
-          const imageUrl = uploadedUrl.split("?")[0];
           const canonicalUrl = `https://afrofeel-album-covers.s3.us-west-2.amazonaws.com/${objectKey}`;
-          setUploadedImageUrl(canonicalUrl); // Set the uploaded image URL
 
           // Update the album with the uploaded image URL
           await UpdateAlbum({
@@ -147,8 +147,11 @@ export default function AlbumCoverUpload({
             },
           });
 
+          setIsLoadingImage(false);
           setInputModel(false);
+          onCoverUploaded?.();
         } else {
+          setIsLoadingImage(false);
           Swal.fire({
             icon: "error",
             title: "Oops...",
@@ -161,6 +164,7 @@ export default function AlbumCoverUpload({
       };
 
       xhr.onerror = () => {
+        setIsLoadingImage(false);
         Swal.fire({
           icon: "error",
           title: "Oops...",
@@ -183,8 +187,6 @@ export default function AlbumCoverUpload({
           popup: "custom-alert",
         },
       });
-    } finally {
-      setIsLoadingImage(false);
     }
   };
 
@@ -194,18 +196,30 @@ export default function AlbumCoverUpload({
         open={inputModal}
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
-        style={{ zIndex: 10 }}
+        sx={{ zIndex: (theme) => theme.zIndex.modal + 2 }}
       >
-        <Box sx={style}>
-          <Typography variant="h6">Upload Album Cover</Typography>
-          <Paper
+        <Box sx={getModalSx(theme)}>
+          <Typography
+            variant="h5"
             sx={{
-              width: { xs: "200px", sm: "250px" },
-              height: "100px",
-              bgcolor: "#1a5d5d",
+              color: theme.palette.text.primary,
+              fontWeight: 900,
+              mb: 2,
+            }}
+          >
+            Upload Album Cover
+          </Typography>
+          <Paper
+            elevation={0}
+            sx={{
+              width: "100%",
+              minHeight: 180,
+              bgcolor: alpha(theme.palette.background.default, 0.42),
+              border: `2px dashed ${alpha(theme.palette.primary.main, 0.34)}`,
+              borderRadius: "8px",
               margin: "0 auto",
               display: "flex",
-              padding: "16px",
+              padding: { xs: 2, sm: 3 },
               justifyContent: "center",
               alignItems: "center",
             }}
@@ -214,7 +228,16 @@ export default function AlbumCoverUpload({
               component="label"
               variant="contained"
               startIcon={<CloudUploadIcon />}
-              sx={{ bgcolor: "#441a49" }}
+              sx={{
+                background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: theme.palette.primary.contrastText,
+                borderRadius: "8px",
+                textTransform: "none",
+                fontWeight: 800,
+                "&:hover": {
+                  background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                },
+              }}
             >
               Upload album cover
               <input
@@ -232,15 +255,23 @@ export default function AlbumCoverUpload({
 
           {isLoadingImage && (
             <Box sx={{ width: "100%", mt: 2 }}>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                 Uploading... {progress}%
               </Typography>
-              <Box sx={{ width: "100%", height: "10px", backgroundColor: "#ccc" }}>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: 10,
+                  backgroundColor: alpha(theme.palette.text.primary, 0.12),
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                }}
+              >
                 <Box
                   sx={{
                     width: `${progress}%`,
                     height: "100%",
-                    backgroundColor: "#4caf50",
+                    backgroundColor: theme.palette.success.main,
                     transition: "width 0.1s ease-in-out",
                   }}
                 />

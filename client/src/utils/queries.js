@@ -563,8 +563,8 @@ query ArtistProfile($artistId: ID) {
 `
 
 export const GET_ALBUM = gql`
-query albumOfArtist{
-  albumOfArtist {
+query albumOfArtist($artistId: ID){
+  albumOfArtist(artistId: $artistId) {
     _id
     title
   }

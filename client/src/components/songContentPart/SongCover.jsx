@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, startTransition } from 'react';
+import { useState, startTransition } from 'react';
 import Button from '@mui/material/Button';
 import { useForm } from "react-hook-form";
 import { useMutation } from "@apollo/client";
@@ -14,6 +14,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { alpha, useTheme } from '@mui/material/styles';
 
 
@@ -21,7 +23,6 @@ import { alpha, useTheme } from '@mui/material/styles';
 
 
 const SongCover = ({ 
-  setActiveStep,
    songId,
   currentImageUrl,
   onUpload,
@@ -32,39 +33,33 @@ const theme = useTheme();
 
 const navigate = useNavigate();
 
-const {  handleSubmit, formState: { errors } } = useForm();
+const { handleSubmit } = useForm();
   const [addArtwork] = useMutation(ADD_ARTWORK);
 
 
-  const [tempPreview, setTempPreview] = useState('');
-  const previewRef = useRef('');
+  const [uploadError, setUploadError] = useState('');
+  const [selectedFileName, setSelectedFileName] = useState('');
 
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Create and set temporary preview
-    const previewUrl = URL.createObjectURL(file);
-    previewRef.current = previewUrl;
-    setTempPreview(previewUrl);
+    setSelectedFileName(file.name);
+    setUploadError('');
 
-    // Upload to S3
     onUpload(file).catch(() => {
-      // Keep preview on error
+      setUploadError('Artwork upload failed. Please try again.');
     });
   };
 
-  // Display priority: Final URL > Temporary preview
-  const displayUrl = currentImageUrl || tempPreview;
+  const hasUploadedArtwork = Boolean(currentImageUrl);
 
-  useEffect(() => {
-    if (tempPreview && currentImageUrl) {
-      URL.revokeObjectURL(previewRef.current);
-      previewRef.current = "";
-      setTempPreview("");
-    }
-  }, [currentImageUrl, tempPreview]);
+  const handleDelete = () => {
+    setSelectedFileName('');
+    setUploadError('');
+    onDelete?.();
+  };
 
 
 
@@ -72,7 +67,7 @@ const {  handleSubmit, formState: { errors } } = useForm();
   // update the server
 
 
-  const onSubmit = async (data) => {
+  const onSubmit = async () => {
 
  if (!songId) {
     console.error("🚨 Cannot submit: songId is missing.");
@@ -92,7 +87,7 @@ const {  handleSubmit, formState: { errors } } = useForm();
 
 };
 
-const response = await addArtwork({ variables });
+await addArtwork({ variables });
 
 
     await Swal.fire({
@@ -159,22 +154,30 @@ const response = await addArtwork({ variables });
         position: 'relative',
         minHeight: 300
       }}>
-        {displayUrl ? (
-          <>
-            <img 
-              src={displayUrl} 
-              alt="Album cover" 
-              style={{ 
-                maxHeight: 250,
-                maxWidth: '100%',
-                borderRadius: 4,
-                objectFit: 'contain'
-              }}
-              onError={() => setTempPreview('')}
-            />
+        {hasUploadedArtwork ? (
+          <Box
+            sx={{
+              minHeight: 220,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 1.5,
+            }}
+          >
+            <CheckCircleOutlineIcon sx={{ fontSize: 64, color: "success.main" }} />
+            <Typography variant="h6" sx={{ color: "success.main", fontWeight: 800 }}>
+              Artwork uploaded
+            </Typography>
+            {selectedFileName && (
+              <Typography variant="body2" sx={{ color: "text.secondary", wordBreak: "break-word" }}>
+                {selectedFileName}
+              </Typography>
+            )}
             <IconButton
-              onClick={onDelete}  // Use onDelete directly
+              onClick={handleDelete}
               disabled={isLoading}
+              aria-label="Remove uploaded artwork"
               sx={{
                 position: 'absolute',
                 top: 8,
@@ -185,14 +188,45 @@ const response = await addArtwork({ variables });
             >
               <DeleteIcon />
             </IconButton>
-          </>
+          </Box>
         ) : (
           <>
             {isLoading ? (
-              <CircularProgress size={48} />
+              <Box
+                sx={{
+                  minHeight: 220,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1.5,
+                }}
+              >
+                <CircularProgress size={48} />
+                <Typography variant="body1" sx={{ color: "text.primary", fontWeight: 700 }}>
+                  Uploading artwork...
+                </Typography>
+                {selectedFileName && (
+                  <Typography variant="body2" sx={{ color: "text.secondary", wordBreak: "break-word" }}>
+                    {selectedFileName}
+                  </Typography>
+                )}
+              </Box>
             ) : (
               <>
-                <ImageIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                {uploadError ? (
+                  <>
+                    <ErrorOutlineIcon sx={{ fontSize: 56, color: "error.main" }} />
+                    <Typography variant="body1" sx={{ color: "error.main", fontWeight: 800, mt: 1 }}>
+                      Artwork not uploaded
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
+                      {uploadError}
+                    </Typography>
+                  </>
+                ) : (
+                  <ImageIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                )}
                 <Button
                   component="label"
                   variant="contained"

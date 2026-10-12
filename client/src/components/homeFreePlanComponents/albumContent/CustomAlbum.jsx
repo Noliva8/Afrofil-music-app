@@ -11,42 +11,48 @@ import TextField from "@mui/material/TextField";
 import { useMutation } from "@apollo/client";
 import { CUSTOM_ALBUM } from "../../../utils/mutations";
 import { useForm } from "react-hook-form";
+import { alpha, useTheme } from "@mui/material/styles";
 import AlbumCoverUpload from "./AlbumCoverUpload";
 import './customAlbum.css';
 const LazyReleaseDatePicker = lazy(() => import("./ReleaseDatePicker.jsx"));
-const ReleaseDateFallback = () => (
-  <TextField
-    fullWidth
-    placeholder="Loading release date picker..."
-    disabled
-    sx={{
-      bgcolor: "var(--secondary-background-color)",
-      "& .MuiInputLabel-root": { color: "white !important" },
-      "& .MuiInputBase-root": { color: "white !important" },
-      "& .MuiInputBase-input": {
-        color: "white !important",
-        "&::placeholder": { color: "rgba(255,255,255,0.5)" },
-      },
-    }}
-  />
-);
+const ReleaseDateFallback = () => {
+  const theme = useTheme();
 
-const style = {
+  return (
+    <TextField
+      fullWidth
+      placeholder="Loading release date picker..."
+      disabled
+      sx={{
+        bgcolor: alpha(theme.palette.background.paper, 0.7),
+        borderRadius: "8px",
+        "& .MuiInputBase-root": { color: theme.palette.text.primary },
+        "& .MuiInputBase-input::placeholder": {
+          color: alpha(theme.palette.text.secondary, 0.8),
+        },
+      }}
+    />
+  );
+};
+
+const getModalSx = (theme) => ({
   position: "absolute",
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: { xs: "500px", md: "50%", lg: "900px" },
+  width: { xs: "calc(100% - 24px)", sm: "500px", md: "50%", lg: "900px" },
   height: "auto",
   maxHeight: "80vh",
-  bgcolor: "#2b2d42", // Dark background color
-  border: "2px solid #8d99ae", // Light border for a cleaner look
+  bgcolor: alpha(theme.palette.background.paper, 0.96),
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.24)}`,
   boxShadow: 24,
   borderRadius: "8px",
-  p: 4,
-};
+  p: { xs: 2, sm: 3 },
+  overflowY: "auto",
+});
 
 export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchAlbums }) {
+  const theme = useTheme();
   const [inputModal, setInputModel] = useState(false);
   const [createCustomAlbum] = useMutation(CUSTOM_ALBUM);
   const [albumId, setAlbumId] = useState('');
@@ -159,27 +165,48 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
-        <Box sx={style}>
+        <Box sx={getModalSx(theme)}>
           <Button
-            variant="contained"
-            size={"small"}
+            variant="outlined"
+            size="small"
             onClick={handleClose}
-            sx={{ position: "absolute", top: "10px", right: "10px" }}
+            sx={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              minWidth: 40,
+              color: theme.palette.text.secondary,
+              borderColor: alpha(theme.palette.text.primary, 0.14),
+              bgcolor: alpha(theme.palette.background.default, 0.32),
+              "&:hover": {
+                color: theme.palette.text.primary,
+                borderColor: alpha(theme.palette.primary.main, 0.45),
+                bgcolor: alpha(theme.palette.primary.main, 0.08),
+              },
+            }}
             ref={closeButtonRef}
           >
             <CloseIcon />
           </Button>
 
-          <Paper sx={{ width: "100%", height: "90%", margin: "1rem", bgcolor: "#441a49", padding: "20px", borderRadius: "8px" }}>
+          <Paper
+            elevation={0}
+            sx={{
+              width: "100%",
+              bgcolor: alpha(theme.palette.background.default, 0.42),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`,
+              p: { xs: 2, sm: 2.5 },
+              borderRadius: "8px",
+            }}
+          >
             <Stack spacing={2}>
               <Typography
                 variant="h5"
                 sx={{
-                  fontFamily: "Roboto, sans-serif",
                   fontSize: { xs: "1.8rem", md: "2rem", lg: "2.3rem" },
-                  fontWeight: 700,
-                  color: "white",
-                  textAlign: "center",
+                  fontWeight: 900,
+                  color: theme.palette.text.primary,
+                  textAlign: "left",
                 }}
               >
                 Create Album
@@ -187,7 +214,7 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
 
               <Box sx={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <Typography sx={{ color: "white", fontWeight: "500", fontSize: "18px" }}>Title</Typography>
+                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 700, fontSize: "1rem" }}>Title</Typography>
                   <TextField
                     fullWidth
                     id="title"
@@ -196,17 +223,26 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
                     autoFocus
                     {...register("title")}
                     sx={{
-                      bgcolor: "#2f3e46",
-                      color: "white",
-                      borderRadius: "4px",
-                      "& .MuiInputLabel-root": { color: "#ddd" },
-                      "& .MuiInputBase-root": { color: "#fff" },
+                      "& .MuiOutlinedInput-root": {
+                        bgcolor: alpha(theme.palette.background.paper, 0.7),
+                        color: theme.palette.text.primary,
+                        borderRadius: "8px",
+                        "& fieldset": {
+                          borderColor: alpha(theme.palette.primary.main, 0.2),
+                        },
+                        "&:hover fieldset": {
+                          borderColor: alpha(theme.palette.primary.main, 0.45),
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: theme.palette.primary.main,
+                        },
+                      },
                     }}
                   />
                 </Box>
 
                 <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <Typography sx={{ color: "white", fontWeight: "500", fontSize: "18px" }}>Release Date</Typography>
+                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 700, fontSize: "1rem" }}>Release Date</Typography>
                   <Suspense fallback={<ReleaseDateFallback />}>
                     <LazyReleaseDatePicker
                       value={releaseDateValue}
@@ -220,9 +256,11 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
                 <Button
                   variant="contained"
                   sx={{
-                    bgcolor: "#6c4f70", // Updated color for a polished look
-                    color: "white",
-                    "&:hover": { bgcolor: "#441a49" },
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    color: theme.palette.primary.contrastText,
+                    "&:hover": {
+                      background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                    },
                     padding: "12px 24px",
                     fontSize: "1.2rem",
                     borderRadius: "8px",
@@ -238,7 +276,12 @@ export default function CustomAlbum({ albumOpen, setAlbumOpen, profile, refetchA
         </Box>
       </Modal>
 
-      <AlbumCoverUpload inputModal={inputModal} setInputModel={setInputModel} albumId={albumId} />
+      <AlbumCoverUpload
+        inputModal={inputModal}
+        setInputModel={setInputModel}
+        albumId={albumId}
+        onCoverUploaded={refetchAlbums}
+      />
     </div>
   );
 }

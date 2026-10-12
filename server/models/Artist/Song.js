@@ -83,7 +83,14 @@ mood: {
     "Sad",
     "Romantic",
     "Calm",
-    "Energetic"
+    "Energetic",
+
+
+    "Worship",
+    "Praise",
+    "Party",
+    "Wedding",
+    "Workout",
   ],
   default: [],
 },
@@ -158,15 +165,53 @@ mood: {
 subMoods: {
   type: [String],
   enum: [
-    "Party",
-    "Wedding",
-    "Workout",
-    "Focus",
-    "Sleep",
-    "Dance",
-    "Late Night",
-    "Worship",
-    "Praise"
+    "Joyful",
+  "Optimistic",
+  "Playful",
+  "Celebratory",
+
+   "Heartbreak",
+  "Lonely",
+  "Struggle",
+  "Grief",
+
+   "Crush",
+  "In Love",
+  "Intimate",
+  "Commitment",
+
+   "Peaceful",
+  "Reflective",
+  "Soothing",
+
+   "Hype",
+  "Powerful",
+  "Motivational",
+  "Aggressive",
+
+   "Devotional",
+  "Prayerful",
+  "Meditative",
+  "Surrender",
+
+   "Thanksgiving",
+  "Exaltation",
+  "Testimony",
+
+   "Club",
+  "Turn Up",
+  "Festival",
+
+   "Gusaba",
+  "Ceremony",
+  "First Dance",
+  "Reception",
+
+    "Gym",
+  "Running",
+  "Training",
+
+
   ],
   default: [],
 },

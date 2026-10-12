@@ -1703,17 +1703,30 @@ getSongMetadata: async (parent, { songId }, context) => {
 
 
 
-albumOfArtist: async (parent, args, context) => {
-   if (!context.artist) {
-        throw new Error('Unauthorized: You must be logged in to fetch your songs.');
-    }
+albumOfArtist: async (parent, { artistId } = {}, context) => {
+    let targetArtistId = context.artist?._id;
 
-     // Use the artist's ID from the context
-    const artistId = context.artist._id;
+    if (!targetArtistId) {
+      const advertiser = getAdvertiserFromContext(context);
+
+      if (!advertiser || !isAdminAdvertiser(advertiser)) {
+        throw new Error('Unauthorized: You must be logged in as an artist or admin to fetch artist albums.');
+      }
+
+      if (!artistId) {
+        throw new Error('artistId is required for admin album access.');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(artistId)) {
+        throw new Error('Invalid artistId.');
+      }
+
+      targetArtistId = artistId;
+    }
 
      try {
         // Fetch albums associated with the artist's ID and populate the songs details
-        const albums = await Album.find({ artist: artistId  })
+        const albums = await Album.find({ artist: targetArtistId  })
         .populate('songs')
         
 
@@ -3259,8 +3272,12 @@ updateSong: async (
       context
     ) => {
       try {
-        if (!context.artist) {
-          throw new Error('Unauthorized: You must be logged in to update a song.');
+        const advertiser = getAdvertiserFromContext(context);
+        const canAdminEdit = isAdminAdvertiser(advertiser);
+        const artistId = context.artist?._id;
+
+        if (!artistId && !canAdminEdit) {
+          throw new Error('Unauthorized: You must be logged in as the song artist or an admin to update a song.');
         }
 
         const {
@@ -3281,55 +3298,57 @@ updateSong: async (
           lyrics,
           artwork,
         } = args;
-// 1) Update MongoDB (source of truth)
-const updatedSong = await Song.findByIdAndUpdate(
-  songId,
-  {
-    ...(isDefined(title) && { title }),
-    ...(isDefined(featuringArtist) && { featuringArtist }),
-    ...(isDefined(album) && { album }),
-    ...(isDefined(trackNumber) && { trackNumber }),
-    ...(isDefined(genre) && { genre }),
-    ...(isDefined(songCategory) && { songCategory }),
-    ...(isDefined(speed) && { speed }),
-    ...(isDefined(mood) && { mood }),
-    ...(isDefined(subMoods) && { subMoods }),
-    ...(isDefined(producer) && { producer }),
-    ...(isDefined(composer) && { composer }),
-    ...(isDefined(label) && { label }),
-    ...(isDefined(releaseDate) && { releaseDate }),
-    ...(isDefined(lyrics) && { lyrics }),
-    ...(isDefined(artwork) && { artwork }),
-    updatedAt: new Date(),
-  },
-  { new: true }
-).populate({ path: 'artist', select: 'country' }); // POPULATE ARTIST FOR COUNTRY
 
-if (!updatedSong) {
-  throw new Error('Song not found.');
-}
+        const songQuery = canAdminEdit ? { _id: songId } : { _id: songId, artist: artistId };
+        // 1) Update MongoDB (source of truth)
+        const updatedSong = await Song.findByIdAndUpdate(
+          songQuery,
+          {
+            ...(isDefined(title) && { title }),
+            ...(isDefined(featuringArtist) && { featuringArtist }),
+            ...(isDefined(album) && { album }),
+            ...(isDefined(trackNumber) && { trackNumber }),
+            ...(isDefined(genre) && { genre }),
+            ...(isDefined(songCategory) && { songCategory }),
+            ...(isDefined(speed) && { speed }),
+            ...(isDefined(mood) && { mood }),
+            ...(isDefined(subMoods) && { subMoods }),
+            ...(isDefined(producer) && { producer }),
+            ...(isDefined(composer) && { composer }),
+            ...(isDefined(label) && { label }),
+            ...(isDefined(releaseDate) && { releaseDate }),
+            ...(isDefined(lyrics) && { lyrics }),
+            ...(isDefined(artwork) && { artwork }),
+            updatedAt: new Date(),
+          },
+          { new: true }
+        ).populate({ path: 'artist', select: 'country' }); // POPULATE ARTIST FOR COUNTRY
 
-const hasRequiredMetadata = Boolean(
-  updatedSong.title &&
-  updatedSong.genre &&
-  updatedSong.releaseDate &&
-  updatedSong.album
-);
+        if (!updatedSong) {
+          throw new Error(canAdminEdit ? 'Song not found.' : 'Song not found or you do not have permission to update it.');
+        }
 
-if (updatedSong.visibility !== "public" && hasRequiredMetadata) {
-  updatedSong.visibility = "public";
-  await updatedSong.save();
-}
+        const hasRequiredMetadata = Boolean(
+          updatedSong.title &&
+          updatedSong.genre &&
+          updatedSong.releaseDate &&
+          updatedSong.album
+        );
+
+        if (updatedSong.visibility !== "public" && hasRequiredMetadata) {
+          updatedSong.visibility = "public";
+          await updatedSong.save();
+        }
 
 
-// 2) similarity set precomputation (ONLY AFTER ALL FIELDS ARE SET)
-try {
-  await generateSimilarSongs(updatedSong);
-} catch (similarityError) {
-  console.warn('Similarity precomputation failed:', similarityError);
-}
+        // 2) similarity set precomputation (ONLY AFTER ALL FIELDS ARE SET)
+        try {
+          await generateSimilarSongs(updatedSong);
+        } catch (similarityError) {
+          console.warn('Similarity precomputation failed:', similarityError);
+        }
 
-return updatedSong;
+        return updatedSong;
       } catch (error) {
         console.error('Error updating song:', error);
         const errorMessage = error?.message || 'Failed to update song.';
@@ -3979,26 +3998,23 @@ newSongUpload,
 
 
 
-addLyrics:  async (_parent, { songId, lyrics }, context) => {
+addLyrics:  async (_parent, { songId, artistId, lyrics }, context) => {
       try {
-        if (!context.artist) throw new Error('Unauthorized: You are not logged in.');
+        const targetArtistId = getProfileMutationArtistId(context, artistId, 'update song lyrics');
 
         const updatedSong = await Song.findByIdAndUpdate(
-          songId,
+          { _id: songId, artist: targetArtistId },
           { $set: { lyrics }, $currentDate: { updatedAt: true } },
           { new: true, runValidators: true }
         );
-        if (!updatedSong) throw new Error('Song not found.');
+        if (!updatedSong) throw new Error('Song not found or you do not have permission to update it.');
 
         // Redis: only lyrics changed
-
         try {
-
-         await ensureSongCached(String(songId));
-await updateSongRedis(String(songId), { lyrics }); 
+          await ensureSongCached(String(songId));
+          await updateSongRedis(String(songId), { lyrics });
         } catch (e) {
-
-         console.warn('[Redis] addArtwork update failed:', e.message);
+          console.warn('[Redis] addLyrics update failed:', e.message);
         }
 
         return updatedSong;
@@ -4010,22 +4026,28 @@ await updateSongRedis(String(songId), { lyrics });
 
     addArtwork: async (_parent, { songId, artwork }, context) => {
       try {
-        if (!context.artist) throw new Error('Unauthorized: You are not logged in.');
+        const advertiser = getAdvertiserFromContext(context);
+        const canAdminEdit = isAdminAdvertiser(advertiser);
+        const artistId = context.artist?._id;
 
+        if (!artistId && !canAdminEdit) {
+          throw new Error('Unauthorized: You must be logged in as the song artist or an admin to update a song.');
+        }
+
+        const songQuery = canAdminEdit ? { _id: songId } : { _id: songId, artist: artistId };
         const updatedSong = await Song.findByIdAndUpdate(
-          songId,
+          songQuery,
           { $set: { artwork }, $currentDate: { updatedAt: true } },
           { new: true, runValidators: true }
         );
-        if (!updatedSong) throw new Error('Song not found.');
+        if (!updatedSong) {
+          throw new Error(canAdminEdit ? 'Song not found.' : 'Song not found or you do not have permission to update it.');
+        }
 
         // Redis: only artwork changed
         try {
-        await ensureSongCached(String(songId));
-   
-await updateSongRedis(String(songId), { artwork });
-
-
+          await ensureSongCached(String(songId));
+          await updateSongRedis(String(songId), { artwork });
         } catch (e) {
           console.warn('[Redis] addArtwork update failed:', e.message);
         }
@@ -4174,14 +4196,27 @@ createAlbum: async (parent, { title }, context) => {
 },
 
 
-createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, context) => {
+createCustomAlbum: async (parent, { title, artistId, releaseDate, albumCoverImage }, context) => {
   try {
-    // Ensure the artist is authenticated
-    if (!context.artist) {
-      throw new Error('Unauthorized: You are not logged in.');
-    }
+    let targetArtistId = context.artist?._id;
 
-    const artistId = context.artist._id;
+    if (!targetArtistId) {
+      const advertiser = getAdvertiserFromContext(context);
+
+      if (!advertiser || !isAdminAdvertiser(advertiser)) {
+        throw new Error('Unauthorized: You must be logged in as an artist or admin to create an album.');
+      }
+
+      if (!artistId) {
+        throw new Error('artistId is required for admin album creation.');
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(artistId)) {
+        throw new Error('Invalid artistId.');
+      }
+
+      targetArtistId = artistId;
+    }
 
     // Validate title
     if (!title) {
@@ -4189,7 +4224,7 @@ createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, conte
     }
 
     // Check if the album with the same title already exists for the artist
-    const existingAlbum = await Album.findOne({ title, artist: artistId });
+    const existingAlbum = await Album.findOne({ title, artist: targetArtistId });
     if (existingAlbum) {
       throw new Error("An album with this title already exists.");
     }
@@ -4197,7 +4232,7 @@ createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, conte
     // Create new album
     const customAlbum = await Album.create({
       title,
-      artist: artistId,
+      artist: targetArtistId,
       releaseDate: releaseDate || new Date().toISOString(), // Set current date if no release date is provided
       albumCoverImage: albumCoverImage || "", // Handle default if no cover image is provided
       createdAt: new Date().toISOString(), // Automatically set created date
@@ -4216,13 +4251,9 @@ createCustomAlbum: async (parent, { title, releaseDate, albumCoverImage }, conte
 
  
 
-updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
+updateAlbum: async (parent, { albumId, artistId, songId, albumCoverImage }, context) => {
   try {
-    if (!context.artist) {
-      throw new Error("Unauthorized: You are not logged in.");
-    }
-
-    const artistId = context.artist._id;
+    const targetArtistId = getProfileMutationArtistId(context, artistId, 'update albums');
 
     // Prepare update object dynamically
     let updateFields = {};
@@ -4236,7 +4267,7 @@ updateAlbum: async (parent, { albumId, songId, albumCoverImage }, context) => {
 
     // Find and update the album
     const updatedAlbum = await Album.findOneAndUpdate(
-      { _id: albumId, artist: artistId }, 
+      { _id: albumId, artist: targetArtistId }, 
       updateFields,
       { new: true, runValidators: true }
     );

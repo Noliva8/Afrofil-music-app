@@ -15,82 +15,104 @@ const MAIN_MOODS = [
     "Sad",
     "Romantic",
     "Calm",
-    "Energetic"
+    "Energetic",
 
+
+    "Worship",
+    "Praise",
+    "Party",
+    "Wedding",
+    "Workout",
 ];
+
+
 
 const SUB_MOODS = {
   
-    Happy: [
-       "Party",
-    "Wedding",
-    "Workout",
-    "Focus",
-    "Sleep",
-    "Dance",
-    "Late Night",
-    "Worship",
-    "Praise"
-    ],
+   Happy: [
+  "Joyful",
+  "Optimistic",
+  "Playful",
+  "Celebratory",
+],
   
 
-    Sad:[
-       "Party",
-    "Wedding",
-    "Workout",
-    "Focus",
-    "Sleep",
-    "Dance",
-    "Late Night",
-    "Praise"
-    ],
+  Sad: [
+  "Heartbreak",
+  "Lonely",
+  "Struggle",
+  "Grief",
+],
  
-  Romantic: ["Party",
-    "Wedding",
-    "Workout",
-    "Focus",
-    "Sleep",
-    "Dance",
-    "Late Night",
-    "Worship",
-    "Praise"
-  ],
+Romantic: [
+  "Crush",
+  "In Love",
+  "Intimate",
+  "Commitment",
+],
   
 
   Calm: [
-    "Party",
-    "Wedding",
-    "Workout",
-    "Focus",
-    "Sleep",
-    "Dance",
-    "Late Night",
-    "Worship",
-    "Praise"
-  ],
-
-  Energetic: [
-    "Party",
-    "Wedding",
-    "Workout",
-    "Focus",
-    "Sleep",
-    "Dance",
-    "Late Night",
-    "Worship",
-    "Praise"
-  ],
- 
- 
- 
+  "Peaceful",
+  "Reflective",
+  "Soothing",
+],
 
 
+Energetic: [
+  "Hype",
+  "Powerful",
+  "Motivational",
+  "Aggressive",
+],
+
+ Worship: [
+  "Devotional",
+  "Prayerful",
+  "Meditative",
+  "Surrender",
+],
+
+Praise: [
+  "Thanksgiving",
+  "Exaltation",
+  "Testimony",
+],
+
+Party: [
+  "Club",
+  "Turn Up",
+  "Festival",
+],
+
+Wedding: [
+  "Gusaba",
+  "Ceremony",
+  "First Dance",
+  "Reception",
+],
+
+Workout: [
+  "Gym",
+  "Running",
+  "Training",
+]
 
 };
 
-export default function Mood({ control, watch }) {
+export default function Mood({ control, setValue, watch }) {
   const theme = useTheme();
   const selectedMoods = watch("mood") || [];
+
+  const clearRemovedSubMoods = (previousMoods, nextMoods) => {
+    if (!setValue) return;
+
+    previousMoods
+      .filter((mood) => !nextMoods.includes(mood))
+      .forEach((mood) => {
+        setValue(`subMoods.${mood}`, []);
+      });
+  };
 
   return (
     <Box mb={3}>
@@ -114,8 +136,14 @@ export default function Mood({ control, watch }) {
             displayEmpty
             value={value || []}
             onChange={(event) => {
+              const currentValue = value || [];
               const nextValue = event.target.value;
-              onChange(typeof nextValue === "string" ? nextValue.split(",").slice(0, 2) : nextValue.slice(0, 2));
+              const normalizedValue = typeof nextValue === "string"
+                ? nextValue.split(",").slice(0, 2)
+                : nextValue.slice(0, 2);
+
+              clearRemovedSubMoods(currentValue, normalizedValue);
+              onChange(normalizedValue);
             }}
             renderValue={(selected) => {
               if (!selected.length) {
@@ -126,7 +154,36 @@ export default function Mood({ control, watch }) {
                 );
               }
 
-              return selected.join(", ");
+              return (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                  {selected.map((mood) => (
+                    <Chip
+                      key={mood}
+                      label={mood}
+                      size="small"
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                      }}
+                      onDelete={() => {
+                        const nextValue = selected.filter((selectedMood) => selectedMood !== mood);
+                        clearRemovedSubMoods(selected, nextValue);
+                        onChange(nextValue);
+                      }}
+                      sx={{
+                        bgcolor: alpha(theme.palette.primary.main, 0.14),
+                        color: theme.palette.text.primary,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.26)}`,
+                        "& .MuiChip-deleteIcon": {
+                          color: theme.palette.text.secondary,
+                          "&:hover": {
+                            color: theme.palette.error.main,
+                          },
+                        },
+                      }}
+                    />
+                  ))}
+                </Box>
+              );
             }}
             MenuProps={{
               PaperProps: {

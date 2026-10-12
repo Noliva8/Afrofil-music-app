@@ -18,7 +18,6 @@ import {
   SONG_UPLOAD,
   UPDATE_SONG,
   GET_PRESIGNED_URL,
-  GET_PRESIGNED_URL_DOWNLOAD,
   GET_PRESIGNED_URL_DELETE,
    NEW_SONG_UPLOAD
 } from "../../utils/mutations";
@@ -75,7 +74,6 @@ export default function ContentFreePlan() {
   const [songCoverImage, setSongCoverImage] = useState('');
   const [keyToDelete, setKeyToDelete] = useState('');
   const [isCoverUploading, setIsCoverUploading] = useState(false);
-  const [displayUrl, setDisplayUrl] = useState('');
 
   // GraphQL operations
   const { loading: albumLoading, error: albumError, data: albumData, refetch: refetchAlbums } = useQuery(GET_ALBUM);
@@ -85,7 +83,6 @@ export default function ContentFreePlan() {
   
   const [updateSong] = useMutation(UPDATE_SONG);
   const [getPresignedUrl] = useMutation(GET_PRESIGNED_URL);
-  const [getPresignedUrlDownload] = useMutation(GET_PRESIGNED_URL_DOWNLOAD);
   const [getPresignedUrlDelete] = useMutation(GET_PRESIGNED_URL_DELETE);
   const [songUpload] = useMutation(SONG_UPLOAD);
 
@@ -139,10 +136,6 @@ const [newSongUpload] = useMutation( NEW_SONG_UPLOAD);
       });
       setIsCoverUploading(true);
 
-      // 1. Create temporary preview
-      const previewUrl = URL.createObjectURL(file);
-      setDisplayUrl(previewUrl);
-
       // Object key (with folder)
       const objectKey = `cover-images/${file.name}`;
 
@@ -177,30 +170,12 @@ if (!res.ok) {
   throw new Error(`S3 PUT failed: ${res.status} ${res.statusText} ${text}`);
 }
 
-
-
-      // 3. Get downloadable URL
-      const { data: downloadData } = await getPresignedUrlDownload({
-        variables: {
-          bucket: "afrofeel-cover-images-for-songs",
-          key: objectKey,
-          region: "us-east-2",
-          
-        },
-      });
-
-      const imageUrlToDisplay = downloadData.getPresignedUrlDownload.url;
-
       const s3ObjectUrl = `https://afrofeel-cover-images-for-songs.s3.us-east-2.amazonaws.com/${objectKey}`;
 
 
-      // 4. Update states: store canonical S3 URL (not presigned) for artwork
+      // Store canonical S3 URL for artwork without rendering a preview.
       setSongCoverImage(s3ObjectUrl);
       setKeyToDelete(objectKey);
-      setDisplayUrl(imageUrlToDisplay || s3ObjectUrl);
-      
-      // 5. Clean up temporary preview
-      URL.revokeObjectURL(previewUrl);
       
     } catch (error) {
       toast.error("Upload failed");
@@ -223,7 +198,6 @@ const deleteSongCoverImage = async () => {
       await fetch(data.getPresignedUrlDelete.urlToDelete, { method: "DELETE" });
       
       setSongCoverImage('');
-      setDisplayUrl('');
       setKeyToDelete('');
       toast.success("Image deleted");
     } catch (error) {
@@ -235,32 +209,6 @@ const deleteSongCoverImage = async () => {
 
 
 
-
-
-
-
-// Display artwork from S3
-const handleSongCoverDisplay = async (fileName) => {
-  try {
-    // 1. Get presigned URL for viewing
-    const { data } = await getPresignedUrlDownload({
-      variables: {
-        bucket: "afrofeel-cover-images-for-songs",
-        key: fileName,
-        region: "us-east-2",
-        expiresIn: 604800 // 7 days expiration
-      },
-    });
-
-    // 2. Return the URL directly (no need to fetch if it's just for display)
-    return data.getPresignedUrlDownload.url;
-    
-  } catch (error) {
-    console.error("Display error:", error);
-    toast.error("Failed to load image");
-    throw error;
-  }
-};
 
 
 

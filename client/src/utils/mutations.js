@@ -450,8 +450,8 @@ export const UPDATE_SONG = gql`
 
 
 export const ADD_LYRICS = gql`
-mutation addLyrics($songId: ID!, $lyrics: String) {
-  addLyrics(songId: $songId, lyrics: $lyrics) {
+mutation addLyrics($songId: ID!, $artistId: ID, $lyrics: String) {
+  addLyrics(songId: $songId, artistId: $artistId, lyrics: $lyrics) {
     _id
   }
 }
@@ -567,8 +567,8 @@ export const DELETE_PLAYLIST = gql`
 `;
 
 export const UPDATE_ALBUM = gql`
-mutation UpdateAlbum($albumId: ID!, $songId: [ID], $albumCoverImage: String) {
-  updateAlbum(albumId: $albumId, songId: $songId, albumCoverImage: $albumCoverImage) {
+mutation UpdateAlbum($albumId: ID!, $artistId: ID, $songId: [ID], $albumCoverImage: String) {
+  updateAlbum(albumId: $albumId, artistId: $artistId, songId: $songId, albumCoverImage: $albumCoverImage) {
     title
     songs {
       _id
@@ -586,8 +586,8 @@ mutation UpdateAlbum($albumId: ID!, $songId: [ID], $albumCoverImage: String) {
 `
 
 export const CUSTOM_ALBUM = gql`
-mutation createCustomAlbum($title: String!, $releaseDate: String, $albumCoverImage: String) {
-  createCustomAlbum(title: $title, releaseDate: $releaseDate, albumCoverImage: $albumCoverImage) {
+mutation createCustomAlbum($title: String!, $artistId: ID, $releaseDate: String, $albumCoverImage: String) {
+  createCustomAlbum(title: $title, artistId: $artistId, releaseDate: $releaseDate, albumCoverImage: $albumCoverImage) {
     _id
     albumCoverImage
     releaseDate

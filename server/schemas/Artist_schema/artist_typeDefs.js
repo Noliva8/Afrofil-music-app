@@ -893,7 +893,7 @@ type Query {
   artistRewardRevenue: ArtistRewardRevenue!
  getArtistSongs(artistId: ID!): [Song]
   songHash(audioHash: String):Song
-  albumOfArtist: [Album]
+  albumOfArtist(artistId: ID): [Album]
   getPresignedUrl(key: String!, operation: String!): String
   songUrls(
     songId: ID!
@@ -1060,6 +1060,7 @@ type Mutation {
 
 addLyrics(
   songId: ID!
+  artistId: ID
   lyrics: String
   
 ): Song
@@ -1099,6 +1100,7 @@ deleteSong(
 
    createCustomAlbum(
     title: String!
+    artistId: ID
     releaseDate: String
     albumCoverImage: String
     createdAt: String
@@ -1110,6 +1112,7 @@ deleteSong(
   
   updateAlbum(
     albumId: ID!
+    artistId: ID
     songId:[ID]
     albumCoverImage: String
   ): Album

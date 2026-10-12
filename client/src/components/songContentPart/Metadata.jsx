@@ -216,10 +216,10 @@ function PrimaryMetadataFields({
   );
 }
 
-function ReleaseMetadataFields({ control, errors, register, watch }) {
+function ReleaseMetadataFields({ control, errors, register, setValue, watch }) {
   return (
     <>
-      <Mood control={control} watch={watch} />
+      <Mood control={control} setValue={setValue} watch={watch} />
       <SongLabel register={register} errors={errors} />
       <ReleaseDate register={register} errors={errors} />
     </>
@@ -357,6 +357,7 @@ export default function Metadata({
               control={control}
               errors={errors}
               register={register}
+              setValue={setValue}
               watch={watch}
             />
           </MetadataSection>

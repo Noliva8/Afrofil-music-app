@@ -38,11 +38,6 @@ import { GET_ALBUM } from "../../../../../utils/queries";
 
 
 
-
-
-
-const steps = ["Song upload", "Add Metadata", "Lyrics", "Artwork"];
-
 export default function  MetadataEdit( {song, onClose, refetch}){
  const theme = useTheme();
  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -208,7 +203,7 @@ setSongId(song._id);
 
    
 
-    const response = await updateSong({ variables });
+    await updateSong({ variables });
 
 setActiveStep(1);
 
@@ -401,7 +396,7 @@ if (albumError) return `Error! ${albumError.message}`;
                 </Box>
               </Box>
 
-              <Mood control={control} watch={watch} />
+              <Mood control={control} setValue={setValue} watch={watch} />
               <ReleaseDate register={register} errors={errors} />
 
               <Box sx={{ 
