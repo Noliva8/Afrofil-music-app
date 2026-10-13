@@ -492,6 +492,24 @@ const httpServer = createServer(app);
 
 
 // List of allowed origins
+// const allowedOrigins = [
+//   'http://localhost:3000',
+//   'http://localhost:3001',
+//   'http://localhost:3003',
+//   'http://localhost:5173',
+
+//   'http://127.0.0.1:3000',
+//   'http://127.0.0.1:3001',
+//   'http://127.0.0.1:3003',
+//   'http://127.0.0.1:5173',
+
+//   'https://flolup.com',
+//   'https://www.flolup.com',
+//    'https://api.flolup.com',
+   
+// ];
+
+
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
@@ -505,8 +523,10 @@ const allowedOrigins = [
 
   'https://flolup.com',
   'https://www.flolup.com',
-   'https://api.flolup.com',
-   
+  'https://api.flolup.com',
+
+  'https://business.flolup.com',
+  'https://www.business.flolup.com',
 ];
 
 // Shared CORS config
