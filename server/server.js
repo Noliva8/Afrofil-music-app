@@ -545,6 +545,8 @@ const corsOptions = {
     'x-apollo-operation-name',
     'x-user-authorization',
     'x-artist-authorization',
+    'x-afrofeel-client-app', 
+  'x-flolup-client-app',  
   ],
 };
 
