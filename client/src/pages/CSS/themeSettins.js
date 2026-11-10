@@ -26,6 +26,7 @@ export const afrofeelTheme = createTheme({
       dark: '#3367D6',
       contrastText: '#ffffff',
     },
+
     background: {
       default: '#050509',
       paper: '#151520',
@@ -34,6 +35,7 @@ export const afrofeelTheme = createTheme({
       primary: '#ffffff',
       secondary: '#B3B3C2',
     },
+    
     action: {
       hoverOpacity: 0.08,
       selectedOpacity: 0.12,

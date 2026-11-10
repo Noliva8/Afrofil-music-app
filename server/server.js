@@ -521,6 +521,10 @@ const allowedOrigins = [
   'http://127.0.0.1:3003',
   'http://127.0.0.1:5173',
 
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+
   'https://flolup.com',
   'https://www.flolup.com',
   'https://api.flolup.com',

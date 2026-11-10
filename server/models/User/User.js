@@ -19,6 +19,16 @@ const userSchema = new Schema({
     match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     index: true
   },
+  googleId: {
+    type: String,
+    sparse: true,
+    unique: true,
+    index: true
+  },
+  profileImage: {
+    type: String,
+    trim: true
+  },
   password: {
     type: String,
     required: true,

@@ -264,6 +264,8 @@ const WelcomeAppNavBar = ({
               </>
             )}
 
+
+
             <Drawer
               anchor="right"
               open={authDrawerOpen}

@@ -18,6 +18,7 @@ import { getRedis } from '../../utils/AdEngine/redis/redisClient.js';
 import sendEmail from '../../utils/emailTransportation.js';
 import { buildDailyMix } from '../../utils/aiMixService.js';
 import { markSeenUserNotification } from '../Artist_schema/MessagingSystem/Notifications/Users/markSeenUserNotification.js';
+import { googleAuth } from './OtherResorvers/google/googleAuthentication.js';
 
 import { notificationOnArtistMessages } from '../Artist_schema/MessagingSystem/Notifications/Users/notificationOnArtistMessages.js';
 
@@ -971,7 +972,8 @@ commentsForSong: async (parent, { songId }) => {
        
       startVisitorVisit,
       attachVisitorToUser,
-      recordUserPresence,
+	  recordUserPresence,
+      googleAuth,
 
 
 // Create a new user

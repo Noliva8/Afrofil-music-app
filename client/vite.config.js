@@ -19,6 +19,7 @@ export default defineConfig({
     }),
   ].filter(Boolean),
   server: {
+    host: '0.0.0.0',
     port: 3000, // Change if port 3000 is in use
     open: true, // Automatically opens in the browser
     proxy: {

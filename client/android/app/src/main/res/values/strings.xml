@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Flolup</string>
+    <string name="title_activity_main">Flolup</string>
+    <string name="package_name">com.flolup.app</string>
+    <string name="custom_url_scheme">com.flolup.app</string>
+</resources>

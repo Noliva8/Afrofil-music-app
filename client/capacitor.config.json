@@ -1,0 +1,8 @@
+{
+  "appId": "com.flolup.app",
+  "appName": "Flolup",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": true
+  }
+}

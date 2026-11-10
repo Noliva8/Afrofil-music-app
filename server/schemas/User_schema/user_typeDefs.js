@@ -132,6 +132,7 @@ enum UserRole {
   premium
 }
 
+
 type Subscription {
   status: SubscriptionStatus!
   periodEnd: Date
@@ -355,6 +356,12 @@ type Comment {
   createdAt: Date!
 }
 
+type AuthPayload {
+  token: String!
+  user: User!
+  isNewUser: Boolean!
+}
+
 
 
 
@@ -572,7 +579,9 @@ deletePlaylist(playlistId: ID!): Boolean
 
 
 
-
+googleAuth(
+    idToken: String!
+  ): AuthPayload!
 
 
 
@@ -582,6 +591,10 @@ deletePlaylist(playlistId: ID!): Boolean
  lon: Float
   lat: Float
  ):userLocation
+
+
+
+  
 
 }
 `;
